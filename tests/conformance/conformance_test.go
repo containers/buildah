@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -183,7 +182,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 			require.Nil(t, err, "error creating test directory to check if xattrs are testable: %v", err)
 		}
 		testFile := filepath.Join(testDir, "testfile")
-		if err := ioutil.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
+		if err := os.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
 			require.Nil(t, err, "error creating test file to check if xattrs are testable: %v", err)
 		}
 		can := false
@@ -241,7 +240,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	dockerfileContents := []byte(test.dockerfileContents)
 	if len(dockerfileContents) == 0 {
 		// no inlined contents -> read them from the specified location
-		contents, err := ioutil.ReadFile(dockerfileName)
+		contents, err := os.ReadFile(dockerfileName)
 		require.Nil(t, err, "error reading Dockerfile %q", filepath.Join(tempdir, dockerfileName))
 		dockerfileContents = contents
 	}
@@ -275,7 +274,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 			require.Nil(t, err, "error mounting test layer to check if xattrs are testable: %v", err)
 		}
 		testFile := filepath.Join(mountPoint, "testfile")
-		if err := ioutil.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
+		if err := os.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
 			require.Nil(t, err, "error creating file in test layer to check if xattrs are testable: %v", err)
 		}
 		can := false
@@ -350,7 +349,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	// contents we were passed, which may only be an initial subset of the
 	// original file, or inlined information, in which case the file didn't
 	// necessarily exist
-	err := ioutil.WriteFile(dockerfileName, dockerfileContents, 0644)
+	err := os.WriteFile(dockerfileName, dockerfileContents, 0644)
 	require.Nil(t, err, "error writing Dockerfile at %q", dockerfileName)
 	err = os.Chtimes(dockerfileName, testDate, testDate)
 	require.Nil(t, err, "error resetting timestamp on Dockerfile at %q", dockerfileName)
@@ -373,7 +372,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 				dockerfileContents = append(dockerfileContents, []byte("\n(no final end-of-line)")...)
 			}
 			t.Logf("Dockerfile contents:\n%s", dockerfileContents)
-			if dockerignoreContents, err := ioutil.ReadFile(filepath.Join(contextDir, ".dockerignore")); err == nil {
+			if dockerignoreContents, err := os.ReadFile(filepath.Join(contextDir, ".dockerignore")); err == nil {
 				t.Logf(".dockerignore contents:\n%s", string(dockerignoreContents))
 			}
 		}
@@ -805,14 +804,14 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	err := os.MkdirAll(directory, 0755)
 	require.Nil(t, err, "error ensuring directory %q exists for storing a report")
 	// save the Dockerfile that was used to generate the image
-	err = ioutil.WriteFile(filepath.Join(directory, "Dockerfile"), dockerfileContents, 0644)
+	err = os.WriteFile(filepath.Join(directory, "Dockerfile"), dockerfileContents, 0644)
 	require.Nil(t, err, "error saving Dockerfile for image %q", imageName)
 	// save the log generated while building the image
-	err = ioutil.WriteFile(filepath.Join(directory, "build.log"), buildLog, 0644)
+	err = os.WriteFile(filepath.Join(directory, "build.log"), buildLog, 0644)
 	require.Nil(t, err, "error saving build log for image %q", imageName)
 	// save the version information
 	if len(version) > 0 {
-		err = ioutil.WriteFile(filepath.Join(directory, "version"), []byte(strings.Join(version, "\n")+"\n"), 0644)
+		err = os.WriteFile(filepath.Join(directory, "version"), []byte(strings.Join(version, "\n")+"\n"), 0644)
 		require.Nil(t, err, "error saving builder version information for image %q", imageName)
 	}
 	// open the image for reading
@@ -838,10 +837,10 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	encodedConfig, err := json.Marshal(ociConfig)
 	require.Nil(t, err, "error encoding OCI-format configuration from image %q for saving", imageName)
 	// save the config blob in the OCI format
-	err = ioutil.WriteFile(filepath.Join(directory, "oci.json"), encodedConfig, 0644)
+	err = os.WriteFile(filepath.Join(directory, "oci.json"), encodedConfig, 0644)
 	require.Nil(t, err, "error saving OCI-format configuration from image %q", imageName)
 	// save the config blob in its original format
-	err = ioutil.WriteFile(filepath.Join(directory, "config.json"), rawConfig, 0644)
+	err = os.WriteFile(filepath.Join(directory, "config.json"), rawConfig, 0644)
 	require.Nil(t, err, "error saving original configuration from image %q", imageName)
 	// start pulling layer information
 	layerBlobInfos, err := img.LayerInfosForCopy(ctx)
@@ -885,7 +884,7 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	// there's no point in saving them for comparison later
 	encodedFSTree, err := json.Marshal(fstree.Tree)
 	require.Nil(t, err, "error encoding filesystem tree from image %q for saving", imageName)
-	err = ioutil.WriteFile(filepath.Join(directory, "fs.json"), encodedFSTree, 0644)
+	err = os.WriteFile(filepath.Join(directory, "fs.json"), encodedFSTree, 0644)
 	require.Nil(t, err, "error saving filesystem tree from image %q", imageName)
 }
 
@@ -1017,21 +1016,21 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 // read information about the specified image from the specified directory
 func readReport(t *testing.T, directory string) (original, oci, fs map[string]interface{}) {
 	// read the config in the as-committed (docker) format
-	originalConfig, err := ioutil.ReadFile(filepath.Join(directory, "config.json"))
+	originalConfig, err := os.ReadFile(filepath.Join(directory, "config.json"))
 	require.Nil(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
 	// dump it into a map
 	original = make(map[string]interface{})
 	err = json.Unmarshal(originalConfig, &original)
 	require.Nil(t, err, "error decoding configuration from file %q", filepath.Join(directory, "config.json"))
 	// read the config in converted-to-OCI format
-	ociConfig, err := ioutil.ReadFile(filepath.Join(directory, "oci.json"))
+	ociConfig, err := os.ReadFile(filepath.Join(directory, "oci.json"))
 	require.Nil(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci.json"))
 	// dump it into a map
 	oci = make(map[string]interface{})
 	err = json.Unmarshal(ociConfig, &oci)
 	require.Nil(t, err, "error decoding OCI configuration from file %q", filepath.Join(directory, "oci.json"))
 	// read the filesystem
-	fsInfo, err := ioutil.ReadFile(filepath.Join(directory, "fs.json"))
+	fsInfo, err := os.ReadFile(filepath.Join(directory, "fs.json"))
 	require.Nil(t, err, "error reading filesystem summary file %q", filepath.Join(directory, "fs.json"))
 	// dump it into a map for comparison
 	fs = make(map[string]interface{})
@@ -1551,7 +1550,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "archive", "should-be-owned-by-root")
-			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0640); err != nil {
 				return fmt.Errorf("error creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
@@ -1561,7 +1560,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "archive", "should-be-owned-by-99")
-			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0640); err != nil {
 				return fmt.Errorf("error creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
@@ -1637,7 +1636,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
-			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0640); err != nil {
 				return fmt.Errorf("error creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
@@ -1647,7 +1646,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
-			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0640); err != nil {
 				return fmt.Errorf("error creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
@@ -1676,7 +1675,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
-			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0640); err != nil {
 				return fmt.Errorf("error creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
@@ -1686,7 +1685,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
-			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0640); err != nil {
 				return fmt.Errorf("error creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
@@ -1733,7 +1732,7 @@ var internalTestCases = []testCase{
 		}, "\n"),
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			filename := filepath.Join(contextDir, "should-be-setuid-file")
-			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return fmt.Errorf("error creating setuid test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, syscall.S_ISUID|0755); err != nil {
@@ -1743,7 +1742,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error setting date on setuid test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-be-setgid-file")
-			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return fmt.Errorf("error creating setgid test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, syscall.S_ISGID|0755); err != nil {
@@ -1753,7 +1752,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error setting date on setgid test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-be-sticky-file")
-			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return fmt.Errorf("error creating sticky test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, syscall.S_ISVTX|0755); err != nil {
@@ -1763,7 +1762,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("error setting date on sticky test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-not-be-setuid-setgid-sticky-file")
-			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return fmt.Errorf("error creating non-suid non-sgid non-sticky test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, 0640); err != nil {
@@ -1794,7 +1793,7 @@ var internalTestCases = []testCase{
 			}
 
 			filename := filepath.Join(contextDir, "xattrs-file")
-			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return fmt.Errorf("error creating test file with xattrs in temporary context directory: %w", err)
 			}
 			if err = copier.Lsetxattrs(filename, map[string]string{"user.a": "test"}); err != nil {
@@ -1989,7 +1988,7 @@ var internalTestCases = []testCase{
 			}
 
 			filename := filepath.Join(contextDir, "xattrs-file")
-			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return fmt.Errorf("error creating test file with xattrs in temporary context directory: %w", err)
 			}
 			if err = copier.Lsetxattrs(filename, map[string]string{"user.a": "test"}); err != nil {
@@ -2156,7 +2155,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/empty",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2176,7 +2175,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0644); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2196,7 +2195,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2216,7 +2215,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"!**/*-c"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2236,7 +2235,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("!**/*-c\n")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0100); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0100); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2256,7 +2255,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-c")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2276,7 +2275,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-c")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2296,7 +2295,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-c")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2316,7 +2315,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-c")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2336,7 +2335,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-*")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2356,7 +2355,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-*")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2376,7 +2375,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-*")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2396,7 +2395,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-*")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2416,7 +2415,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-f")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0666); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0666); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2436,7 +2435,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-f")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2456,7 +2455,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-b")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0705); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0705); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2476,7 +2475,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-b")
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2496,7 +2495,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2516,7 +2515,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2536,7 +2535,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2556,7 +2555,7 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/populated",
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
-			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("error writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {

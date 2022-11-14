@@ -6,7 +6,6 @@ package buildah
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,7 +70,7 @@ func setChildProcess() error {
 }
 
 func (b *Builder) Run(command []string, options RunOptions) error {
-	p, err := ioutil.TempDir("", Package)
+	p, err := os.MkdirTemp("", Package)
 	if err != nil {
 		return err
 	}

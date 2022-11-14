@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,7 +68,7 @@ func setChildProcess() error {
 
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
-	p, err := ioutil.TempDir("", define.Package)
+	p, err := os.MkdirTemp("", define.Package)
 	if err != nil {
 		return err
 	}
@@ -477,7 +476,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	defer rootlessSlirpSyncR.Close()
 
 	// Be sure there are no fds inherited to slirp4netns except the sync pipe
-	files, err := ioutil.ReadDir("/proc/self/fd")
+	files, err := os.ReadDir("/proc/self/fd")
 	if err != nil {
 		return nil, fmt.Errorf("cannot list open fds: %w", err)
 	}
