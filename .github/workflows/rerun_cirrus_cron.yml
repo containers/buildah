@@ -1,7 +1,6 @@
 ---
 
-# See also:
-# https://github.com/containers/podman/blob/main/.github/workflows/check_cirrus_cron.yml
+# See also: https://github.com/containers/podman/blob/main/.github/workflows/rerun_cirrus_cron.yml
 
 on:
   # Note: This only applies to the default branch.
@@ -9,12 +8,12 @@ on:
     # N/B: This should correspond to a period slightly after
     # the last job finishes running.  See job defs. at:
     # https://cirrus-ci.com/settings/repository/6706677464432640
-    - cron:  '59 23 * * 1-5'
+    - cron:  '05 22 * * 1-5'
   # Debug: Allow triggering job manually in github-actions WebUI
   workflow_dispatch: {}
 
 jobs:
   # Ref: https://docs.github.com/en/actions/using-workflows/reusing-workflows
-  call_cron_failures:
-    uses: containers/podman/.github/workflows/check_cirrus_cron.yml@main
+  call_cron_rerun:
+    uses: containers/podman/.github/workflows/rerun_cirrus_cron.yml@main
     secrets: inherit
