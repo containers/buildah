@@ -5410,6 +5410,9 @@ _EOF
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewritewithoutz
   # try reading something from persistent cache in a different build
   run_buildah build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecachereadwithoutz
+  buildah_cache_dir="$TMPDIR/buildah-cache-$UID"
+  # buildah cache parent must exist for uid specific to this invocation
+  test -d "$buildah_cache_dir"
   expect_output --substring "hello"
 }
 

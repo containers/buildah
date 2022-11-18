@@ -18,6 +18,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/lockfile"
+	"github.com/containers/storage/pkg/unshare"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
 )
@@ -330,8 +331,8 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		// create a common cache directory, which persists on hosts within temp lifecycle
 		// add subdirectory if specified
 
-		// cache parent directory
-		cacheParent := filepath.Join(internalUtil.GetTempDir(), BuildahCacheDir)
+		// cache parent directory: creates separate cache parent for each user.
+		cacheParent := filepath.Join(internalUtil.GetTempDir(), BuildahCacheDir+"-"+strconv.Itoa(unshare.GetRootlessUID()))
 		// create cache on host if not present
 		err = os.MkdirAll(cacheParent, os.FileMode(0755))
 		if err != nil {
