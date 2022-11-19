@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.28.1 (2022-11-19)
+
+   copier.Put(): clear up os/syscall mode bit confusion
+
 ## v1.28.0 (2022-09-30)
 
     Update vendor containers/(common,image)
