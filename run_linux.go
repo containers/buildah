@@ -1199,8 +1199,8 @@ func checkIdsGreaterThan5(ids []spec.LinuxIDMapping) bool {
 	return false
 }
 
-// If this function succeeds and returns a non-nil lockfile.Locker, the caller must unlock it (when??).
-func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, lockfile.Locker, error) {
+// If this function succeeds and returns a non-nil *lockfile.LockFile, the caller must unlock it (when??).
+func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, *lockfile.LockFile, error) {
 	var optionMounts []specs.Mount
 	mount, targetLock, err := internalParse.GetCacheMount(tokens, b.store, b.MountLabel, stageMountPoints)
 	if err != nil {
