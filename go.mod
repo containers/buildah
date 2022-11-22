@@ -3,12 +3,12 @@ module github.com/containers/buildah
 go 1.17
 
 require (
-	github.com/containerd/containerd v1.6.9
+	github.com/containerd/containerd v1.6.10
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.50.2-0.20221111184705-791b83e1cdf1
-	github.com/containers/image/v5 v5.23.1-0.20221109193300-0d85878d7a77
+	github.com/containers/common v0.50.2-0.20221121202831-385be9a25125
+	github.com/containers/image/v5 v5.23.1-0.20221121174826-d8eb9dd60533
 	github.com/containers/ocicrypt v1.1.6
-	github.com/containers/storage v1.44.1-0.20221110192950-67e9778710f8
+	github.com/containers/storage v1.44.1-0.20221121144727-71fd3e87df7a
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.21+incompatible
 	github.com/docker/go-units v0.5.0
@@ -32,7 +32,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.2.0
+	golang.org/x/crypto v0.3.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.2.0
 	golang.org/x/term v0.2.0
@@ -48,7 +48,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.12.1 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.13.0 // indirect
 	github.com/containernetworking/plugins v1.1.1 // indirect
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
