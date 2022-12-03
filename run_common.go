@@ -1464,7 +1464,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
 	sshCount := 0
 	defaultSSHSock := ""
-	targetLocks := []lockfile.Locker{}
+	targetLocks := []*lockfile.LockFile{}
 	succeeded := false
 	defer func() {
 		if !succeeded {
