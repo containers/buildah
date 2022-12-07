@@ -168,7 +168,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
-	mounts, mountedImages, targetLocks, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir)
+	mounts, mountedImages, targetLocks, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir, iopts.workingDir)
 	if err != nil {
 		return err
 	}
