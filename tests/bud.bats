@@ -3520,13 +3520,13 @@ _EOF
   # pulled since the local one does not match the requested architecture.
   run_buildah tag image-amd localhost/ubi8-minimal
   run_buildah build -f Containerfile --pull=false -q --arch=arm64 -t image-arm $WITH_POLICY_JSON ${mytmpdir}
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-arm
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' image-arm
   expect_output --substring arm64
 
   run_buildah inspect --format '{{ .FromImageID }}' image-arm
   fromiid=$output
 
-  run_buildah inspect --format '{{ index .OCIv1.Architecture  }}'  $fromiid
+  run_buildah inspect --format '{{ .OCIv1.Architecture  }}'  $fromiid
   expect_output --substring arm64
 }
 
