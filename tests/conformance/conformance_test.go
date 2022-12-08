@@ -1872,6 +1872,42 @@ var internalTestCases = []testCase{
 			if _, err = io.Copy(tw, bytes.NewReader([]byte("whatever"))); err != nil {
 				return errors.Wrapf(err, "error writing tar archive content")
 			}
+			hdr = tar.Header{
+				Name:     "setuid-dir",
+				Uid:      0,
+				Gid:      0,
+				Typeflag: tar.TypeDir,
+				Size:     0,
+				Mode:     cISUID | 0755,
+				ModTime:  testDate,
+			}
+			if err = tw.WriteHeader(&hdr); err != nil {
+				return fmt.Errorf("error writing tar archive header: %w", err)
+			}
+			hdr = tar.Header{
+				Name:     "setgid-dir",
+				Uid:      0,
+				Gid:      0,
+				Typeflag: tar.TypeDir,
+				Size:     0,
+				Mode:     cISGID | 0755,
+				ModTime:  testDate,
+			}
+			if err = tw.WriteHeader(&hdr); err != nil {
+				return fmt.Errorf("error writing tar archive header: %w", err)
+			}
+			hdr = tar.Header{
+				Name:     "sticky-dir",
+				Uid:      0,
+				Gid:      0,
+				Typeflag: tar.TypeDir,
+				Size:     0,
+				Mode:     cISVTX | 0755,
+				ModTime:  testDate,
+			}
+			if err = tw.WriteHeader(&hdr); err != nil {
+				return fmt.Errorf("error writing tar archive header: %w", err)
+			}
 			return nil
 		},
 	},

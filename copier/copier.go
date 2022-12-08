@@ -1565,15 +1565,15 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 		return nil
 	}
 	makeDirectoryWriteable := func(directory string) error {
-		st, err := os.Lstat(directory)
-		if err != nil {
-			return errors.Wrapf(err, "copier: put: error reading permissions of directory %q", directory)
-		}
-		mode := st.Mode() & os.ModePerm
 		if _, ok := directoryModes[directory]; !ok {
+			st, err := os.Lstat(directory)
+			if err != nil {
+				return errors.Wrapf(err, "copier: put: error reading permissions of directory %q", directory)
+			}
+			mode := st.Mode()
 			directoryModes[directory] = mode
 		}
-		if err = os.Chmod(directory, 0o700); err != nil {
+		if err := os.Chmod(directory, 0o700); err != nil {
 			return errors.Wrapf(err, "copier: put: error making directory %q writable", directory)
 		}
 		return nil
@@ -1859,16 +1859,21 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			// set other bits that might have been reset by chown()
 			if hdr.Typeflag != tar.TypeSymlink {
 				if hdr.Mode&cISUID == cISUID {
-					mode |= syscall.S_ISUID
+					mode |= os.ModeSetuid
 				}
 				if hdr.Mode&cISGID == cISGID {
-					mode |= syscall.S_ISGID
+					mode |= os.ModeSetgid
 				}
 				if hdr.Mode&cISVTX == cISVTX {
-					mode |= syscall.S_ISVTX
+					mode |= os.ModeSticky
 				}
-				if err = syscall.Chmod(path, uint32(mode)); err != nil {
-					return errors.Wrapf(err, "error setting additional permissions on %q to 0%o", path, mode)
+				if hdr.Typeflag == tar.TypeDir {
+					// if/when we do the final setting of permissions on this
+					// directory, make sure to incorporate these bits, too
+					directoryModes[path] = mode
+				}
+				if err = os.Chmod(path, mode); err != nil {
+					return errors.Wrapf(err, "copier: put: setting additional permissions on %q to 0%o", path, mode)
 				}
 			}
 			// set xattrs, including some that might have been reset by chown()
