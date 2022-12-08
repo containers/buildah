@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.26.6 (2022-12-08)
+
+    copier.Put(): clear up os/syscall mode bit confusion
+
 ## v1.26.5 (2022-09-20)
 
     build: error out if path to containerfile is a directory
