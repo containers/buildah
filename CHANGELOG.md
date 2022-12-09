@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.27.3 (2022-12-09)
+
+    copier.Put(): clear up os/syscall mode bit confusion
+
 ## v1.27.2 (2022-09-20)
 
     build: backport the --skip-unused-stages flag.
