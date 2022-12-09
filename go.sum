@@ -176,8 +176,8 @@ github.com/containerd/containerd v1.5.0-rc.0/go.mod h1:V/IXoMqNGgBlabz3tHD2TWDoT
 github.com/containerd/containerd v1.5.1/go.mod h1:0DOxVqwDy2iZvrZp2JUx/E+hS0UNTVn7dJnIOwtYR4g=
 github.com/containerd/containerd v1.5.7/go.mod h1:gyvv6+ugqY25TiXxcZC3L5yOeYgEw0QMhscqVp1AR9c=
 github.com/containerd/containerd v1.5.9/go.mod h1:fvQqCfadDGga5HZyn3j4+dx56qj2I9YwBrlSdalvJYQ=
-github.com/containerd/containerd v1.6.10 h1:8aiav7I2ZyQLbTlNMcBXyAU1FtFvp6VuyuW13qSd6Hk=
-github.com/containerd/containerd v1.6.10/go.mod h1:CVqfxdJ95PDgORwA219AwwLrREZgrTFybXu2HfMKRG0=
+github.com/containerd/containerd v1.6.12 h1:kJ9b3mOFKf8yqo05Ob+tMoxvt1pbVWhnB0re9Y+k+8c=
+github.com/containerd/containerd v1.6.12/go.mod h1:K4Bw7gjgh4TnkmQY+py/PYQGp4e7xgnHAeg87VeWb3A=
 github.com/containerd/continuity v0.0.0-20190426062206-aaeac12a7ffc/go.mod h1:GL3xCUCBDV3CZiTSEKksMWbLE66hEyuu9qyDOOqM47Y=
 github.com/containerd/continuity v0.0.0-20190815185530-f2a389ac0a02/go.mod h1:GL3xCUCBDV3CZiTSEKksMWbLE66hEyuu9qyDOOqM47Y=
 github.com/containerd/continuity v0.0.0-20191127005431-f65d91d395eb/go.mod h1:GL3xCUCBDV3CZiTSEKksMWbLE66hEyuu9qyDOOqM47Y=
@@ -234,10 +234,10 @@ github.com/containernetworking/plugins v0.8.6/go.mod h1:qnw5mN19D8fIwkqW7oHHYDHV
 github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRDjeJr6FLK6vuiUwoH7P8=
 github.com/containernetworking/plugins v1.1.1 h1:+AGfFigZ5TiQH00vhR8qPeSatj53eNGz0C1d3wVYlHE=
 github.com/containernetworking/plugins v1.1.1/go.mod h1:Sr5TH/eBsGLXK/h71HeLfX19sZPp3ry5uHSkI4LPxV8=
-github.com/containers/common v0.50.2-0.20221205183149-370a48d60f72 h1:dMxKfJxWJQ6KLKUeSIopLnvtlJGPA457tgA3dAXZpD8=
-github.com/containers/common v0.50.2-0.20221205183149-370a48d60f72/go.mod h1:M1epBsHlUAeySDuMx+HdbvKBVf0odzLciecS5AQa6FA=
-github.com/containers/image/v5 v5.23.1-0.20221130170538-333c50e3eac8 h1:GLTTwKYkNGDhG3HagLuPvhieu1JEjDs9RsCDr8oJr9s=
-github.com/containers/image/v5 v5.23.1-0.20221130170538-333c50e3eac8/go.mod h1:dXknI7O86/PznywqTwyHaCpuK1MBh1QYxLkSqyDswI0=
+github.com/containers/common v0.50.2-0.20221209085636-567290d3d3b3 h1:pq2DkX0J0tW4BLoGSo48gobOUY8R2B4odUyAKm6oGQM=
+github.com/containers/common v0.50.2-0.20221209085636-567290d3d3b3/go.mod h1:rXlFsYGdvJsGUBcJpezcLPV9cFXG7dYho8xx9LbnSR0=
+github.com/containers/image/v5 v5.23.1-0.20221209092225-431fd251c4c5 h1:YI8QkSmvq/gWPtJEKZwcURESjfv7ytCCYn9UtCFdpIo=
+github.com/containers/image/v5 v5.23.1-0.20221209092225-431fd251c4c5/go.mod h1:ewqsCjZFwsnNcU344W178H0vqFZ7lFzE1/lqpBT1jQA=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a h1:spAGlqziZjCJL25C6F1zsQY05tfCKE9F5YwtEWWe6hU=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/ocicrypt v1.0.1/go.mod h1:MeJDzk1RJHv89LjsH0Sp5KTY3ZYkjXO/C+bKAeWFIrc=
@@ -246,8 +246,8 @@ github.com/containers/ocicrypt v1.1.1/go.mod h1:Dm55fwWm1YZAjYRaJ94z2mfZikIyIN4B
 github.com/containers/ocicrypt v1.1.6 h1:uoG52u2e91RE4UqmBICZY8dNshgfvkdl3BW6jnxiFaI=
 github.com/containers/ocicrypt v1.1.6/go.mod h1:WgjxPWdTJMqYMjf3M6cuIFFA1/MpyyhIM99YInA+Rvc=
 github.com/containers/storage v1.37.0/go.mod h1:kqeJeS0b7DO2ZT1nVWs0XufrmPFbgV3c+Q/45RlH6r4=
-github.com/containers/storage v1.44.1-0.20221201083122-c5a80ad65f42 h1:lba+h0VcMGvO/C4Q+oMhGxpgajzyQifbcedOYQNVRx8=
-github.com/containers/storage v1.44.1-0.20221201083122-c5a80ad65f42/go.mod h1:pYkSXaKIGAuEQmIf/melI5wbS/JBM++6Xp4JuVTqY7U=
+github.com/containers/storage v1.44.1-0.20221209075713-e546955f90ea h1:qSEIGnbOHhz50IHBBzHjWUsUL/ei/k5e5IPexvbk5sE=
+github.com/containers/storage v1.44.1-0.20221209075713-e546955f90ea/go.mod h1:pYkSXaKIGAuEQmIf/melI5wbS/JBM++6Xp4JuVTqY7U=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-iptables v0.4.5/go.mod h1:/mVI274lEDI2ns62jHCDnCyBF9Iwsmekav8Dbxlm1MU=
@@ -561,8 +561,8 @@ github.com/mattn/go-shellwords v1.0.6/go.mod h1:3xCvwCdWdlDJUrvuMn7Wuy9eWs4pE8vq
 github.com/mattn/go-shellwords v1.0.12 h1:M2zGm7EW6UQJvDeQxo4T51eKPurbeFbe8WtebGE2xrk=
 github.com/mattn/go-shellwords v1.0.12/go.mod h1:EZzvwXDESEeg03EKmM+RmDnNOPKG4lLtQsUlTZDWQ8Y=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 h1:I0XW9+e1XWDxdcEniV4rQAIOPUGDq67JSCiRCgGCZLI=
 github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
+github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zkfA9PSy5pEvNWRP0ET0TIVo=
 github.com/maxbrunsfeld/counterfeiter/v6 v6.2.2/go.mod h1:eD9eIE7cdwcMi9rYluz88Jz2VyhSmden33/aXg4oVIY=
 github.com/miekg/pkcs11 v1.0.3/go.mod h1:XsNlhZGX73bx86s2hdc/FuaLm2CPZJemRLMA+WTFxgs=
 github.com/miekg/pkcs11 v1.1.1 h1:Ugu9pdy6vAYku5DEpVWVFPYnzV+bxB+iRdbuFSu7TvU=
@@ -956,8 +956,8 @@ golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4/go.mod h1:p54w0d4576C0XHj96b
 golang.org/x/net v0.0.0-20210428140749-89ef3d95e781/go.mod h1:OJAsFXCWl8Ukc7SiCT/9KSuxbyM7479/AVlXFRxuMCk=
 golang.org/x/net v0.0.0-20210825183410-e898025ed96a/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
 golang.org/x/net v0.0.0-20220114011407-0dd24b26b47d/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
-golang.org/x/net v0.3.0 h1:VWL6FNY2bEEmsGVKabSlHu5Irp34xmMRoqb/9lF9lxk=
-golang.org/x/net v0.3.0/go.mod h1:MBQ8lrhLObU/6UmLb4fmbmk5OcyYmqtbGd/9yIeKjEE=
+golang.org/x/net v0.4.0 h1:Q5QPcMlvfxFTAPV0+07Xz/MpK9NTXu2VDUuy0FeMfaU=
+golang.org/x/net v0.4.0/go.mod h1:MBQ8lrhLObU/6UmLb4fmbmk5OcyYmqtbGd/9yIeKjEE=
 golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
 golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421/go.mod h1:gOpvHmFTYa4IltrdGE7lF6nIHvwfUNPOp7c8zoXwtLw=
 golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45/go.mod h1:gOpvHmFTYa4IltrdGE7lF6nIHvwfUNPOp7c8zoXwtLw=
