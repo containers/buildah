@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -779,7 +778,7 @@ func testGetSingle(t *testing.T) {
 					}
 					t.Run(fmt.Sprintf("absolute=%t,topdir=%s,archive=%s,item=%s", absolute, topdir, testArchive.name, name), func(t *testing.T) {
 						// check if we can get this one item
-						err := Get(root, topdir, getOptions, []string{name}, ioutil.Discard)
+						err := Get(root, topdir, getOptions, []string{name}, io.Discard)
 						// if we couldn't read that content, check if it's one of the expected failures
 						if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testItem.Name, testArchive.expectedGetErrors) {
 							return
@@ -1404,7 +1403,7 @@ func testGetMultiple(t *testing.T) {
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {
 					// ensure that we can get stuff using this spec
-					err := Get(root, topdir, getOptions, []string{testCase.pattern}, ioutil.Discard)
+					err := Get(root, topdir, getOptions, []string{testCase.pattern}, io.Discard)
 					if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testCase.pattern, testArchive.expectedGetErrors) {
 						return
 					}

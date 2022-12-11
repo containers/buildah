@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -423,7 +422,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		UnsetEnvs:               iopts.UnsetEnvs,
 	}
 	if iopts.Quiet {
-		options.ReportWriter = ioutil.Discard
+		options.ReportWriter = io.Discard
 	}
 	return options, containerfiles, removeAll, nil
 }

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -124,11 +123,11 @@ func testGetPermissionError(t *testing.T) {
 	require.NoError(t, err, "error creating a readable directory")
 	err = os.Mkdir(filepath.Join(tmp, "readable-directory", "unreadable-subdirectory"), 0000)
 	require.NoError(t, err, "error creating an unreadable subdirectory")
-	err = ioutil.WriteFile(filepath.Join(tmp, "unreadable-file"), []byte("hi, i'm a file that you can't read"), 0000)
+	err = os.WriteFile(filepath.Join(tmp, "unreadable-file"), []byte("hi, i'm a file that you can't read"), 0000)
 	require.NoError(t, err, "error creating an unreadable file")
-	err = ioutil.WriteFile(filepath.Join(tmp, "readable-file"), []byte("hi, i'm also a file, and you can read me"), 0644)
+	err = os.WriteFile(filepath.Join(tmp, "readable-file"), []byte("hi, i'm also a file, and you can read me"), 0644)
 	require.NoError(t, err, "error creating a readable file")
-	err = ioutil.WriteFile(filepath.Join(tmp, "readable-directory", "unreadable-file"), []byte("hi, i'm also a file that you can't read"), 0000)
+	err = os.WriteFile(filepath.Join(tmp, "readable-directory", "unreadable-file"), []byte("hi, i'm also a file that you can't read"), 0000)
 	require.NoError(t, err, "error creating an unreadable file in a readable directory")
 	for _, ignore := range []bool{false, true} {
 		t.Run(fmt.Sprintf("ignore=%v", ignore), func(t *testing.T) {
@@ -175,7 +174,7 @@ func TestGetNoCrossDevice(t *testing.T) {
 	}()
 
 	skipped := filepath.Join(subdir, "skipped.txt")
-	err = ioutil.WriteFile(skipped, []byte("this file should have been skipped\n"), 0644)
+	err = os.WriteFile(skipped, []byte("this file should have been skipped\n"), 0644)
 	require.NoErrorf(t, err, "error writing file at %q", skipped)
 
 	var buf bytes.Buffer
