@@ -50,16 +50,20 @@ const (
 	BuildahCacheDir = "buildah-cache"
 )
 
-// RepoNameToNamedReference parse the raw string to Named reference
-func RepoNameToNamedReference(dest string) (reference.Named, error) {
-	named, err := reference.ParseNormalizedNamed(dest)
-	if err != nil {
-		return nil, fmt.Errorf("invalid repo %q: must contain registry and repository: %w", dest, err)
+// RepoNamesToNamedReferences parse the raw string to Named reference
+func RepoNamesToNamedReferences(destList []string) ([]reference.Named, error) {
+	var result []reference.Named
+	for _, dest := range destList {
+		named, err := reference.ParseNormalizedNamed(dest)
+		if err != nil {
+			return nil, fmt.Errorf("invalid repo %q: must contain registry and repository: %w", dest, err)
+		}
+		if !reference.IsNameOnly(named) {
+			return nil, fmt.Errorf("repository must contain neither a tag nor digest: %v", named)
+		}
+		result = append(result, named)
 	}
-	if !reference.IsNameOnly(named) {
-		return nil, fmt.Errorf("repository must contain neither a tag nor digest: %v", named)
-	}
-	return named, nil
+	return result, nil
 }
 
 // CommonBuildOptions parses the build options from the bud cli
