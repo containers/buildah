@@ -3,7 +3,6 @@ package copier
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
@@ -28,7 +27,7 @@ func TestXattrs(t *testing.T) {
 	tmp := t.TempDir()
 	for attribute, value := range testValues {
 		t.Run(fmt.Sprintf("attribute=%s", attribute), func(t *testing.T) {
-			f, err := ioutil.TempFile(tmp, "copier-xattr-test-")
+			f, err := os.CreateTemp(tmp, "copier-xattr-test-")
 			if !assert.Nil(t, err, "error creating test file: %v", err) {
 				t.FailNow()
 			}
