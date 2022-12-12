@@ -96,12 +96,12 @@ The value of `[name]` is matched with the following priority order:
 
 **--cache-from**
 
-Repository to utilize as a potential cache source. When specified, Buildah will try to look for
-cache images in the specified repository and will attempt to pull cache images instead of actually
+Repository to utilize as a potential list of cache sources. When specified, Buildah will try to look for
+cache images in the specified repositories and will attempt to pull cache images instead of actually
 executing the build steps locally. Buildah will only attempt to pull previously cached images if they
 are considered as valid cache hits.
 
-Use the `--cache-to` option to populate a remote repository with cache content.
+Use the `--cache-to` option to populate a remote repository or repositories with cache content.
 
 Example
 
@@ -114,8 +114,8 @@ Note: `--cache-from` option is ignored unless `--layers` is specified.
 
 **--cache-to**
 
-Set this flag to specify a remote repository that will be used to store cache images. Buildah will attempt to
-push newly built cache image to the remote repository.
+Set this flag to specify list of remote repositories that will be used to store cache images. Buildah will attempt to
+push newly built cache image to the remote repositories.
 
 Note: Use the `--cache-from` option in order to use cache content in a remote repository.
 

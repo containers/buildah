@@ -57,8 +57,8 @@ var builtinAllowedBuildArgs = map[string]bool{
 // interface.  It coordinates the entire build by using one or more
 // StageExecutors to handle each stage of the build.
 type Executor struct {
-	cacheFrom                      reference.Named
-	cacheTo                        reference.Named
+	cacheFrom                      []reference.Named
+	cacheTo                        []reference.Named
 	cacheTTL                       time.Duration
 	containerSuffix                string
 	logger                         *logrus.Logger
