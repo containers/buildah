@@ -1198,7 +1198,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 				defer teardown()
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("setup network: %w", err)
 			}
 
 			// only add hosts if we manage the hosts file
