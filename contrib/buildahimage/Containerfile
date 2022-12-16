@@ -28,7 +28,8 @@ ARG FLAVOR=stable
 # TODO: rpm --setcaps... needed due to Fedora (base) image builds
 #       being (maybe still?) affected by
 #       https://bugzilla.redhat.com/show_bug.cgi?id=1995337#c3
-RUN dnf -y update && \
+RUN rm -f /etc/yum.repos.d/fedora-cisco-openh264.repo && \
+    dnf -y update && \
     rpm --setcaps shadow-utils 2>/dev/null && \
     case "${FLAVOR}" in \
       stable) \
