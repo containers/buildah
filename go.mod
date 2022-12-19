@@ -9,6 +9,7 @@ require (
 	github.com/containers/image/v5 v5.23.1-0.20221209092225-431fd251c4c5
 	github.com/containers/ocicrypt v1.1.6
 	github.com/containers/storage v1.44.1-0.20221209075713-e546955f90ea
+	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.21+incompatible
 	github.com/docker/go-units v0.5.0
@@ -52,7 +53,6 @@ require (
 	github.com/containerd/stargz-snapshotter/estargz v0.13.0 // indirect
 	github.com/containernetworking/plugins v1.1.1 // indirect
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
-	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/disiqueira/gotree/v3 v3.0.2 // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect

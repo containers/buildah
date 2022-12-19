@@ -25,6 +25,17 @@ load helpers
   expect_output --substring "options use-vc"
 }
 
+@test "bud with ignoresymlink on default file" {
+	  cat > /tmp/private_file << _EOF
+hello
+_EOF
+
+run_buildah build $WITH_POLICY_JSON -t test -f Dockerfile $BUDFILES/container-ignoresymlink
+# Default file must not point to symlink so hello should not be ignored from build context
+expect_output --substring "hello"
+
+}
+
 #Verify https://github.com/containers/buildah/issues/4342
 @test "buildkit-mount type=cache should not hang if cache is wiped in between" {
   containerfile=$BUDFILES/cache-mount-locked/Containerfile
