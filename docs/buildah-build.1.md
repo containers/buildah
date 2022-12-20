@@ -603,9 +603,13 @@ If the pull flag is set to `always` (with *--pull=always*),
 pull the image from the first registry it is found in as listed in registries.conf.
 Raise an error if not found in the registries, even if the image is present locally.
 
+If the pull flag is set to `missing` (with *--pull=missing*),
+pull the image only if it could not be found in the local containers storage.
+Raise an error if no image could be found and the pull fails.
+
 If the pull flag is set to `never` (with *--pull=never*),
-Do not pull the image from the registry, use only the local version. Raise an error
-if the image is not present locally.
+Do not pull the image from the registry, use only the local version.
+Raise an error if the image is not present locally.
 
 Defaults to *true*.
 
