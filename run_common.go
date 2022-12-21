@@ -265,6 +265,20 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 	for _, gid := range user.AdditionalGids {
 		g.AddProcessAdditionalGid(gid)
 	}
+	for _, group := range b.GroupAdd {
+		if group == "keep-groups" {
+			if len(b.GroupAdd) > 1 {
+				return "", errors.New("the '--group-add keep-groups' option is not allowed with any other --group-add options")
+			}
+			g.AddAnnotation("run.oci.keep_original_groups", "1")
+			continue
+		}
+		gid, err := strconv.ParseUint(group, 10, 32)
+		if err != nil {
+			return "", err
+		}
+		g.AddProcessAdditionalGid(uint32(gid))
+	}
 
 	// Remove capabilities if not running as root except Bounding set
 	if user.UID != 0 && g.Config.Process.Capabilities != nil {

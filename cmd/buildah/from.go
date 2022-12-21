@@ -311,6 +311,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		FromImage:             args[0],
 		Container:             iopts.name,
 		ContainerSuffix:       suffix,
+		GroupAdd:              iopts.GroupAdd,
 		PullPolicy:            pullPolicy,
 		SignaturePolicyPath:   signaturePolicy,
 		SystemContext:         systemContext,
