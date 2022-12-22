@@ -5790,3 +5790,22 @@ _EOF
   run_buildah build --security-opt no-new-privileges $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
   expect_output --substring "NoNewPrivs:.*1"
 }
+
+@test "build --group-add" {
+  skip_if_no_runtime
+  id=$RANDOM
+
+  _prefetch alpine
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN id -G
+_EOF
+
+  run_buildah build --group-add $id $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "$id"
+
+  if is_rootless && has_supplemental_groups; then
+     run_buildah build --group-add keep-groups $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+     expect_output --substring "65534"
+  fi
+}

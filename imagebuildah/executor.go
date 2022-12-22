@@ -109,6 +109,7 @@ type Executor struct {
 	rootfsMap               map[string]bool             // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
 	blobDirectory           string
 	excludes                []string
+	groupAdd                []string
 	ignoreFile              string
 	args                    map[string]string
 	unusedArgs              map[string]struct{}
@@ -226,6 +227,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		store:                          store,
 		contextDir:                     options.ContextDirectory,
 		excludes:                       excludes,
+		groupAdd:                       options.GroupAdd,
 		ignoreFile:                     options.IgnoreFile,
 		pullPolicy:                     options.PullPolicy,
 		registry:                       options.Registry,

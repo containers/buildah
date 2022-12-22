@@ -726,6 +726,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 	builderOptions := buildah.BuilderOptions{
 		Args:                  ib.Args,
 		FromImage:             from,
+		GroupAdd:              s.executor.groupAdd,
 		PullPolicy:            pullPolicy,
 		ContainerSuffix:       s.executor.containerSuffix,
 		Registry:              s.executor.registry,

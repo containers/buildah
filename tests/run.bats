@@ -245,6 +245,24 @@ function configure_and_check_user() {
 	expect_output "foo"
 }
 
+@test "run --group-add" {
+	skip_if_no_runtime
+        id=$RANDOM
+
+	_prefetch alpine
+	run_buildah from --group-add $id --quiet --pull=false $WITH_POLICY_JSON alpine
+	cid=$output
+	run_buildah run $cid id -G
+	expect_output --substring "$id"
+
+	if is_rootless && has_supplemental_groups; then
+	   run_buildah from --group-add keep-groups --quiet --pull=false $WITH_POLICY_JSON alpine
+	   cid=$output
+	   run_buildah run $cid id -G
+	   expect_output --substring "65534"
+	fi
+}
+
 @test "run --hostname" {
 	skip_if_no_runtime
 
