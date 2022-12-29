@@ -485,7 +485,7 @@ func (c *Client) do(method, path string, doOptions doOptions) (*http.Response, e
 
 		return nil, chooseError(ctx, err)
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		return nil, newError(resp)
 	}
 	return resp, nil
