@@ -5549,6 +5549,21 @@ _EOF
   run_buildah rmi -f testbud2
 }
 
+@test "bud-with-mount-cache-like-buildkit with buildah prune should clear the cache" {
+  skip_if_no_runtime
+  skip_if_in_container
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount
+  cp -R $BUDFILES/buildkit-mount $contextdir
+  # try writing something to persistent cache
+  run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewrite
+  # prune the mount cache
+  run_buildah prune
+  # try reading something from persistent cache in a different build
+  run_buildah 1 build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecacheread
+  expect_output --substring "No such file or directory"
+  run_buildah rmi -f testbud
+}
+
 @test "bud-with-mount-cache-like-buildkit-verify-default-selinux-option" {
   skip_if_no_runtime
   skip_if_in_container
