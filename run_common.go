@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -642,7 +643,15 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		}
 	}()
 	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	iter := 0
 	for {
+		iter = iter + 1
+		exponential := int(math.Min((math.Pow(2, float64(iter)) * 50), 2000))
+		// Reached the max delay time reset counter to 0
+		// and start exponential delay again.
+		if exponential == 2000 {
+			iter = 0
+		}
 		now := time.Now()
 		var state specs.State
 		args = append(options.Args, "state", containerName)
@@ -673,7 +682,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		select {
 		case <-finishedCopy:
 			atomic.StoreUint32(&stopped, 1)
-		case <-time.After(time.Until(now.Add(100 * time.Millisecond))):
+		case <-time.After(time.Until(now.Add(time.Duration(exponential) * time.Millisecond))):
 			continue
 		}
 		if atomic.LoadUint32(&stopped) != 0 {
