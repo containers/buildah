@@ -519,6 +519,30 @@ _EOF
   expect_output --substring "Groups:	1000"
 }
 
+@test "build-test --mount=type=cache test relative to workdir mount" {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+  ## write-cache
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+RUN mkdir test
+WORKDIR test
+RUN --mount=type=cache,id=YfHI60aApFM-target,target=target echo world > /test/target/hello
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f $contextdir/Dockerfile
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+RUN mkdir test
+WORKDIR test
+RUN --mount=type=cache,id=YfHI60aApFM-target,target=target cat /test/target/hello
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f $contextdir/Dockerfile
+  expect_output --substring "world"
+}
+
 @test "build-test skipping unwanted stages with --skip-unused-stages=false and --skip-unused-stages=true" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir
