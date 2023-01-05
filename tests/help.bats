@@ -68,8 +68,8 @@ function check_help() {
 
     # This can happen if the output of --help changes, such as between
     # the old command parser and cobra.
-    [ $count -gt 0 ] || \
-        die "Internal error: no commands found in 'buildah help $@' list"
+    assert "$count" -gt 0 \
+           "Internal error: no commands found in 'buildah help $@' list"
 
     # Sanity check: make sure the special loops above triggered at least once.
     # (We've had situations where a typo makes the conditional never run in podman)
@@ -85,8 +85,8 @@ function check_help() {
 
     # This can happen if the output of --help changes, such as between
     # the old command parser and cobra.
-    [ $count -gt 0 ] || \
-        die "Internal error: no commands found in 'buildah help list"
+    assert "$count" -gt 0 \
+           "Internal error: no commands found in 'buildah help list"
 
 }
 

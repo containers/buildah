@@ -2064,7 +2064,7 @@ function _test_http() {
   root=$output
   test ! -s $root/vol/subvol/subvolfile
   run stat -c %f $root/vol/subvol
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status code from stat $root/vol/subvol"
   expect_output "41ed" "stat($root/vol/subvol) [0x41ed = 040755]"
 }
 
@@ -2180,12 +2180,12 @@ function _test_http() {
   run_buildah mount ${cid}
   root=$output
   run ls $root/data/log
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls $root/data/log"
   expect_output --substring "test"     "ls \$root/data/log"
   expect_output --substring "blah.txt" "ls \$root/data/log"
 
   run ls -al $root
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls -al $root"
   expect_output --substring "test-log -> /data/log" "ls -l \$root/data/log"
   expect_output --substring "blah -> /test-log"     "ls -l \$root/data/log"
 }
@@ -2199,11 +2199,11 @@ function _test_http() {
   run_buildah mount ${cid}
   root=$output
   run ls $root/log
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls $root/log"
   expect_output --substring "test" "ls \$root/log"
 
   run ls -al $root
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls -al $root"
   expect_output --substring "test-log -> ../log" "ls -l \$root/log"
   test -r $root/var/data/empty
 }
@@ -2217,20 +2217,20 @@ function _test_http() {
   run_buildah mount ${cid}
   root=$output
   run ls $root/data/log
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls $root/data/log"
   expect_output --substring "bin"      "ls \$root/data/log"
   expect_output --substring "blah.txt" "ls \$root/data/log"
 
   run ls -al $root/myuser
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls -al $root/myuser"
   expect_output --substring "log -> /test" "ls -al \$root/myuser"
 
   run ls -al $root/test
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls -al $root/test"
   expect_output --substring "bar -> /test-log" "ls -al \$root/test"
 
   run ls -al $root/test-log
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls -al $root/test-log"
   expect_output --substring "foo -> /data/log" "ls -al \$root/test-log"
 }
 
@@ -2250,11 +2250,11 @@ function _test_http() {
   run_buildah mount ${cid}
   root=$output
   run ls $root/bin
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls $root/bin"
   expect_output --substring "myexe" "ls \$root/bin"
 
   run cat $root/bin/myexe
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from cat $root/bin/myexe"
   expect_output "symlink-test" "cat \$root/bin/myexe"
 }
 
@@ -2267,7 +2267,7 @@ function _test_http() {
   run_buildah mount ${cid}
   root=$output
   run ls $root/data
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status from ls $root/data"
   expect_output --substring "myexe" "ls \$root/data"
 }
 

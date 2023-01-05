@@ -31,7 +31,7 @@ load helpers
   cid3=$output
   run_buildah 125 rmi alpine busybox
   run_buildah images -q
-  [ "$output" != "" ]
+  assert "$output" != "" "images -q"
 
   run_buildah rmi -f alpine busybox
   run_buildah images -q
@@ -66,7 +66,7 @@ load helpers
   cid3=$output
   run_buildah 125 rmi --all
   run_buildah images -q
-  [ "$output" != "" ]
+  assert "$output" != "" "images -q"
 
   run_buildah rmi --all --force
   run_buildah images -q

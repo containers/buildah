@@ -28,7 +28,7 @@ load helpers
 
   # This should fail
   run ls ${TEST_SCRATCH_DIR}/lower/bar
-  [ "$status" -ne 0 ]
+  assert "$status" -ne 0 "status of ls ${TEST_SCRATCH_DIR}/lower/bar"
 }
 
 @test "overlay source permissions and owners" {
@@ -58,7 +58,7 @@ load helpers
 
   # This should fail since /tmp/test was an overlay, not a bind mount
   run ls ${TEST_SCRATCH_DIR}/lower/bar
-  [ "$status" -ne 0 ]
+  assert "$status" -ne 0 "status of ls ${TEST_SCRATCH_DIR}/lower/bar"
 }
 
 @test "overlay path contains colon" {
@@ -92,5 +92,5 @@ load helpers
 
   # This should fail
   run ls ${TEST_SCRATCH_DIR}/a:lower/bar
-  [ "$status" -ne 0 ]
+  assert "$status" -ne 0 "status of ls ${TEST_SCRATCH_DIR}/a:lower/bar"
 }

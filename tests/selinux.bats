@@ -16,7 +16,7 @@ load helpers
   run_buildah from --quiet --quiet $WITH_POLICY_JSON $image
   cid=$output
   run_buildah run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
-  [ "$output" != "" ]
+  assert "$output" != "" "/proc/self/attr/current cannot be empty"
   firstlabel="$output"
 
   # Ensure that we label the same container consistently across multiple "run" instructions.

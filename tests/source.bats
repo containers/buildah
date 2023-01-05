@@ -16,7 +16,7 @@ load helpers
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigest=${output//sha256:/} # strip off the sha256 prefix
   run stat $srcdir/blobs/sha256/$manifestDigest
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of stat(manifestDigest)"
 
   # Inspect the manifest
   run jq -r .schemaVersion $srcdir/blobs/sha256/$manifestDigest
@@ -28,19 +28,20 @@ load helpers
   run jq -r .mediaType $srcdir/blobs/sha256/$manifestDigest
   expect_output "application/vnd.oci.image.manifest.v1+json"
   run jq -r .config.size $srcdir/blobs/sha256/$manifestDigest
-  [ "$status" -eq 0 ] # let's not check the size (afraid of time-stamp impacts)
+  # let's not check the size (afraid of time-stamp impacts)
+  assert "$status" -eq 0 "status of jq .config.size"
   # Digest of config
   run jq -r .config.digest $srcdir/blobs/sha256/$manifestDigest
   configDigest=${output//sha256:/} # strip off the sha256 prefix
   run stat $srcdir/blobs/sha256/$configDigest
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of stat(configDigest)"
 
   # Inspect the config
   run jq -r .created $srcdir/blobs/sha256/$configDigest
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of jq .created on configDigest"
   creatd=$output
   run date --date="$output"
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of date (this should never ever fail)"
   run jq -r .author $srcdir/blobs/sha256/$configDigest
   expect_output "Buildah authors"
 
@@ -59,7 +60,7 @@ load helpers
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigestEmpty=${output//sha256:/} # strip off the sha256 prefix
   run stat $srcdir/blobs/sha256/$manifestDigestEmpty
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of stat(manifestDigestEmpty)"
 
   # Add layer 1
   echo 111 > ${TEST_SCRATCH_DIR}/file1
@@ -67,7 +68,8 @@ load helpers
   # Make sure the digest of the manifest changed
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigestFile1=${output//sha256:/} # strip off the sha256 prefix
-  [ "$manifestDigestEmpty" != "$manifestDigestFile1" ]
+  assert "$manifestDigestEmpty" != "$manifestDigestFile1" \
+         "manifestDigestEmpty should differ from manifestDigestFile1"
 
   # Inspect layer 1
   run jq -r .layers[0].mediaType $srcdir/blobs/sha256/$manifestDigestFile1
@@ -76,7 +78,7 @@ load helpers
   layer1Digest=${output//sha256:/} # strip off the sha256 prefix
   # Now make sure the reported size matches the actual one
   run jq -r .layers[0].size $srcdir/blobs/sha256/$manifestDigestFile1
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of jq .layers[0].size on manifestDigestFile1"
   layer1Size=$output
   run du -b $srcdir/blobs/sha256/$layer1Digest
   expect_output --substring "$layer1Size"
@@ -87,8 +89,10 @@ load helpers
   # Make sure the digest of the manifest changed
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigestFile2=${output//sha256:/} # strip off the sha256 prefix
-  [ "$manifestDigestEmpty" != "$manifestDigestFile2" ]
-  [ "$manifestDigestFile1" != "$manifestDigestFile2" ]
+  assert "$manifestDigestEmpty" != "$manifestDigestFile2" \
+         "manifestDigestEmpty should differ from manifestDigestFile2"
+  assert "$manifestDigestFile1" != "$manifestDigestFile2" \
+         "manifestDigestFile1 should differ from manifestDigestFile2"
 
   # Make sure layer 1 is still in the manifest and remains unchanged
   run jq -r .layers[0].digest $srcdir/blobs/sha256/$manifestDigestFile2
@@ -103,14 +107,14 @@ load helpers
   layer2Digest=${output//sha256:/} # strip off the sha256 prefix
   # Now make sure the reported size matches the actual one
   run jq -r .layers[1].size $srcdir/blobs/sha256/$manifestDigestFile2
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of jq .layers[1].size on manifestDigestFile2"
   layer2Size=$output
   run du -b $srcdir/blobs/sha256/$layer2Digest
   expect_output --substring "$layer2Size"
 
   # Last but not least, make sure the two layers differ
-  [ "$layer1Digest" != "$layer2Digest" ]
-  [ "$layer1Size" != "$layer2Size" ]
+  assert "$layer1Digest" != "$layer2Digest" "layer1Digest vs layer2Digest"
+  assert "$layer1Size" != "$layer2Size"  "layer1Size vs layer2Size"
 }
 
 @test "source push/pull" {
@@ -145,7 +149,8 @@ load helpers
   expect_output --substring "Copying config"
 
   run diff -r $srcdir $pulldir
-  [ "$status" -eq 0 ]
+  # FIXME: if there's a nonzero chance of this failing, include actual diffs
+  assert "$status" -eq 0 "status from diff of srcdir vs pulldir"
 
   stop_registry
 }

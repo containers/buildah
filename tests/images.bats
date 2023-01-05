@@ -138,7 +138,7 @@ load helpers
 
   run_buildah images --json
   run python3 -m json.tool <<< "$output"
-  [ "${status}" -eq 0 ]
+  assert "$status" -eq 0 "status from python json.tool"
 }
 
 @test "specify an existing image" {
