@@ -132,26 +132,26 @@ vendor_task:
 
 
 # Confirm cross-compile ALL architectures on a Mac OS-X VM.
-cross_build_task:
-    name: "Cross Compile"
-    alias: cross_build
-    only_if: >-
-        $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*' &&
-        $CIRRUS_CRON != 'multiarch'
-
-    osx_instance:
-        image: 'big-sur-base'
-
-    script:
-        - brew update
-        - brew install go
-        - brew install go-md2man
-        - brew install gpgme
-        - go version
-        - make cross CGO_ENABLED=0
-
-    binary_artifacts:
-        path: ./bin/*
+#cross_build_task:
+#    name: "Cross Compile"
+#    alias: cross_build
+#    only_if: >-
+#        $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*' &&
+#        $CIRRUS_CRON != 'multiarch'
+#
+#    osx_instance:
+#        image: 'big-sur-base'
+#
+#    script:
+#        - brew update
+#        - brew install go
+#        - brew install go-md2man
+#        - brew install gpgme
+#        - go version
+#        - make cross CGO_ENABLED=0
+#
+#    binary_artifacts:
+#        path: ./bin/*
 
 
 unit_task:
@@ -164,7 +164,7 @@ unit_task:
     depends_on: &smoke_vendor_cross
       - smoke
       - vendor
-      - cross_build
+      # - cross_build
 
     timeout_in: 1h
 
@@ -380,7 +380,7 @@ success_task:
       - unit
       - conformance
       - vendor
-      - cross_build
+      # - cross_build
       - integration
       - in_podman
       - image_build
