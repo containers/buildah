@@ -159,6 +159,7 @@ Buildah can set up environment variables from the env entry in the [engine] tabl
 | logout     | [buildah-logout(1)](buildah-logout.1.md)         | Logout of a container registry                                                                       |
 | manifest   | [buildah-manifest(1)](buildah-manifest.1.md)     | Create and manipulate manifest lists and image indexes.                                              |
 | mount      | [buildah-mount(1)](buildah-mount.1.md)           | Mount the working container's root filesystem.                                                       |
+| prune      | [buildah-prune(1)](buildah-prune.1.md)           | Cleanup intermediate images as well as build and mount cache.                                        |
 | pull       | [buildah-pull(1)](buildah-pull.1.md)             | Pull an image from the specified location.                                                           |
 | push       | [buildah-push(1)](buildah-push.1.md)             | Push an image from local storage to elsewhere.                                                       |
 | rename     | [buildah-rename(1)](buildah-rename.1.md)         | Rename a local container.                                                                            |

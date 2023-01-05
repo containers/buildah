@@ -191,6 +191,12 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 	return newMount, fromImage, nil
 }
 
+// CleanCacheMount gets the cache parent created by `--mount=type=cache` and removes it.
+func CleanCacheMount() error {
+	cacheParent := filepath.Join(internalUtil.GetTempDir(), BuildahCacheDir+"-"+strconv.Itoa(unshare.GetRootlessUID()))
+	return os.RemoveAll(cacheParent)
+}
+
 // GetCacheMount parses a single cache mount entry from the --mount flag.
 //
 // If this function succeeds and returns a non-nil *lockfile.LockFile, the caller must unlock it (when??).
