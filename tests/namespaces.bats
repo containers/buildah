@@ -84,7 +84,7 @@ idmapping_check_map() {
   local _expect_idmap=$2
   local _testname=$3
 
-  [ -n "$_output_idmap" ]
+  assert "$_output_idmap" != "" "Internal error: output_idmap is empty"
   local _idmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "${_output_idmap}")
   expect_output --from="$_idmap" "${_expect_idmap}" "$_testname"
 
@@ -190,13 +190,13 @@ idmapping_check_permission() {
       local _output=$1
       local _testname=$2
 
-      [ "$_output" != "" ]
+      assert "$_output" != "" "Internal error: _output is empty"
       if [ -z "${uidmapargs[$i]}${gidmapargs[$i]}" ]; then
         if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
           expect_output --from="$_output" "$mynamespace" "/proc/self/ns/user ($_testname)"
         fi
       else
-        [ "$_output" != "$mynamespace" ]
+        assert "$_output" != "$mynamespace" "_output vs mynamespace"
       fi
     }
 
@@ -236,7 +236,7 @@ idmapping_check_permission() {
     run_buildah mount "$ctr"
     mnt="$output"
     run stat -c '%u:%g %a' "$mnt"/somedir/someotherfile
-    [ $status -eq 0 ]
+    assert "$status" -eq 0 "status of stat $mnt/somedir/someotherfile"
     expect_output "$rootuid:$rootgid 4700"
 
     # Check that a container with mapped-layer can be committed.
@@ -299,15 +299,16 @@ general_namespace() {
   for namespace in "${types[@]}" ; do
     # Specify the setting for this namespace for this container.
     run_buildah from $WITH_POLICY_JSON --quiet --"$nsflag"=$namespace alpine
-    [ "$output" != "" ]
+    assert "$output" != "" "Internal error: buildah-from produced no output"
     ctr="$output"
 
     # Check that, unless we override it, we get that setting in "run".
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/"$nstype"
-    [ "$output" != "" ]
+    assert "$output" != "" "readlink /proc/self/ns/$nstype must not be empty"
     case "$namespace" in
     ""|container|private)
-      [ "$output" != "$mynamespace" ]
+      assert "$output" != "$mynamespace" \
+             "readlink /proc/self/ns/$nstype, with namespace=$namespace"
       ;;
     host)
       expect_output "$mynamespace"
@@ -321,11 +322,12 @@ general_namespace() {
     if [ "$nsflag" != "userns" ]; then
       for different in ${types[@]} ; do
         # Check that, if we override it, we get what we specify for "run".
-       run_buildah run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
-        [ "$output" != "" ]
+        run_buildah run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
+        assert "$output" != "" "readlink /proc/self/ns/$nstype must not be empty"
         case "$different" in
         ""|container|private)
-          [ "$output" != "$mynamespace" ]
+          assert "$output" != "$mynamespace" \
+                 "readlink /proc/self/ns/$nstype, with different=$different"
           ;;
        host)
           expect_output "$mynamespace"
@@ -346,7 +348,7 @@ _EOF
     result=$(grep -A1 "TargetOutput" <<< "$output" | tail -n1)
     case "$namespace" in
     ""|container|private)
-      [ "$result" != "$mynamespace" ]
+      assert "$result" != "$mynamespace" "readlink /proc/self/ns/$nstype"
       ;;
     host)
       expect_output --from="$result" "$mynamespace"
@@ -422,14 +424,14 @@ _EOF
 
               echo "buildah from $WITH_POLICY_JSON --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine"
               run_buildah from $WITH_POLICY_JSON --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine
-              [ "$output" != "" ]
+              assert "$output" != "" "output from buildah-from"
               ctr="$output"
               run_buildah run $ctr pwd
-              [ "$output" != "" ]
+              assert "$output" != "" "output from pwd"
               run_buildah run --tty=true  $ctr pwd
-              [ "$output" != "" ]
+              assert "$output" != "" "output from pwd, with --tty=true"
               run_buildah run --terminal=false $ctr pwd
-              [ "$output" != "" ]
+              assert "$output" != "" "output from pwd, with --terminal=false"
             done
           done
         done
@@ -500,7 +502,7 @@ utsns = "$mode"
 EOF
 
     CONTAINERS_CONF="$containers_conf_file" run_buildah from $WITH_POLICY_JSON --quiet alpine
-    [ "$output" != "" ]
+    assert "$output" != "" "output from buildah-from"
     ctr="$output"
 
     local op="=="

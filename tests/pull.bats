@@ -13,7 +13,7 @@ load helpers
   # force a failed pull and look at the error message which *must* include the
   # the resolved image name (localhost/image:latest).
   run_buildah 125 pull --policy=always image
-  [[ "$output" == *"initializing source docker://localhost/image:latest"* ]]
+  assert "$output" =~ "initializing source docker://localhost/image:latest"
   run_buildah rmi localhost/image ${iid}
 }
 
@@ -56,7 +56,7 @@ load helpers
   run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON alpine@sha256:e9a2035f9d0d7cee1cdd445f5bfa0c5c646455ee26f14565dce23cf2d2de7570
   run_buildah 125 pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON fakeimage/fortest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  [[ ! "$output" =~ "fakeimage/fortest" ]]
+  assert "$output" !~ "fakeimage/fortest" "fakeimage/fortest found in buildah images"
 }
 
 @test "pull-from-docker-archive" {
@@ -100,7 +100,7 @@ load helpers
 
   run docker pull alpine
   echo "$output"
-  [ "$status" -eq 0 ]
+  assert "$status" -eq 0 "status of docker (yes, docker) pull alpine"
   run_buildah pull $WITH_POLICY_JSON docker-daemon:docker.io/library/alpine:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine:latest"

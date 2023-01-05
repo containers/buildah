@@ -128,7 +128,7 @@ load helpers
   run_buildah rmi containers-storage:other-new-image
   run_buildah rmi another-new-image
   run_buildah images -q
-  [ "$output" != "" ]
+  assert "$output" != "" "images -q"
   run_buildah rmi -a
   run_buildah images -q
   expect_output ""

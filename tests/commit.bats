@@ -132,7 +132,7 @@ load helpers
   config="$output"
   run python3 -c 'import json, sys; config = json.load(sys.stdin); print(config["history"][len(config["history"])-1]["created_by"])' <<< "$config"
   echo "$output"
-  [ "${status}" -eq 0 ]
+  assert "$status" -eq 0 "status from python command 1"
   expect_output "untracked actions"
 
   run_buildah config --created-by "" $cid
@@ -141,7 +141,7 @@ load helpers
   config="$output"
   run python3 -c 'import json, sys; config = json.load(sys.stdin); print(config["history"][len(config["history"])-1]["created_by"])' <<< "$config"
   echo "$output"
-  [ "${status}" -eq 0 ]
+  assert "$status" -eq 0 "status from python command 2"
   expect_output "/bin/sh"
 }
 
