@@ -519,6 +519,13 @@ _EOF
   expect_output --substring "Groups:	1000"
 }
 
+@test "build-test --mount=type=secret test relative to workdir mount" {
+  local contextdir=$BUDFILES/secret-relative
+  run_buildah build $WITH_POLICY_JSON --no-cache --secret id=secret-foo,src=$contextdir/secret1.txt --secret id=secret-bar,src=$contextdir/secret2.txt -t test -f $contextdir/Dockerfile
+  expect_output --substring "secret:foo"
+  expect_output --substring "secret:bar"
+}
+
 @test "build-test --mount=type=cache test relative to workdir mount" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir

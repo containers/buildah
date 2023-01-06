@@ -1497,7 +1497,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 		}
 		switch mountType {
 		case "secret":
-			mount, envFile, err := b.getSecretMount(tokens, sources.Secrets, idMaps)
+			mount, envFile, err := b.getSecretMount(tokens, sources.Secrets, idMaps, sources.WorkDir)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -1598,7 +1598,7 @@ func (b *Builder) getTmpfsMount(tokens []string, idMaps IDMaps) (*spec.Mount, er
 	return &volumes[0], nil
 }
 
-func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secret, idMaps IDMaps) (*spec.Mount, string, error) {
+func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secret, idMaps IDMaps, workdir string) (*spec.Mount, string, error) {
 	errInvalidSyntax := errors.New("secret should have syntax id=id[,target=path,required=bool,mode=uint,uid=uint,gid=uint")
 	if len(tokens) == 0 {
 		return nil, "", errInvalidSyntax
@@ -1618,6 +1618,9 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 			id = kv[1]
 		case "target", "dst", "destination":
 			target = kv[1]
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(workdir, target)
+			}
 		case "required":
 			required, err = strconv.ParseBool(kv[1])
 			if err != nil {
