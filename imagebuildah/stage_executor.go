@@ -1624,17 +1624,17 @@ func (s *StageExecutor) getBuildArgsResolvedForRun() string {
 	return strings.Join(envs, " ")
 }
 
-// getBuildArgs key returns set args are key which were specified during the build process
-// following function will be exclusively used by build history
+// getBuildArgs key returns the set of args which were specified during the
+// build process, formatted for inclusion in the build history
 func (s *StageExecutor) getBuildArgsKey() string {
-	var envs []string
+	var args []string
 	for key := range s.stage.Builder.Args {
 		if _, ok := s.stage.Builder.AllowedArgs[key]; ok {
-			envs = append(envs, key)
+			args = append(args, key)
 		}
 	}
-	sort.Strings(envs)
-	return strings.Join(envs, " ")
+	sort.Strings(args)
+	return strings.Join(args, " ")
 }
 
 // tagExistingImage adds names to an image already in the store
@@ -1934,25 +1934,6 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	for _, envSpec := range config.Env {
 		spec := strings.SplitN(envSpec, "=", 2)
 		s.builder.SetEnv(spec[0], spec[1])
-	}
-	for _, envSpec := range s.executor.envs {
-		env := strings.SplitN(envSpec, "=", 2)
-		if len(env) > 1 {
-			getenv := func(name string) string {
-				for _, envvar := range s.builder.Env() {
-					val := strings.SplitN(envvar, "=", 2)
-					if len(val) == 2 && val[0] == name {
-						return val[1]
-					}
-				}
-				logrus.Errorf("error expanding variable %q: no value set in image", name)
-				return name
-			}
-			env[1] = os.Expand(env[1], getenv)
-			s.builder.SetEnv(env[0], env[1])
-		} else {
-			s.builder.SetEnv(env[0], os.Getenv(env[0]))
-		}
 	}
 	for _, envSpec := range s.executor.unsetEnvs {
 		s.builder.UnsetEnv(envSpec)

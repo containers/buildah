@@ -5855,3 +5855,21 @@ _EOF
      expect_output --substring "65534"
   fi
 }
+
+@test "build-env-precedence" {
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  run_buildah build --no-cache --env E=F --env G=H --env I=J --env K=L -f ${BUDFILES}/env/Dockerfile.env-precedence ${BUDFILES}/env
+  expect_output --substring "a=b c=d E=F G=H"
+  expect_output --substring "a=b c=d E=E G=G"
+  expect_output --substring "w=x y=z I=J K=L"
+  expect_output --substring "w=x y=z I=I K=K"
+
+  run_buildah build --no-cache --layers --env E=F --env G=H --env I=J --env K=L -f ${BUDFILES}/env/Dockerfile.env-precedence ${BUDFILES}/env
+  expect_output --substring "a=b c=d E=F G=H"
+  expect_output --substring "a=b c=d E=E G=G"
+  expect_output --substring "w=x y=z I=J K=L"
+  expect_output --substring "w=x y=z I=I K=K"
+}
