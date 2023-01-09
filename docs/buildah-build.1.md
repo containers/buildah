@@ -708,8 +708,10 @@ Skip stages in multi-stage builds which don't affect the target stage. (Default 
 
 **--squash**
 
-Squash all of the image's new layers into a single new layer; any preexisting layers
-are not squashed.
+Squash all layers, including those from base image(s), into one single layer. (Default is false).
+
+By default, Buildah preserves existing base-image layers and adds only one new layer on a build.
+The --layers option can be used to preserve intermediate build layers.
 
 **--ssh**=**default**|*id[=socket>|<key>[,<key>]*
 
