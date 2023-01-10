@@ -319,6 +319,7 @@ Set custom DNS search domains. Invalid if using **--dns-search** with **--networ
 Add a value (e.g. env=*value*) to the built image.  Can be used multiple times.
 If neither `=` nor a `*value*` are specified, but *env* is set in the current
 environment, the value from the current environment will be added to the image.
+The value of *env* can be overridden by ENV instructions in the Containerfile.
 To remove an environment variable from the built image, use the `--unsetenv`
 option.
 

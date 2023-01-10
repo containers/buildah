@@ -2997,4 +2997,10 @@ var internalTestCases = []testCase{
 		fsSkip:            []string{"(dir):created:mtime", "(dir):created:(dir):directory:mtime"},
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:              "env-precedence",
+		contextDir:        "env/precedence",
+		dockerUseBuildKit: true,
+	},
 }
