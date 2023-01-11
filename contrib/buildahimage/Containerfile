@@ -22,13 +22,21 @@
 FROM registry.fedoraproject.org/fedora:latest
 ARG FLAVOR=stable
 
+# When building for multiple-architectures in parallel using emulation
+# it's really easy for one/more dnf processes to timeout or mis-count
+# the minimum download rates.  Bump both to be extremely forgiving of
+# an overworked host.
+RUN echo -e "\n\n# Added during image build" >> /etc/dnf/dnf.conf && \
+    echo -e "minrate=100\ntimeout=60\n" >> /etc/dnf/dnf.conf
+
 # Don't include container-selinux and remove
 # directories used by dnf that are just taking
 # up space.
 # TODO: rpm --setcaps... needed due to Fedora (base) image builds
 #       being (maybe still?) affected by
 #       https://bugzilla.redhat.com/show_bug.cgi?id=1995337#c3
-RUN dnf -y update && \
+RUN dnf -y makecache && \
+    dnf -y update && \
     rpm --setcaps shadow-utils 2>/dev/null && \
     case "${FLAVOR}" in \
       stable) \
