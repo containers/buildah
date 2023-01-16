@@ -5309,9 +5309,11 @@ _EOF
               -f $BUDFILES/all-platform/Containerfile.default-arg \
               $BUDFILES/all-platform
 
+  # #4520: 'sort -u' needed because sometimes there's a duplicate "arm" in
+  # manifest output; on 2023-01-16 this started blowing up in podman CI.
   run_buildah manifest inspect $outputlist
-  manifests=$(jq -r '.manifests[].platform.architecture' <<<"$output" |sort|fmt)
-  assert "$manifests" = "386 amd64 arm arm arm64 ppc64le s390x" "arch list in manifest"
+  manifests=$(jq -r '.manifests[].platform.architecture' <<<"$output" |sort -u|fmt)
+  assert "$manifests" = "386 amd64 arm arm64 ppc64le s390x" "arch list in manifest"
 }
 
 @test "bud-multiple-platform for --all-platform with additional-build-context" {
