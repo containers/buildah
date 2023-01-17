@@ -824,8 +824,10 @@ _EOF
 
 	if [ -n "$(command -v crun)" ]; then
 		found_runtime=y
-		run_buildah run --runtime=crun --runtime-flag=debug $cid true
-		assert "$output" != "" "Output from running 'true' with --runtime-flag=debug"
+		run_buildah run --runtime=crun --runtime-flag=log=${TEST_SCRATCH_DIR}/oci-log $cid true
+		if test \! -e ${TEST_SCRATCH_DIR}/oci-log; then
+			die "the expected file ${TEST_SCRATCH_DIR}/oci-log was not created"
+		fi
 	fi
 
 	if [ -z "${found_runtime}" ]; then
