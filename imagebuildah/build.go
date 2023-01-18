@@ -527,7 +527,9 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 	if len(baseImages) == 0 {
 		return nil, fmt.Errorf("build uses no non-scratch base images: %w", err)
 	}
+
 	targetPlatforms := make(map[string]struct{})
+	var platformCandidates []string // Used to preserve a deterministic order of the targetPlatforms map
 	var platformList []struct{ OS, Arch, Variant string }
 	for baseImageIndex, baseImage := range baseImages {
 		resolved, err := shortnames.Resolve(systemContext, baseImage)
@@ -596,8 +598,12 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 					continue
 				}
 				platform := internalUtil.NormalizePlatform(*instance.Platform)
-				targetPlatforms[platforms.Format(platform)] = struct{}{}
-				logger.Debugf("image %q supports %q", baseImage, platforms.Format(platform))
+				formatted := platforms.Format(platform)
+				logger.Debugf("image %q supports %q", baseImage, formatted)
+				if _, ok := targetPlatforms[formatted]; !ok {
+					targetPlatforms[formatted] = struct{}{}
+					platformCandidates = append(platformCandidates, formatted)
+				}
 			}
 		} else {
 			// prune the list of any normalized platforms this base image doesn't support
@@ -623,8 +629,12 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 		}
 		if baseImageIndex == len(baseImages)-1 && len(targetPlatforms) > 0 {
 			// extract the list
-			for platform := range targetPlatforms {
-				platform, err := platforms.Parse(platform)
+			for _, candidate := range platformCandidates {
+				if _, ok := targetPlatforms[candidate]; !ok {
+					// Has either been removed or already been processed
+					continue
+				}
+				platform, err := platforms.Parse(candidate)
 				if err != nil {
 					return nil, fmt.Errorf("parsing platform double/triple %q: %w", platform, err)
 				}
@@ -633,6 +643,7 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 					Arch:    platform.Architecture,
 					Variant: platform.Variant,
 				})
+				delete(targetPlatforms, candidate)
 				logger.Debugf("base images all support %q", platform)
 			}
 		}
