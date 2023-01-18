@@ -550,6 +550,47 @@ _EOF
   expect_output --substring "world"
 }
 
+@test "build-test do not use mount stage from cache if it was rebuilt" {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine as dependencies
+
+RUN mkdir /build && echo v1 > /build/version
+
+FROM alpine
+
+RUN --mount=type=bind,source=/build,target=/build,from=dependencies \
+    cp /build/version /version
+
+RUN cat /version
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile
+  run_buildah build $WITH_POLICY_JSON --layers -t source2 -f $contextdir/Dockerfile
+  expect_output --substring "Using cache"
+
+  # First stage i.e dependencies is changed so it should not use the steps in second stage from
+  # cache
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine as dependencies
+
+RUN mkdir /build && echo v2 > /build/version
+
+FROM alpine
+
+RUN --mount=type=bind,source=/build,target=/build,from=dependencies \
+    cp /build/version /version
+
+RUN cat /version
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --layers -t source3 -f $contextdir/Dockerfile
+  assert "$output" !~ "Using cache"
+
+}
+
 @test "build-test skipping unwanted stages with --skip-unused-stages=false and --skip-unused-stages=true" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir
