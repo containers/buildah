@@ -70,6 +70,7 @@ type StageExecutor struct {
 	output                string
 	containerIDs          []string
 	stage                 *imagebuilder.Stage
+	didExecute            bool
 	argsFromContainerfile []string
 }
 
@@ -516,7 +517,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 							// to `mountPoint` replaced from additional
 							// build-context. Reason: Parser will use this
 							//  `from` to refer from stageMountPoints map later.
-							stageMountPoints[from] = internal.StageMountDetails{IsStage: false, MountPoint: mountPoint}
+							stageMountPoints[from] = internal.StageMountDetails{IsStage: false, DidExecute: true, MountPoint: mountPoint}
 							break
 						} else {
 							// Most likely this points to path on filesystem
@@ -548,7 +549,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 									mountPoint = additionalBuildContext.DownloadedCache
 								}
 							}
-							stageMountPoints[from] = internal.StageMountDetails{IsStage: true, MountPoint: mountPoint}
+							stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: true, MountPoint: mountPoint}
 							break
 						}
 					}
@@ -559,14 +560,14 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 						return nil, err
 					}
 					if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
-						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, MountPoint: otherStage.mountPoint}
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: otherStage.didExecute, MountPoint: otherStage.mountPoint}
 						break
 					} else {
 						mountPoint, err := s.getImageRootfs(s.ctx, from)
 						if err != nil {
 							return nil, fmt.Errorf("%s from=%s: no stage or image found with that name", flag, from)
 						}
-						stageMountPoints[from] = internal.StageMountDetails{IsStage: false, MountPoint: mountPoint}
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: false, DidExecute: true, MountPoint: mountPoint}
 						break
 					}
 				default:
@@ -1148,6 +1149,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// If we're doing a single-layer build, just process the
 		// instruction.
 		if !s.executor.layers {
+			s.didExecute = true
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
 				logrus.Debugf("Error building at step %+v: %v", *step, err)
@@ -1193,6 +1195,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		}
 
 		// We're in a multi-layered build.
+		s.didExecute = false
 		var (
 			commitName                string
 			cacheID                   string
@@ -1204,7 +1207,36 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			canMatchCacheOnlyAfterRun bool
 		)
 
-		needsCacheKey := (s.executor.cacheFrom != nil || s.executor.cacheTo != nil)
+		// Only attempt to find cache if its needed, this part is needed
+		// so that if a step is using RUN --mount and mounts content from
+		// previous stages then it uses the freshly built stage instead
+		// of re-using the older stage from the store.
+		avoidLookingCache := false
+		var mounts []string
+		for _, a := range node.Flags {
+			arg, err := imagebuilder.ProcessWord(a, s.stage.Builder.Arguments())
+			if err != nil {
+				return "", nil, err
+			}
+			switch {
+			case strings.HasPrefix(arg, "--mount="):
+				mount := strings.TrimPrefix(arg, "--mount=")
+				mounts = append(mounts, mount)
+			default:
+				continue
+			}
+		}
+		stageMountPoints, err := s.runStageMountPoints(mounts)
+		if err != nil {
+			return "", nil, err
+		}
+		for _, mountPoint := range stageMountPoints {
+			if mountPoint.DidExecute {
+				avoidLookingCache = true
+			}
+		}
+
+		needsCacheKey := (s.executor.cacheFrom != nil || s.executor.cacheTo != nil) && !avoidLookingCache
 
 		// If we have to commit for this instruction, only assign the
 		// stage's configured output name to the last layer.
@@ -1228,13 +1260,14 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// we need to call ib.Run() to correctly put the args together before
 		// determining if a cached layer with the same build args already exists
 		// and that is done in the if block below.
-		if checkForLayers && step.Command != "arg" && !(s.executor.squash && lastInstruction && lastStage) {
+		if checkForLayers && step.Command != "arg" && !(s.executor.squash && lastInstruction && lastStage) && !avoidLookingCache {
 			// For `COPY` and `ADD`, history entries include digests computed from
 			// the content that's copied in.  We need to compute that information so that
 			// it can be used to evaluate the cache, which means we need to go ahead
 			// and copy the content.
 			canMatchCacheOnlyAfterRun = (step.Command == command.Add || step.Command == command.Copy)
 			if canMatchCacheOnlyAfterRun {
+				s.didExecute = true
 				if err = ib.Run(step, s, noRunsRemaining); err != nil {
 					logrus.Debugf("Error building at step %+v: %v", *step, err)
 					return "", nil, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
@@ -1281,6 +1314,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// cases above, so we shouldn't do it again.
 		if cacheID == "" && !canMatchCacheOnlyAfterRun {
 			// Process the instruction directly.
+			s.didExecute = true
 			if err = ib.Run(step, s, noRunsRemaining); err != nil {
 				logrus.Debugf("Error building at step %+v: %v", *step, err)
 				return "", nil, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
@@ -1298,7 +1332,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 
 			// Check if there's already an image based on our parent that
 			// has the same change that we just made.
-			if checkForLayers {
+			if checkForLayers && !avoidLookingCache {
 				cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 				if err != nil {
 					return "", nil, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
@@ -1334,6 +1368,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// still don't want to restart using the image's
 			// configuration blob.
 			if !s.stepRequiresLayer(step) {
+				s.didExecute = true
 				err := ib.Run(step, s, noRunsRemaining)
 				if err != nil {
 					logrus.Debugf("Error building at step %+v: %v", *step, err)
