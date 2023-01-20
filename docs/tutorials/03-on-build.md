@@ -31,7 +31,7 @@ We can also see that there are also no containers by running:
 
 ## Examples
 
-The two examples that will be shown are relatively simple, but they illustrate how a command or a number of commands can be setup in a master image such that they will be added to a secondary container image that is created from it.  This is extremely useful if you need to setup an environment where your containers have 75% of the same content, but need a few individual tweaks.  This can be helpful in setting up an environment for maven or java development containers for instance.  In this way you can create a single Dockerfile with all the common setup steps as ONBUILD commands and then really minimize the buildah commands or instructions in a second Dockerfile that would be necessary to complete the creation of the container image.
+The two examples that will be shown are relatively simple, but they illustrate how a command or a number of commands can be setup in a primary image such that they will be added to a secondary container image that is created from it.  This is extremely useful if you need to setup an environment where your containers have 75% of the same content, but need a few individual tweaks.  This can be helpful in setting up an environment for maven or java development containers for instance.  In this way you can create a single Dockerfile with all the common setup steps as ONBUILD commands and then really minimize the buildah commands or instructions in a second Dockerfile that would be necessary to complete the creation of the container image.
 
 NOTE: In the examples below the option `--format=docker` is used in several places.  If you wanted to omit that, you could define the `BUILDAH_FORMAT` environment variable and set it to 'docker'.  On Fedora that command would be `export BUILDAH_FORMAT=docker`.
 
@@ -177,7 +177,7 @@ This is a new container pull ipbabble [ 8 ]
 This is a new container pull ipbabble [ 9 ]
 
 ```
-Again these aren't the most extensive examples, but they both illustrate how a master image can be setup and then a secondary container image can then be created with just a few steps.  This way the steps that are set up with the ONBUILD instructions don't have to be typed in each and every time that you need to setup your container.
+Again these aren't the most extensive examples, but they both illustrate how a primary image can be setup and then a secondary container image can then be created with just a few steps.  This way the steps that are set up with the ONBUILD instructions don't have to be typed in each and every time that you need to setup your container.
 
 ## Congratulations
 
