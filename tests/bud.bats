@@ -5323,12 +5323,8 @@ _EOF
 
 @test "bud-multiple-platform-no-run" {
   outputlist=localhost/testlist
-  # Note: [This is a bug] jobs=1 is intentionally set here since --jobs=0 sets
-  # concurrency to maximum which uncovers all sorts of race condition causing
-  # flakes in CI. Please put this back to --jobs=0 when https://github.com/containers/buildah/issues/3710
-  # is resolved.
   run_buildah build $WITH_POLICY_JSON \
-              --jobs=1 \
+              --jobs=0 \
               --all-platforms \
               --manifest $outputlist \
               --build-arg SAFEIMAGE=$SAFEIMAGE \
