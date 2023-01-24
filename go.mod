@@ -7,13 +7,13 @@ require (
 	github.com/containernetworking/cni v1.1.2
 	github.com/containers/common v0.50.2-0.20230118184424-57606d3b130f
 	github.com/containers/image/v5 v5.23.1-0.20230118141642-5e9b17d07ceb
-	github.com/containers/ocicrypt v1.1.7-0.20230115130455-e0cec6f7be0d
-	github.com/containers/storage v1.45.2-0.20230117181605-d5792d2dbc18
+	github.com/containers/ocicrypt v1.1.7
+	github.com/containers/storage v1.45.3
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker v20.10.22+incompatible
+	github.com/docker/docker v20.10.23+incompatible
 	github.com/docker/go-units v0.5.0
-	github.com/fsouza/go-dockerclient v1.9.2
+	github.com/fsouza/go-dockerclient v1.9.3
 	github.com/ghodss/yaml v1.0.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
