@@ -5856,15 +5856,30 @@ _EOF
 
 @test "build-with-network-test" {
   skip_if_in_container # Test only works in OCI isolation, which doesn't work in CI/CD systems. Buildah defaults to chroot isolation
-  _prefetch alpine
-  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
-FROM alpine
-RUN ping -c 1 4.2.2.2
-_EOF
-  run_buildah build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
 
-  run_buildah 1 build --network=none $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
-  expect_output --substring "Network unreachable"
+  image="quay.io/libpod/alpine_nginx:latest"
+  _prefetch $image
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM $image
+RUN curl -k -o /dev/null http://www.redhat.com:80
+_EOF
+
+  # curl results show success
+  run_buildah build ${WITH_POLICY_JSON} ${TEST_SCRATCH_DIR}
+
+  # A proper test would use ping or nc, and check for ENETUNREACH.
+  # But in a tightly firewalled environment, even the expected-success
+  # test will fail. A not-quite-equivalent workaround is to use curl
+  # and hope that $http_proxy is set; we then rely on curl to fail
+  # in a slightly different way
+  expect_rc=6
+  expect_err="Could not resolve host: www.redhat.com"
+  if [[ $http_proxy != "" ]]; then
+    expect_rc=5
+    expect_err="Could not resolve proxy:"
+  fi
+  run_buildah $expect_rc build --network=none ${WITH_POLICY_JSON} ${TEST_SCRATCH_DIR}
+  expect_output --substring "$expect_err"
 }
 
 @test "build-with-no-new-privileges-test" {
