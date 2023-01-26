@@ -28,11 +28,13 @@ load helpers
   # Copy a file to a specific subdirectory
   run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile /subdir
   # Copy two files to a specific subdirectory
-  run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /other-subdir
+  run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /other-subdir/
   # Copy two files to a specific location, which succeeds because we can create it as a directory.
-  run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /notthereyet-subdir
+  run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /notthereyet-subdir/
+  # Add with a wildcard and destination dir does not exists
+  run_buildah add $cid "${TEST_SCRATCH_DIR}/*" /notthereyet2-subdir/
   # Copy two files to a specific location, which fails because it's not a directory.
-  run_buildah 125 add $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /randomfile
+  run_buildah 125 add $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /randomfile/
   # Copy a file to a different working directory
   run_buildah config --workingdir=/cwd $cid
   run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile
@@ -56,6 +58,32 @@ load helpers
   test -s $newroot/cwd/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/cwd/randomfile
   run_buildah rm $newcid
+}
+
+@test "add-multiple-files to destination not ending with slash" {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/third-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/hello
+  createrandom ${TEST_SCRATCH_DIR}/world1
+  createrandom ${TEST_SCRATCH_DIR}/world2
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  run_buildah config --workingdir / $cid
+  # Match buildkit parity
+  # This should be successful since `BASE/hello*` only resolves to one file.
+  run_buildah add $cid "${TEST_SCRATCH_DIR}/hello*" /test
+  # This should fail since `BASE/world*` resolves to more than one file.
+  run_buildah 125 add $cid "${TEST_SCRATCH_DIR}/world*" /test
+  expect_output --substring "adding multiple sources to non-directory destination"
+  # This should fail since `BASE/*` resolves to more than one file.
+  run_buildah 125 add $cid "${TEST_SCRATCH_DIR}/*" /test
+  expect_output --substring "adding multiple sources to non-directory destination"
+  run_buildah 125 add $cid ${TEST_SCRATCH_DIR}/randomefile ${TEST_SCRATCH_DIR}/other-randomfile /test
+  expect_output --substring "adding multiple sources to non-directory destination"
 }
 
 @test "add-local-archive" {

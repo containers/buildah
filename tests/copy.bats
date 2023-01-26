@@ -26,11 +26,11 @@ load helpers
   # copy ${TEST_SCRATCH_DIR}/randomfile to a file of the same name in the container's working directory
   run_buildah copy --retry 4 --retry-delay 4s $cid ${TEST_SCRATCH_DIR}/randomfile
   # copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to a new directory named ${TEST_SCRATCH_DIR}/randomfile in the container
-  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile/
   # try to copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to a /randomfile, which already exists and is a file
-  run_buildah 125 copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile /randomfile
+  run_buildah 125 copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile /randomfile/
   # copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to previously-created directory named ${TEST_SCRATCH_DIR}/randomfile in the container
-  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile/
   run_buildah rm $cid
 
   _prefetch alpine
@@ -40,7 +40,7 @@ load helpers
   root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile
-  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile /etc
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile /etc/
   run_buildah rm $cid
 
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -48,7 +48,7 @@ load helpers
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid "${TEST_SCRATCH_DIR}/*randomfile" /etc
+  run_buildah copy $cid "${TEST_SCRATCH_DIR}/*randomfile" /etc/
   (cd ${TEST_SCRATCH_DIR}; for i in *randomfile; do cmp $i ${root}/etc/$i; done)
 }
 
@@ -76,6 +76,22 @@ load helpers
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
   test -s $newroot/other-randomfile
   cmp ${TEST_SCRATCH_DIR}/other-randomfile $newroot/other-randomfile
+}
+
+@test "copy-multiple-files to destination not ending with slash" {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/third-randomfile
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  run_buildah config --workingdir / $cid
+  run_buildah 125 copy $cid ${TEST_SCRATCH_DIR}/* /test
+  expect_output --substring "adding multiple sources to non-directory destination"
+  run_buildah 125 copy $cid ${TEST_SCRATCH_DIR}/randomefile ${TEST_SCRATCH_DIR}/other-randomfile /test
+  expect_output --substring "adding multiple sources to non-directory destination"
 }
 
 @test "copy-local-subdirectory" {
