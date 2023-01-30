@@ -328,7 +328,7 @@ option.
 Specifies a Containerfile which contains instructions for building the image,
 either a local file or an **http** or **https** URL.  If more than one
 Containerfile is specified, *FROM* instructions will only be accepted from the
-first specified file.
+last specified file.
 
 If a local file is specified as the Containerfile and it does not exist, the
 context directory will be prepended to the local file value.
