@@ -1,3 +1,3 @@
-FROM ubuntu:18.04
+FROM scratch
 
 COPY stuff /tmp/stuff
