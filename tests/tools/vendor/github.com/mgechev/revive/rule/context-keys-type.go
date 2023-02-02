@@ -12,7 +12,7 @@ import (
 type ContextKeysType struct{}
 
 // Apply applies the rule to given file.
-func (r *ContextKeysType) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ContextKeysType) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -31,7 +31,7 @@ func (r *ContextKeysType) Apply(file *lint.File, _ lint.Arguments) []lint.Failur
 }
 
 // Name returns the rule name.
-func (r *ContextKeysType) Name() string {
+func (*ContextKeysType) Name() string {
 	return "context-keys-type"
 }
 
@@ -68,7 +68,7 @@ func checkContextKeyType(w lintContextKeyTypes, x *ast.CallExpr) {
 	if len(x.Args) != 3 {
 		return
 	}
-	key := f.Pkg.TypesInfo.Types[x.Args[1]]
+	key := f.Pkg.TypesInfo().Types[x.Args[1]]
 
 	if ktyp, ok := key.Type.(*types.Basic); ok && ktyp.Kind() != types.Invalid {
 		w.onFailure(lint.Failure{

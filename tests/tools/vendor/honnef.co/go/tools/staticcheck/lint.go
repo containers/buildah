@@ -524,13 +524,13 @@ func checkPrintfCallImpl(carg *Argument, f ir.Value, args []ir.Value) {
 		return true
 	}
 
-	var seen typeutil.Map
+	var seen typeutil.Map[struct{}]
 	var checkType func(verb rune, T types.Type, top bool) bool
 	checkType = func(verb rune, T types.Type, top bool) bool {
 		if top {
-			seen = typeutil.Map{}
+			seen = typeutil.Map[struct{}]{}
 		}
-		if ok := seen.At(T); ok != nil {
+		if _, ok := seen.At(T); ok {
 			return true
 		}
 		seen.Set(T, struct{}{})
@@ -1296,7 +1296,7 @@ func CheckLhsRhsIdentical(pass *analysis.Pass) (interface{}, error) {
 			// no terms, so floats are a possibility
 			return true
 		}
-		return tset.Any(func(term *typeparams.Term) bool {
+		return tset.Any(func(term *types.Term) bool {
 			switch typ := term.Type().Underlying().(type) {
 			case *types.Basic:
 				kind := typ.Kind()
@@ -1554,7 +1554,7 @@ func CheckEarlyDefer(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				continue
 			}
-			if ident.Obj != lhs.Obj {
+			if pass.TypesInfo.ObjectOf(ident) != pass.TypesInfo.ObjectOf(lhs) {
 				continue
 			}
 			if sel.Sel.Name != "Close" {
@@ -2085,7 +2085,7 @@ func CheckLoopCondition(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				return true
 			}
-			if x.Obj != lhs.Obj {
+			if pass.TypesInfo.ObjectOf(x) != pass.TypesInfo.ObjectOf(lhs) {
 				return true
 			}
 			if _, ok := loop.Post.(*ast.IncDecStmt); !ok {
@@ -2225,13 +2225,13 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 		if body == nil {
 			return
 		}
-		labels := map[*ast.Object]ast.Stmt{}
+		labels := map[types.Object]ast.Stmt{}
 		ast.Inspect(body, func(node ast.Node) bool {
 			label, ok := node.(*ast.LabeledStmt)
 			if !ok {
 				return true
 			}
-			labels[label.Label.Obj] = label.Stmt
+			labels[pass.TypesInfo.ObjectOf(label.Label)] = label.Stmt
 			return true
 		})
 
@@ -2243,7 +2243,7 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 				body = node.Body
 				loop = node
 			case *ast.RangeStmt:
-				ok := typeutil.All(pass.TypesInfo.TypeOf(node.X), func(term *typeparams.Term) bool {
+				ok := typeutil.All(pass.TypesInfo.TypeOf(node.X), func(term *types.Term) bool {
 					switch term.Type().Underlying().(type) {
 					case *types.Slice, *types.Chan, *types.Basic, *types.Pointer, *types.Array:
 						return true
@@ -2283,11 +2283,11 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 				case *ast.BranchStmt:
 					switch stmt.Tok {
 					case token.BREAK:
-						if stmt.Label == nil || labels[stmt.Label.Obj] == loop {
+						if stmt.Label == nil || labels[pass.TypesInfo.ObjectOf(stmt.Label)] == loop {
 							unconditionalExit = stmt
 						}
 					case token.CONTINUE:
-						if stmt.Label == nil || labels[stmt.Label.Obj] == loop {
+						if stmt.Label == nil || labels[pass.TypesInfo.ObjectOf(stmt.Label)] == loop {
 							unconditionalExit = nil
 							return false
 						}
@@ -2309,7 +2309,7 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 						unconditionalExit = nil
 						return false
 					case token.CONTINUE:
-						if branch.Label != nil && labels[branch.Label.Obj] != loop {
+						if branch.Label != nil && labels[pass.TypesInfo.ObjectOf(branch.Label)] != loop {
 							return true
 						}
 						unconditionalExit = nil
@@ -2899,7 +2899,7 @@ func CheckRepeatedIfElse(pass *analysis.Pass) (interface{}, error) {
 func CheckSillyBitwiseOps(pass *analysis.Pass) (interface{}, error) {
 	fn := func(node ast.Node) {
 		binop := node.(*ast.BinaryExpr)
-		if !typeutil.All(pass.TypesInfo.TypeOf(binop), func(term *typeparams.Term) bool {
+		if !typeutil.All(pass.TypesInfo.TypeOf(binop), func(term *types.Term) bool {
 			b, ok := term.Type().Underlying().(*types.Basic)
 			if !ok {
 				return false
@@ -3421,7 +3421,7 @@ func CheckMapBytesKey(pass *analysis.Pass) (interface{}, error) {
 				}
 				tset := typeutil.NewTypeSet(conv.X.Type())
 				// If at least one of the types is []byte, then it's more efficient to inline the conversion
-				if !tset.Any(func(term *typeparams.Term) bool {
+				if !tset.Any(func(term *types.Term) bool {
 					s, ok := term.Type().Underlying().(*types.Slice)
 					return ok && s.Elem().Underlying() == types.Universe.Lookup("byte").Type()
 				}) {
@@ -4135,7 +4135,7 @@ func CheckMaybeNil(pass *analysis.Pass) (interface{}, error) {
 					ptr = instr.Addr
 				case *ir.IndexAddr:
 					ptr = instr.X
-					if typeutil.All(ptr.Type(), func(term *typeparams.Term) bool {
+					if typeutil.All(ptr.Type(), func(term *types.Term) bool {
 						if _, ok := term.Type().Underlying().(*types.Slice); ok {
 							return true
 						}

@@ -68,7 +68,7 @@ func Source(src []byte, opts Options) ([]byte, error) {
 	// to ensure that using token.NoPos+1 will panic.
 	fset.AddFile("gofumpt_base.go", 1, 10)
 
-	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
@@ -297,14 +297,14 @@ func (f *fumpter) lineEnd(line int) token.Pos {
 
 // rxCommentDirective covers all common Go comment directives:
 //
-//   //go:          | standard Go directives, like go:noinline
-//   //some-words:  | similar to the syntax above, like lint:ignore or go-sumtype:decl
-//   //line         | inserted line information for cmd/compile
-//   //export       | to mark cgo funcs for exporting
-//   //extern       | C function declarations for gccgo
-//   //sys(nb)?     | syscall function wrapper prototypes
-//   //nolint       | nolint directive for golangci
-//   //noinspection | noinspection directive for GoLand and friends
+//	//go:          | standard Go directives, like go:noinline
+//	//some-words:  | similar to the syntax above, like lint:ignore or go-sumtype:decl
+//	//line         | inserted line information for cmd/compile
+//	//export       | to mark cgo funcs for exporting
+//	//extern       | C function declarations for gccgo
+//	//sys(nb)?     | syscall function wrapper prototypes
+//	//nolint       | nolint directive for golangci
+//	//noinspection | noinspection directive for GoLand and friends
 //
 // Note that the "some-words:" matching expects a letter afterward, such as
 // "go:generate", to prevent matching false positives like "https://site".
@@ -316,23 +316,39 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 	switch node := c.Node().(type) {
 	case *ast.File:
 		// Join contiguous lone var/const/import lines.
-		// Abort if there are empty lines or comments in between,
-		// including a leading comment, which could be a directive.
+		// Abort if there are empty lines in between,
+		// including a leading comment if it's a directive.
 		newDecls := make([]ast.Decl, 0, len(node.Decls))
 		for i := 0; i < len(node.Decls); {
 			newDecls = append(newDecls, node.Decls[i])
 			start, ok := node.Decls[i].(*ast.GenDecl)
-			if !ok || isCgoImport(start) || start.Doc != nil {
+			if !ok || isCgoImport(start) || containsAnyDirective(start.Doc) {
 				i++
 				continue
 			}
 			lastPos := start.Pos()
+		contLoop:
 			for i++; i < len(node.Decls); {
 				cont, ok := node.Decls[i].(*ast.GenDecl)
-				if !ok || cont.Tok != start.Tok || cont.Lparen != token.NoPos ||
-					f.Line(lastPos) < f.Line(cont.Pos())-1 || isCgoImport(cont) {
+				if !ok || cont.Tok != start.Tok || cont.Lparen != token.NoPos || isCgoImport(cont) {
 					break
 				}
+				// Are there things between these two declarations? e.g. empty lines, comments, directives
+				// If so, break the chain on empty lines and directives, continue below for comments.
+				if f.Line(lastPos) < f.Line(cont.Pos())-1 {
+					// break on empty line
+					if cont.Doc == nil {
+						break
+					}
+					// break on directive
+					for i, comment := range cont.Doc.List {
+						if f.Line(comment.Slash) != f.Line(lastPos)+1+i || rxCommentDirective.MatchString(strings.TrimPrefix(comment.Text, "//")) {
+							break contLoop
+						}
+					}
+					// continue below for comments
+				}
+
 				start.Specs = append(start.Specs, cont.Specs...)
 				if c := f.inlineComment(cont.End()); c != nil {
 					// don't move an inline comment outside
@@ -361,7 +377,8 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 				pos = comments[0].Pos()
 			}
 
-			multi := f.Line(pos) < f.Line(decl.End())
+			// Note that we want End-1, as End is the character after the node.
+			multi := f.Line(pos) < f.Line(decl.End()-1)
 			if multi && lastMulti && f.Line(lastEnd)+1 == f.Line(pos) {
 				f.addNewline(lastEnd)
 			}
@@ -377,7 +394,9 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 				if comment.Text == "//gofumpt:diagnose" || strings.HasPrefix(comment.Text, "//gofumpt:diagnose ") {
 					slc := []string{
 						"//gofumpt:diagnose",
+						"version:",
 						version.String(),
+						"flags:",
 						"-lang=" + f.LangVersion,
 						"-modpath=" + f.ModulePath,
 					}
@@ -553,7 +572,7 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 					}
 				}
 				handleMultiLine(sign.Params)
-				if sign.Results != nil {
+				if sign.Results != nil && len(sign.Results.List) > 0 {
 					lastResultLine := f.Line(sign.Results.List[len(sign.Results.List)-1].End())
 					isLastResultOnParamClosingLine := sign.Params != nil && lastResultLine == f.Line(sign.Params.Closing)
 					if !isLastResultOnParamClosingLine {
@@ -577,7 +596,13 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 			// don't move comments
 			break
 		}
-		if f.printLength(node) > shortLineLimit {
+		// check the length excluding the body
+		nodeWithoutBody := &ast.CaseClause{
+			Case:  node.Case,
+			List:  node.List,
+			Colon: node.Colon,
+		}
+		if f.printLength(nodeWithoutBody) > shortLineLimit {
 			// too long to collapse
 			break
 		}
@@ -850,11 +875,11 @@ func identEqual(expr ast.Expr, name string) bool {
 
 // isCgoImport returns true if the declaration is simply:
 //
-//   import "C"
+//	import "C"
 //
 // or the equivalent:
 //
-//   import `C`
+//	import `C`
 //
 // Note that parentheses do not affect the result.
 func isCgoImport(decl *ast.GenDecl) bool {
@@ -1017,4 +1042,17 @@ func setPos(v reflect.Value, pos token.Pos) {
 			setPos(v.Field(i), pos)
 		}
 	}
+}
+
+func containsAnyDirective(group *ast.CommentGroup) bool {
+	if group == nil {
+		return false
+	}
+	for _, comment := range group.List {
+		body := strings.TrimPrefix(comment.Text, "//")
+		if rxCommentDirective.MatchString(body) {
+			return true
+		}
+	}
+	return false
 }

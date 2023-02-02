@@ -13,7 +13,7 @@ import (
 type VarDeclarationsRule struct{}
 
 // Apply applies the rule to given file.
-func (r *VarDeclarationsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*VarDeclarationsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -32,7 +32,7 @@ func (r *VarDeclarationsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 }
 
 // Name returns the rule name.
-func (r *VarDeclarationsRule) Name() string {
+func (*VarDeclarationsRule) Name() string {
 	return "var-declaration"
 }
 

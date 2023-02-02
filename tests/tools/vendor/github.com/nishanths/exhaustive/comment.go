@@ -2,40 +2,35 @@ package exhaustive
 
 import (
 	"go/ast"
+	"go/token"
 	"regexp"
 	"strings"
 )
 
-// Generated file definition
+// For definition of generated file see:
 // http://golang.org/s/generatedcode
-//
-//  To convey to humans and machine tools that code is generated, generated
-//  source should have a line that matches the following regular expression (in
-//  Go syntax):
-//
-//    ^// Code generated .* DO NOT EDIT\.$
-//
-//  This line must appear before the first non-comment, non-blank
-//  text in the file.
+
+var generatedCodeRe = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
 
 func isGeneratedFile(file *ast.File) bool {
 	// NOTE: file.Comments includes file.Doc as well, so no need
 	// to separately check file.Doc.
-
 	for _, c := range file.Comments {
 		for _, cc := range c.List {
-			// This check is intended to handle "must appear before the
-			// first non-comment, non-blank text in the file".
-			// TODO: Is this check fully correct? Seems correct based
-			// on https://golang.org/ref/spec#Source_file_organization.
+			// This check handles the "must appear before the first
+			// non-comment, non-blank text in the file" requirement.
+			//
+			// According to https://golang.org/ref/spec#Source_file_organization
+			// the package clause is the first element in a file, which
+			// should make it the first non-comment, non-blank text.
 			if c.Pos() >= file.Package {
 				return false
 			}
 			// According to the docs:
-			// '\r' has been removed.
-			// '\n' has been removed for //-style comments, which is what we care about.
-			// Also manually verified.
-			if isGeneratedFileComment(cc.Text) {
+			//   '\r' has been removed.
+			//   '\n' has been removed for //-style comments
+			// This has also been manually verified.
+			if generatedCodeRe.MatchString(cc.Text) {
 				return true
 			}
 		}
@@ -44,20 +39,15 @@ func isGeneratedFile(file *ast.File) bool {
 	return false
 }
 
-var generatedCodeRe = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
+const (
+	ignoreComment  = "//exhaustive:ignore"
+	enforceComment = "//exhaustive:enforce"
+)
 
-func isGeneratedFileComment(s string) bool {
-	return generatedCodeRe.MatchString(s)
-}
-
-// ignoreDirective is used to exclude checking of specific switch statements.
-const ignoreDirective = "//exhaustive:ignore"
-const enforceDirective = "//exhaustive:enforce"
-
-func containsDirective(comments []*ast.CommentGroup, directive string) bool {
+func hasComment(comments []*ast.CommentGroup, comment string) bool {
 	for _, c := range comments {
 		for _, cc := range c.List {
-			if strings.HasPrefix(cc.Text, directive) {
+			if strings.HasPrefix(cc.Text, comment) {
 				return true
 			}
 		}
@@ -65,10 +55,6 @@ func containsDirective(comments []*ast.CommentGroup, directive string) bool {
 	return false
 }
 
-func containsEnforceDirective(comments []*ast.CommentGroup) bool {
-	return containsDirective(comments, enforceDirective)
-}
-
-func containsIgnoreDirective(comments []*ast.CommentGroup) bool {
-	return containsDirective(comments, ignoreDirective)
+func fileCommentMap(fset *token.FileSet, file *ast.File) ast.CommentMap {
+	return ast.NewCommentMap(fset, file, file.Comments)
 }

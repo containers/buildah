@@ -13,6 +13,7 @@ import (
 
 	"honnef.co/go/tools/analysis/code"
 	"honnef.co/go/tools/analysis/edit"
+	"honnef.co/go/tools/analysis/facts/purity"
 	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/analysis/report"
 	"honnef.co/go/tools/go/ast/astutil"
@@ -232,7 +233,7 @@ func CheckIfBoolCmp(pass *analysis.Pass) (interface{}, error) {
 			other = expr.X
 		}
 
-		ok := typeutil.All(pass.TypesInfo.TypeOf(other), func(term *typeparams.Term) bool {
+		ok := typeutil.All(pass.TypesInfo.TypeOf(other), func(term *types.Term) bool {
 			basic, ok := term.Type().Underlying().(*types.Basic)
 			return ok && basic.Kind() == types.Bool
 		})
@@ -597,12 +598,11 @@ func negate(expr ast.Expr) ast.Expr {
 
 // CheckRedundantNilCheckWithLen checks for the following redundant nil-checks:
 //
-//   if x == nil || len(x) == 0 {}
-//   if x != nil && len(x) != 0 {}
-//   if x != nil && len(x) == N {} (where N != 0)
-//   if x != nil && len(x) > N {}
-//   if x != nil && len(x) >= N {} (where N != 0)
-//
+//	if x == nil || len(x) == 0 {}
+//	if x != nil && len(x) != 0 {}
+//	if x != nil && len(x) == N {} (where N != 0)
+//	if x != nil && len(x) > N {}
+//	if x != nil && len(x) >= N {} (where N != 0)
 func CheckRedundantNilCheckWithLen(pass *analysis.Pass) (interface{}, error) {
 	isConstZero := func(expr ast.Expr) (isConst bool, isZero bool) {
 		_, ok := expr.(*ast.BasicLit)
@@ -705,7 +705,7 @@ func CheckRedundantNilCheckWithLen(pass *analysis.Pass) (interface{}, error) {
 		// finally check that xx type is one of array, slice, map or chan
 		// this is to prevent false positive in case if xx is a pointer to an array
 		typ := pass.TypesInfo.TypeOf(xx)
-		ok = typeutil.All(typ, func(term *typeparams.Term) bool {
+		ok = typeutil.All(typ, func(term *types.Term) bool {
 			switch term.Type().Underlying().(type) {
 			case *types.Slice:
 				return true
@@ -715,7 +715,7 @@ func CheckRedundantNilCheckWithLen(pass *analysis.Pass) (interface{}, error) {
 				return true
 			case *types.Pointer:
 				return false
-			case *typeparams.TypeParam:
+			case *types.TypeParam:
 				return false
 			default:
 				lint.ExhaustiveTypeSwitch(term.Type().Underlying())
@@ -766,22 +766,44 @@ func refersTo(pass *analysis.Pass, expr ast.Expr, ident types.Object) bool {
 }
 
 var checkLoopAppendQ = pattern.MustParse(`
+(Or
 	(RangeStmt
 		(Ident "_")
 		val@(Object _)
 		_
 		x
-		[(AssignStmt [lhs] "=" [(CallExpr (Builtin "append") [lhs val])])]) `)
+		[(AssignStmt [lhs] "=" [(CallExpr (Builtin "append") [lhs val])])])
+	(RangeStmt
+		idx@(Ident _)
+		nil
+		_
+		x
+		[(AssignStmt [lhs] "=" [(CallExpr (Builtin "append") [lhs (IndexExpr x idx)])])])
+	(RangeStmt
+		idx@(Ident _)
+		nil
+		_
+		x
+		[(AssignStmt val@(Object _) ":=" (IndexExpr x idx))
+		(AssignStmt [lhs] "=" [(CallExpr (Builtin "append") [lhs val])])]))`)
 
 func CheckLoopAppend(pass *analysis.Pass) (interface{}, error) {
+	pure := pass.ResultOf[purity.Analyzer].(purity.Result)
+
 	fn := func(node ast.Node) {
 		m, ok := code.Match(pass, checkLoopAppendQ, node)
 		if !ok {
 			return
 		}
 
-		val := m.State["val"].(types.Object)
-		if refersTo(pass, m.State["lhs"].(ast.Expr), val) {
+		val, ok := m.State["val"].(types.Object)
+		if ok && refersTo(pass, m.State["lhs"].(ast.Expr), val) {
+			return
+		}
+
+		if m.State["idx"] != nil && code.MayHaveSideEffects(pass, m.State["x"].(ast.Expr), pure) {
+			// When using an index-based loop, x gets evaluated repeatedly and thus should be pure.
+			// This doesn't matter for value-based loops, because x only gets evaluated once.
 			return
 		}
 
@@ -985,7 +1007,7 @@ func CheckSimplerStructConversion(pass *analysis.Pass) (interface{}, error) {
 				return
 			}
 			// All fields must be initialized from the same object
-			if ident != nil && ident.Obj != id.Obj {
+			if ident != nil && pass.TypesInfo.ObjectOf(ident) != pass.TypesInfo.ObjectOf(id) {
 				return
 			}
 			typ2, _ = t.(*types.Named)
@@ -1046,7 +1068,7 @@ func CheckTrim(pass *analysis.Pass) (interface{}, error) {
 
 		switch node1 := node1.(type) {
 		case *ast.Ident:
-			return node1.Obj == node2.(*ast.Ident).Obj
+			return pass.TypesInfo.ObjectOf(node1) == pass.TypesInfo.ObjectOf(node2.(*ast.Ident))
 		case *ast.SelectorExpr, *ast.IndexExpr:
 			return astutil.Equal(node1, node2)
 		case *ast.BasicLit:
@@ -1372,7 +1394,7 @@ func CheckDeclareAssign(pass *analysis.Pass) (interface{}, error) {
 			}
 			for _, lhs := range assign.Lhs {
 				if oident, ok := lhs.(*ast.Ident); ok {
-					if oident.Obj == ident.Obj {
+					if pass.TypesInfo.ObjectOf(oident) == pass.TypesInfo.ObjectOf(ident) {
 						num++
 					}
 				}
@@ -1413,7 +1435,7 @@ func CheckDeclareAssign(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				continue
 			}
-			if vspec.Names[0].Obj != ident.Obj {
+			if pass.TypesInfo.ObjectOf(vspec.Names[0]) != pass.TypesInfo.ObjectOf(ident) {
 				continue
 			}
 
@@ -1618,11 +1640,11 @@ func CheckNilCheckAroundRange(pass *analysis.Pass) (interface{}, error) {
 		if !ok {
 			return
 		}
-		ok = typeutil.All(m.State["x"].(types.Object).Type(), func(term *typeparams.Term) bool {
+		ok = typeutil.All(m.State["x"].(types.Object).Type(), func(term *types.Term) bool {
 			switch term.Type().Underlying().(type) {
 			case *types.Slice, *types.Map:
 				return true
-			case *typeparams.TypeParam, *types.Chan, *types.Pointer:
+			case *types.TypeParam, *types.Chan, *types.Pointer:
 				return false
 			default:
 				lint.ExhaustiveTypeSwitch(term.Type().Underlying())

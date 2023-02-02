@@ -178,12 +178,12 @@ func (l *irLoader) compileFilterFuncs(filename string, irfile *ir.File) error {
 	buf.WriteString("package gorules\n")
 	buf.WriteString("import \"github.com/quasilyte/go-ruleguard/dsl\"\n")
 	buf.WriteString("import \"github.com/quasilyte/go-ruleguard/dsl/types\"\n")
-	buf.WriteString("type _ = dsl.Matcher\n")
-	buf.WriteString("type _ = types.Type\n")
 	for _, src := range irfile.CustomDecls {
 		buf.WriteString(src)
 		buf.WriteString("\n")
 	}
+	buf.WriteString("type _ = dsl.Matcher\n")
+	buf.WriteString("type _ = types.Type\n")
 
 	fset := token.NewFileSet()
 	f, err := goutil.LoadGoFile(goutil.LoadConfig{
@@ -206,15 +206,16 @@ func (l *irLoader) compileFilterFuncs(filename string, irfile *ir.File) error {
 			continue
 		}
 		ctx := &quasigo.CompileContext{
-			Env:   l.state.env,
-			Types: f.Types,
-			Fset:  fset,
+			Env:     l.state.env,
+			Package: f.Pkg,
+			Types:   f.Types,
+			Fset:    fset,
 		}
 		compiled, err := quasigo.Compile(ctx, decl)
 		if err != nil {
 			return err
 		}
-		if l.ctx.DebugFilter == decl.Name.String() {
+		if l.ctx.DebugFunc == decl.Name.String() {
 			l.ctx.DebugPrint(quasigo.Disasm(l.state.env, compiled))
 		}
 		ctx.Env.AddFunc(f.Pkg.Path(), decl.Name.String(), compiled)
@@ -270,6 +271,14 @@ func (l *irLoader) loadRule(group *ir.RuleGroup, rule *ir.Rule) error {
 		suggestion: rule.SuggestTemplate,
 		msg:        rule.ReportTemplate,
 		location:   rule.LocationVar,
+	}
+
+	if rule.DoFuncName != "" {
+		doFn := l.state.env.GetFunc(l.file.PkgPath, rule.DoFuncName)
+		if doFn == nil {
+			return l.errorf(rule.Line, nil, "can't find a compiled version of %s", rule.DoFuncName)
+		}
+		proto.do = doFn
 	}
 
 	info := filterInfo{
@@ -599,6 +608,18 @@ func (l *irLoader) newFilter(filter ir.FilterExpr, info *filterInfo) (matchFilte
 		}
 		result.fn = makeNodeIsFilter(result.src, filter.Value.(string), tag)
 
+	case ir.FilterRootSinkTypeIsOp:
+		typeString := l.unwrapStringExpr(filter.Args[0])
+		if typeString == "" {
+			return result, l.errorf(filter.Line, nil, "expected a non-empty string argument")
+		}
+		ctx := typematch.Context{Itab: l.itab}
+		pat, err := typematch.Parse(&ctx, typeString)
+		if err != nil {
+			return result, l.errorf(filter.Line, err, "parse type expr")
+		}
+		result.fn = makeRootSinkTypeIsFilter(result.src, pat)
+
 	case ir.FilterVarTypeHasPointersOp:
 		result.fn = makeTypeHasPointersFilter(result.src, filter.Value.(string))
 
@@ -682,6 +703,8 @@ func (l *irLoader) newFilter(filter ir.FilterExpr, info *filterInfo) (matchFilte
 		result.fn = makeConstSliceFilter(result.src, filter.Value.(string))
 	case ir.FilterVarAddressableOp:
 		result.fn = makeAddressableFilter(result.src, filter.Value.(string))
+	case ir.FilterVarComparableOp:
+		result.fn = makeComparableFilter(result.src, filter.Value.(string))
 
 	case ir.FilterFileImportsOp:
 		result.fn = makeFileImportsFilter(result.src, filter.Value.(string))

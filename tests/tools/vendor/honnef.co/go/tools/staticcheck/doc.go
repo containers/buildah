@@ -1286,7 +1286,7 @@ the \'else\' branch. This means that in the following example
     if x, ok := x.(int); ok {
         // ...
     } else {
-        fmt.Println("unexpected type %T", x)
+        fmt.Printf("unexpected type %T", x)
     }
 
 \'x\' in the \'else\' branch will refer to the \'x\' from \'x, ok

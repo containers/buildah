@@ -22,54 +22,51 @@ import (
 // by a source file. It is able to differentiate between plain imports, aliased
 // imports and init only imports.
 type ImportTracker struct {
-	Imported map[string]string
-	Aliased  map[string]string
-	InitOnly map[string]bool
+	// Imported is a map of Imported with their associated names/aliases.
+	Imported map[string][]string
 }
 
 // NewImportTracker creates an empty Import tracker instance
 func NewImportTracker() *ImportTracker {
 	return &ImportTracker{
-		make(map[string]string),
-		make(map[string]string),
-		make(map[string]bool),
+		Imported: make(map[string][]string),
 	}
 }
 
 // TrackFile track all the imports used by the supplied file
 func (t *ImportTracker) TrackFile(file *ast.File) {
 	for _, imp := range file.Imports {
-		path := strings.Trim(imp.Path.Value, `"`)
-		parts := strings.Split(path, "/")
-		if len(parts) > 0 {
-			name := parts[len(parts)-1]
-			t.Imported[path] = name
-		}
+		t.TrackImport(imp)
 	}
 }
 
 // TrackPackages tracks all the imports used by the supplied packages
 func (t *ImportTracker) TrackPackages(pkgs ...*types.Package) {
 	for _, pkg := range pkgs {
-		t.Imported[pkg.Path()] = pkg.Name()
+		t.Imported[pkg.Path()] = []string{pkg.Name()}
 	}
 }
 
-// TrackImport tracks imports and handles the 'unsafe' import
-func (t *ImportTracker) TrackImport(n ast.Node) {
-	if imported, ok := n.(*ast.ImportSpec); ok {
-		path := strings.Trim(imported.Path.Value, `"`)
-		if imported.Name != nil {
-			if imported.Name.Name == "_" {
-				// Initialization only import
-				t.InitOnly[path] = true
-			} else {
-				// Aliased import
-				t.Aliased[path] = imported.Name.Name
-			}
+// TrackImport tracks imports.
+func (t *ImportTracker) TrackImport(imported *ast.ImportSpec) {
+	importPath := strings.Trim(imported.Path.Value, `"`)
+	if imported.Name != nil {
+		if imported.Name.Name == "_" {
+			// Initialization only import
+		} else {
+			// Aliased import
+			t.Imported[importPath] = append(t.Imported[importPath], imported.Name.String())
 		}
-		if path == "unsafe" {
-			t.Imported[path] = path
-		}
+	} else {
+		t.Imported[importPath] = append(t.Imported[importPath], importName(importPath))
 	}
+}
+
+func importName(importPath string) string {
+	parts := strings.Split(importPath, "/")
+	name := importPath
+	if len(parts) > 0 {
+		name = parts[len(parts)-1]
+	}
+	return name
 }

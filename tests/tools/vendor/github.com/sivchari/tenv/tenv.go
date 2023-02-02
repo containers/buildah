@@ -171,6 +171,9 @@ func targetRunner(params []*ast.Field, fileName string) (string, bool) {
 			}
 		case *ast.SelectorExpr:
 			if checkSelectorExprTarget(typ) {
+				if len(p.Names) == 0 {
+					return "", false
+				}
 				argName := p.Names[0].Name
 				return argName, true
 			}

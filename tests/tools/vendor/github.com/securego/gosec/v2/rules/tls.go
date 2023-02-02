@@ -122,8 +122,10 @@ func (t *insecureConfigTLS) processTLSConfVal(n *ast.KeyValueExpr, c *gosec.Cont
 				t.actualMinVersion = ival
 			} else {
 				if se, ok := n.Value.(*ast.SelectorExpr); ok {
-					if pkg, ok := se.X.(*ast.Ident); ok && pkg.Name == "tls" {
-						t.actualMinVersion = t.mapVersion(se.Sel.Name)
+					if pkg, ok := se.X.(*ast.Ident); ok {
+						if ip, ok := gosec.GetImportPath(pkg.Name, c); ok && ip == "crypto/tls" {
+							t.actualMinVersion = t.mapVersion(se.Sel.Name)
+						}
 					}
 				}
 			}
@@ -133,8 +135,10 @@ func (t *insecureConfigTLS) processTLSConfVal(n *ast.KeyValueExpr, c *gosec.Cont
 				t.actualMaxVersion = ival
 			} else {
 				if se, ok := n.Value.(*ast.SelectorExpr); ok {
-					if pkg, ok := se.X.(*ast.Ident); ok && pkg.Name == "tls" {
-						t.actualMaxVersion = t.mapVersion(se.Sel.Name)
+					if pkg, ok := se.X.(*ast.Ident); ok {
+						if ip, ok := gosec.GetImportPath(pkg.Name, c); ok && ip == "crypto/tls" {
+							t.actualMaxVersion = t.mapVersion(se.Sel.Name)
+						}
 					}
 				}
 			}

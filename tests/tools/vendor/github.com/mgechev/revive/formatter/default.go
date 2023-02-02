@@ -13,12 +13,12 @@ type Default struct {
 }
 
 // Name returns the name of the formatter
-func (f *Default) Name() string {
+func (*Default) Name() string {
 	return "default"
 }
 
 // Format formats the failures gotten from the lint.
-func (f *Default) Format(failures <-chan lint.Failure, _ lint.Config) (string, error) {
+func (*Default) Format(failures <-chan lint.Failure, _ lint.Config) (string, error) {
 	for failure := range failures {
 		fmt.Printf("%v: %s\n", failure.Position.Start, failure.Failure)
 	}

@@ -1,32 +1,41 @@
-## exhaustive [![Godoc][2]][1]
+# exhaustive [![Godoc][godoc-svg]][godoc]
 
-Check exhaustiveness of enum switch statements in Go source code.
+Package exhaustive defines an analyzer that checks exhaustiveness of switch
+statements of enum-like constants in Go source code.
+
+For supported flags, the definition of enum, and the definition of
+exhaustiveness used by this package, see [pkg.go.dev][godoc-doc]. For a
+changelog, see [CHANGELOG][changelog] in the GitHub wiki.
+
+The analyzer can be configured to additionally check exhaustiveness of map
+literals whose key type is enum-like.
+
+## Usage
+
+Command line program:
 
 ```
 go install github.com/nishanths/exhaustive/cmd/exhaustive@latest
+
+exhaustive [flags] [packages]
 ```
 
-For docs on the flags, the definition of enum, and the definition of
-exhaustiveness, see [godocs.io][4].
+Package:
 
-For the changelog, see [CHANGELOG][changelog] in the wiki.
+```
+go get github.com/nishanths/exhaustive
+```
 
-The package provides an `Analyzer` that follows the guidelines in the
-[`go/analysis`][3] package; this should make it possible to integrate
-exhaustive with your own analysis driver program.
-
-## Bugs
-
-`exhaustive` does not report missing cases if the switch statement
-switches on a type parameterized type. See [this
-issue](https://github.com/nishanths/exhaustive/issues/31) for details.
+The `exhaustive.Analyzer` variable follows the guidelines of the
+[`golang.org/x/tools/go/analysis`][xanalysis] package. This should make it
+possible to integrate `exhaustive` in your own analysis driver program.
 
 ## Example
 
-Given the enum
+Given an enum:
 
 ```go
-package token
+package token // import "example.org/token"
 
 type Token int
 
@@ -39,12 +48,12 @@ const (
 )
 ```
 
-and the switch statement
+And code that switches on the enum:
 
 ```go
-package calc
+package calc // import "example.org/calc"
 
-import "token"
+import "example.org/token"
 
 func f(t token.Token) {
 	switch t {
@@ -54,21 +63,39 @@ func f(t token.Token) {
 	default:
 	}
 }
+
+var m = map[token.Token]string{
+	token.Add:      "add",
+	token.Subtract: "subtract",
+	token.Multiply: "multiply",
+}
 ```
 
-running exhaustive will print
+Running `exhaustive` with default options will report:
 
 ```
-calc.go:6:2: missing cases in switch of type token.Token: Quotient, Remainder
+% exhaustive example.org/calc
+calc.go:6:2: missing cases in switch of type token.Token: token.Quotient, token.Remainder
+```
+
+Specify the flag `-check=switch,map` to additionally check exhaustiveness of
+map literal keys:
+
+```
+% exhaustive -check=switch,map example.org/calc
+calc.go:6:2: missing cases in switch of type token.Token: token.Quotient, token.Remainder
+calc.go:14:9: missing keys in map of key type token.Token: token.Quotient, token.Remainder
 ```
 
 ## Contributing
 
-Issues and pull requests are welcome. Before making a substantial
-change, please discuss it in an issue.
+Issues and changes are welcome. Please discuss substantial changes
+in an issue first.
 
-[1]: https://godocs.io/github.com/nishanths/exhaustive
-[2]: https://godocs.io/github.com/nishanths/exhaustive?status.svg
-[3]: https://pkg.go.dev/golang.org/x/tools/go/analysis
-[4]: https://godocs.io/github.com/nishanths/exhaustive
+[godoc]: https://pkg.go.dev/github.com/nishanths/exhaustive
+[godoc-svg]: https://pkg.go.dev/badge/github.com/nishanths/exhaustive.svg
+[godoc-doc]: https://pkg.go.dev/github.com/nishanths/exhaustive#section-documentation
+[godoc-flags]: https://pkg.go.dev/github.com/nishanths/exhaustive#hdr-Flags
+[xanalysis]: https://pkg.go.dev/golang.org/x/tools/go/analysis
 [changelog]: https://github.com/nishanths/exhaustive/wiki/CHANGELOG
+[issue-typeparam]: https://github.com/nishanths/exhaustive/issues/31

@@ -13,6 +13,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"honnef.co/go/tools/go/types/typeutil"
 )
 
 type sanity struct {
@@ -30,7 +32,6 @@ type sanity struct {
 //
 // Sanity-checking is intended to facilitate the debugging of code
 // transformation passes.
-//
 func sanityCheck(fn *Function, reporter io.Writer) bool {
 	if reporter == nil {
 		reporter = os.Stderr
@@ -40,7 +41,6 @@ func sanityCheck(fn *Function, reporter io.Writer) bool {
 
 // mustSanityCheck is like sanityCheck but panics instead of returning
 // a negative result.
-//
 func mustSanityCheck(fn *Function, reporter io.Writer) {
 	if !sanityCheck(fn, reporter) {
 		fn.WriteTo(os.Stderr)
@@ -142,11 +142,14 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	case *ChangeInterface:
 	case *ChangeType:
 	case *SliceToArrayPointer:
+	case *SliceToArray:
 	case *Convert:
-		if _, ok := instr.X.Type().Underlying().(*types.Basic); !ok {
-			if _, ok := instr.Type().Underlying().(*types.Basic); !ok {
-				s.errorf("convert %s -> %s: at least one type must be basic", instr.X.Type(), instr.Type())
-			}
+		tsetInstrX := typeutil.NewTypeSet(instr.X.Type().Underlying())
+		tsetInstr := typeutil.NewTypeSet(instr.Type().Underlying())
+		ok1 := tsetInstr.Any(func(term *types.Term) bool { _, ok := term.Type().Underlying().(*types.Basic); return ok })
+		ok2 := tsetInstrX.Any(func(term *types.Term) bool { _, ok := term.Type().Underlying().(*types.Basic); return ok })
+		if !ok1 && !ok2 {
+			s.errorf("convert %s -> %s: at least one type set must contain basic type", instr.X.Type(), instr.Type())
 		}
 
 	case *Defer:
@@ -194,6 +197,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	case *GenericConst:
 	case *Recv:
 	case *TypeSwitch:
+	case *CompositeValue:
 	default:
 		panic(fmt.Sprintf("Unknown instruction type: %T", instr))
 	}

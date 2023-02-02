@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/framework/linter"
+	"golang.org/x/exp/typeparams"
 )
 
 func init() {
@@ -78,6 +79,10 @@ func (c *typeDefFirstChecker) receiverType(e ast.Expr) string {
 		return c.receiverType(e.X)
 	case *ast.Ident:
 		return e.Name
+	case *ast.IndexExpr:
+		return c.receiverType(e.X)
+	case *typeparams.IndexListExpr:
+		return c.receiverType(e.X)
 	default:
 		panic("unreachable")
 	}

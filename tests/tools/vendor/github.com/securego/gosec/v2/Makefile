@@ -12,7 +12,9 @@ GOBIN ?= $(GOPATH)/bin
 GOLINT ?= $(GOBIN)/golint
 GOSEC ?= $(GOBIN)/gosec
 GINKGO ?= $(GOBIN)/ginkgo
-GO_VERSION = 1.18
+GO_MINOR_VERSION = $(shell $(GO) version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f2)
+GOVULN_MIN_VERSION = 17
+GO_VERSION = 1.19
 
 default:
 	$(MAKE) build
@@ -22,7 +24,12 @@ install-test-deps:
 	$(GO_NOMOD) get -u golang.org/x/crypto/ssh
 	$(GO_NOMOD) get -u github.com/lib/pq
 
-test: install-test-deps build fmt lint sec
+install-govulncheck:
+	@if [ $(GO_MINOR_VERSION) -gt $(GOVULN_MIN_VERSION) ]; then \
+		go install golang.org/x/vuln/cmd/govulncheck@latest; \
+	fi
+
+test: install-test-deps build fmt lint sec govulncheck
 	$(GINKGO) -v --fail-fast
 
 fmt:
@@ -44,6 +51,12 @@ golangci:
 sec:
 	@echo "SECURITY SCANNING"
 	./$(BIN) ./...
+
+govulncheck: install-govulncheck
+	@echo "CHECKING VULNERABILITIES"
+	@if [ $(GO_MINOR_VERSION) -gt $(GOVULN_MIN_VERSION) ]; then \
+		govulncheck ./...; \
+	fi
 
 test-coverage: install-test-deps
 	go test -race -v -count=1 -coverprofile=coverage.out ./...

@@ -46,18 +46,18 @@ type UnsupportedTypeError struct {
 type encoder struct {
 	// TODO we track addressable and non-addressable instances separately out of an abundance of caution. We don't know
 	// if this is actually required for correctness.
-	seenCanAddr  typeutil.Map
-	seenCantAddr typeutil.Map
+	seenCanAddr  typeutil.Map[struct{}]
+	seenCantAddr typeutil.Map[struct{}]
 }
 
 func (enc *encoder) newTypeEncoder(t fakereflect.TypeAndCanAddr, stack string) *UnsupportedTypeError {
-	var m *typeutil.Map
+	var m *typeutil.Map[struct{}]
 	if t.CanAddr() {
 		m = &enc.seenCanAddr
 	} else {
 		m = &enc.seenCantAddr
 	}
-	if ok := m.At(t.Type); ok != nil {
+	if _, ok := m.At(t.Type); ok {
 		return nil
 	}
 	m.Set(t.Type, struct{}{})

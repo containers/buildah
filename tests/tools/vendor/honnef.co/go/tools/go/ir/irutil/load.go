@@ -13,6 +13,7 @@ import (
 
 	"honnef.co/go/tools/go/ir"
 
+	//lint:ignore SA1019 go/loader is deprecated, but works fine for our tests
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/packages"
 )
@@ -39,7 +40,6 @@ type Options struct {
 // packages with well-typed syntax trees.
 //
 // The mode parameter controls diagnostics and checking during IR construction.
-//
 func Packages(initial []*packages.Package, mode ir.BuilderMode, opts *Options) (*ir.Program, []*ir.Package) {
 	return doPackages(initial, mode, false, opts)
 }
@@ -61,7 +61,6 @@ func Packages(initial []*packages.Package, mode ir.BuilderMode, opts *Options) (
 // well-typed syntax trees.
 //
 // The mode parameter controls diagnostics and checking during IR construction.
-//
 func AllPackages(initial []*packages.Package, mode ir.BuilderMode, opts *Options) (*ir.Program, []*ir.Package) {
 	return doPackages(initial, mode, true, opts)
 }
@@ -112,7 +111,6 @@ func doPackages(initial []*packages.Package, mode ir.BuilderMode, deps bool, opt
 //
 // Deprecated: use golang.org/x/tools/go/packages and the Packages
 // function instead; see ir.ExampleLoadPackages.
-//
 func CreateProgram(lprog *loader.Program, mode ir.BuilderMode) *ir.Program {
 	prog := ir.NewProgram(lprog.Fset, mode)
 
@@ -139,7 +137,6 @@ func CreateProgram(lprog *loader.Program, mode ir.BuilderMode) *ir.Program {
 // The operation fails if there were any type-checking or import errors.
 //
 // See ../ir/example_test.go for an example.
-//
 func BuildPackage(tc *types.Config, fset *token.FileSet, pkg *types.Package, files []*ast.File, mode ir.BuilderMode) (*ir.Package, *types.Info, error) {
 	if fset == nil {
 		panic("no token.FileSet")

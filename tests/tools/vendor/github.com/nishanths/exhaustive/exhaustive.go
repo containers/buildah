@@ -1,258 +1,316 @@
 /*
-Package exhaustive provides an analyzer that checks exhaustiveness of enum
-switch statements in Go source code.
+Package exhaustive defines an analyzer that checks exhaustiveness of switch
+statements of enum-like constants in Go source code. The analyzer can be
+configured to additionally check exhaustiveness of map literals whose key type
+is enum-like.
 
-Definition of enum
+# Definition of enum
 
-The Go language spec does not provide an explicit definition for an enum. For
-the purpose of this analyzer, an enum type is any named type (a.k.a. defined
-type) whose underlying type is an integer (includes byte and rune), a float, or
-a string type. An enum type has associated with it constants of this named type;
-these constants constitute the enum members.
+The Go [language spec] does not provide an explicit definition for enums. For
+the purpose of this analyzer, and by convention, an enum type is any named
+type that has:
 
-In the example below, Biome is an enum type with 3 members.
+  - underlying type float, string, or integer (includes byte and
+    rune, which are aliases for uint8 and int32, respectively); and
+  - at least one constant of the type defined in the same scope.
 
-    type Biome int
+In the example below, Biome is an enum type. The three constants are its
+enum members.
 
-    const (
-        Tundra  Biome = 1
-        Savanna Biome = 2
-        Desert  Biome = 3
-    )
+	package eco
 
-For a constant to be an enum member for an enum type, the constant must be
-declared in the same scope as the enum type. Note that the scope requirement
-implies that only constants declared in the same package as the enum type's
-package can constitute the enum members for the enum type.
+	type Biome int
 
-Enum member constants for a given enum type don't necessarily have to all be
-declared in the same const block. Constant values may be specified using iota,
-using explicit values, or by any means of declaring a valid Go const. It is
-allowed for multiple enum member constants for a given enum type to have the
-same constant value.
+	const (
+		Tundra  Biome = 1
+		Savanna Biome = 2
+		Desert  Biome = 3
+	)
 
-Definition of exhaustiveness
+Enum member constants for a particular enum type do not necessarily all
+have to be declared in the same const block. The constant values may be
+specified using iota, using literal values, or using any valid means for
+declaring a Go constant. It is allowed for multiple enum member
+constants for a particular enum type to have the same constant value.
 
-A switch statement that switches on a value of an enum type is exhaustive if all
-of the enum type's members are listed in the switch statement's cases. If
-multiple enum member constants have the same constant value, it is sufficient
-for any one of these same-valued members to be listed.
+# Definition of exhaustiveness
+
+A switch statement that switches on a value of an enum type is exhaustive if
+all enum members, by constant value, are listed in the switch
+statement's cases. If multiple members have the same constant value, it is
+sufficient for any one of these same-valued members to be listed.
 
 For an enum type defined in the same package as the switch statement, both
 exported and unexported enum members must be listed to satisfy exhaustiveness.
 For an enum type defined in an external package, it is sufficient that only
-exported enum members are listed.
+exported enum members are listed. In a switch statement's cases, only
+identifiers (e.g. Tundra) and qualified identifiers (e.g. somepkg.Grassland)
+that name constants may contribute towards satisfying exhaustiveness; other
+expressions such as literal values and function calls will not.
 
-Only identifiers denoting constants (e.g. Tundra) and qualified identifiers
-denoting constants (e.g. somepkg.Grassland) listed in a switch statement's cases
-can contribute towards satisfying exhaustiveness. Literal values, struct fields,
-re-assignable variables, etc. will not.
+By default, the existence of a default case in a switch statement does not
+unconditionally make a switch statement exhaustive. Use the
+-default-signifies-exhaustive flag to adjust this behavior.
 
-The analyzer will produce a diagnostic about unhandled enum members if the
-required memebers are not listed in a switch statement's cases (this applies
-even if the switch statement has a 'default' case).
+A similar definition of exhaustiveness applies to a map literal whose key type
+is an enum type. For the map literal to be considered exhaustive, all enum
+members, by constant value, must be listed as keys. Empty map literals are not
+checked. For the analyzer to check map literals, the -check flag must include
+the value "map".
 
-Type aliases
+# Type parameters
 
-The analyzer handles type aliases for an enum type in the following manner.
-Consider the example below. T2 is a enum type, and T1 is an alias for T2. Note
-that we don't term T1 itself an enum type; it is only an alias for an enum
-type.
+A switch statement that switches on a value whose type is a type parameter is
+checked for exhaustiveness if each type element in the type constraint is an
+enum type and shares the same underlying basic type kind.
 
-    package pkg
-    type T1 = newpkg.T2
-    const (
-        A = newpkg.A
-        B = newpkg.B
-    )
+In the following example, the switch statement on the value of type parameter
+T will be checked, because each type element of T—namely M, N, and O—is an
+enum type and shares the same underlying basic type kind (i.e. int8). To
+satisfy exhaustiveness, all enum members, by constant value, for each of the
+enum types M, N, and O—namely A, B, C, and D—must be listed in the switch
+statement's cases.
 
-    package newpkg
-    type T2 int
-    const (
-        A T2 = 1
-        B T2 = 2
-    )
+	func bar[T M | I](v T) {
+		switch v {
+			case T(A):
+			case T(B):
+			case T(C):
+			case T(D):
+		}
+	}
 
-Then a switch statement that switches on a value of type T1 (which, in reality,
-is just an alternate spelling for type T2) is exhaustive if all of T2's enum
-members are listed in the switch statement's cases. The same conditions
-described in the previous section for same-valued enum members and for
-exported/unexported enum members apply here too.
+	type I interface{ N | J }
+	type J interface{ O }
 
-It is worth noting that, though T1 and T2 are identical types, only constants
-declared in the same scope as type T2's scope can be T2's enum members. In the
-example, newpkg.A and newpkg.B are T2's enum members.
+	type M int8
+	const A M = 1
+
+	type N int8
+	const B N = 2
+	const C N = 3
+
+	type O int8
+	const D O = 4
+
+# Type aliases
+
+The analyzer handles type aliases as shown in the example below. Here T2 is a
+enum type. T1 is an alias for T2. Note that T1 itself isn't considered an enum
+type; T1 is only an alias for an enum type.
+
+	package pkg
+	type T1 = newpkg.T2
+	const (
+		A = newpkg.A
+		B = newpkg.B
+	)
+
+	package newpkg
+	type T2 int
+	const (
+		A T2 = 1
+		B T2 = 2
+	)
+
+A switch statement that switches on a value of type T1 (which, in reality, is
+just an alternate spelling for type T2) is exhaustive if all of T2's enum
+members, by constant value, are listed in the switch statement's cases.
+(Recall that only constants declared in the same scope as type T2's scope can
+be T2's enum members.)
+
+The following switch statements are exhaustive.
+
+	// Note: the type of v is effectively newpkg.T2, due to type aliasing.
+	func f(v pkg.T1) {
+		switch v {
+		case newpkg.A:
+		case newpkg.B:
+		}
+	}
+
+	func g(v pkg.T1) {
+		switch v {
+		case pkg.A:
+		case pkg.B:
+		}
+	}
 
 The analyzer guarantees that introducing a type alias (such as type T1 =
-newpkg.T2) will never result in new diagnostics from the analyzer, as long as
-the set of enum member constant values of the new RHS type (newpkg.T2) is a
-subset of the set of enum member constant values of the old LHS type (T1).
+newpkg.T2) will not result in new diagnostics from the analyzer, as long as
+the set of enum member constant values of the alias RHS type is a subset of
+the set of enum member constant values of the LHS type.
 
-Advanced notes
+# Flags
 
-Non-enum member constants in a switch statement's cases: Recall from an earlier
-section that a constant must be declared in the same scope as the enum type to
-be an enum member. It is valid, however, both to the Go type checker and to this
-analyzer, for any constant of the right type to be listed in the cases of an
-enum switch statement (it does not necessarily have to be an enum member
-constant declared in the same scope/package as the enum type's scope/package).
-This is particularly useful when a type alias is involved: A forwarding constant
-declaration (such as pkg.A, in type T1's package) can take the place of the
-actual enum member constant (newpkg.A, in type T2's package) in the switch
-statement's cases to satisfy exhaustiveness.
+Summary:
 
-    var v pkg.T1 = pkg.ReturnsT1() // v is effectively of type newpkg.T2 due to alias
-    switch v {
-    case pkg.A: // valid substitute for newpkg.A (same constant value)
-    case pkg.B: // valid substitute for newpkg.B (same constant value)
-    }
+	flag                           type                     default value
+	----                           ----                     -------------
+	-check                         comma-separated string   switch
+	-explicit-exhaustive-switch    bool                     false
+	-explicit-exhaustive-map       bool                     false
+	-check-generated               bool                     false
+	-default-signifies-exhaustive  bool                     false
+	-ignore-enum-members           regexp pattern           (none)
+	-ignore-enum-types             regexp pattern           (none)
+	-package-scope-only            bool                     false
 
-Flags
+Flag descriptions:
 
-Notable flags supported by the analyzer are described below.
-All of these flags are optional.
+  - The -check flag specifies a comma-separated list of program elements
+    that should be checked for exhaustiveness; supported program elements
+    are "switch" and "map". The default flag value is "switch", which means
+    that only switch statements are checked. Specify the flag value
+    "switch,map" to check both switch statements and map literals.
 
-    flag                            type    default value
+  - If -explicit-exhaustive-switch is enabled, the analyzer checks a switch
+    statement only if it is associated with a comment beginning with
+    "//exhaustive:enforce". Otherwise, the analyzer checks every enum switch
+    statement not associated with a comment beginning with
+    "//exhaustive:ignore".
 
-    -explicit-exhaustive-switch     bool    false
-    -check-generated                bool    false
-    -default-signifies-exhaustive   bool    false
-    -ignore-enum-members            string  (none)
-    -package-scope-only             bool    false
+  - The -explicit-exhaustive-map flag is the map literal counterpart for the
+    -explicit-exhaustive-switch flag.
 
+  - If -check-generated is enabled, switch statements and map literals in
+    generated Go source files are checked. By default, the analyzer does not
+    check generated files. Refer to https://golang.org/s/generatedcode for
+    the definition of generated files.
 
-If the -explicit-exhaustive-switch flag is enabled, the analyzer only runs on
-switch statements explicitly marked with the comment text
-("exhaustive:enforce"). Otherwise, it runs on every enum switch statement not
-marked with the comment text ("exhaustive:ignore").
+  - If -default-signifies-exhaustive is enabled, the presence of a default
+    case in a switch statement unconditionally satisfies exhaustiveness (all
+    enum members do not have to be listed). Enabling this flag usually tends
+    to counter the purpose of exhaustiveness checking, so it is not
+    recommended that you enable this flag.
 
-If the -check-generated flag is enabled, switch statements in generated Go
-source files are also checked. Otherwise, by default, switch statements in
-generated files are not checked. See https://golang.org/s/generatedcode for the
-definition of generated file.
+  - The -ignore-enum-members flag specifies a regular expression in Go
+    package regexp syntax. Constants matching the regular expression do not
+    have to be listed in switch statement cases or map literals in order to
+    satisfy exhaustiveness. The specified regular expression is matched
+    against the constant name inclusive of the enum package import path. For
+    example, if the package import path of the constant is "example.org/eco"
+    and the constant name is "Tundra", the specified regular expression will
+    be matched against the string "example.org/eco.Tundra".
 
-If the -default-signifies-exhaustive flag is enabled, the presence of a
-'default' case in a switch statement always satisfies exhaustiveness, even if
-all enum members are not listed. It is not recommended that you enable this
-flag; enabling it generally defeats the purpose of exhaustiveness checking.
+  - The -ignore-enum-types flag is similar to the -ignore-enum-members flag,
+    except that it applies to types.
 
-The -ignore-enum-members flag specifies a regular expression in Go syntax. Enum
-members matching the regular expression don't have to be listed in switch
-statement cases to satisfy exhaustiveness. The specified regular expression is
-matched against an enum member name inclusive of the enum package import path:
-for example, if the enum package import path is "example.com/pkg" and the member
-name is "Tundra", the specified regular expression will be matched against the
-string "example.com/pkg.Tundra".
+  - If -package-scope-only is enabled, the analyzer only finds enums defined
+    in package scope but not in inner scopes such as functions; consequently
+    only switch statements and map literals that use such enums are checked
+    for exhaustiveness. By default, the analyzer finds enums defined in all
+    scopes, including in inner scopes such as functions.
 
-If the -package-scope-only flag is enabled, the analyzer only finds enums
-defined in package scopes, and consequently only switch statements that switch
-on package-scoped enums will be checked for exhaustiveness. By default, the
-analyzer finds enums defined in all scopes, and checks switch statements that
-switch on all these enums.
+# Skip analysis
 
-Skip analysis
+To skip analysis of a switch statement or a map literal, associate it with a
+comment that begins with "//exhaustive:ignore". For example:
 
-In implicitly exhaustive switch mode (-explicit-exhaustive-switch=false), skip
-checking of a specific switch statement by associating the comment shown in
-the example below with the switch statement. Note the lack of whitespace
-between the comment marker ("//") and the comment text ("exhaustive:ignore").
+	//exhaustive:ignore
+	switch v {
+	case A:
+	case B:
+	}
 
-    //exhaustive:ignore
-    switch v { ... }
+To ignore specific constants in exhaustiveness checks, use the
+-ignore-enum-members flag:
 
-In explicitly exhaustive switch mode (-explicit-exhaustive-switch=true), run
-exhaustiveness checks on a specific switch statement by associating the
-comment shown in the example below with the switch statement.
+	exhaustive -ignore-enum-members '^example\.org/eco\.Tundra$'
 
-    //exhaustive:enforce
-    switch v { ... }
+To ignore specific types, use the -ignore-enum-types flag:
 
-To ignore specific enum members, see the -ignore-enum-members flag.
+	exhaustive -ignore-enum-types '^time\.Duration$|^example\.org/measure\.Unit$'
 
-Switch statements in generated Go source files are not checked by default.
-Use the -check-generated flag to change this behavior.
+[language spec]: https://golang.org/ref/spec
 */
 package exhaustive
 
 import (
-	"flag"
-	"regexp"
+	"fmt"
+	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var _ flag.Value = (*regexpFlag)(nil)
-
-// regexpFlag implements the flag.Value interface for parsing
-// regular expression flag values.
-type regexpFlag struct{ r *regexp.Regexp }
-
-func (v *regexpFlag) String() string {
-	if v == nil || v.r == nil {
-		return ""
-	}
-	return v.r.String()
-}
-
-func (v *regexpFlag) Set(expr string) error {
-	if expr == "" {
-		v.r = nil
-		return nil
-	}
-
-	r, err := regexp.Compile(expr)
-	if err != nil {
-		return err
-	}
-
-	v.r = r
-	return nil
-}
-
-func (v *regexpFlag) value() *regexp.Regexp { return v.r }
-
 func init() {
-	Analyzer.Flags.BoolVar(&fExplicitExhaustiveSwitch, ExplicitExhaustiveSwitchFlag, false, "only run exhaustive check on switches with \"//exhaustive:enforce\" comment")
-	Analyzer.Flags.BoolVar(&fCheckGenerated, CheckGeneratedFlag, false, "check switch statements in generated files")
-	Analyzer.Flags.BoolVar(&fDefaultSignifiesExhaustive, DefaultSignifiesExhaustiveFlag, false, "presence of \"default\" case in switch statements satisfies exhaustiveness, even if all enum members are not listed")
-	Analyzer.Flags.Var(&fIgnoreEnumMembers, IgnoreEnumMembersFlag, "enum members matching `regex` do not have to be listed in switch statements to satisfy exhaustiveness")
-	Analyzer.Flags.BoolVar(&fPackageScopeOnly, PackageScopeOnlyFlag, false, "consider enums only in package scopes, not in inner scopes")
+	Analyzer.Flags.Var(&fCheck, CheckFlag, "comma-separated list of program `elements` that should be checked for exhaustiveness; supported elements are: switch, map")
+	Analyzer.Flags.BoolVar(&fExplicitExhaustiveSwitch, ExplicitExhaustiveSwitchFlag, false, `check switch statement only if associated with "//exhaustive:enforce" comment`)
+	Analyzer.Flags.BoolVar(&fExplicitExhaustiveMap, ExplicitExhaustiveMapFlag, false, `check map literal only if associated with "//exhaustive:enforce" comment`)
+	Analyzer.Flags.BoolVar(&fCheckGenerated, CheckGeneratedFlag, false, "check generated files")
+	Analyzer.Flags.BoolVar(&fDefaultSignifiesExhaustive, DefaultSignifiesExhaustiveFlag, false, "presence of default case in switch statement unconditionally satisfies exhaustiveness")
+	Analyzer.Flags.Var(&fIgnoreEnumMembers, IgnoreEnumMembersFlag, "constants matching `regexp` are ignored for exhaustiveness checks")
+	Analyzer.Flags.Var(&fIgnoreEnumTypes, IgnoreEnumTypesFlag, "types matching `regexp` are ignored for exhaustiveness checks")
+	Analyzer.Flags.BoolVar(&fPackageScopeOnly, PackageScopeOnlyFlag, false, "find enums only in package scopes, not inner scopes")
 
 	var unused string
-	Analyzer.Flags.StringVar(&unused, IgnorePatternFlag, "", "no effect (deprecated); see -"+IgnoreEnumMembersFlag+" instead")
+	Analyzer.Flags.StringVar(&unused, IgnorePatternFlag, "", "no effect (deprecated); use -"+IgnoreEnumMembersFlag)
 	Analyzer.Flags.StringVar(&unused, CheckingStrategyFlag, "", "no effect (deprecated)")
 }
 
 // Flag names used by the analyzer. They are exported for use by analyzer
 // driver programs.
 const (
+	CheckFlag                      = "check"
 	ExplicitExhaustiveSwitchFlag   = "explicit-exhaustive-switch"
+	ExplicitExhaustiveMapFlag      = "explicit-exhaustive-map"
 	CheckGeneratedFlag             = "check-generated"
 	DefaultSignifiesExhaustiveFlag = "default-signifies-exhaustive"
 	IgnoreEnumMembersFlag          = "ignore-enum-members"
+	IgnoreEnumTypesFlag            = "ignore-enum-types"
 	PackageScopeOnlyFlag           = "package-scope-only"
 
-	IgnorePatternFlag    = "ignore-pattern"    // Deprecated: see IgnoreEnumMembersFlag instead.
+	IgnorePatternFlag    = "ignore-pattern"    // Deprecated: use IgnoreEnumMembersFlag.
 	CheckingStrategyFlag = "checking-strategy" // Deprecated.
 )
 
+// checkElement is a program element supported by the -check flag.
+type checkElement string
+
+const (
+	elementSwitch checkElement = "switch"
+	elementMap    checkElement = "map"
+)
+
+func validCheckElement(s string) error {
+	switch checkElement(s) {
+	case elementSwitch:
+		return nil
+	case elementMap:
+		return nil
+	default:
+		return fmt.Errorf("invalid program element %q", s)
+	}
+}
+
+var defaultCheckElements = []string{
+	string(elementSwitch),
+}
+
+// Flag values.
 var (
+	fCheck                      = stringsFlag{elements: defaultCheckElements, filter: validCheckElement}
 	fExplicitExhaustiveSwitch   bool
+	fExplicitExhaustiveMap      bool
 	fCheckGenerated             bool
 	fDefaultSignifiesExhaustive bool
 	fIgnoreEnumMembers          regexpFlag
+	fIgnoreEnumTypes            regexpFlag
 	fPackageScopeOnly           bool
 )
 
 // resetFlags resets the flag variables to their default values.
 // Useful in tests.
 func resetFlags() {
+	fCheck = stringsFlag{elements: defaultCheckElements, filter: validCheckElement}
 	fExplicitExhaustiveSwitch = false
+	fExplicitExhaustiveMap = false
 	fCheckGenerated = false
 	fDefaultSignifiesExhaustive = false
 	fIgnoreEnumMembers = regexpFlag{}
+	fIgnoreEnumTypes = regexpFlag{}
 	fPackageScopeOnly = false
 }
 
@@ -267,15 +325,46 @@ var Analyzer = &analysis.Analyzer{
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	for typ, members := range findEnums(fPackageScopeOnly, pass.Pkg, inspect, pass.TypesInfo) {
+	for typ, members := range findEnums(
+		fPackageScopeOnly,
+		pass.Pkg,
+		inspect,
+		pass.TypesInfo,
+	) {
 		exportFact(pass, typ, members)
 	}
 
-	checkSwitchStatements(pass, inspect, config{
-		explicitExhaustiveSwitch:   fExplicitExhaustiveSwitch,
+	generated := boolCache{value: isGeneratedFile}
+	comments := commentCache{value: fileCommentMap}
+	swConf := switchConfig{
+		explicit:                   fExplicitExhaustiveSwitch,
 		defaultSignifiesExhaustive: fDefaultSignifiesExhaustive,
-		checkGeneratedFiles:        fCheckGenerated,
-		ignoreEnumMembers:          fIgnoreEnumMembers.value(),
-	})
+		checkGenerated:             fCheckGenerated,
+		ignoreConstant:             fIgnoreEnumMembers.re,
+		ignoreType:                 fIgnoreEnumTypes.re,
+	}
+	mapConf := mapConfig{
+		explicit:       fExplicitExhaustiveMap,
+		checkGenerated: fCheckGenerated,
+		ignoreConstant: fIgnoreEnumMembers.re,
+		ignoreType:     fIgnoreEnumTypes.re,
+	}
+	swChecker := switchChecker(pass, swConf, generated, comments)
+	mapChecker := mapChecker(pass, mapConf, generated, comments)
+
+	// NOTE: should not share the same inspect.WithStack call for different
+	// program elements: the visitor function for a program element may
+	// exit traversal early, but this shouldn't affect traversal for
+	// other program elements.
+	for _, e := range fCheck.elements {
+		switch checkElement(e) {
+		case elementSwitch:
+			inspect.WithStack([]ast.Node{&ast.SwitchStmt{}}, toVisitor(swChecker))
+		case elementMap:
+			inspect.WithStack([]ast.Node{&ast.CompositeLit{}}, toVisitor(mapChecker))
+		default:
+			panic(fmt.Sprintf("unknown checkElement %v", e))
+		}
+	}
 	return nil, nil
 }

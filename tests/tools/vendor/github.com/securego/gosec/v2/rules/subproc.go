@@ -77,6 +77,13 @@ func (r *subprocess) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 								return gosec.NewIssue(c, n, r.ID(), "Subprocess launched with variable", gosec.Medium, gosec.High), nil
 							}
 						}
+					case *ast.ValueSpec:
+						_, valueSpec := ident.Obj.Decl.(*ast.ValueSpec)
+						if variable && valueSpec {
+							if !gosec.TryResolve(ident, c) {
+								return gosec.NewIssue(c, n, r.ID(), "Subprocess launched with variable", gosec.Medium, gosec.High), nil
+							}
+						}
 					}
 				}
 			} else if !gosec.TryResolve(arg, c) {

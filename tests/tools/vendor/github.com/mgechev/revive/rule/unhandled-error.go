@@ -4,31 +4,47 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"regexp"
+	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
 
 // UnhandledErrorRule lints given else constructs.
 type UnhandledErrorRule struct {
-	ignoreList ignoreListType
+	ignoreList []*regexp.Regexp
+	sync.Mutex
 }
 
-type ignoreListType map[string]struct{}
-
-// Apply applies the rule to given file.
-func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+func (r *UnhandledErrorRule) configure(arguments lint.Arguments) {
+	r.Lock()
 	if r.ignoreList == nil {
-		r.ignoreList = make(ignoreListType, len(args))
-
-		for _, arg := range args {
+		for _, arg := range arguments {
 			argStr, ok := arg.(string)
 			if !ok {
 				panic(fmt.Sprintf("Invalid argument to the unhandled-error rule. Expecting a string, got %T", arg))
 			}
 
-			r.ignoreList[argStr] = struct{}{}
+			argStr = strings.Trim(argStr, " ")
+			if argStr == "" {
+				panic("Invalid argument to the unhandled-error rule, expected regular expression must not be empty.")
+			}
+
+			exp, err := regexp.Compile(argStr)
+			if err != nil {
+				panic(fmt.Sprintf("Invalid argument to the unhandled-error rule: regexp %q does not compile: %v", argStr, err))
+			}
+
+			r.ignoreList = append(r.ignoreList, exp)
 		}
 	}
+	r.Unlock()
+}
+
+// Apply applies the rule to given file.
+func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+	r.configure(args)
 
 	var failures []lint.Failure
 
@@ -47,12 +63,12 @@ func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.
 }
 
 // Name returns the rule name.
-func (r *UnhandledErrorRule) Name() string {
+func (*UnhandledErrorRule) Name() string {
 	return "unhandled-error"
 }
 
 type lintUnhandledErrors struct {
-	ignoreList ignoreListType
+	ignoreList []*regexp.Regexp
 	pkg        *lint.Package
 	onFailure  func(lint.Failure)
 }
@@ -94,8 +110,8 @@ func (w *lintUnhandledErrors) Visit(node ast.Node) ast.Visitor {
 }
 
 func (w *lintUnhandledErrors) addFailure(n *ast.CallExpr) {
-	funcName := gofmt(n.Fun)
-	if _, mustIgnore := w.ignoreList[funcName]; mustIgnore {
+	name := w.funcName(n)
+	if w.isIgnoredFunc(name) {
 		return
 	}
 
@@ -103,8 +119,32 @@ func (w *lintUnhandledErrors) addFailure(n *ast.CallExpr) {
 		Category:   "bad practice",
 		Confidence: 1,
 		Node:       n,
-		Failure:    fmt.Sprintf("Unhandled error in call to function %v", funcName),
+		Failure:    fmt.Sprintf("Unhandled error in call to function %v", gofmt(n.Fun)),
 	})
+}
+
+func (w *lintUnhandledErrors) funcName(call *ast.CallExpr) string {
+	fn, ok := w.getFunc(call)
+	if !ok {
+		return gofmt(call.Fun)
+	}
+
+	name := fn.FullName()
+	name = strings.Replace(name, "(", "", -1)
+	name = strings.Replace(name, ")", "", -1)
+	name = strings.Replace(name, "*", "", -1)
+
+	return name
+}
+
+func (w *lintUnhandledErrors) isIgnoredFunc(funcName string) bool {
+	for _, pattern := range w.ignoreList {
+		if len(pattern.FindString(funcName)) == len(funcName) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (*lintUnhandledErrors) isTypeError(t *types.Named) bool {
@@ -121,4 +161,18 @@ func (w *lintUnhandledErrors) returnsAnError(tt *types.Tuple) bool {
 		}
 	}
 	return false
+}
+
+func (w *lintUnhandledErrors) getFunc(call *ast.CallExpr) (*types.Func, bool) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return nil, false
+	}
+
+	fn, ok := w.pkg.TypesInfo().ObjectOf(sel.Sel).(*types.Func)
+	if !ok {
+		return nil, false
+	}
+
+	return fn, true
 }
