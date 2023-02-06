@@ -39,10 +39,11 @@ func init() {
 	loginCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := loginCommand.Flags()
-	flags.SetInterspersed(false)
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVar(&opts.getLogin, "get-login", true, "return the current login user for the registry")
 	flags.AddFlagSet(auth.GetLoginFlags(&opts.loginOpts))
+	opts.loginOpts.Stdin = os.Stdin
+	opts.loginOpts.Stdout = os.Stdout
 	rootCmd.AddCommand(loginCommand)
 }
 

@@ -10,6 +10,12 @@ load helpers
   run_buildah 0 logout localhost:$REGISTRY_PORT
 }
 
+@test "authenticate: with stdin" {
+  start_registry testuserfoo testpassword
+  run_buildah 0 login localhost:$REGISTRY_PORT --cert-dir $REGISTRY_DIR --username testuserfoo --password-stdin <<< testpassword
+  run_buildah 0 logout localhost:$REGISTRY_PORT
+}
+
 @test "authenticate: login/logout should succeed with XDG_RUNTIME_DIR unset" {
   unset XDG_RUNTIME_DIR
 
