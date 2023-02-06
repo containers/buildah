@@ -70,7 +70,6 @@ func init() {
 }
 
 func buildCmd(c *cobra.Command, inputArgs []string, iopts buildahcli.BuildOptions) error {
-
 	if c.Flag("logfile").Changed {
 		logfile, err := os.OpenFile(iopts.Logfile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 		if err != nil {
