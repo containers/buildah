@@ -325,7 +325,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		// If user explicitly specified `--cache-ttl=0s`
 		// it would effectively mean that user is asking
 		// to use no cache at all. In such use cases
-		// buildah can skip looking for cache entierly
+		// buildah can skip looking for cache entirely
 		// by setting `--no-cache=true` internally.
 		if int64(cacheTTL) == 0 {
 			logrus.Debug("Setting --no-cache=true since --cache-ttl was set to 0s which effectively means user wants to ignore cache")
