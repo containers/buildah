@@ -2071,7 +2071,7 @@ func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOp
 		// decided to strip setuid,setgid and extended attributes.
 		// Since modes like setuid,setgid leaves room for executable
 		// to get invoked with different file-system permission its safer
-		// to strip them off for unpriviledged invocation.
+		// to strip them off for unprivileged invocation.
 		// See: https://github.com/containers/buildah/pull/3823#discussion_r829376633
 		extractRootfsOpts.StripSetuidBit = true
 		extractRootfsOpts.StripSetgidBit = true

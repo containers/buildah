@@ -5412,7 +5412,7 @@ _EOF
   # Rebuild everything with label1=value1 and everything should be cached from first image
   run_buildah build --layers --label "label1=value1" $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.reused $BUDFILES/multi-stage-builds
 
-  # Enitre image must be picked from cache
+  # Entire image must be picked from cache
   run_buildah inspect --format '{{ .FromImageID }}' ${target}
   expect_output "$firstImageID" "Image ID cached from first build"
 
