@@ -34,14 +34,14 @@ the container.
 
 **--cap-drop**=*CAP\_xxx*
 
-Add the specified capability from the set of capabilities which will be granted
+Drop the specified capability from the set of capabilities which will be granted
 to the specified command.
-The CAP\_AUDIT\_WRITE, CAP\_CHOWN, CAP\_DAC\_OVERRIDE, CAP\_FOWNER,
-CAP\_FSETID, CAP\_KILL, CAP\_MKNOD, CAP\_NET\_BIND\_SERVICE, CAP\_SETFCAP,
-CAP\_SETGID, CAP\_SETPCAP, CAP\_SETUID, and CAP\_SYS\_CHROOT capabilities are
+The CAP\_CHOWN, CAP\_DAC\_OVERRIDE, CAP\_FOWNER,
+CAP\_FSETID, CAP\_KILL, CAP\_NET\_BIND\_SERVICE, CAP\_SETFCAP,
+CAP\_SETGID, CAP\_SETPCAP, and CAP\_SETUID capabilities are
 granted by default; this option can be used to remove them from the defaults,
 which may have been modified by **--cap-add** and **--cap-drop** options used
-with the *buildah from* invocation which created the container.
+with the *buildah from* invocation which created the container. The list of default capabilities is managed in containers.conf(5).
 
 If a capability is specified to both the **--cap-add** and **--cap-drop**
 options, it will be dropped, regardless of the order in which the options were
@@ -342,7 +342,7 @@ buildah run -v /path/on/host:/path/in/container:z,U containerID sh
 buildah run --mount type=bind,src=/tmp/on:host,dst=/in:container,ro containerID sh
 
 ## SEE ALSO
-buildah(1), buildah-from(1), buildah-config(1), namespaces(7), pid\_namespaces(7), crun(1), runc(8)
+buildah(1), buildah-from(1), buildah-config(1), namespaces(7), pid\_namespaces(7), crun(1), runc(8), containers.conf(5)
 
 ## FOOTNOTES
 <a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.
