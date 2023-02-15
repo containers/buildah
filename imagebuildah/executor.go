@@ -521,8 +521,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	// build and b.forceRmIntermediateCtrs is set, make sure we
 	// remove the intermediate/build containers, regardless of
 	// whether or not the stage's build fails.
-	// Skip cleanup if the stage has no instructions.
-	if b.forceRmIntermediateCtrs || !b.layers && len(stage.Node.Children) > 0 {
+	if b.forceRmIntermediateCtrs || !b.layers {
 		b.stagesLock.Lock()
 		cleanupStages[stage.Position] = stageExecutor
 		b.stagesLock.Unlock()
