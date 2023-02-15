@@ -366,7 +366,6 @@ func transformArchive(r io.Reader, compressed bool, fn TransformFileFunc) (io.Re
 // a (file) -> test
 // a (dir)  -> test/
 // a (file) -> test/
-//
 func archivePathMapper(src, dst string, isDestDir bool) (fn func(itemCount *int, name string, isDir bool) (string, bool, error)) {
 	srcPattern := filepath.Clean(src)
 	if srcPattern == "." {

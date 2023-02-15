@@ -43,7 +43,10 @@ type Run struct {
 
 type Executor interface {
 	Preserve(path string) error
+	// EnsureContainerPath should ensure that the directory exists, creating any components required
 	EnsureContainerPath(path string) error
+	// EnsureContainerPathAs should ensure that the directory exists, creating any components required
+	// with the specified owner and mode, if either is specified
 	EnsureContainerPathAs(path, user string, mode *os.FileMode) error
 	Copy(excludes []string, copies ...Copy) error
 	Run(run Run, config docker.Config) error
