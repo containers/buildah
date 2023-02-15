@@ -79,7 +79,7 @@ Like the `packages` field, the `ignoreFileRules` field can accept both string pr
 ## Gometalinter
 
 The binary installation of this linter can be used with
-[Gometalinter](github.com/alecthomas/gometalinter).
+[Gometalinter](https://github.com/alecthomas/gometalinter).
 
 If you use a configuration file for Gometalinter then the following will need to
 be added to your configuration file.

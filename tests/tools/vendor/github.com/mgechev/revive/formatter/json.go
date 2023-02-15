@@ -13,7 +13,7 @@ type JSON struct {
 }
 
 // Name returns the name of the formatter
-func (f *JSON) Name() string {
+func (*JSON) Name() string {
 	return "json"
 }
 
@@ -24,7 +24,7 @@ type jsonObject struct {
 }
 
 // Format formats the failures gotten from the lint.
-func (f *JSON) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
+func (*JSON) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
 	var slice []jsonObject
 	for failure := range failures {
 		obj := jsonObject{}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -11,16 +12,23 @@ import (
 // BannedCharsRule checks if a file contains banned characters.
 type BannedCharsRule struct {
 	bannedCharList []string
+	sync.Mutex
 }
 
 const bannedCharsRuleName = "banned-characters"
 
-// Apply applied the rule to the given file.
-func (r *BannedCharsRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (r *BannedCharsRule) configure(arguments lint.Arguments) {
+	r.Lock()
 	if r.bannedCharList == nil {
 		checkNumberOfArguments(1, arguments, bannedCharsRuleName)
 		r.bannedCharList = r.getBannedCharsList(arguments)
 	}
+	r.Unlock()
+}
+
+// Apply applied the rule to the given file.
+func (r *BannedCharsRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
 
 	var failures []lint.Failure
 	onFailure := func(failure lint.Failure) {
@@ -31,12 +39,13 @@ func (r *BannedCharsRule) Apply(file *lint.File, arguments lint.Arguments) []lin
 		bannedChars: r.bannedCharList,
 		onFailure:   onFailure,
 	}
+
 	ast.Walk(w, file.AST)
 	return failures
 }
 
 // Name returns the rule name
-func (r *BannedCharsRule) Name() string {
+func (*BannedCharsRule) Name() string {
 	return bannedCharsRuleName
 }
 

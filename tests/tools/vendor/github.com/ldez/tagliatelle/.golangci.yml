@@ -24,7 +24,7 @@ linters-settings:
   gofumpt:
     extra-rules: true
   depguard:
-    list-type: blacklist
+    list-type: denylist
     include-go-root: false
     packages:
       - github.com/sirupsen/logrus
@@ -46,12 +46,19 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - deadcode # deprecated
+    - exhaustivestruct # deprecated
     - golint # deprecated
-    - maligned # deprecated
+    - ifshort # deprecated
     - interfacer # deprecated
+    - maligned # deprecated
+    - nosnakecase # deprecated
     - scopelint # deprecated
+    - structcheck # deprecated
+    - varcheck # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
+    - execinquery # not relevant (SQL)
     - cyclop # duplicate of gocyclo
     - lll
     - dupl
@@ -61,7 +68,7 @@ linters:
     - goerr113
     - wrapcheck
     - exhaustive
-    - exhaustivestruct
+    - exhaustruct
     - testpackage
     - tparallel
     - paralleltest
@@ -71,9 +78,11 @@ linters:
     - varnamelen
     - nilnil
     - errchkjson
+    - nonamedreturns
 
 issues:
   exclude-use-default: false
   max-per-linter: 0
   max-same-issues: 0
-  exclude: []
+  exclude:
+    - 'package-comments: should have a package comment'

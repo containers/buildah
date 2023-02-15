@@ -3,6 +3,7 @@ package rule
 import (
 	"fmt"
 	"regexp"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -10,15 +11,16 @@ import (
 // FileHeaderRule lints given else constructs.
 type FileHeaderRule struct {
 	header string
+	sync.Mutex
 }
 
 var (
-	multiRegexp  = regexp.MustCompile("^/\\*")
+	multiRegexp  = regexp.MustCompile(`^/\*`)
 	singleRegexp = regexp.MustCompile("^//")
 )
 
-// Apply applies the rule to given file.
-func (r *FileHeaderRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (r *FileHeaderRule) configure(arguments lint.Arguments) {
+	r.Lock()
 	if r.header == "" {
 		checkNumberOfArguments(1, arguments, r.Name())
 		var ok bool
@@ -27,6 +29,12 @@ func (r *FileHeaderRule) Apply(file *lint.File, arguments lint.Arguments) []lint
 			panic(fmt.Sprintf("invalid argument for \"file-header\" rule: first argument should be a string, got %T", arguments[0]))
 		}
 	}
+	r.Unlock()
+}
+
+// Apply applies the rule to given file.
+func (r *FileHeaderRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
 
 	failure := []lint.Failure{
 		{
@@ -67,6 +75,6 @@ func (r *FileHeaderRule) Apply(file *lint.File, arguments lint.Arguments) []lint
 }
 
 // Name returns the rule name.
-func (r *FileHeaderRule) Name() string {
+func (*FileHeaderRule) Name() string {
 	return "file-header"
 }

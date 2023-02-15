@@ -4,8 +4,8 @@ const (
 	Indent    = '\t'
 	Linebreak = '\n'
 
-	SectionSeparator = ":"
+	Colon = ":"
 
-	ParameterOpeningBrackets = "("
-	ParameterClosingBrackets = ")"
+	LeftParenthesis  = '('
+	RightParenthesis = ')'
 )

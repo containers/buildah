@@ -19,6 +19,9 @@ type Deprecation struct {
 // go/importer.ForCompiler contains "Deprecated:", but it refers to a single argument, not the whole function.
 // Luckily, the notice starts in the middle of a paragraph, and as such isn't detected by us.
 
+// TODO(dh): StdlibDeprecations doesn't contain entries for internal packages and unexported API. That's fine for normal
+// users, but makes the Deprecated check less useful for people working on Go itself.
+
 // StdlibDeprecations contains a mapping of Go API (such as variables, methods, or fields, among others)
 // to information about when it has been deprecated.
 var StdlibDeprecations = map[string]Deprecation{
@@ -85,8 +88,19 @@ var StdlibDeprecations = map[string]Deprecation{
 	"net/http.ErrUnexpectedTrailer":             {12, DeprecatedUseNoLonger},
 	"net/http.CloseNotifier":                    {11, 7},
 	// This is hairy. The notice says "Not all errors in the http package related to protocol errors are of type ProtocolError", but doesn't that imply that some errors do?
-	"net/http.ProtocolError":                      {8, DeprecatedUseNoLonger},
-	"(crypto/x509.CertificateRequest).Attributes": {5, 3},
+	"net/http.ProtocolError":                       {8, DeprecatedUseNoLonger},
+	"(crypto/x509.CertificateRequest).Attributes":  {5, 3},
+	"(*crypto/x509.Certificate).CheckCRLSignature": {19, 19},
+	"crypto/x509.ParseCRL":                         {19, 19},
+	"crypto/x509.ParseDERCRL":                      {19, 19},
+	"(*crypto/x509.Certificate).CreateCRL":         {19, 19},
+	"crypto/x509/pkix.TBSCertificateList":          {19, 19},
+	"crypto/x509/pkix.RevokedCertificate":          {19, 19},
+	"go/doc.ToHTML":                                {20, 20},
+	"go/doc.ToText":                                {20, 20},
+	"go/doc.Synopsis":                              {20, 20},
+	"math/rand.Seed":                               {20, 0},
+	"math/rand.Read":                               {20, DeprecatedNeverUse},
 
 	// These functions have no direct alternative, but they are insecure and should no longer be used.
 	"crypto/x509.IsEncryptedPEMBlock": {16, DeprecatedNeverUse},
@@ -150,8 +164,9 @@ var StdlibDeprecations = map[string]Deprecation{
 	"syscall.GetQueuedCompletionStatus":     {17, 0},
 	"syscall.CreateIoCompletionPort":        {17, 0},
 
-	// Not marked as deprecated with a recognizable header, but deprecated nonetheless.
-	"io/ioutil": {16, 16},
+	// We choose to only track the package itself, even though all functions are derecated individually, too. Anyone
+	// using ioutil directly will have to import it, and this keeps the noise down.
+	"io/ioutil": {19, 19},
 
 	"bytes.Title":   {18, 0},
 	"strings.Title": {18, 0},
@@ -174,15 +189,18 @@ var StdlibDeprecations = map[string]Deprecation{
 	"syscall.Syscall9":  {18, 18},
 }
 
-// Last imported from Go at 4aa1efed4853ea067d665a952eee77c52faac774 with the following numbers of deprecations:
+// Last imported from Go at 9f0234214473dfb785a5ad84a8fc62a6a395cbc3 with the following numbers of deprecations:
 //
 // archive/tar/common.go:2
 // archive/zip/struct.go:6
 // bytes/bytes.go:1
-// cmd/compile/internal/ir/expr.go:1
-// cmd/compile/internal/ir/type.go:1
+// cmd/api/testdata/src/pkg/p1/p1.go:8
+// cmd/api/testdata/src/pkg/p2/p2.go:2
+// cmd/api/testdata/src/pkg/p4/p4.go:1
+// cmd/compile/internal/noder/quirks.go:1
+// cmd/compile/internal/reflectdata/reflect.go:2
 // cmd/compile/internal/syntax/walk.go:1
-// cmd/compile/internal/types/sym.go:2
+// cmd/compile/internal/types/sym.go:3
 // cmd/go/internal/modcmd/edit.go:1
 // cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt:2
 // cmd/go/testdata/mod/example.com_deprecated_b_v1.9.0.txt:2
@@ -197,6 +215,11 @@ var StdlibDeprecations = map[string]Deprecation{
 // cmd/vendor/golang.org/x/mod/semver/semver.go:1
 // cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_amd64.go:1
 // cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_arm64.go:1
+// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_386.go:1
+// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_amd64.go:1
+// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_arm.go:1
+// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_arm64.go:1
+// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_riscv64.go:1
 // cmd/vendor/golang.org/x/sys/windows/security_windows.go:1
 // cmd/vendor/golang.org/x/sys/windows/syscall_windows.go:2
 // compress/flate/inflate.go:2
@@ -205,20 +228,27 @@ var StdlibDeprecations = map[string]Deprecation{
 // crypto/tls/common.go:7
 // crypto/x509/cert_pool.go:1
 // crypto/x509/pem_decrypt.go:3
-// crypto/x509/x509.go:1
+// crypto/x509/pkix/pkix.go:2
+// crypto/x509/x509.go:5
 // database/sql/driver/driver.go:6
 // debug/gosym/pclntab.go:2
 // encoding/csv/reader.go:2
 // encoding/json/decode.go:1
 // encoding/json/encode.go:1
+// go/doc/comment.go:2
 // go/doc/doc.go:1
+// go/doc/synopsis.go:1
 // go/importer/importer.go:2
-// go/types/errorcodes.go:1
 // go/types/interface.go:2
 // go/types/signature.go:1
 // image/geom.go:2
 // image/jpeg/reader.go:1
+// internal/types/errors/codes.go:1
+// io/ioutil/ioutil.go:7
+// io/ioutil/tempfile.go:2
+// math/rand/rand.go:2
 // net/dial.go:2
+// net/http/h2_bundle.go:1
 // net/http/httptest/recorder.go:1
 // net/http/httputil/persist.go:8
 // net/http/request.go:6
@@ -249,5 +279,4 @@ var StdlibDeprecations = map[string]Deprecation{
 // syscall/syscall.go:3
 // syscall/syscall_windows.go:6
 // text/template/parse/node.go:5
-// vendor/golang.org/x/crypto/curve25519/curve25519.go:1
 // vendor/golang.org/x/text/transform/transform.go:1

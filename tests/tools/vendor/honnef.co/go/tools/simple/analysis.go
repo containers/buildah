@@ -4,6 +4,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"honnef.co/go/tools/analysis/facts/generated"
+	"honnef.co/go/tools/analysis/facts/purity"
 	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/internal/passes/buildir"
 )
@@ -55,7 +56,7 @@ var Analyzers = lint.InitializeAnalyzers(Docs, map[string]*analysis.Analyzer{
 	},
 	"S1011": {
 		Run:      CheckLoopAppend,
-		Requires: []*analysis.Analyzer{inspect.Analyzer, generated.Analyzer},
+		Requires: []*analysis.Analyzer{inspect.Analyzer, generated.Analyzer, purity.Analyzer},
 	},
 	"S1012": {
 		Run:      CheckTimeSince,

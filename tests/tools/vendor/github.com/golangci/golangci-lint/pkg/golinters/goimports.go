@@ -27,14 +27,15 @@ func NewGoimports(settings *config.GoImportsSettings) *goanalysis.Linter {
 
 	return goanalysis.NewLinter(
 		goimportsName,
-		"In addition to fixing imports, goimports also formats your code in the same style as gofmt.",
+		"Check import statements are formatted according to the 'goimport' command. "+
+			"Reformat imports in autofix mode.",
 		[]*analysis.Analyzer{analyzer},
 		nil,
 	).WithContextSetter(func(lintCtx *linter.Context) {
 		imports.LocalPrefix = settings.LocalPrefixes
 
 		analyzer.Run = func(pass *analysis.Pass) (interface{}, error) {
-			issues, err := runGoiImports(lintCtx, pass)
+			issues, err := runGoImports(lintCtx, pass)
 			if err != nil {
 				return nil, err
 			}
@@ -54,7 +55,7 @@ func NewGoimports(settings *config.GoImportsSettings) *goanalysis.Linter {
 	}).WithLoadMode(goanalysis.LoadModeSyntax)
 }
 
-func runGoiImports(lintCtx *linter.Context, pass *analysis.Pass) ([]goanalysis.Issue, error) {
+func runGoImports(lintCtx *linter.Context, pass *analysis.Pass) ([]goanalysis.Issue, error) {
 	fileNames := getFileNames(pass)
 
 	var issues []goanalysis.Issue

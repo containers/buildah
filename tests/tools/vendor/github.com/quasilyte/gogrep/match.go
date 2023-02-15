@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-toolsmith/astequal"
+	"golang.org/x/exp/typeparams"
 )
 
 type matcher struct {
@@ -232,6 +233,15 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 	case opNonVariadicCallExpr:
 		n, ok := n.(*ast.CallExpr)
 		return ok && !n.Ellipsis.IsValid() && m.matchNode(state, n.Fun) && m.matchArgList(state, n.Args)
+	case opMaybeVariadicCallExpr:
+		n, ok := n.(*ast.CallExpr)
+		if !ok {
+			return false
+		}
+		if n.Ellipsis.IsValid() && len(n.Args) <= int(inst.value) {
+			return false
+		}
+		return m.matchNode(state, n.Fun) && m.matchArgList(state, n.Args)
 	case opCallExpr:
 		n, ok := n.(*ast.CallExpr)
 		return ok && m.matchNode(state, n.Fun) && m.matchArgList(state, n.Args)
@@ -277,6 +287,10 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 		n, ok := n.(*ast.IndexExpr)
 		return ok && m.matchNode(state, n.X) && m.matchNode(state, n.Index)
 
+	case opIndexListExpr:
+		n, ok := n.(*typeparams.IndexListExpr)
+		return ok && m.matchNode(state, n.X) && m.matchExprSlice(state, n.Indices)
+
 	case opKeyValueExpr:
 		n, ok := n.(*ast.KeyValueExpr)
 		return ok && m.matchNode(state, n.Key) && m.matchNode(state, n.Value)
@@ -307,15 +321,30 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 	case opVoidFuncType:
 		n, ok := n.(*ast.FuncType)
 		return ok && n.Results == nil && m.matchNode(state, n.Params)
+	case opGenericVoidFuncType:
+		n, ok := n.(*ast.FuncType)
+		return ok && n.Results == nil && m.matchNode(state, typeparams.ForFuncType(n)) && m.matchNode(state, n.Params)
 	case opFuncType:
 		n, ok := n.(*ast.FuncType)
 		return ok && m.matchNode(state, n.Params) && m.matchNode(state, n.Results)
+	case opGenericFuncType:
+		n, ok := n.(*ast.FuncType)
+		return ok && m.matchNode(state, typeparams.ForFuncType(n)) && m.matchNode(state, n.Params) && m.matchNode(state, n.Results)
 	case opStructType:
 		n, ok := n.(*ast.StructType)
 		return ok && m.matchNode(state, n.Fields)
 	case opInterfaceType:
 		n, ok := n.(*ast.InterfaceType)
 		return ok && m.matchNode(state, n.Methods)
+	case opEfaceType:
+		switch n := n.(type) {
+		case *ast.InterfaceType:
+			return len(n.Methods.List) == 0
+		case *ast.Ident:
+			return n.Name == "any"
+		default:
+			return false
+		}
 
 	case opCompositeLit:
 		n, ok := n.(*ast.CompositeLit)
@@ -511,13 +540,17 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 		_, ok := n.(*ast.EmptyStmt)
 		return ok
 
+	case opSimpleFuncDecl:
+		n, ok := n.(*ast.FuncDecl)
+		return ok && n.Recv == nil && n.Body != nil && typeparams.ForFuncType(n.Type) == nil &&
+			n.Name.Name == m.stringValue(inst) && m.matchNode(state, n.Type) && m.matchNode(state, n.Body)
 	case opFuncDecl:
 		n, ok := n.(*ast.FuncDecl)
 		return ok && n.Recv == nil && n.Body != nil &&
 			m.matchNode(state, n.Name) && m.matchNode(state, n.Type) && m.matchNode(state, n.Body)
 	case opFuncProtoDecl:
 		n, ok := n.(*ast.FuncDecl)
-		return ok && n.Recv == nil && n.Body == nil &&
+		return ok && n.Recv == nil && n.Body == nil && typeparams.ForFuncType(n.Type) == nil &&
 			m.matchNode(state, n.Name) && m.matchNode(state, n.Type)
 	case opMethodDecl:
 		n, ok := n.(*ast.FuncDecl)
@@ -545,9 +578,15 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 		return ok && len(n.Values) != 0 &&
 			m.matchIdentSlice(state, n.Names) && m.matchNode(state, n.Type) && m.matchExprSlice(state, n.Values)
 
+	case opSimpleTypeSpec:
+		n, ok := n.(*ast.TypeSpec)
+		return ok && !n.Assign.IsValid() && typeparams.ForTypeSpec(n) == nil && n.Name.Name == m.stringValue(inst) && m.matchNode(state, n.Type)
 	case opTypeSpec:
 		n, ok := n.(*ast.TypeSpec)
 		return ok && !n.Assign.IsValid() && m.matchNode(state, n.Name) && m.matchNode(state, n.Type)
+	case opGenericTypeSpec:
+		n, ok := n.(*ast.TypeSpec)
+		return ok && !n.Assign.IsValid() && m.matchNode(state, n.Name) && m.matchNode(state, typeparams.ForTypeSpec(n)) && m.matchNode(state, n.Type)
 	case opTypeAliasSpec:
 		n, ok := n.(*ast.TypeSpec)
 		return ok && n.Assign.IsValid() && m.matchNode(state, n.Name) && m.matchNode(state, n.Type)

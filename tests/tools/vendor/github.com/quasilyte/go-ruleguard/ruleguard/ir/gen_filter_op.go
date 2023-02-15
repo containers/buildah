@@ -41,6 +41,7 @@ func main() {
 		{name: "LtEq", comment: "$Args[0] <= $Args[1]", flags: flagIsBinaryExpr},
 
 		{name: "VarAddressable", comment: "m[$Value].Addressable", valueType: "string", flags: flagHasVar},
+		{name: "VarComparable", comment: "m[$Value].Comparable", valueType: "string", flags: flagHasVar},
 		{name: "VarPure", comment: "m[$Value].Pure", valueType: "string", flags: flagHasVar},
 		{name: "VarConst", comment: "m[$Value].Const", valueType: "string", flags: flagHasVar},
 		{name: "VarConstSlice", comment: "m[$Value].ConstSlice", valueType: "string", flags: flagHasVar},
@@ -85,6 +86,7 @@ func main() {
 		{name: "Int", comment: "$Value holds an int64 constant", valueType: "int64", flags: flagIsBasicLit},
 
 		{name: "RootNodeParentIs", comment: "m[`$$`].Node.Parent().Is($Args[0])"},
+		{name: "RootSinkTypeIs", comment: "m[`$$`].SinkType.Is($Args[0])"},
 	}
 
 	var buf bytes.Buffer

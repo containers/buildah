@@ -115,7 +115,7 @@ Resulting checkstyle file
 ## Install
 
 ```
-go get -u github.com/ryancurrah/gomodguard/cmd/gomodguard
+go install github.com/ryancurrah/gomodguard/cmd/gomodguard
 ```
 
 ## Develop

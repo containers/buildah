@@ -223,6 +223,9 @@ func getErrorTextForLinter(settings *config.LintersSettings, linterName string) 
 		if settings.Gofmt.Simplify {
 			text += " with `-s`"
 		}
+		for _, rule := range settings.Gofmt.RewriteRules {
+			text += fmt.Sprintf(" `-r '%s -> %s'`", rule.Pattern, rule.Replacement)
+		}
 	case goimportsName:
 		text = "File is not `goimports`-ed"
 		if settings.Goimports.LocalPrefixes != "" {
@@ -239,7 +242,7 @@ func extractIssuesFromPatch(patch string, lintCtx *linter.Context, linterName st
 	}
 
 	if len(diffs) == 0 {
-		return nil, fmt.Errorf("got no diffs from patch parser: %v", diffs)
+		return nil, fmt.Errorf("got no diffs from patch parser: %v", patch)
 	}
 
 	var issues []result.Issue

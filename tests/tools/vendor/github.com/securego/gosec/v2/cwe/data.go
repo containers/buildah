@@ -129,6 +129,11 @@ var (
 			Description: "The software constructs all or part of an SQL command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended SQL command when it is sent to a downstream component.",
 			Name:        "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
 		},
+		{
+			ID:          "676",
+			Description: "The program invokes a potentially dangerous function that could introduce a vulnerability if it is used incorrectly, but the function can also be used safely.",
+			Name:        "Use of Potentially Dangerous Function",
+		},
 	}
 )
 

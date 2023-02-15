@@ -172,9 +172,9 @@ func (gosec *Analyzer) Process(buildTags []string, packagePaths ...string) error
 		for {
 			select {
 			case s := <-j:
-				packages, err := gosec.load(s, config)
+				pkgs, err := gosec.load(s, config)
 				select {
-				case r <- result{pkgPath: s, pkgs: packages, err: err}:
+				case r <- result{pkgPath: s, pkgs: pkgs, err: err}:
 				case <-quit:
 					// we've been told to stop, probably an error while
 					// processing a previous result.
@@ -296,7 +296,6 @@ func (gosec *Analyzer) Check(pkg *packages.Package) {
 		gosec.context.Pkg = pkg.Types
 		gosec.context.PkgFiles = pkg.Syntax
 		gosec.context.Imports = NewImportTracker()
-		gosec.context.Imports.TrackFile(file)
 		gosec.context.PassedValues = make(map[string]interface{})
 		ast.Walk(gosec, file)
 		gosec.stats.NumFiles++
@@ -434,6 +433,12 @@ func (gosec *Analyzer) Visit(n ast.Node) ast.Visitor {
 		}
 		return gosec
 	}
+	switch i := n.(type) {
+	case *ast.File:
+		// Using ast.File instead of ast.ImportSpec, so that we can track
+		// all imports at once.
+		gosec.context.Imports.TrackFile(i)
+	}
 
 	// Get any new rule exclusions.
 	ignoredRules := gosec.ignore(n)
@@ -452,9 +457,6 @@ func (gosec *Analyzer) Visit(n ast.Node) ast.Visitor {
 
 	// Push the new set onto the stack.
 	gosec.context.Ignores = append([]map[string][]SuppressionInfo{ignores}, gosec.context.Ignores...)
-
-	// Track aliased and initialization imports
-	gosec.context.Imports.TrackImport(n)
 
 	for _, rule := range gosec.ruleset.RegisteredFor(n) {
 		// Check if all rules are ignored.

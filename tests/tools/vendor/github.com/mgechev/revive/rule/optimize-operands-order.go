@@ -12,7 +12,7 @@ import (
 type OptimizeOperandsOrderRule struct{}
 
 // Apply applies the rule to given file.
-func (r *OptimizeOperandsOrderRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*OptimizeOperandsOrderRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -26,7 +26,7 @@ func (r *OptimizeOperandsOrderRule) Apply(file *lint.File, _ lint.Arguments) []l
 }
 
 // Name returns the rule name.
-func (r *OptimizeOperandsOrderRule) Name() string {
+func (*OptimizeOperandsOrderRule) Name() string {
 	return "optimize-operands-order"
 }
 
