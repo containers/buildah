@@ -73,10 +73,9 @@ more.
 
 Remove the specified capability from the default set of capabilities which will
 be supplied for subsequent *buildah run* invocations which use this container.
-The CAP\_AUDIT\_WRITE, CAP\_CHOWN, CAP\_DAC\_OVERRIDE, CAP\_FOWNER,
-CAP\_FSETID, CAP\_KILL, CAP\_MKNOD, CAP\_NET\_BIND\_SERVICE, CAP\_SETFCAP,
-CAP\_SETGID, CAP\_SETPCAP, CAP\_SETUID, and CAP\_SYS\_CHROOT capabilities are
-granted by default; this option can be used to remove them.
+The CAP\_CHOWN, CAP\_DAC\_OVERRIDE, CAP\_FOWNER, CAP\_FSETID, CAP\_KILL,
+CAP\_NET\_BIND\_SERVICE, CAP\_SETFCAP, CAP\_SETGID, CAP\_SETPCAP,
+and CAP\_SETUID capabilities are granted by default; this option can be used to remove them. The list of default capabilities is managed in containers.conf(5).
 
 If a capability is specified to both the **--cap-add** and **--cap-drop**
 options, it will be dropped, regardless of the order in which the options were
@@ -689,7 +688,7 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-pull(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7)
+buildah(1), buildah-pull(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), containers.conf(5)
 
 ## FOOTNOTES
 <a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.
