@@ -350,6 +350,12 @@ type BuilderOptions struct {
 	ProcessLabel string
 	// MountLabel is the SELinux mount label associated with the container
 	MountLabel string
+	// PreserveBaseImageAnn[otation]s indicates that we should preserve base
+	// image information that was present in our base image, instead of
+	// overwriting them with information about the base image itself.  This
+	// is mainly useful as an internal implementation detail of multistage
+	// builds, and does not need to be set by most callers.
+	PreserveBaseImageAnns bool
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

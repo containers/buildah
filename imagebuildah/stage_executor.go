@@ -678,7 +678,7 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
-func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBConfig, rebase bool, pullPolicy define.PullPolicy) (builder *buildah.Builder, err error) {
+func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBConfig, rebase, preserveBaseImageAnnotations bool, pullPolicy define.PullPolicy) (builder *buildah.Builder, err error) {
 	stage := s.stage
 	ib := stage.Builder
 	node := stage.Node
@@ -753,6 +753,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		Logger:                s.executor.logger,
 		ProcessLabel:          s.executor.processLabel,
 		MountLabel:            s.executor.mountLabel,
+		PreserveBaseImageAnns: preserveBaseImageAnnotations,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
@@ -865,7 +866,7 @@ func (s *StageExecutor) getImageRootfs(ctx context.Context, image string) (mount
 	if builder, ok := s.executor.containerMap[image]; ok {
 		return builder.MountPoint, nil
 	}
-	builder, err := s.prepare(ctx, image, false, false, s.executor.pullPolicy)
+	builder, err := s.prepare(ctx, image, false, false, false, s.executor.pullPolicy)
 	if err != nil {
 		return "", err
 	}
@@ -912,9 +913,11 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	}
 	pullPolicy := s.executor.pullPolicy
 	s.executor.stagesLock.Lock()
+	var preserveBaseImageAnnotationsAtStageStart bool
 	if stageImage, isPreviousStage := s.executor.imageMap[base]; isPreviousStage {
 		base = stageImage
 		pullPolicy = define.PullNever
+		preserveBaseImageAnnotationsAtStageStart = true
 	}
 	s.executor.stagesLock.Unlock()
 
@@ -945,7 +948,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	// Create the (first) working container for this stage.  Reinitializing
 	// the imagebuilder configuration may alter the list of steps we have,
 	// so take a snapshot of them *after* that.
-	if _, err := s.prepare(ctx, base, true, true, pullPolicy); err != nil {
+	if _, err := s.prepare(ctx, base, true, true, preserveBaseImageAnnotationsAtStageStart, pullPolicy); err != nil {
 		return "", nil, err
 	}
 	children := stage.Node.Children
@@ -1489,7 +1492,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// Enforce pull "never" since we already have an image
 			// ID that we really should not be pulling anymore (see
 			// containers/podman/issues/10307).
-			if _, err := s.prepare(ctx, imgID, false, true, define.PullNever); err != nil {
+			if _, err := s.prepare(ctx, imgID, false, true, true, define.PullNever); err != nil {
 				return "", nil, fmt.Errorf("preparing container for next step: %w", err)
 			}
 		}
