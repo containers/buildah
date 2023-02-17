@@ -591,6 +591,26 @@ _EOF
 
 }
 
+# Verify: https://github.com/containers/buildah/issues/4572
+@test "build-test verify no dangling containers are left" {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine AS alpine_builder
+FROM busybox AS busybox_builder
+FROM scratch
+COPY --from=alpine_builder /etc/alpine* .
+COPY --from=busybox_builder /bin/busybox /bin/busybox
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f $contextdir/Dockerfile
+  # No leftover containers, just the header line.
+  run_buildah containers
+  expect_line_count 1
+}
+
+
 @test "build-test skipping unwanted stages with --skip-unused-stages=false and --skip-unused-stages=true" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir
