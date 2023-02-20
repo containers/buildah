@@ -53,7 +53,7 @@ Now you can develop your application. To access to the build features of Buildah
 To instantiate a `Builder`, you need a `storage.Store` (the Store interface found in [store.go](https://github.com/containers/storage/blob/main/store.go)) from [`github.com/containers/storage`](https://github.com/containers/storage), where the intermediate and result images will be stored:
 
 ```go
-buildStoreOptions, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
+buildStoreOptions, err := storage.DefaultStoreOptionsAutoDetectUID()
 buildStore, err := storage.GetStore(buildStoreOptions)
 ```
 
@@ -95,6 +95,15 @@ Now you can run commit the build:
 imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
 ```
 
+## Supplying defaults for Run()
+
+If you need to run a command as part of the build, you'll have to dig up a couple of defaults that aren't picked up automatically:
+```go
+conf, err := config.Default()
+capabilitiesForRoot, err := conf.Capabilities("root", nil, nil)
+isolation, err := parse.IsolationOption("")
+```
+
 ## Rootless mode
 
 To enable rootless mode, import `github.com/containers/storage/pkg/unshare` and add this code at the beginning of your main method:
@@ -118,6 +127,8 @@ import (
   "fmt"
 
   "github.com/containers/buildah"
+  "github.com/containers/buildah/pkg/parse"
+  "github.com/containers/common/pkg/config"
   is "github.com/containers/image/v5/storage"
   "github.com/containers/storage"
   "github.com/containers/storage/pkg/unshare"
@@ -129,7 +140,16 @@ func main() {
   }
   unshare.MaybeReexecUsingUserNamespace(false)
 
-  buildStoreOptions, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
+  buildStoreOptions, err := storage.DefaultStoreOptionsAutoDetectUID()
+  if err != nil {
+    panic(err)
+  }
+
+  conf, err := config.Default()
+  if err != nil {
+    panic(err)
+  }
+  capabilitiesForRoot, err := conf.Capabilities("root", nil, nil)
   if err != nil {
     panic(err)
   }
@@ -142,6 +162,7 @@ func main() {
 
   builderOpts := buildah.BuilderOptions{
     FromImage:        "node:12-alpine",
+    Capabilities:     capabilitiesForRoot,
   }
 
   builder, err := buildah.NewBuilder(context.TODO(), buildStore, builderOpts)
@@ -151,6 +172,16 @@ func main() {
   defer builder.Delete()
 
   err = builder.Add("/home/node/", false, buildah.AddAndCopyOptions{}, "script.js")
+  if err != nil {
+    panic(err)
+  }
+
+  isolation, err := parse.IsolationOption("")
+  if err != nil {
+    panic(err)
+  }
+
+  err = builder.Run([]string{"sh", "-c", "date > /home/node/build-date.txt"}, buildah.RunOptions{Isolation: isolation, Terminal: buildah.WithoutTerminal})
   if err != nil {
     panic(err)
   }

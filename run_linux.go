@@ -96,7 +96,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if isolation == define.IsolationDefault {
 		isolation = b.Isolation
 		if isolation == define.IsolationDefault {
-			isolation = define.IsolationOCI
+			isolation, err = parse.IsolationOption("")
+			if err != nil {
+				logrus.Debugf("got %v while trying to determine default isolation, guessing OCI", err)
+				isolation = IsolationOCI
+			} else if isolation == IsolationDefault {
+				isolation = IsolationOCI
+			}
 		}
 	}
 	if err := checkAndOverrideIsolationOptions(isolation, &options); err != nil {

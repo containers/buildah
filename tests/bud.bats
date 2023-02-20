@@ -5524,8 +5524,7 @@ _EOF
 @test "bud-with-mount-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount
-  cp -R $BUDFILES/buildkit-mount $contextdir
+  local contextdir=$BUDFILES/buildkit-mount
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfile $contextdir/
   expect_output --substring "hello"
   run_buildah rmi -f testbud
