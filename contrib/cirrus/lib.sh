@@ -96,7 +96,7 @@ PACKAGE_DOWNLOAD_DIR=/var/cache/download
 lilto() { err_retry 8 1000 "" "$@"; }  # just over 4 minutes max
 bigto() { err_retry 7 5670 "" "$@"; }  # 12 minutes max
 
-# Working with apt under Debian/Ubuntu automation is a PITA, make it easy
+# Working with apt under automation is a PITA, make it easy
 # Avoid some ways of getting stuck waiting for user input
 export DEBIAN_FRONTEND=noninteractive
 # Short-cut for frequently used base command
@@ -127,7 +127,7 @@ remove_packaged_buildah_files() {
     warn "Removing packaged buildah files to prevent conflicts with source build and testing."
     req_env_vars OS_RELEASE_ID
 
-    if [[ "$OS_RELEASE_ID" =~ "ubuntu" ]]
+    if [[ "$OS_RELEASE_ID" =~ "debian" ]]
     then
         LISTING_CMD="dpkg-query -L buildah"
     else
@@ -139,13 +139,6 @@ remove_packaged_buildah_files() {
     do
         # Sub-directories may contain unrelated/valuable stuff
         if [[ -d "$fullpath" ]]; then continue; fi
-        # As of Ubuntu 2010, policy.json in buildah, not containers-common package
-        if [[ "$OS_RELEASE_ID" == "ubuntu" ]] && \
-            grep -q '/etc/containers'<<<"$fullpath"; then
-
-            warn "Not removing $fullpath (from buildah package)"
-            continue
-        fi
 
         rm -vf "$fullpath"
     done
