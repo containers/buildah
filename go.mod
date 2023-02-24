@@ -8,7 +8,7 @@ require (
 	github.com/containers/common v0.51.1-0.20230222084651-08f3ff4a3b9f
 	github.com/containers/image/v5 v5.24.2
 	github.com/containers/ocicrypt v1.1.7
-	github.com/containers/storage v1.45.3
+	github.com/containers/storage v1.45.4
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v23.0.1+incompatible
