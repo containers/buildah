@@ -319,7 +319,7 @@ github.com/docker/go-units
 # github.com/fsnotify/fsnotify v1.6.0
 ## explicit; go 1.16
 github.com/fsnotify/fsnotify
-# github.com/fsouza/go-dockerclient v1.9.4
+# github.com/fsouza/go-dockerclient v1.9.5
 ## explicit; go 1.19
 github.com/fsouza/go-dockerclient
 # github.com/ghodss/yaml v1.0.0
