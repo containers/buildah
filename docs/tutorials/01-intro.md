@@ -102,6 +102,7 @@ Nope. This really is empty. The package installer `dnf` is not even inside this 
 
 Note: If attempting to mount in rootless mode, the command fails. Mounting a container can only be done in a mount namespace that you own. Create and enter a user namespace and mount namespace by executing the `buildah unshare` command. See buildah-mount(1) man page for more information.
 
+    $ export newcontainer
     $ buildah unshare
     # scratchmnt=$(buildah mount $newcontainer)
 
