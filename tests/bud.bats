@@ -1300,9 +1300,10 @@ _EOF
   fromDigest="$output"
 
   target=foo
+
+  # Check the base-image annotations in a single-layer build where the last stage is just an earlier stage.
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.reused $BUDFILES/multi-stage-builds
 
-  # Also check for base-image annotations.
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
   expect_output "$fromDigest" "base digest from busybox"
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
@@ -1310,8 +1311,39 @@ _EOF
 
   run_buildah from $WITH_POLICY_JSON ${target}
   run_buildah rmi -f ${target}
+
+  # Check the base-image annotations in a multi-layer build where the last stage is just an earlier stage.
   run_buildah build $WITH_POLICY_JSON -t ${target} --layers -f $BUDFILES/multi-stage-builds/Dockerfile.reused $BUDFILES/multi-stage-builds
+
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  expect_output "$fromDigest" "base digest from busybox"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
+  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+
   run_buildah from $WITH_POLICY_JSON ${target}
+  run_buildah rmi -f ${target}
+
+  # Check the base-image annotations in a single-layer build where the last stage is based on an earlier stage.
+  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.reused2 $BUDFILES/multi-stage-builds
+
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  expect_output "$fromDigest" "base digest from busybox"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
+  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+
+  run_buildah from $WITH_POLICY_JSON ${target}
+  run_buildah rmi -f ${target}
+
+  # Check the base-image annotations in a multi-layer build where the last stage is based on an earlier stage.
+  run_buildah build $WITH_POLICY_JSON -t ${target} --layers -f $BUDFILES/multi-stage-builds/Dockerfile.reused2 $BUDFILES/multi-stage-builds
+
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  expect_output "$fromDigest" "base digest from busybox"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
+  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+
+  run_buildah from $WITH_POLICY_JSON ${target}
+  run_buildah rmi -f ${target}
 }
 
 @test "bud-multistage-cache" {
