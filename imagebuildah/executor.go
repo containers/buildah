@@ -594,6 +594,9 @@ func (b *Executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMa
 								shouldWarn = false
 							}
 						}
+						if _, isBuiltIn := builtinAllowedBuildArgs[argName]; isBuiltIn {
+							shouldWarn = false
+						}
 						if shouldWarn {
 							b.logger.Warnf("missing %q build argument. Try adding %q to the command line", argName, fmt.Sprintf("--build-arg %s=<VALUE>", argName))
 						}

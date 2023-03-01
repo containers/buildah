@@ -611,17 +611,17 @@ _EOF
 }
 
 # Verify: https://github.com/containers/buildah/issues/4485
+# Verify: https://github.com/containers/buildah/issues/4319
 @test "No default warning for TARGETARCH, TARGETOS, TARGETPLATFORM " {
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
-  mkdir -p $contextdir
-
-  cat > $contextdir/Dockerfile << _EOF
-FROM alpine
-_EOF
+  local contextdir=$BUDFILES/targetarch
 
   run_buildah build $WITH_POLICY_JSON --platform=linux/amd64,linux/arm64 -f $contextdir/Dockerfile
   assert "$output" !~ "one or more build args were not consumed" \
 	 "No warning for default args should be there"
+
+  run_buildah build $WITH_POLICY_JSON --os linux -f $contextdir/Dockerfile
+  assert "$output" !~ "Try adding" \
+	"No Warning for default args should be there"
 }
 
 
