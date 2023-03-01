@@ -43,14 +43,18 @@ import (
 // instruction in the Dockerfile, since that's usually an indication of a user
 // error, but for these values we make exceptions and ignore them.
 var builtinAllowedBuildArgs = map[string]bool{
-	"HTTP_PROXY":  true,
-	"http_proxy":  true,
-	"HTTPS_PROXY": true,
-	"https_proxy": true,
-	"FTP_PROXY":   true,
-	"ftp_proxy":   true,
-	"NO_PROXY":    true,
-	"no_proxy":    true,
+	"HTTP_PROXY":     true,
+	"http_proxy":     true,
+	"HTTPS_PROXY":    true,
+	"https_proxy":    true,
+	"FTP_PROXY":      true,
+	"ftp_proxy":      true,
+	"NO_PROXY":       true,
+	"no_proxy":       true,
+	"TARGETARCH":     true,
+	"TARGETOS":       true,
+	"TARGETPLATFORM": true,
+	"TARGETVARIANT":  true,
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor

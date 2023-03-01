@@ -610,6 +610,20 @@ _EOF
   expect_line_count 1
 }
 
+# Verify: https://github.com/containers/buildah/issues/4485
+@test "No default warning for TARGETARCH, TARGETOS, TARGETPLATFORM " {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --platform=linux/amd64,linux/arm64 -f $contextdir/Dockerfile
+  assert "$output" !~ "one or more build args were not consumed" \
+	 "No warning for default args should be there"
+}
+
 
 @test "build-test skipping unwanted stages with --skip-unused-stages=false and --skip-unused-stages=true" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
