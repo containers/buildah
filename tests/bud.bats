@@ -2955,6 +2955,11 @@ _EOF
   #Verify https://github.com/containers/buildah/issues/4312
   # stage `FROM stage_${my_env}` must be resolved with default arg value and build should be successful.
   run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/multi-stage-builds/Dockerfile.arg_in_stage
+
+  #Verify https://github.com/containers/buildah/issues/4573
+  # stage `COPY --from=stage_${my_env}` must be resolved with default arg value and build should be successful.
+  run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/multi-stage-builds/Dockerfile.arg_in_copy
+
 }
 
 @test "bud-with-healthcheck" {
