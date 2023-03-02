@@ -1,0 +1,8 @@
+ARG my_env=a
+
+FROM alpine as stage_a
+RUN /bin/true
+
+FROM alpine
+ARG my_env
+COPY --from=stage_${my_env} /bin/true /bin/true_copy

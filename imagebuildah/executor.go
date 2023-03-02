@@ -753,6 +753,17 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// if following ADD or COPY needs any other
 							// stage.
 							stageName := rootfs
+							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
+							userArgs := argsMapToSlice(stage.Builder.Args)
+							// append heading args so if --build-arg key=value is not
+							// specified but default value is set in Containerfile
+							// via `ARG key=value` so default value can be used.
+							userArgs = append(headingArgs, userArgs...)
+							baseWithArg, err := imagebuilder.ProcessWord(stageName, userArgs)
+							if err != nil {
+								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", stageName, err)
+							}
+							stageName = baseWithArg
 							// If --from=<index> convert index to name
 							if index, err := strconv.Atoi(stageName); err == nil {
 								stageName = stages[index].Name
