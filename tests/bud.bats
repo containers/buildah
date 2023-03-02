@@ -76,16 +76,6 @@ expect_output --substring "hello"
       # FIXME: add --arch test too, and maybe make this cleaner
   fi
 
-  # Without --platform nor other args, we want one warning for each variable
-  run_buildah build $WITH_POLICY_JSON -t source -f $containerfile
-  local i=0
-  for var in "${checkvars[@]}"; do
-    # The '..'s cover backslash-quote: "missing \"TARGETFOO\" ..."
-    assert "${lines[$i]}" =~ "missing ..${var}.. build argument" \
-           "line $i: buildah should warn about undefined ${var}"
-    i=$((i+1))
-  done
-  assert "$i" -ne 0 "INTERNAL ERROR: did not check for any warnings!"
 }
 
 @test "build-conflicting-isolation-chroot-and-network" {
@@ -608,6 +598,20 @@ _EOF
   # No leftover containers, just the header line.
   run_buildah containers
   expect_line_count 1
+}
+
+# Verify: https://github.com/containers/buildah/issues/4485
+# Verify: https://github.com/containers/buildah/issues/4319
+@test "No default warning for TARGETARCH, TARGETOS, TARGETPLATFORM " {
+  local contextdir=$BUDFILES/targetarch
+
+  run_buildah build $WITH_POLICY_JSON --platform=linux/amd64,linux/arm64 -f $contextdir/Dockerfile
+  assert "$output" !~ "one or more build args were not consumed" \
+	 "No warning for default args should be there"
+
+  run_buildah build $WITH_POLICY_JSON --os linux -f $contextdir/Dockerfile
+  assert "$output" !~ "Try adding" \
+	"No Warning for default args should be there"
 }
 
 
