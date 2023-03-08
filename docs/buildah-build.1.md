@@ -112,6 +112,12 @@ buildah build -t test --layers --cache-to registry/myrepo/cache --cache-from reg
 
 Note: `--cache-from` option is ignored unless `--layers` is specified.
 
+Note: Buildah's `--cache-from` option is designed differently than Docker and BuildKit's `--cache-from` option. Buildah's
+distributed cache mechanism pulls intermediate images from the remote registry itself, unlike Docker and BuildKit where
+the intermediate image is stored in the image itself. Buildah's approach is similar to kaniko, which
+does not inflate the size of the original image with intermediate images.  Also, intermediate images can truly be
+kept distributed across one or more remote registries using Buildah's caching mechanism.
+
 **--cache-to**
 
 Set this flag to specify list of remote repositories that will be used to store cache images. Buildah will attempt to
@@ -127,6 +133,12 @@ buildah build -t test --layers --cache-to registry/myrepo/cache --cache-from reg
 ```
 
 Note: `--cache-to` option is ignored unless `--layers` is specified.
+
+Note: Buildah's `--cache-to` option is designed differently than Docker and BuildKit's `--cache-to` option. Buildah's
+distributed cache mechanism push intermediate images to the remote registry itself, unlike Docker and BuildKit where
+the intermediate image is stored in the image itself. Buildah's approach is similar to kaniko, which
+does not inflate the size of the original image with intermediate images.  Also, intermediate images can truly be
+kept distributed across one or more remote registries using Buildah's caching mechanism.
 
 **--cache-ttl** *duration*
 
