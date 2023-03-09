@@ -4619,6 +4619,7 @@ ADD somefile somefile
 FROM alpine
 RUN echo hello
 COPY --from=0 hello hello
+RUN --mount=type=cache,id=YfHI60aApFM-target,target=/target echo world > /target/hello
 _EOF
 
   start_registry
@@ -4636,7 +4637,7 @@ _EOF
   run printf "STEP 5/5: ADD somefile somefile\n--> Pushing cache"
   step4=$output
   # First run step in second stage should not be pushed since its already pushed
-  run printf "STEP 2/3: RUN echo hello\n--> Using cache"
+  run printf "STEP 2/4: RUN echo hello\n--> Using cache"
   step5=$output
   # Last step is `COPY --from=0 hello hello' so it must be committed and pushed
   # actual output is `[2/2] STEP 3/3: COPY --from=0 hello hello\n[2/2] COMMIT test\n-->Pushing cache`
@@ -4672,7 +4673,7 @@ _EOF
   run printf "STEP 5/5: ADD somefile somefile\n--> Cache pulled from remote"
   step4=$output
   # First run step in second stage should not be pulled since its already pulled
-  run printf "STEP 2/3: RUN echo hello\n--> Using cache"
+  run printf "STEP 2/4: RUN echo hello\n--> Using cache"
   step5=$output
   run printf "COPY --from=0 hello hello\n--> Cache pulled from remote"
   step6=$output
