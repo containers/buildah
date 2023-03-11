@@ -1428,7 +1428,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// Try to push this cache to remote repository only
 		// if cache was present on local storage and not
 		// pulled from remote source while processing this
-		if len(s.executor.cacheTo) != 0 && (!pulledAndUsedCacheImage || cacheID == "") {
+		if len(s.executor.cacheTo) != 0 && (!pulledAndUsedCacheImage || cacheID == "") && needsCacheKey {
 			logCachePush(cacheKey)
 			if err = s.pushCache(ctx, imgID, cacheKey); err != nil {
 				return "", nil, err
