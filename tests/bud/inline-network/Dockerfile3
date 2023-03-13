@@ -1,0 +1,3 @@
+FROM alpine
+RUN --network=fake wget google.com
+

@@ -1,0 +1,2 @@
+FROM alpine
+RUN --network=none wget google.com

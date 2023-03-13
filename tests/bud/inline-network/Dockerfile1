@@ -1,0 +1,2 @@
+FROM alpine
+RUN --network=host readlink /proc/self/ns/net

@@ -25,6 +25,25 @@ load helpers
   expect_output --substring "options use-vc"
 }
 
+@test "build with inline RUN --network=host" {
+  #hostns=$(readlink /proc/self/ns/net)
+  run readlink /proc/self/ns/net
+  hostns="$output"
+  run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/inline-network/Dockerfile1
+  expect_output --from="${lines[9]}" "${hostns}"
+}
+
+@test "build with inline RUN --network=none" {
+  run_buildah 1 build $WITH_POLICY_JSON -t source -f $BUDFILES/inline-network/Dockerfile2
+  expect_output --substring "wget: bad address"
+}
+
+@test "build with inline RUN --network=fake" {
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f $BUDFILES/inline-network/Dockerfile3
+  expect_output --substring "unsupported value"
+}
+
+
 @test "bud with ignoresymlink on default file" {
 	  cat > /tmp/private_file << _EOF
 hello

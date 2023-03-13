@@ -599,6 +599,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		defer devNull.Close()
 		stdin = devNull
 	}
+	namespaceOptions := append([]define.NamespaceOption{}, s.executor.namespaceOptions...)
 	options := buildah.RunOptions{
 		Args:             s.executor.runtimeArgs,
 		Cmd:              config.Cmd,
@@ -609,7 +610,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Hostname:         config.Hostname,
 		Logger:           s.executor.logger,
 		Mounts:           append([]Mount{}, s.executor.transientMounts...),
-		NamespaceOptions: s.executor.namespaceOptions,
+		NamespaceOptions: namespaceOptions,
 		NoHosts:          s.executor.noHosts,
 		NoPivot:          os.Getenv("BUILDAH_NOPIVOT") != "",
 		Quiet:            s.executor.quiet,
@@ -625,6 +626,19 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Terminal:         buildah.WithoutTerminal,
 		User:             config.User,
 		WorkingDir:       config.WorkingDir,
+	}
+
+	// Honor `RUN --network=<>`.
+	switch run.Network {
+	case "host":
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: "network", Host: true})
+		options.ConfigureNetwork = define.NetworkEnabled
+	case "none":
+		options.ConfigureNetwork = define.NetworkDisabled
+	case "":
+		// do nothing
+	default:
+		return fmt.Errorf(`unsupported value %q for "RUN --network", must be either "host" or "none"`, run.Network)
 	}
 
 	if config.NetworkDisabled {
