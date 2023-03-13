@@ -330,6 +330,7 @@ func run(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 	args = handleJSONArgs(args, attributes)
 
 	var mounts []string
+	var network string
 	filteredUserArgs := make(map[string]string)
 	for k, v := range b.Args {
 		if _, ok := b.AllowedArgs[k]; ok {
@@ -346,14 +347,17 @@ func run(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 		case strings.HasPrefix(arg, "--mount="):
 			mount := strings.TrimPrefix(arg, "--mount=")
 			mounts = append(mounts, mount)
+		case strings.HasPrefix(arg, "--network="):
+			network = strings.TrimPrefix(arg, "--network=")
 		default:
-			return fmt.Errorf("RUN only supports the --mount flag")
+			return fmt.Errorf("RUN only supports the --mount and --network flag")
 		}
 	}
 
 	run := Run{
-		Args:   args,
-		Mounts: mounts,
+		Args:    args,
+		Mounts:  mounts,
+		Network: network,
 	}
 
 	if !attributes["json"] {
