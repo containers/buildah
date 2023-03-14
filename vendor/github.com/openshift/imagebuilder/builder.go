@@ -39,6 +39,8 @@ type Run struct {
 	Args  []string
 	// Mounts are mounts specified through the --mount flag inside the Containerfile
 	Mounts []string
+	// Network specifies the network mode to run the container with
+	Network string
 }
 
 type Executor interface {

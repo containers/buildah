@@ -780,6 +780,9 @@ func (e *ClientExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 	if len(run.Mounts) > 0 {
 		return fmt.Errorf("RUN --mount not supported")
 	}
+	if run.Network != "" {
+		return fmt.Errorf("RUN --network not supported")
+	}
 
 	args := make([]string, len(run.Args))
 	copy(args, run.Args)
