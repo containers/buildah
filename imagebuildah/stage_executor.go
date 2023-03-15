@@ -635,7 +635,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		options.ConfigureNetwork = define.NetworkEnabled
 	case "none":
 		options.ConfigureNetwork = define.NetworkDisabled
-	case "":
+	case "", "default":
 		// do nothing
 	default:
 		return fmt.Errorf(`unsupported value %q for "RUN --network", must be either "host" or "none"`, run.Network)

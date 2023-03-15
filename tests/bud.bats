@@ -43,6 +43,19 @@ load helpers
   expect_output --substring "unsupported value"
 }
 
+@test "build with inline default RUN --network=default" {
+  skip_if_chroot
+  _prefetch alpine
+  run readlink /proc/self/ns/net
+  hostns=$output
+  run_buildah build --network=host $WITH_POLICY_JSON -t source -f $BUDFILES/inline-network/Dockerfile4
+  firstns=${lines[2]}
+  assert "${hostns}" == "$firstns"
+  run_buildah build --network=private $WITH_POLICY_JSON -t source -f $BUDFILES/inline-network/Dockerfile4
+  secondns=${lines[2]}
+  assert "$secondns" != "$firstns"
+}
+
 
 @test "bud with ignoresymlink on default file" {
 	  cat > /tmp/private_file << _EOF
