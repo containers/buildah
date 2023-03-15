@@ -9,7 +9,7 @@ req_env_vars CI GOSRC OS_RELEASE_ID
 case $1 in
     audit)
         case $OS_RELEASE_ID in
-            ubuntu) showrun cat /var/log/kern.log ;;
+            debian) showrun cat /var/log/kern.log ;;
             fedora) showrun cat /var/log/audit/audit.log ;;
             *) bad_os_id_ver ;;
         esac
@@ -21,7 +21,7 @@ case $1 in
     buildah_info) showrun $GOSRC/bin/buildah info;;
     golang) showrun go version;;
     packages)
-        # These names are common to Fedora and Ubuntu
+        # These names are common to Fedora and Debian
         PKG_NAMES=(\
                     buildah
                     conmon
@@ -44,7 +44,7 @@ case $1 in
                 fi
                 PKG_LST_CMD='rpm -q --qf=%{N}-%{V}-%{R}-%{ARCH}\n'
                 ;;
-            ubuntu*)
+            debian*)
                 PKG_LST_CMD='dpkg-query --show --showformat=${Package}-${Version}-${Architecture}\n'
                 ;;
             *) bad_os_id_ver ;;

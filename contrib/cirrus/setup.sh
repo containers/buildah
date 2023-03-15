@@ -32,21 +32,12 @@ EOF
             showrun setsebool -P container_manage_cgroup true
         fi
         ;;
-    ubuntu)
+    debian)
         if [[ "$1" == "conformance" ]]; then
-            msg "Installing previously downloaded/cached packages"
-            ooe.sh dpkg -i \
+            msg "Installing previously downloaded/cached Docker packages"
+            dpkg -i \
                 $PACKAGE_DOWNLOAD_DIR/containerd.io*.deb \
                 $PACKAGE_DOWNLOAD_DIR/docker-ce*.deb
-
-            # At the time of this comment, Ubuntu is using systemd-resolved
-            # which interfears badly with conformance testing.  Some tests
-            # need to run dnsmasq on port 53.
-            if [[ -r "/run/systemd/resolve/resolv.conf" ]]; then
-                msg "Disabling systemd-resolved service"
-                systemctl stop systemd-resolved.service
-                cp /run/systemd/resolve/resolv.conf /etc/
-            fi
         fi
         ;;
     *)
