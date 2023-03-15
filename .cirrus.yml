@@ -121,7 +121,7 @@ vendor_task:
 
     # Runs within Cirrus's "community cluster"
     container:
-        image: docker.io/library/golang:1.17
+        image: docker.io/library/golang:1.18
         cpu: 1
         memory: 1
 
