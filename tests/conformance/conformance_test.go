@@ -26,6 +26,7 @@ import (
 	"github.com/containers/buildah/imagebuildah"
 	"github.com/containers/image/v5/docker/daemon"
 	"github.com/containers/image/v5/image"
+	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
 	istorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
@@ -64,6 +65,7 @@ var (
 		"container_config:image",
 		"history",
 		"rootfs:diff_ids",
+		"moby.buildkit.buildinfo.v1",
 	}
 	ociSkip = []string{
 		"created",
@@ -436,7 +438,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	}
 
 	// the report on the buildah image should always be there
-	originalBuildahConfig, ociBuildahConfig, fsBuildah := readReport(t, filepath.Join(buildahDir, t.Name()))
+	_, originalBuildahConfig, ociBuildahConfig, fsBuildah := readReport(t, filepath.Join(buildahDir, t.Name()))
 	if t.Failed() {
 		t.FailNow()
 	}
@@ -460,7 +462,9 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 
 	// the report on the docker image should be there if we expected the build to succeed
 	if !test.withoutDocker {
-		originalDockerConfig, ociDockerConfig, fsDocker = readReport(t, filepath.Join(dockerDir, t.Name()))
+		var mediaType string
+		mediaType, originalDockerConfig, ociDockerConfig, fsDocker = readReport(t, filepath.Join(dockerDir, t.Name()))
+		assert.Equal(t, manifest.DockerV2Schema2MediaType, mediaType, "Image built by docker build didn't use Docker MIME type - tests require update")
 		if t.Failed() {
 			t.FailNow()
 		}
@@ -481,12 +485,12 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 
 	// the report on the imagebuilder image should be there if we expected the build to succeed
 	if compareImagebuilder && !test.withoutImagebuilder {
-		originalDockerConfig, ociDockerConfig, fsDocker = readReport(t, filepath.Join(dockerDir, t.Name()))
+		_, originalDockerConfig, ociDockerConfig, fsDocker = readReport(t, filepath.Join(dockerDir, t.Name()))
 		if t.Failed() {
 			t.FailNow()
 		}
 
-		originalImagebuilderConfig, ociImagebuilderConfig, fsImagebuilder := readReport(t, filepath.Join(imagebuilderDir, t.Name()))
+		_, originalImagebuilderConfig, ociImagebuilderConfig, fsImagebuilder := readReport(t, filepath.Join(imagebuilderDir, t.Name()))
 		if t.Failed() {
 			t.FailNow()
 		}
@@ -819,6 +823,9 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	img, err := image.FromSource(ctx, nil, src)
 	require.Nil(t, err, "error opening image %q to read its configuration", imageName)
 	closer = img
+	// read the manifest in its original form
+	rawManifest, _, err := src.GetManifest(ctx, nil)
+	require.Nil(t, err, "error reading raw manifest from image %q", imageName)
 	// read the config blob in its original form
 	rawConfig, err := img.ConfigBlob(ctx)
 	require.Nil(t, err, "error reading configuration from image %q", imageName)
@@ -827,8 +834,11 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	require.Nil(t, err, "error reading OCI-format configuration from image %q", imageName)
 	encodedConfig, err := json.Marshal(ociConfig)
 	require.Nil(t, err, "error encoding OCI-format configuration from image %q for saving", imageName)
+	// save the manifest in its original form
+	err = os.WriteFile(filepath.Join(directory, "manifest.json"), rawManifest, 0644)
+	require.Nil(t, err, "error saving original manifest from image %q", imageName)
 	// save the config blob in the OCI format
-	err = os.WriteFile(filepath.Join(directory, "oci.json"), encodedConfig, 0644)
+	err = os.WriteFile(filepath.Join(directory, "oci-config.json"), encodedConfig, 0644)
 	require.Nil(t, err, "error saving OCI-format configuration from image %q", imageName)
 	// save the config blob in its original format
 	err = os.WriteFile(filepath.Join(directory, "config.json"), rawConfig, 0644)
@@ -1005,7 +1015,17 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 }
 
 // read information about the specified image from the specified directory
-func readReport(t *testing.T, directory string) (original, oci, fs map[string]interface{}) {
+func readReport(t *testing.T, directory string) (manifestType string, original, oci, fs map[string]interface{}) {
+	// read the manifest in the as-committed format, whatever that is
+	originalManifest, err := os.ReadFile(filepath.Join(directory, "manifest.json"))
+	require.Nil(t, err, "error reading manifest %q", filepath.Join(directory, "manifest.json"))
+	// dump it into a map
+	manifest := make(map[string]interface{})
+	err = json.Unmarshal(originalManifest, &manifest)
+	require.Nil(t, err, "error decoding manifest %q", filepath.Join(directory, "manifest.json"))
+	if str, ok := manifest["mediaType"].(string); ok {
+		manifestType = str
+	}
 	// read the config in the as-committed (docker) format
 	originalConfig, err := os.ReadFile(filepath.Join(directory, "config.json"))
 	require.Nil(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
@@ -1014,8 +1034,8 @@ func readReport(t *testing.T, directory string) (original, oci, fs map[string]in
 	err = json.Unmarshal(originalConfig, &original)
 	require.Nil(t, err, "error decoding configuration from file %q", filepath.Join(directory, "config.json"))
 	// read the config in converted-to-OCI format
-	ociConfig, err := os.ReadFile(filepath.Join(directory, "oci.json"))
-	require.Nil(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci.json"))
+	ociConfig, err := os.ReadFile(filepath.Join(directory, "oci-config.json"))
+	require.Nil(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci-config.json"))
 	// dump it into a map
 	oci = make(map[string]interface{})
 	err = json.Unmarshal(ociConfig, &oci)
@@ -1028,7 +1048,7 @@ func readReport(t *testing.T, directory string) (original, oci, fs map[string]in
 	err = json.Unmarshal(fsInfo, &fs)
 	require.Nil(t, err, "error decoding filesystem summary from file %q", filepath.Join(directory, "fs.json"))
 	// return both
-	return original, oci, fs
+	return manifestType, original, oci, fs
 }
 
 // contains is used to check if item is exist in []string or not
@@ -2955,12 +2975,11 @@ var internalTestCases = []testCase{
 		fsSkip:     []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
 	},
 
-	//FIXME: #4639 Fails conformance testing w/ Docker 23.0.1
-	//{
-	//	name:              "multistage-builtin-args",
-	//	dockerfile:        "Dockerfile.margs",
-	//	dockerUseBuildKit: true,
-	//},
+	{
+		name:              "multistage-builtin-args",
+		dockerfile:        "Dockerfile.margs",
+		dockerUseBuildKit: true,
+	},
 
 	{
 		name:       "replace-symlink-with-directory",
@@ -2987,23 +3006,21 @@ var internalTestCases = []testCase{
 		fsSkip:     []string{"(dir):tree:mtime"},
 	},
 
-	//FIXME: #4639 Fails conformance testing w/ Docker 23.0.1
-	//{
-	//	name: "workdir-owner", // from issue #3620
-	//	dockerfileContents: strings.Join([]string{
-	//		`FROM alpine`,
-	//		`USER daemon`,
-	//		`WORKDIR /created/directory`,
-	//		`RUN ls /created`,
-	//	}, "\n"),
-	//	fsSkip:            []string{"(dir):created:mtime", "(dir):created:(dir):directory:mtime"},
-	//	dockerUseBuildKit: true,
-	//},
+	{
+		name: "workdir-owner", // from issue #3620
+		dockerfileContents: strings.Join([]string{
+			`FROM alpine`,
+			`USER daemon`,
+			`WORKDIR /created/directory`,
+			`RUN ls /created`,
+		}, "\n"),
+		fsSkip:            []string{"(dir):created:mtime", "(dir):created:(dir):directory:mtime"},
+		dockerUseBuildKit: true,
+	},
 
-	//FIXME: #4639 Fails conformance testing w/ Docker 23.0.1
-	//{
-	//	name:              "env-precedence",
-	//	contextDir:        "env/precedence",
-	//	dockerUseBuildKit: true,
-	//},
+	{
+		name:              "env-precedence",
+		contextDir:        "env/precedence",
+		dockerUseBuildKit: true,
+	},
 }
