@@ -1,2 +1,4 @@
 github.com/go-toolsmith/strparse v1.0.0 h1:Vcw78DnpCAKlM20kSbAyO4mPfJn/lyYA4BJUDxe2Jb4=
 github.com/go-toolsmith/strparse v1.0.0/go.mod h1:YI2nUKP9YGZnL/L1/DLFBfixrcjslWct4wyljWhSRy8=
+golang.org/x/exp/typeparams v0.0.0-20230203172020-98cc5a0785f9 h1:6WHiuFL9FNjg8RljAaT7FNUuKDbvMqS1i5cr2OE2sLQ=
+golang.org/x/exp/typeparams v0.0.0-20230203172020-98cc5a0785f9/go.mod h1:AbB0pIl9nAr9wVwH+Z2ZpaocVmF5I4GyWCDIsVjR0bk=

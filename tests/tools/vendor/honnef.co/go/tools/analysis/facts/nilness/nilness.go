@@ -230,6 +230,11 @@ func impl(pass *analysis.Pass, fn *ir.Function, seenFns map[*ir.Function]struct{
 			return neverNil
 		case *ir.TypeAssert, *ir.ChangeInterface, *ir.Field, *ir.Const, *ir.GenericConst, *ir.Index, *ir.MapLookup, *ir.Parameter, *ir.Recv, *ir.TypeSwitch:
 			return nilly
+		case *ir.CompositeValue:
+			// We can get here via composite literals of type parameters, for which typeutil.IsPointerLike doesn't
+			// currently return false (see https://staticcheck.io/issues/1364). However, we only emit ir.CompositeValue
+			// for value types, so we know it can't be nil.
+			return neverNil
 		default:
 			panic(fmt.Sprintf("internal error: unhandled type %T", v))
 		}

@@ -37,6 +37,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/testinggoroutine"
 	"golang.org/x/tools/go/analysis/passes/tests"
+	"golang.org/x/tools/go/analysis/passes/timeformat"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
@@ -80,6 +81,7 @@ var (
 		structtag.Analyzer,
 		testinggoroutine.Analyzer,
 		tests.Analyzer,
+		timeformat.Analyzer,
 		unmarshal.Analyzer,
 		unreachable.Analyzer,
 		unsafeptr.Analyzer,
@@ -87,7 +89,7 @@ var (
 		unusedwrite.Analyzer,
 	}
 
-	// https://github.com/golang/go/blob/879db69ce2de814bc3203c39b45617ba51cc5366/src/cmd/vet/main.go#L40-L68
+	// https://github.com/golang/go/blob/9f834a559c9ed6cdf883e29b36e21e5f956df74f/src/cmd/vet/main.go#L46-L76
 	defaultAnalyzers = []*analysis.Analyzer{
 		asmdecl.Analyzer,
 		assign.Analyzer,
@@ -112,6 +114,7 @@ var (
 		structtag.Analyzer,
 		testinggoroutine.Analyzer,
 		tests.Analyzer,
+		timeformat.Analyzer,
 		unmarshal.Analyzer,
 		unreachable.Analyzer,
 		unsafeptr.Analyzer,

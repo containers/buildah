@@ -60,6 +60,7 @@ type builder struct {
 	block     *block
 	vars      map[*ast.Object]*variable
 	results   []*ast.FieldList
+	defers    []bool
 	breaks    branchStack
 	continues branchStack
 	gotos     branchStack
@@ -181,6 +182,9 @@ func (bld *builder) Visit(n ast.Node) ast.Visitor {
 		}
 		brek.setDestination(bld.newBlock(exits...))
 		bld.breaks.pop()
+	case *ast.DeferStmt:
+		bld.defers[len(bld.defers)-1] = true
+		return bld
 	case *ast.LabeledStmt:
 		bld.gotos.get(n.Label).setDestination(bld.newBlock(bld.block))
 		bld.labelStmt = n
@@ -360,6 +364,7 @@ func (bld *builder) fun(typ *ast.FuncType, body *ast.BlockStmt) {
 		v.fundept++
 	}
 	bld.results = append(bld.results, typ.Results)
+	bld.defers = append(bld.defers, false)
 
 	b := bld.block
 	bld.newBlock()
@@ -369,6 +374,7 @@ func (bld *builder) fun(typ *ast.FuncType, body *ast.BlockStmt) {
 	bld.block = b
 
 	bld.results = bld.results[:len(bld.results)-1]
+	bld.defers = bld.defers[:len(bld.defers)-1]
 	for _, v := range bld.vars {
 		v.fundept--
 	}
@@ -422,8 +428,11 @@ func (bld *builder) swtch(stmt ast.Stmt, cases []ast.Stmt) {
 	bld.breaks.pop()
 }
 
-// An operation that might panic marks named function results as used.
+// If an operation might panic and be recovered, mark named function results as used.
 func (bld *builder) maybePanic() {
+	if len(bld.defers) == 0 || !bld.defers[len(bld.defers)-1] {
+		return
+	}
 	if len(bld.results) == 0 {
 		return
 	}

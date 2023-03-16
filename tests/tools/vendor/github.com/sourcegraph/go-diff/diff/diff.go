@@ -120,6 +120,10 @@ const onlyInMessage = "Only in %s: %s\n"
 // See https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html.
 const diffTimeParseLayout = "2006-01-02 15:04:05 -0700"
 
+// Apple's diff is based on freebsd diff, which uses a timestamp format that does
+// not include the timezone offset.
+const diffTimeParseWithoutTZLayout = "2006-01-02 15:04:05"
+
 // diffTimeFormatLayout is the layout used to format (i.e., print) the time in unified diff file
 // header timestamps.
 // See https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html.

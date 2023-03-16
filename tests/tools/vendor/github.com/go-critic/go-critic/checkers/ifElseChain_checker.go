@@ -11,6 +11,12 @@ func init() {
 	var info linter.CheckerInfo
 	info.Name = "ifElseChain"
 	info.Tags = []string{"style"}
+	info.Params = linter.CheckerParams{
+		"minThreshold": {
+			Value: 2,
+			Usage: "min number of if-else blocks that makes the warning trigger",
+		},
+	}
 	info.Summary = "Detects repeated if-else statements and suggests to replace them with switch statement"
 	info.Before = `
 if cond1 {
@@ -35,7 +41,10 @@ will trigger suggestion to use switch statement.
 See [EffectiveGo#switch](https://golang.org/doc/effective_go.html#switch).`
 
 	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
-		return astwalk.WalkerForStmt(&ifElseChainChecker{ctx: ctx}), nil
+		return astwalk.WalkerForStmt(&ifElseChainChecker{
+			ctx:          ctx,
+			minThreshold: info.Params.Int("minThreshold"),
+		}), nil
 	})
 }
 
@@ -45,6 +54,8 @@ type ifElseChainChecker struct {
 
 	cause   *ast.IfStmt
 	visited map[*ast.IfStmt]bool
+
+	minThreshold int
 }
 
 func (c *ifElseChainChecker) EnterFunc(fn *ast.FuncDecl) bool {
@@ -66,8 +77,7 @@ func (c *ifElseChainChecker) VisitStmt(stmt ast.Stmt) {
 }
 
 func (c *ifElseChainChecker) checkIfStmt(stmt *ast.IfStmt) {
-	const minThreshold = 2
-	if c.countIfelseLen(stmt) >= minThreshold {
+	if c.countIfelseLen(stmt) >= c.minThreshold {
 		c.warn()
 	}
 }
@@ -75,11 +85,12 @@ func (c *ifElseChainChecker) checkIfStmt(stmt *ast.IfStmt) {
 func (c *ifElseChainChecker) countIfelseLen(stmt *ast.IfStmt) int {
 	count := 0
 	for {
+		if stmt.Init != nil {
+			return 0 // Give up
+		}
+
 		switch e := stmt.Else.(type) {
 		case *ast.IfStmt:
-			if e.Init != nil {
-				return 0 // Give up
-			}
 			// Else if.
 			stmt = e
 			count++

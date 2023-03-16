@@ -19,7 +19,6 @@ import (
 
 // NewConst returns a new constant of the specified value and type.
 // val must be valid according to the specification of Const.Value.
-//
 func NewConst(val constant.Value, typ types.Type) *Const {
 	return &Const{
 		register: register{
@@ -37,7 +36,6 @@ func intConst(i int64) *Const {
 
 // nilConst returns a nil constant of the specified type, which may
 // be any reference type, including interfaces.
-//
 func nilConst(typ types.Type) *Const {
 	return NewConst(nil, typ)
 }
@@ -58,7 +56,7 @@ func zeroConst(t types.Type) Constant {
 
 	switch typ := tset.CoreType().(type) {
 	case *types.Struct:
-		values := make([]Constant, typ.NumFields())
+		values := make([]Value, typ.NumFields())
 		for i := 0; i < typ.NumFields(); i++ {
 			values[i] = zeroConst(typ.Field(i).Type())
 		}
@@ -67,7 +65,7 @@ func zeroConst(t types.Type) Constant {
 			Values:   values,
 		}
 	case *types.Tuple:
-		values := make([]Constant, typ.Len())
+		values := make([]Value, typ.Len())
 		for i := 0; i < typ.Len(); i++ {
 			values[i] = zeroConst(typ.At(i).Type())
 		}
@@ -77,7 +75,7 @@ func zeroConst(t types.Type) Constant {
 		}
 	}
 
-	isNillable := func(term *typeparams.Term) bool {
+	isNillable := func(term *types.Term) bool {
 		switch typ := term.Type().Underlying().(type) {
 		case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature, *typeutil.Iterator:
 			return true
@@ -93,8 +91,8 @@ func zeroConst(t types.Type) Constant {
 		}
 	}
 
-	isInfo := func(info types.BasicInfo) func(*typeparams.Term) bool {
-		return func(term *typeparams.Term) bool {
+	isInfo := func(info types.BasicInfo) func(*types.Term) bool {
+		return func(term *types.Term) bool {
 			basic, ok := term.Type().Underlying().(*types.Basic)
 			if !ok {
 				return false
@@ -103,7 +101,7 @@ func zeroConst(t types.Type) Constant {
 		}
 	}
 
-	isArray := func(term *typeparams.Term) bool {
+	isArray := func(term *types.Term) bool {
 		_, ok := term.Type().Underlying().(*types.Array)
 		return ok
 	}
@@ -147,6 +145,11 @@ func (c *Const) RelString(from *types.Package) string {
 }
 
 func (c *Const) String() string {
+	if c.block == nil {
+		// Constants don't have a block till late in the compilation process. But we want to print consts during
+		// debugging.
+		return c.RelString(nil)
+	}
 	return c.RelString(c.Parent().pkg())
 }
 
@@ -162,12 +165,19 @@ func (v *AggregateConst) RelString(pkg *types.Package) string {
 	values := make([]string, len(v.Values))
 	for i, v := range v.Values {
 		if v != nil {
-			values[i] = v.RelString(pkg)
+			values[i] = v.Name()
 		} else {
 			values[i] = "nil"
 		}
 	}
 	return fmt.Sprintf("AggregateConst <%s> (%s)", relType(v.Type(), pkg), strings.Join(values, ", "))
+}
+
+func (v *AggregateConst) String() string {
+	if v.block == nil {
+		return v.RelString(nil)
+	}
+	return v.RelString(v.Parent().pkg())
 }
 
 func (v *GenericConst) RelString(pkg *types.Package) string {
@@ -178,10 +188,6 @@ func (v *GenericConst) String() string {
 	return v.RelString(v.Parent().pkg())
 }
 
-func (v *AggregateConst) String() string {
-	return v.RelString(v.Parent().pkg())
-}
-
 // IsNil returns true if this constant represents a typed or untyped nil value.
 func (c *Const) IsNil() bool {
 	return c.Value == nil
@@ -189,7 +195,6 @@ func (c *Const) IsNil() bool {
 
 // Int64 returns the numeric value of this constant truncated to fit
 // a signed 64-bit integer.
-//
 func (c *Const) Int64() int64 {
 	switch x := constant.ToInt(c.Value); x.Kind() {
 	case constant.Int:
@@ -206,7 +211,6 @@ func (c *Const) Int64() int64 {
 
 // Uint64 returns the numeric value of this constant truncated to fit
 // an unsigned 64-bit integer.
-//
 func (c *Const) Uint64() uint64 {
 	switch x := constant.ToInt(c.Value); x.Kind() {
 	case constant.Int:
@@ -223,7 +227,6 @@ func (c *Const) Uint64() uint64 {
 
 // Float64 returns the numeric value of this constant truncated to fit
 // a float64.
-//
 func (c *Const) Float64() float64 {
 	f, _ := constant.Float64Val(c.Value)
 	return f
@@ -231,7 +234,6 @@ func (c *Const) Float64() float64 {
 
 // Complex128 returns the complex value of this constant truncated to
 // fit a complex128.
-//
 func (c *Const) Complex128() complex128 {
 	re, _ := constant.Float64Val(constant.Real(c.Value))
 	im, _ := constant.Float64Val(constant.Imag(c.Value))
@@ -253,7 +255,15 @@ func (c *AggregateConst) equal(o Constant) bool {
 		return false
 	}
 	// TODO(dh): don't use == for types, this will miss identical pointer types, among others
-	return c.typ == oc.typ
+	if c.typ != oc.typ {
+		return false
+	}
+	for i, v := range c.Values {
+		if !v.(Constant).equal(oc.Values[i].(Constant)) {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *ArrayConst) equal(o Constant) bool {

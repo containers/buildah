@@ -3,8 +3,10 @@ package rule
 import (
 	"fmt"
 	"go/ast"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -31,12 +33,148 @@ func (wl whiteList) add(kind, list string) {
 
 // AddConstantRule lints unused params in functions.
 type AddConstantRule struct {
-	whiteList   whiteList
-	strLitLimit int
+	whiteList       whiteList
+	ignoreFunctions []*regexp.Regexp
+	strLitLimit     int
+	sync.Mutex
 }
 
 // Apply applies the rule to given file.
 func (r *AddConstantRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
+
+	var failures []lint.Failure
+
+	onFailure := func(failure lint.Failure) {
+		failures = append(failures, failure)
+	}
+
+	w := lintAddConstantRule{
+		onFailure:       onFailure,
+		strLits:         make(map[string]int),
+		strLitLimit:     r.strLitLimit,
+		whiteLst:        r.whiteList,
+		ignoreFunctions: r.ignoreFunctions,
+	}
+
+	ast.Walk(w, file.AST)
+
+	return failures
+}
+
+// Name returns the rule name.
+func (*AddConstantRule) Name() string {
+	return "add-constant"
+}
+
+type lintAddConstantRule struct {
+	onFailure       func(lint.Failure)
+	strLits         map[string]int
+	strLitLimit     int
+	whiteLst        whiteList
+	ignoreFunctions []*regexp.Regexp
+}
+
+func (w lintAddConstantRule) Visit(node ast.Node) ast.Visitor {
+	switch n := node.(type) {
+	case *ast.CallExpr:
+		w.checkFunc(n)
+		return nil
+	case *ast.GenDecl:
+		return nil // skip declarations
+	case *ast.BasicLit:
+		w.checkLit(n)
+	}
+
+	return w
+}
+
+func (w lintAddConstantRule) checkFunc(expr *ast.CallExpr) {
+	fName := w.getFuncName(expr)
+
+	for _, arg := range expr.Args {
+		switch t := arg.(type) {
+		case *ast.CallExpr:
+			w.checkFunc(t)
+		case *ast.BasicLit:
+			if w.isIgnoredFunc(fName) {
+				continue
+			}
+			w.checkLit(t)
+		}
+	}
+}
+
+func (w lintAddConstantRule) getFuncName(expr *ast.CallExpr) string {
+	switch f := expr.Fun.(type) {
+	case *ast.SelectorExpr:
+		switch prefix := f.X.(type) {
+		case *ast.Ident:
+			return prefix.Name + "." + f.Sel.Name
+		}
+	case *ast.Ident:
+		return f.Name
+	}
+
+	return ""
+}
+
+func (w lintAddConstantRule) checkLit(n *ast.BasicLit) {
+	switch kind := n.Kind.String(); kind {
+	case kindFLOAT, kindINT:
+		w.checkNumLit(kind, n)
+	case kindSTRING:
+		w.checkStrLit(n)
+	}
+}
+
+func (w lintAddConstantRule) isIgnoredFunc(fName string) bool {
+	for _, pattern := range w.ignoreFunctions {
+		if pattern.MatchString(fName) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (w lintAddConstantRule) checkStrLit(n *ast.BasicLit) {
+	if w.whiteLst[kindSTRING][n.Value] {
+		return
+	}
+
+	count := w.strLits[n.Value]
+	if count >= 0 {
+		w.strLits[n.Value] = count + 1
+		if w.strLits[n.Value] > w.strLitLimit {
+			w.onFailure(lint.Failure{
+				Confidence: 1,
+				Node:       n,
+				Category:   "style",
+				Failure:    fmt.Sprintf("string literal %s appears, at least, %d times, create a named constant for it", n.Value, w.strLits[n.Value]),
+			})
+			w.strLits[n.Value] = -1 // mark it to avoid failing again on the same literal
+		}
+	}
+}
+
+func (w lintAddConstantRule) checkNumLit(kind string, n *ast.BasicLit) {
+	if w.whiteLst[kind][n.Value] {
+		return
+	}
+
+	w.onFailure(lint.Failure{
+		Confidence: 1,
+		Node:       n,
+		Category:   "style",
+		Failure:    fmt.Sprintf("avoid magic numbers like '%s', create a named constant for it", n.Value),
+	})
+}
+
+func (r *AddConstantRule) configure(arguments lint.Arguments) {
+	r.Lock()
+	defer r.Unlock()
+
 	if r.whiteList == nil {
 		r.strLitLimit = defaultStrLitLimit
 		r.whiteList = newWhiteList()
@@ -76,81 +214,27 @@ func (r *AddConstantRule) Apply(file *lint.File, arguments lint.Arguments) []lin
 						panic(fmt.Sprintf("Invalid argument to the add-constant rule, expecting string representation of an integer. Got '%v'", v))
 					}
 					r.strLitLimit = limit
+				case "ignoreFuncs":
+					excludes, ok := v.(string)
+					if !ok {
+						panic(fmt.Sprintf("Invalid argument to the ignoreFuncs parameter of add-constant rule, string expected. Got '%v' (%T)", v, v))
+					}
+
+					for _, exclude := range strings.Split(excludes, ",") {
+						exclude = strings.Trim(exclude, " ")
+						if exclude == "" {
+							panic("Invalid argument to the ignoreFuncs parameter of add-constant rule, expected regular expression must not be empty.")
+						}
+
+						exp, err := regexp.Compile(exclude)
+						if err != nil {
+							panic(fmt.Sprintf("Invalid argument to the ignoreFuncs parameter of add-constant rule: regexp %q does not compile: %v", exclude, err))
+						}
+
+						r.ignoreFunctions = append(r.ignoreFunctions, exp)
+					}
 				}
 			}
 		}
 	}
-
-	var failures []lint.Failure
-
-	onFailure := func(failure lint.Failure) {
-		failures = append(failures, failure)
-	}
-
-	w := lintAddConstantRule{onFailure: onFailure, strLits: make(map[string]int), strLitLimit: r.strLitLimit, whiteLst: r.whiteList}
-
-	ast.Walk(w, file.AST)
-
-	return failures
-}
-
-// Name returns the rule name.
-func (r *AddConstantRule) Name() string {
-	return "add-constant"
-}
-
-type lintAddConstantRule struct {
-	onFailure   func(lint.Failure)
-	strLits     map[string]int
-	strLitLimit int
-	whiteLst    whiteList
-}
-
-func (w lintAddConstantRule) Visit(node ast.Node) ast.Visitor {
-	switch n := node.(type) {
-	case *ast.GenDecl:
-		return nil // skip declarations
-	case *ast.BasicLit:
-		switch kind := n.Kind.String(); kind {
-		case kindFLOAT, kindINT:
-			w.checkNumLit(kind, n)
-		case kindSTRING:
-			w.checkStrLit(n)
-		}
-	}
-
-	return w
-}
-
-func (w lintAddConstantRule) checkStrLit(n *ast.BasicLit) {
-	if w.whiteLst[kindSTRING][n.Value] {
-		return
-	}
-
-	count := w.strLits[n.Value]
-	if count >= 0 {
-		w.strLits[n.Value] = count + 1
-		if w.strLits[n.Value] > w.strLitLimit {
-			w.onFailure(lint.Failure{
-				Confidence: 1,
-				Node:       n,
-				Category:   "style",
-				Failure:    fmt.Sprintf("string literal %s appears, at least, %d times, create a named constant for it", n.Value, w.strLits[n.Value]),
-			})
-			w.strLits[n.Value] = -1 // mark it to avoid failing again on the same literal
-		}
-	}
-}
-
-func (w lintAddConstantRule) checkNumLit(kind string, n *ast.BasicLit) {
-	if w.whiteLst[kind][n.Value] {
-		return
-	}
-
-	w.onFailure(lint.Failure{
-		Confidence: 1,
-		Node:       n,
-		Category:   "style",
-		Failure:    fmt.Sprintf("avoid magic numbers like '%s', create a named constant for it", n.Value),
-	})
 }

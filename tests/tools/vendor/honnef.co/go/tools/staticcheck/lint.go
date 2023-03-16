@@ -524,13 +524,13 @@ func checkPrintfCallImpl(carg *Argument, f ir.Value, args []ir.Value) {
 		return true
 	}
 
-	var seen typeutil.Map
+	var seen typeutil.Map[struct{}]
 	var checkType func(verb rune, T types.Type, top bool) bool
 	checkType = func(verb rune, T types.Type, top bool) bool {
 		if top {
-			seen = typeutil.Map{}
+			seen = typeutil.Map[struct{}]{}
 		}
-		if ok := seen.At(T); ok != nil {
+		if _, ok := seen.At(T); ok {
 			return true
 		}
 		seen.Set(T, struct{}{})
@@ -1296,7 +1296,7 @@ func CheckLhsRhsIdentical(pass *analysis.Pass) (interface{}, error) {
 			// no terms, so floats are a possibility
 			return true
 		}
-		return tset.Any(func(term *typeparams.Term) bool {
+		return tset.Any(func(term *types.Term) bool {
 			switch typ := term.Type().Underlying().(type) {
 			case *types.Basic:
 				kind := typ.Kind()
@@ -1554,7 +1554,7 @@ func CheckEarlyDefer(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				continue
 			}
-			if ident.Obj != lhs.Obj {
+			if pass.TypesInfo.ObjectOf(ident) != pass.TypesInfo.ObjectOf(lhs) {
 				continue
 			}
 			if sel.Sel.Name != "Close" {
@@ -2085,7 +2085,7 @@ func CheckLoopCondition(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				return true
 			}
-			if x.Obj != lhs.Obj {
+			if pass.TypesInfo.ObjectOf(x) != pass.TypesInfo.ObjectOf(lhs) {
 				return true
 			}
 			if _, ok := loop.Post.(*ast.IncDecStmt); !ok {
@@ -2225,13 +2225,13 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 		if body == nil {
 			return
 		}
-		labels := map[*ast.Object]ast.Stmt{}
+		labels := map[types.Object]ast.Stmt{}
 		ast.Inspect(body, func(node ast.Node) bool {
 			label, ok := node.(*ast.LabeledStmt)
 			if !ok {
 				return true
 			}
-			labels[label.Label.Obj] = label.Stmt
+			labels[pass.TypesInfo.ObjectOf(label.Label)] = label.Stmt
 			return true
 		})
 
@@ -2243,7 +2243,7 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 				body = node.Body
 				loop = node
 			case *ast.RangeStmt:
-				ok := typeutil.All(pass.TypesInfo.TypeOf(node.X), func(term *typeparams.Term) bool {
+				ok := typeutil.All(pass.TypesInfo.TypeOf(node.X), func(term *types.Term) bool {
 					switch term.Type().Underlying().(type) {
 					case *types.Slice, *types.Chan, *types.Basic, *types.Pointer, *types.Array:
 						return true
@@ -2283,11 +2283,11 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 				case *ast.BranchStmt:
 					switch stmt.Tok {
 					case token.BREAK:
-						if stmt.Label == nil || labels[stmt.Label.Obj] == loop {
+						if stmt.Label == nil || labels[pass.TypesInfo.ObjectOf(stmt.Label)] == loop {
 							unconditionalExit = stmt
 						}
 					case token.CONTINUE:
-						if stmt.Label == nil || labels[stmt.Label.Obj] == loop {
+						if stmt.Label == nil || labels[pass.TypesInfo.ObjectOf(stmt.Label)] == loop {
 							unconditionalExit = nil
 							return false
 						}
@@ -2309,7 +2309,7 @@ func CheckIneffectiveLoop(pass *analysis.Pass) (interface{}, error) {
 						unconditionalExit = nil
 						return false
 					case token.CONTINUE:
-						if branch.Label != nil && labels[branch.Label.Obj] != loop {
+						if branch.Label != nil && labels[pass.TypesInfo.ObjectOf(branch.Label)] != loop {
 							return true
 						}
 						unconditionalExit = nil
@@ -2899,7 +2899,7 @@ func CheckRepeatedIfElse(pass *analysis.Pass) (interface{}, error) {
 func CheckSillyBitwiseOps(pass *analysis.Pass) (interface{}, error) {
 	fn := func(node ast.Node) {
 		binop := node.(*ast.BinaryExpr)
-		if !typeutil.All(pass.TypesInfo.TypeOf(binop), func(term *typeparams.Term) bool {
+		if !typeutil.All(pass.TypesInfo.TypeOf(binop), func(term *types.Term) bool {
 			b, ok := term.Type().Underlying().(*types.Basic)
 			if !ok {
 				return false
@@ -3009,7 +3009,7 @@ func CheckNonOctalFileMode(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func CheckPureFunctions(pass *analysis.Pass) (interface{}, error) {
+func CheckSideEffectFreeCalls(pass *analysis.Pass) (interface{}, error) {
 	pure := pass.ResultOf[purity.Analyzer].(purity.Result)
 
 fnLoop:
@@ -3055,7 +3055,7 @@ fnLoop:
 						// special case for benchmarks in the fmt package
 						continue
 					}
-					report.Report(pass, ins, fmt.Sprintf("%s is a pure function but its return value is ignored", callee.Object().Name()))
+					report.Report(pass, ins, fmt.Sprintf("%s doesn't have side effects and its return value is ignored", callee.Object().Name()))
 				}
 			}
 		}
@@ -3095,32 +3095,25 @@ func CheckDeprecated(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 		if ok {
-			switch std.AlternativeAvailableSince {
-			case knowledge.DeprecatedNeverUse:
-				// This should never be used, regardless of the
-				// targeted Go version. Examples include insecure
-				// cryptography or inherently broken APIs.
-				//
-				// We always want to flag these.
-			case knowledge.DeprecatedUseNoLonger:
-				// This should no longer be used. Using it with
-				// older Go versions might still make sense.
-				if !code.IsGoVersion(pass, std.DeprecatedSince) {
-					return
-				}
-			default:
-				if std.AlternativeAvailableSince < 0 {
-					panic(fmt.Sprintf("unhandled case %d", std.AlternativeAvailableSince))
-				}
-				// Look for the first available alternative, not the first
-				// version something was deprecated in. If a function was
-				// deprecated in Go 1.6, an alternative has been available
-				// already in 1.0, and we're targeting 1.2, it still
-				// makes sense to use the alternative from 1.0, to be
-				// future-proof.
-				if !code.IsGoVersion(pass, std.AlternativeAvailableSince) {
-					return
-				}
+			// In the past, we made use of the AlternativeAvailableSince field. If a function was deprecated in Go
+			// 1.6 and an alternative had been available in Go 1.0, then we'd recommend using the alternative even
+			// if targeting Go 1.2. The idea was to suggest writing future-proof code by using already-existing
+			// alternatives. This had a major flaw, however: the user would need to use at least Go 1.6 for
+			// Staticcheck to know that the function had been deprecated. Thus, targeting Go 1.2 and using Go 1.2
+			// would behave differently from targeting Go 1.2 and using Go 1.6. This is especially a problem if the
+			// user tries to ignore the warning. Depending on the Go version in use, the ignore directive may or may
+			// not match, causing a warning of its own.
+			//
+			// To avoid this issue, we no longer try to be smart. We now only compare the targeted version against
+			// the version that deprecated an object.
+			//
+			// Unfortunately, this issue also applies to AlternativeAvailableSince == DeprecatedNeverUse. Even though it
+			// is only applied to seriously flawed API, such as broken cryptography, users may wish to ignore those
+			// warnings.
+			//
+			// See also https://staticcheck.io/issues/1318.
+			if !code.IsGoVersion(pass, std.DeprecatedSince) {
+				return
 			}
 		}
 
@@ -3166,6 +3159,8 @@ func CheckDeprecated(pass *analysis.Pass) (interface{}, error) {
 		if fn, ok := node.(*ast.FuncDecl); ok {
 			tfn = pass.TypesInfo.ObjectOf(fn.Name)
 		}
+
+		// FIXME(dh): this misses dot-imported objects
 		sel, ok := node.(*ast.SelectorExpr)
 		if !ok {
 			return true
@@ -3178,8 +3173,26 @@ func CheckDeprecated(pass *analysis.Pass) (interface{}, error) {
 		if obj.Pkg() == nil {
 			return true
 		}
-		if pass.Pkg == obj.Pkg() || obj.Pkg().Path()+"_test" == pass.Pkg.Path() {
-			// Don't flag stuff in our own package
+
+		if obj.Pkg() == pass.Pkg {
+			// A package is allowed to use its own deprecated objects
+			return true
+		}
+
+		// A package "foo" has two related packages "foo_test" and "foo.test", for external tests and the package main
+		// generated by 'go test' respectively. "foo_test" can import and use "foo", "foo.test" imports and uses "foo"
+		// and "foo_test".
+
+		if strings.TrimSuffix(pass.Pkg.Path(), "_test") == obj.Pkg().Path() {
+			// foo_test (the external tests of foo) can use objects from foo.
+			return true
+		}
+		if strings.TrimSuffix(pass.Pkg.Path(), ".test") == obj.Pkg().Path() {
+			// foo.test (the main package of foo's tests) can use objects from foo.
+			return true
+		}
+		if strings.TrimSuffix(pass.Pkg.Path(), ".test") == strings.TrimSuffix(obj.Pkg().Path(), "_test") {
+			// foo.test (the main package of foo's tests) can use objects from foo's external tests.
 			return true
 		}
 
@@ -3206,6 +3219,19 @@ func CheckDeprecated(pass *analysis.Pass) (interface{}, error) {
 				if ok && gen == generated.ProtocGenGo {
 					return
 				}
+			}
+
+			if strings.TrimSuffix(pass.Pkg.Path(), "_test") == path {
+				// foo_test can import foo
+				return
+			}
+			if strings.TrimSuffix(pass.Pkg.Path(), ".test") == path {
+				// foo.test can import foo
+				return
+			}
+			if strings.TrimSuffix(pass.Pkg.Path(), ".test") == strings.TrimSuffix(path, "_test") {
+				// foo.test can import foo_test
+				return
 			}
 
 			handleDeprecation(depr, spec.Path, path, path, nil)
@@ -3421,7 +3447,7 @@ func CheckMapBytesKey(pass *analysis.Pass) (interface{}, error) {
 				}
 				tset := typeutil.NewTypeSet(conv.X.Type())
 				// If at least one of the types is []byte, then it's more efficient to inline the conversion
-				if !tset.Any(func(term *typeparams.Term) bool {
+				if !tset.Any(func(term *types.Term) bool {
 					s, ok := term.Type().Underlying().(*types.Slice)
 					return ok && s.Elem().Underlying() == types.Universe.Lookup("byte").Type()
 				}) {
@@ -3996,12 +4022,12 @@ func CheckImpossibleTypeAssertion(pass *analysis.Pass) (interface{}, error) {
 
 				ms := msc.MethodSet(left)
 				for i := 0; i < righti.NumMethods(); i++ {
-					mr := righti.Method(i)
+					mr := righti.Method(i).Origin()
 					sel := ms.Lookup(mr.Pkg(), mr.Name())
 					if sel == nil {
 						continue
 					}
-					ml := sel.Obj().(*types.Func)
+					ml := sel.Obj().(*types.Func).Origin()
 					if types.AssignableTo(ml.Type(), mr.Type()) {
 						continue
 					}
@@ -4135,7 +4161,7 @@ func CheckMaybeNil(pass *analysis.Pass) (interface{}, error) {
 					ptr = instr.Addr
 				case *ir.IndexAddr:
 					ptr = instr.X
-					if typeutil.All(ptr.Type(), func(term *typeparams.Term) bool {
+					if typeutil.All(ptr.Type(), func(term *types.Term) bool {
 						if _, ok := term.Type().Underlying().(*types.Slice); ok {
 							return true
 						}

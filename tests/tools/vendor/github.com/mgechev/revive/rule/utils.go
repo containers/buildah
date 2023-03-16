@@ -13,8 +13,6 @@ import (
 	"github.com/mgechev/revive/lint"
 )
 
-const styleGuideBase = "https://golang.org/wiki/CodeReviewComments"
-
 // isBlank returns whether id is the blank identifier "_".
 // If id == nil, the answer is false.
 func isBlank(id *ast.Ident) bool { return id != nil && id.Name == "_" }
@@ -26,19 +24,6 @@ var commonMethods = map[string]bool{
 	"String":    true,
 	"Write":     true,
 	"Unwrap":    true,
-}
-
-func receiverType(fn *ast.FuncDecl) string {
-	switch e := fn.Recv.List[0].Type.(type) {
-	case *ast.Ident:
-		return e.Name
-	case *ast.StarExpr:
-		if id, ok := e.X.(*ast.Ident); ok {
-			return id.Name
-		}
-	}
-	// The parser accepts much more than just the legal forms.
-	return "invalid-type"
 }
 
 var knownNameExceptions = map[string]bool{
@@ -82,10 +67,10 @@ var zeroLiteral = map[string]bool{
 	"0i":  true,
 }
 
-func validType(T types.Type) bool {
-	return T != nil &&
-		T != types.Typ[types.Invalid] &&
-		!strings.Contains(T.String(), "invalid type") // good but not foolproof
+func validType(t types.Type) bool {
+	return t != nil &&
+		t != types.Typ[types.Invalid] &&
+		!strings.Contains(t.String(), "invalid type") // good but not foolproof
 }
 
 // isPkgDot checks if the expression is <pkg>.<name>

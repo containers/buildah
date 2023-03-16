@@ -34,39 +34,34 @@ var builtFunctions = map[string]bool{
 }
 
 var builtInTypes = map[string]bool{
-	"ComplexType": true,
-	"FloatType":   true,
-	"IntegerType": true,
-	"Type":        true,
-	"Type1":       true,
-	"bool":        true,
-	"byte":        true,
-	"complex128":  true,
-	"complex64":   true,
-	"error":       true,
-	"float32":     true,
-	"float64":     true,
-	"int":         true,
-	"int16":       true,
-	"int32":       true,
-	"int64":       true,
-	"int8":        true,
-	"rune":        true,
-	"string":      true,
-	"uint":        true,
-	"uint16":      true,
-	"uint32":      true,
-	"uint64":      true,
-	"uint8":       true,
-	"uintptr":     true,
-	"any":         true,
+	"bool":       true,
+	"byte":       true,
+	"complex128": true,
+	"complex64":  true,
+	"error":      true,
+	"float32":    true,
+	"float64":    true,
+	"int":        true,
+	"int16":      true,
+	"int32":      true,
+	"int64":      true,
+	"int8":       true,
+	"rune":       true,
+	"string":     true,
+	"uint":       true,
+	"uint16":     true,
+	"uint32":     true,
+	"uint64":     true,
+	"uint8":      true,
+	"uintptr":    true,
+	"any":        true,
 }
 
 // RedefinesBuiltinIDRule warns when a builtin identifier is shadowed.
 type RedefinesBuiltinIDRule struct{}
 
 // Apply applies the rule to given file.
-func (r *RedefinesBuiltinIDRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*RedefinesBuiltinIDRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -81,7 +76,7 @@ func (r *RedefinesBuiltinIDRule) Apply(file *lint.File, _ lint.Arguments) []lint
 }
 
 // Name returns the rule name.
-func (r *RedefinesBuiltinIDRule) Name() string {
+func (*RedefinesBuiltinIDRule) Name() string {
 	return "redefines-builtin-id"
 }
 
@@ -164,7 +159,7 @@ func (w lintRedefinesBuiltinID) addFailure(node ast.Node, msg string) {
 	})
 }
 
-func (w lintRedefinesBuiltinID) isBuiltIn(id string) (r bool, builtInKind string) {
+func (lintRedefinesBuiltinID) isBuiltIn(id string) (r bool, builtInKind string) {
 	if builtFunctions[id] {
 		return true, "function"
 	}

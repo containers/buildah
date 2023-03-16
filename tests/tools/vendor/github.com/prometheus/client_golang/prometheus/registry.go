@@ -596,7 +596,7 @@ func processMetric(
 	}
 	dtoMetric := &dto.Metric{}
 	if err := metric.Write(dtoMetric); err != nil {
-		return fmt.Errorf("collecting metric %v: %s", desc, err)
+		return fmt.Errorf("error collecting metric %v: %s", desc, err)
 	}
 	metricFamily, ok := metricFamiliesByName[desc.fqName]
 	if ok { // Existing name.

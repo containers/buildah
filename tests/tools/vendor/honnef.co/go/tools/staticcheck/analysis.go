@@ -174,7 +174,7 @@ var Analyzers = lint.InitializeAnalyzers(Docs, map[string]*analysis.Analyzer{
 		Requires: []*analysis.Analyzer{inspect.Analyzer, tokenfile.Analyzer},
 	},
 	"SA4017": {
-		Run:      CheckPureFunctions,
+		Run:      CheckSideEffectFreeCalls,
 		Requires: []*analysis.Analyzer{buildir.Analyzer, purity.Analyzer},
 	},
 	"SA4018": {

@@ -40,6 +40,7 @@ var allowedErrors = []struct {
 	{err: "io.ErrClosedPipe", fun: "(*io.PipeWriter).Write"},
 	{err: "io.ErrShortBuffer", fun: "io.ReadAtLeast"},
 	{err: "io.ErrUnexpectedEOF", fun: "io.ReadAtLeast"},
+	{err: "io.EOF", fun: "io.ReadFull"},
 	{err: "io.ErrUnexpectedEOF", fun: "io.ReadFull"},
 	// pkg/net/http
 	{err: "http.ErrServerClosed", fun: "(*net/http.Server).ListenAndServe"},

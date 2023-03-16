@@ -28,6 +28,12 @@ func DefaultConfig() *Config {
 		},
 		IgnoredFunctions: []*regexp.Regexp{
 			regexp.MustCompile(`time.Date`),
+			regexp.MustCompile(`strconv.FormatInt`),
+			regexp.MustCompile(`strconv.FormatUint`),
+			regexp.MustCompile(`strconv.FormatFloat`),
+			regexp.MustCompile(`strconv.ParseInt`),
+			regexp.MustCompile(`strconv.ParseUint`),
+			regexp.MustCompile(`strconv.ParseFloat`),
 		},
 	}
 }

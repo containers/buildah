@@ -21,7 +21,7 @@ You may obtain a copy of the License [here](http://www.apache.org/licenses/LICEN
 [![Docs](https://readthedocs.org/projects/docs/badge/?version=latest)](https://securego.io/)
 [![Downloads](https://img.shields.io/github/downloads/securego/gosec/total.svg)](https://github.com/securego/gosec/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/securego/gosec.svg)](https://hub.docker.com/r/securego/gosec/tags)
-[![Slack](http://securego.herokuapp.com/badge.svg)](http://securego.herokuapp.com)
+[![Slack](https://img.shields.io/badge/Slack-4A154B?style=for-the-badge&logo=slack&logoColor=white)](http://securego.slack.com)
 
 ## Install
 
@@ -146,6 +146,7 @@ directory you can supply `./...` as the input argument.
 - G111: Potential directory traversal
 - G112: Potential slowloris attack
 - G113: Usage of Rat.SetString in math/big with an overflow (CVE-2022-23772)
+- G114: Use of net/http serve function that has no support for setting timeouts
 - G201: SQL query construction using format string
 - G202: SQL query construction using string concatenation
 - G203: Use of unescaped data in HTML templates

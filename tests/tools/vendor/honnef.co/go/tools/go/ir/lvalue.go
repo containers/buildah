@@ -15,7 +15,6 @@ import (
 // An lvalue represents an assignable location that may appear on the
 // left-hand side of an assignment.  This is a generalization of a
 // pointer to permit updates to elements of maps.
-//
 type lvalue interface {
 	store(fn *Function, v Value, source ast.Node) // stores v into the location
 	load(fn *Function, source ast.Node) Value     // loads the contents of the location
@@ -52,11 +51,38 @@ func (a *address) typ() types.Type {
 	return deref(a.addr.Type())
 }
 
+type compositeElement struct {
+	cv   *CompositeValue
+	idx  int
+	t    types.Type
+	expr ast.Expr
+}
+
+func (ce *compositeElement) load(fn *Function, source ast.Node) Value {
+	panic("not implemented")
+}
+
+func (ce *compositeElement) store(fn *Function, v Value, source ast.Node) {
+	v = emitConv(fn, v, ce.t, source)
+	ce.cv.Values[ce.idx] = v
+	if ce.expr != nil {
+		// store.Val is v, converted for assignability.
+		emitDebugRef(fn, ce.expr, v, false)
+	}
+}
+
+func (ce *compositeElement) address(fn *Function) Value {
+	panic("not implemented")
+}
+
+func (ce *compositeElement) typ() types.Type {
+	return ce.t
+}
+
 // An element is an lvalue represented by m[k], the location of an
 // element of a map.  These locations are not addressable
 // since pointers cannot be formed from them, but they do support
 // load() and store().
-//
 type element struct {
 	m, k Value      // map
 	t    types.Type // map element type
@@ -90,7 +116,6 @@ func (e *element) typ() types.Type {
 
 // A blank is a dummy variable whose name is "_".
 // It is not reified: loads are illegal and stores are ignored.
-//
 type blank struct{}
 
 func (bl blank) load(fn *Function, source ast.Node) Value {
