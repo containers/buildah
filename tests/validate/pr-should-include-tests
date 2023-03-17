@@ -42,12 +42,13 @@ fi
 filtered_changes=$(git diff --name-status $base $head |
                        awk '{print $2}'               |
                        fgrep -vx .cirrus.yml          |
-		       fgrep -vx .gitignore           |
+                       fgrep -vx .gitignore           |
                        fgrep -vx changelog.txt        |
                        fgrep -vx go.mod               |
                        fgrep -vx go.sum               |
                        fgrep -vx buildah.spec.rpkg    |
                        fgrep -vx .golangci.yml        |
+                       fgrep -vx Makefile             |
                        egrep -v  '^[^/]+\.md$'        |
                        egrep -v  '^\.github/'         |
                        egrep -v  '^contrib/'          |
