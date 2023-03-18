@@ -1006,8 +1006,8 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		}
 	}
 	logImageID := func(imgID string) {
-		if len(imgID) > 11 {
-			imgID = imgID[0:11]
+		if len(imgID) > 12 {
+			imgID = imgID[:12]
 		}
 		if s.executor.iidfile == "" {
 			fmt.Fprintf(s.executor.out, "--> %s\n", imgID)

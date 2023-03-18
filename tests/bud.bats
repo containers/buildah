@@ -6004,3 +6004,11 @@ _EOF
   expect_output --substring "w=x y=z I=J K=L"
   expect_output --substring "w=x y=z I=I K=K"
 }
+
+@test "build prints 12-digit hash" {
+  run_buildah build -t test -f $BUDFILES/containerfile/Containerfile .
+  regex='--> [0-9a-zA-Z]{12}'
+  if ! [[ $output =~ $regex ]]; then
+    false
+  fi
+}
