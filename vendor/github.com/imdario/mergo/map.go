@@ -44,7 +44,7 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 			}
 		}
 		// Remember, remember...
-		visited[h] = &visit{addr, typ, seen}
+		visited[h] = &visit{typ, seen, addr}
 	}
 	zeroValue := reflect.Value{}
 	switch dst.Kind() {

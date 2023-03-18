@@ -38,10 +38,10 @@ func isExportedComponent(field *reflect.StructField) bool {
 }
 
 type Config struct {
+	Transformers                 Transformers
 	Overwrite                    bool
 	AppendSlice                  bool
 	TypeCheck                    bool
-	Transformers                 Transformers
 	overwriteWithEmptyValue      bool
 	overwriteSliceWithEmptyValue bool
 	sliceDeepCopy                bool
@@ -76,7 +76,7 @@ func deepMerge(dst, src reflect.Value, visited map[uintptr]*visit, depth int, co
 			}
 		}
 		// Remember, remember...
-		visited[h] = &visit{addr, typ, seen}
+		visited[h] = &visit{typ, seen, addr}
 	}
 
 	if config.Transformers != nil && !isReflectNil(dst) && dst.IsValid() {
@@ -203,6 +203,16 @@ func deepMerge(dst, src reflect.Value, visited map[uintptr]*visit, depth int, co
 					dst.Set(reflect.MakeMap(dst.Type()))
 				}
 				dst.SetMapIndex(key, srcElement)
+			}
+		}
+
+		// Ensure that all keys in dst are deleted if they are not in src.
+		if overwriteWithEmptySrc {
+			for _, key := range dst.MapKeys() {
+				srcElement := src.MapIndex(key)
+				if !srcElement.IsValid() {
+					dst.SetMapIndex(key, reflect.Value{})
+				}
 			}
 		}
 	case reflect.Slice:

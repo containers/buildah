@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.7.0
 	github.com/containernetworking/cni v1.1.2
 	github.com/containers/common v0.51.1-0.20230316131336-0be880eaeb02
-	github.com/containers/image/v5 v5.24.3-0.20230314083015-0c6d07e02a9a
+	github.com/containers/image/v5 v5.24.3-0.20230317201650-c1cc1eab4805
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.45.5-0.20230315220505-1c6287eea927
 	github.com/cyphar/filepath-securejoin v0.2.3
@@ -66,7 +66,7 @@ require (
 	github.com/go-openapi/loads v0.21.2 // indirect
 	github.com/go-openapi/runtime v0.24.1 // indirect
 	github.com/go-openapi/spec v0.20.7 // indirect
-	github.com/go-openapi/strfmt v0.21.3 // indirect
+	github.com/go-openapi/strfmt v0.21.5 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-openapi/validate v0.22.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -78,7 +78,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/imdario/mergo v0.3.13 // indirect
+	github.com/imdario/mergo v0.3.14 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

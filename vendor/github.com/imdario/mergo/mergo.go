@@ -28,9 +28,9 @@ var (
 // checks in progress are true when it reencounters them.
 // Visited are stored in a map indexed by 17 * a1 + a2;
 type visit struct {
-	ptr  uintptr
 	typ  reflect.Type
 	next *visit
+	ptr  uintptr
 }
 
 // From src/pkg/encoding/json/encode.go.
