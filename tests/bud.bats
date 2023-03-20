@@ -1930,6 +1930,20 @@ _EOF
   test -s $root/etc/passwd
 }
 
+@test "build using intermediate images should not inherit label" {
+  _prefetch alpine
+  run_buildah build --no-cache --layers --label somefancylabel=true $WITH_POLICY_JSON -t imageone -f Dockerfile.name $BUDFILES/multi-stage-builds
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imageone
+  expect_output "true"
+  run_buildah build --layers $WITH_POLICY_JSON -t imagetwo -f Dockerfile.name $BUDFILES/multi-stage-builds
+  # must use all steps from cache but should not contain label
+  for i in 2 6;do
+      expect_output --substring --from="${lines[$i]}" "Using cache"
+  done
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imagetwo
+  expect_output ""
+}
+
 @test "bud-multi-stage-builds" {
   _prefetch alpine
   target=multi-stage-index
