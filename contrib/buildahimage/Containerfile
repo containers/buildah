@@ -84,11 +84,16 @@ RUN mkdir -p /var/lib/shared/overlay-images \
     touch /var/lib/shared/vfs-images/images.lock && \
     touch /var/lib/shared/vfs-layers/layers.lock
 
+ADD ./user-storage.conf /tmp/storage.conf
+
 # Define uid/gid ranges for our user https://github.com/containers/buildah/issues/3053
 RUN useradd build && \
     echo -e "build:1:999\nbuild:1001:64535" > /etc/subuid && \
     echo -e "build:1:999\nbuild:1001:64535" > /etc/subgid && \
     mkdir -p /home/build/.local/share/containers && \
+    mkdir -p /home/build/.config/containers && \
+    mv /tmp/storage.conf /home/build/.config/containers/storage.conf && \
+    chmod 700 /home/build/.config && \
     chown -R build:build /home/build
 
 VOLUME /var/lib/containers
