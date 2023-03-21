@@ -171,6 +171,7 @@ type BuildOptions struct {
 	// image that's meant to be run using krun as a VM instead of a conventional
 	// process-type container.
 	ConfidentialWorkload ConfidentialWorkloadOptions
+	Push                 bool
 	// Additional tags to add to the image that we write, if we know of a
 	// way to add them.
 	AdditionalTags []string

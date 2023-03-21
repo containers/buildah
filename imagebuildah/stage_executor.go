@@ -1268,7 +1268,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	canGenerateBuildOutput := (s.executor.buildOutput != "" && lastStage)
 	if canGenerateBuildOutput {
 		logrus.Debugf("Generating custom build output with options %q", s.executor.buildOutput)
-		buildOutputOption, err = parse.GetBuildOutput(s.executor.buildOutput)
+		buildOutputOption, err = parse.GetBuildOutput(s.executor.buildOutput, s.executor.output)
 		if err != nil {
 			return "", nil, false, fmt.Errorf("failed to parse build output: %w", err)
 		}
@@ -2363,7 +2363,17 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	return imgID, ref, nil
 }
 
-func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOption) error {
+func (s *StageExecutor) generateBuildOutput(opts define.BuildOutputOption) error {
+	if opts.Type == define.BuildOutputImage {
+		if opts.Push {
+			err := internalUtil.PushImage(s.executor.store, opts, s.executor.systemContext)
+			if err != nil {
+				return fmt.Errorf("failed to export build output: %w", err)
+			}
+		}
+		return nil
+	}
+
 	extractRootfsOpts := buildah.ExtractRootfsOptions{}
 	if unshare.IsRootless() {
 		// In order to maintain as much parity as possible
@@ -2383,7 +2393,7 @@ func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOp
 		return fmt.Errorf("failed to extract rootfs from given container image: %w", err)
 	}
 	defer rc.Close()
-	err = internalUtil.ExportFromReader(rc, buildOutputOpts)
+	err = internalUtil.ExportFromReader(rc, opts)
 	if err != nil {
 		return fmt.Errorf("failed to export build output: %w", err)
 	}

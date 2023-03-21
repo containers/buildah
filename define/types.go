@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/containers/image/v5/manifest"
+	imageTypes "github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/ioutils"
@@ -111,9 +112,37 @@ type Secret struct {
 
 // BuildOutputOptions contains the the outcome of parsing the value of a build --output flag
 type BuildOutputOption struct {
-	Path     string // Only valid if !IsStdout
-	IsDir    bool
+	ImageRef imageTypes.ImageReference
+	Image    string
 	IsStdout bool
+	Path     string // Only valid if !IsStdout
+	Push     bool
+	Type     BuildOutputType
+
+	// Deprecated: Use Type instead to determine output type
+	IsDir bool
+}
+
+type BuildOutputType int
+
+const (
+	_ BuildOutputType = iota
+	BuildOutputImage
+	BuildOutputLocal
+	BuildOutputTar
+)
+
+// String converts a BuildOutputType into a string.
+func (t BuildOutputType) String() string {
+	switch t {
+	case BuildOutputImage:
+		return "image"
+	case BuildOutputLocal:
+		return "local"
+	case BuildOutputTar:
+		return "tar"
+	}
+	return fmt.Sprintf("unrecognized build output type %d", t)
 }
 
 // ConfidentialWorkloadOptions encapsulates options which control whether or not
