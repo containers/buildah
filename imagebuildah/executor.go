@@ -73,6 +73,7 @@ type Executor struct {
 	registry                       string
 	ignoreUnrecognizedInstructions bool
 	quiet                          bool
+	push                           bool
 	runtime                        string
 	runtimeArgs                    []string
 	transientMounts                []Mount
@@ -243,6 +244,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		registry:                       options.Registry,
 		ignoreUnrecognizedInstructions: options.IgnoreUnrecognizedInstructions,
 		quiet:                          options.Quiet,
+		push:                           options.Push, // TODO: not needed if planning to update buildOutput in cli/build
 		runtime:                        options.Runtime,
 		runtimeArgs:                    options.RuntimeArgs,
 		transientMounts:                transientMounts,
@@ -937,6 +939,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 					}
 				}
 				stageID, stageRef, stageOnlyBaseImage, stageErr := b.buildStage(ctx, cleanupStages, stages, index)
+
 				if stageErr != nil {
 					cancel = true
 					ch <- Result{
