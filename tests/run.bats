@@ -761,6 +761,16 @@ $output"
         expect_output --substring "cannot set --network other than host with --isolation chroot"
 }
 
+@test "run --network=private must mount a fresh /sys" {
+	skip_if_no_runtime
+
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+	cid=$output
+        # verify there is no /sys/kernel/security in the container, that would mean /sys
+        # was bind mounted from the host.
+	run_buildah 1 run --network=private $cid grep /sys/kernel/security /proc/self/mountinfo
+}
+
 @test "run --network should override build --network" {
 	skip_if_no_runtime
 
