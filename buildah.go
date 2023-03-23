@@ -26,8 +26,7 @@ const (
 	// Package is the name of this package, used in help output and to
 	// identify working containers.
 	Package = define.Package
-	// Version for the Package.  Bump version in contrib/rpm/buildah.spec
-	// too.
+	// Version for the Package.
 	Version = define.Version
 	// The value we use to identify what type of information, currently a
 	// serialized Builder structure, we are using as per-container state.
