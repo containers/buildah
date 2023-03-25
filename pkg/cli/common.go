@@ -53,6 +53,7 @@ type BudResults struct {
 	Annotation          []string
 	Authfile            string
 	BuildArg            []string
+	BuildArgFile        []string
 	BuildContext        []string
 	CacheFrom           []string
 	CacheTo             []string
@@ -204,6 +205,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Authfile, "authfile", "", "path of the authentication file.")
 	fs.StringArrayVar(&flags.OCIHooksDir, "hooks-dir", []string{}, "set the OCI hooks directory path (may be set multiple times)")
 	fs.StringArrayVar(&flags.BuildArg, "build-arg", []string{}, "`argument=value` to supply to the builder")
+	fs.StringArrayVar(&flags.BuildArgFile, "build-arg-file", []string{}, "`file.Containerargs` containing lines of argument=value to supply to the builder")
 	fs.StringArrayVar(&flags.BuildContext, "build-context", []string{}, "`argument=value` to supply additional build context to the builder")
 	fs.StringArrayVar(&flags.CacheFrom, "cache-from", []string{}, "remote repository list to utilise as potential cache source.")
 	fs.StringArrayVar(&flags.CacheTo, "cache-to", []string{}, "remote repository list to utilise as potential cache destination.")
@@ -285,6 +287,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["arch"] = commonComp.AutocompleteNone
 	flagCompletion["authfile"] = commonComp.AutocompleteDefault
 	flagCompletion["build-arg"] = commonComp.AutocompleteNone
+	flagCompletion["build-arg-file"] = commonComp.AutocompleteDefault
 	flagCompletion["build-context"] = commonComp.AutocompleteNone
 	flagCompletion["cache-from"] = commonComp.AutocompleteNone
 	flagCompletion["cache-to"] = commonComp.AutocompleteNone

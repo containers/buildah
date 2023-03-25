@@ -250,6 +250,34 @@ symlink(subdir)"
   expect_output --substring "This is built for second"
 }
 
+@test "build with basename resolving user arg from file" {
+  run_buildah build \
+	--build-arg-file $BUDFILES/base-with-arg/first.args \
+	$WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile2
+  expect_output --substring "This is built for first"
+
+  run_buildah build \
+	--build-arg-file $BUDFILES/base-with-arg/second.args \
+	$WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile2
+  expect_output --substring "This is built for second"
+}
+
+@test "build with basename resolving user arg from latest file in arg list" {
+  run_buildah build \
+	--build-arg-file $BUDFILES/base-with-arg/second.args \
+	--build-arg-file $BUDFILES/base-with-arg/first.args \
+	$WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile2
+  expect_output --substring "This is built for first"
+}
+
+@test "build with basename resolving user arg from in arg list" {
+  run_buildah build \
+	--build-arg-file $BUDFILES/base-with-arg/second.args \
+	--build-arg CUSTOM_TARGET=first \
+	$WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile2
+  expect_output --substring "This is built for first"
+}
+
 # Following test should fail since we are trying to use build-arg which
 # was not declared. Honors discussion here: https://github.com/containers/buildah/pull/4061/commits/1237c04d6ae0ee1f027a1f02bf3ab5c57ac7d9b6#r906188374
 @test "build with basename resolving user arg - should fail" {

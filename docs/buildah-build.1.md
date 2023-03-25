@@ -68,6 +68,18 @@ resulting image's configuration.
 Please refer to the [BUILD TIME VARIABLES](#build-time-variables) section for the
 list of variables that can be overridden within the Containerfile at run time.
 
+**--build-arg-file** *path*
+
+Specifies a file of lines of build arguments of the form arg=value. Suggested file suffix is .Containerargs.
+
+Comment lines beginning with # are ignored along with blank lines. All others should be of the arg=value format passed to --build-arg.
+
+If several --build-arg-file and/or --build-arg arguments are provided, build argumentss will be merged across all provided files and command line arguments.
+
+Files will be read before command line args.
+
+When a given argument name is specified several times, the last instance is the one that is passed to the resulting builds. This means --build-arg values always override those in a --build-arg-file
+
 **--build-context** *name=value*
 
 Specify an additional build context using its short name and its location. Additional
