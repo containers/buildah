@@ -70,15 +70,15 @@ list of variables that can be overridden within the Containerfile at run time.
 
 **--build-arg-file** *path*
 
-Specifies a file of lines of build arguments of the form arg=value. Suggested file suffix is .Containerargs.
+Specifies a file containing lines of build arguments of the form arg=value. The suggested file name is argfile.conf.
 
-Comment lines beginning with # are ignored along with blank lines. All others should be of the arg=value format passed to --build-arg.
+Comment lines beginning with `#` are ignored, along with blank lines. All others should be of the `arg=value` format passed to `--build-arg`.
 
-If several --build-arg-file and/or --build-arg arguments are provided, build argumentss will be merged across all provided files and command line arguments.
+If several arguments are provided via the `--build-arg-file` and `--build-arg` options, the build arguments will be merged across all of the provided files and command line arguments.
 
-Files will be read before command line args.
+Any file provided in a `--build-file-arg` option will be read before the arguments supplied via the `--build-arg` option.
 
-When a given argument name is specified several times, the last instance is the one that is passed to the resulting builds. This means --build-arg values always override those in a --build-arg-file
+When a given argument name is specified several times, the last instance is the one that is passed to the resulting builds. This means `--build-arg` values always override those in a `--build-arg-file`.
 
 **--build-context** *name=value*
 
