@@ -1104,8 +1104,8 @@ func setupSpecialMountSpecChanges(spec *spec.Spec, shmSize string) ([]specs.Moun
 	}
 
 	addCgroup := true
-	// mount sys when root and no userns or when both netns and userns are private
-	canMountSys := (!isRootless && !isNewUserns) || (isNetns && isNewUserns)
+	// mount sys when root and no userns or when a new netns is created
+	canMountSys := (!isRootless && !isNewUserns) || isNetns
 	if !canMountSys {
 		addCgroup = false
 		sys := "/sys"
