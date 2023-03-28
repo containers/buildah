@@ -76,7 +76,7 @@ Comment lines beginning with `#` are ignored, along with blank lines. All others
 
 If several arguments are provided via the `--build-arg-file` and `--build-arg` options, the build arguments will be merged across all of the provided files and command line arguments.
 
-Any file provided in a `--build-file-arg` option will be read before the arguments supplied via the `--build-arg` option.
+Any file provided in a `--build-arg-file` option will be read before the arguments supplied via the `--build-arg` option.
 
 When a given argument name is specified several times, the last instance is the one that is passed to the resulting builds. This means `--build-arg` values always override those in a `--build-arg-file`.
 
