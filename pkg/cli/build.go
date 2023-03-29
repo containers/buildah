@@ -105,19 +105,16 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
 
 	args := make(map[string]string)
+	if c.Flag("build-arg-file").Changed {
+		for _, argfile := range iopts.BuildArgFile {
+			if err := readBuildArgFile(argfile, args); err != nil {
+				return options, nil, nil, err
+			}
+		}
+	}
 	if c.Flag("build-arg").Changed {
 		for _, arg := range iopts.BuildArg {
-			av := strings.SplitN(arg, "=", 2)
-			if len(av) > 1 {
-				args[av[0]] = av[1]
-			} else {
-				// check if the env is set in the local environment and use that value if it is
-				if val, present := os.LookupEnv(av[0]); present {
-					args[av[0]] = val
-				} else {
-					delete(args, av[0])
-				}
-			}
+			readBuildArg(arg, args)
 		}
 	}
 
@@ -426,6 +423,34 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		options.ReportWriter = io.Discard
 	}
 	return options, containerfiles, removeAll, nil
+}
+
+func readBuildArgFile(buildargfile string, args map[string]string) error {
+	argfile, err := os.ReadFile(buildargfile)
+	if err != nil {
+		return err
+	}
+	for _, arg := range strings.Split(string(argfile), "\n") {
+		if len (arg) == 0 || arg[0] == '#' {
+			continue
+		}
+		readBuildArg(arg, args)
+	}
+	return err
+}
+
+func readBuildArg(buildarg string, args map[string]string) {
+	av := strings.SplitN(buildarg, "=", 2)
+	if len(av) > 1 {
+		args[av[0]] = av[1]
+	} else {
+		// check if the env is set in the local environment and use that value if it is
+		if val, present := os.LookupEnv(av[0]); present {
+			args[av[0]] = val
+		} else {
+			delete(args, av[0])
+		}
+	}
 }
 
 func getContainerfiles(files []string) []string {
