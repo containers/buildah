@@ -2022,14 +2022,6 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	if s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolUndefined || s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolTrue {
 		s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 	}
-	for _, labelSpec := range s.executor.labels {
-		label := strings.SplitN(labelSpec, "=", 2)
-		if len(label) > 1 {
-			s.builder.SetLabel(label[0], label[1])
-		} else {
-			s.builder.SetLabel(label[0], "")
-		}
-	}
 	for _, annotationSpec := range s.executor.annotations {
 		annotation := strings.SplitN(annotationSpec, "=", 2)
 		if len(annotation) > 1 {
