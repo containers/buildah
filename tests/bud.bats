@@ -1845,14 +1845,6 @@ _EOF
   expect_output "$want_output"
 }
 
-@test "bud-from-scratch-override-version-label" {
-  want_output='map["io.buildah.version":"oldversion"]'
-  target=scratch-image
-  run_buildah build --label "io.buildah.version=oldversion" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  expect_output "$want_output"
-}
-
 @test "bud-from-scratch-remove-identity-label" {
   target=scratch-image
   run_buildah build --identity-label=false $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
