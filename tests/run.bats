@@ -234,12 +234,19 @@ function configure_and_check_user() {
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah config --env foo=foo $cid
+
 	# Ensure foo=foo from `buildah config`
 	run_buildah run $cid -- /bin/sh -c 'echo $foo'
 	expect_output "foo"
+
 	# Ensure foo=bar from --env override
 	run_buildah run --env foo=bar $cid -- /bin/sh -c 'echo $foo'
 	expect_output "bar"
+
+	# Reference foo=baz from process environment
+	foo=baz run_buildah run --env foo $cid -- /bin/sh -c 'echo $foo'
+	expect_output "baz"
+
 	# Ensure that the --env override did not persist
 	run_buildah run $cid -- /bin/sh -c 'echo $foo'
 	expect_output "foo"
