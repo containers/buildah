@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/containerd/containerd v1.7.0
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.51.2
+	github.com/containers/common v0.51.1-0.20230406124934-ff62cdebdd0e
 	github.com/containers/image/v5 v5.25.0
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.46.0
@@ -36,7 +36,7 @@ require (
 	golang.org/x/crypto v0.7.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.7.0
-	golang.org/x/term v0.6.0
+	golang.org/x/term v0.7.0
 )
 
 require (
@@ -106,7 +106,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/proglottis/gpgme v0.1.3 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sigstore/fulcio v1.2.0 // indirect
 	github.com/sigstore/rekor v1.1.0 // indirect
 	github.com/sigstore/sigstore v1.6.0 // indirect
