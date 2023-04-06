@@ -86,8 +86,8 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.2.0
 ## explicit; go 1.17
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.51.2
-## explicit; go 1.17
+# github.com/containers/common v0.51.1-0.20230406124934-ff62cdebdd0e
+## explicit; go 1.18
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
 github.com/containers/common/libimage/manifests
@@ -590,8 +590,6 @@ github.com/proglottis/gpgme
 # github.com/rivo/uniseg v0.4.4
 ## explicit; go 1.18
 github.com/rivo/uniseg
-# github.com/rogpeppe/go-internal v1.8.0
-## explicit; go 1.11
 # github.com/seccomp/libseccomp-golang v0.10.0
 ## explicit; go 1.14
 github.com/seccomp/libseccomp-golang
@@ -741,7 +739,7 @@ golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.6.0
+# golang.org/x/term v0.7.0
 ## explicit; go 1.17
 golang.org/x/term
 # golang.org/x/text v0.8.0
