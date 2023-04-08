@@ -323,7 +323,7 @@ type EngineConfig struct {
 	// Building/committing defaults to OCI.
 	ImageDefaultFormat string `toml:"image_default_format,omitempty"`
 
-	// ImageVolumeMode Tells container engines how to handle the builtin
+	// ImageVolumeMode Tells container engines how to handle the built-in
 	// image volumes.  Acceptable values are "bind", "tmpfs", and "ignore".
 	ImageVolumeMode string `toml:"image_volume_mode,omitempty"`
 
@@ -336,6 +336,10 @@ type EngineConfig struct {
 
 	// InitPath is the path to the container-init binary.
 	InitPath string `toml:"init_path,omitempty"`
+
+	// KubeGenerateType sets the Kubernetes kind/specification to generate by default
+	// with the podman kube generate command
+	KubeGenerateType string `toml:"kube_generate_type,omitempty"`
 
 	// LockType is the type of locking to use.
 	LockType string `toml:"lock_type,omitempty"`
@@ -553,6 +557,9 @@ type NetworkConfig struct {
 	// CNIPluginDirs is where CNI plugin binaries are stored.
 	CNIPluginDirs []string `toml:"cni_plugin_dirs,omitempty"`
 
+	// NetavarkPluginDirs is a list of directories which contain netavark plugins.
+	NetavarkPluginDirs []string `toml:"netavark_plugin_dirs,omitempty"`
+
 	// DefaultNetwork is the network name of the default network
 	// to attach pods to.
 	DefaultNetwork string `toml:"default_network,omitempty"`
@@ -765,11 +772,21 @@ func addConfigs(dirPath string, configs []string) ([]string, error) {
 // Returns the list of configuration files, if they exist in order of hierarchy.
 // The files are read in order and each new file can/will override previous
 // file settings.
-func systemConfigs() ([]string, error) {
-	var err error
-	configs := []string{}
-	path := os.Getenv("CONTAINERS_CONF")
-	if path != "" {
+func systemConfigs() (configs []string, finalErr error) {
+	if path := os.Getenv("CONTAINERS_CONF_OVERRIDE"); path != "" {
+		if _, err := os.Stat(path); err != nil {
+			return nil, fmt.Errorf("CONTAINERS_CONF_OVERRIDE file: %w", err)
+		}
+		// Add the override config last to make sure it can override any
+		// previous settings.
+		defer func() {
+			if finalErr == nil {
+				configs = append(configs, path)
+			}
+		}()
+	}
+
+	if path := os.Getenv("CONTAINERS_CONF"); path != "" {
 		if _, err := os.Stat(path); err != nil {
 			return nil, fmt.Errorf("CONTAINERS_CONF file: %w", err)
 		}
@@ -781,12 +798,14 @@ func systemConfigs() ([]string, error) {
 	if _, err := os.Stat(OverrideContainersConfig); err == nil {
 		configs = append(configs, OverrideContainersConfig)
 	}
+
+	var err error
 	configs, err = addConfigs(OverrideContainersConfig+".d", configs)
 	if err != nil {
 		return nil, err
 	}
 
-	path, err = ifRootlessConfigPath()
+	path, err := ifRootlessConfigPath()
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +843,7 @@ func (c *Config) CheckCgroupsAndAdjustConfig() {
 
 	if !hasSession && unshare.GetRootlessUID() != 0 {
 		logrus.Warningf("The cgroupv2 manager is set to systemd but there is no systemd user session available")
-		logrus.Warningf("For using systemd, you may need to login using an user session")
+		logrus.Warningf("For using systemd, you may need to log in using a user session")
 		logrus.Warningf("Alternatively, you can enable lingering with: `loginctl enable-linger %d` (possibly as root)", unshare.GetRootlessUID())
 		logrus.Warningf("Falling back to --cgroup-manager=cgroupfs")
 		c.Engine.CgroupManager = CgroupfsCgroupsManager
