@@ -66,7 +66,9 @@ RUN dnf -y makecache && \
 ADD ./containers.conf /etc/containers/
 
 # Copy & modify the defaults to provide reference if runtime changes needed.
-RUN sed -e '/additionalimage.*/a "/var/lib/shared",' \
+# Changes here are required for running with fuse-overlay storage inside container.
+RUN sed -e 's|^#mount_program|mount_program|g' \
+        -e '/additionalimage.*/a "/var/lib/shared",' \
         -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' \
         /usr/share/containers/storage.conf \
         > /etc/containers/storage.conf && \
