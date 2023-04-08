@@ -8,7 +8,7 @@ require (
 	github.com/containers/common v0.51.1-0.20230406124934-ff62cdebdd0e
 	github.com/containers/image/v5 v5.25.0
 	github.com/containers/ocicrypt v1.1.7
-	github.com/containers/storage v1.46.0
+	github.com/containers/storage v1.46.1
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v23.0.3+incompatible
@@ -83,7 +83,7 @@ require (
 	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.16.3 // indirect
+	github.com/klauspost/compress v1.16.4 // indirect
 	github.com/klauspost/pgzip v1.2.6-0.20220930104621-17e8dac29df8 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20230213213521-fdfea0d469b6 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
