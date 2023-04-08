@@ -152,7 +152,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		CNIConfigDir:     iopts.CNIConfigDir,
 		AddCapabilities:  iopts.capAdd,
 		DropCapabilities: iopts.capDrop,
-		Env:              iopts.env,
 		WorkingDir:       iopts.workingDir,
 	}
 
@@ -163,6 +162,8 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 			options.Terminal = buildah.WithoutTerminal
 		}
 	}
+
+	options.Env = buildahcli.LookupEnvVarReferences(iopts.env, os.Environ())
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {

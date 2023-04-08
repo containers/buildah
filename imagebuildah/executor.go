@@ -512,8 +512,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 				value := env[1]
 				envLine += fmt.Sprintf(" %q=%q", key, value)
 			} else {
-				value := os.Getenv(key)
-				envLine += fmt.Sprintf(" %q=%q", key, value)
+				return "", nil, fmt.Errorf("BUG: unresolved environment variable: %q", key)
 			}
 		}
 		if len(envLine) > 0 {

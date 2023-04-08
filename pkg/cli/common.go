@@ -484,3 +484,42 @@ func AliasFlags(f *pflag.FlagSet, name string) pflag.NormalizedName {
 	}
 	return pflag.NormalizedName(name)
 }
+
+// LookupEnvVarReferences returns a copy of specs with keys and values resolved
+// from environ. Strings are in "key=value" form, the same as [os.Environ].
+//
+//   - When a string in specs lacks "=", it is treated as a key and the value
+//     is retrieved from environ. When the key is missing from environ, neither
+//     the key nor value are returned.
+//
+//   - When a string in specs lacks "=" and ends with "*", it is treated as
+//     a key prefix and any keys with the same prefix in environ are returned.
+//
+//   - When a string in specs is exactly "*", all keys and values in environ
+//     are returned.
+func LookupEnvVarReferences(specs, environ []string) []string {
+	result := make([]string, 0, len(specs))
+
+	for _, spec := range specs {
+		if key, _, ok := strings.Cut(spec, "="); ok {
+			result = append(result, spec)
+
+		} else if key == "*" {
+			result = append(result, environ...)
+
+		} else {
+			prefix := key + "="
+			if strings.HasSuffix(key, "*") {
+				prefix = strings.TrimSuffix(key, "*")
+			}
+
+			for _, spec := range environ {
+				if strings.HasPrefix(spec, prefix) {
+					result = append(result, spec)
+				}
+			}
+		}
+	}
+
+	return result
+}

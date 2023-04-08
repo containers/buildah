@@ -1646,6 +1646,12 @@ _EOF
   iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
   run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
   expect_output "[]"
+
+  # Reference foo=baz from process environment
+  foo=baz run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env foo $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
+  expect_output --substring "foo=baz"
 }
 
 @test "build with custom build output and output rootfs to directory" {
