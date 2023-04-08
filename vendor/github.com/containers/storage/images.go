@@ -703,7 +703,7 @@ func (r *imageStore) create(id string, names []string, layer string, options Ima
 	if _, idInUse := r.byid[id]; idInUse {
 		return nil, fmt.Errorf("an image with ID %q already exists: %w", id, ErrDuplicateID)
 	}
-	names = dedupeNames(names)
+	names = dedupeStrings(names)
 	for _, name := range names {
 		if image, nameInUse := r.byname[name]; nameInUse {
 			return nil, fmt.Errorf("image name %q is already associated with image %q: %w", name, image.ID, ErrDuplicateName)
@@ -712,7 +712,7 @@ func (r *imageStore) create(id string, names []string, layer string, options Ima
 	image = &Image{
 		ID:             id,
 		Digest:         options.Digest,
-		Digests:        copyDigestSlice(options.Digests),
+		Digests:        dedupeDigests(options.Digests),
 		Names:          names,
 		NamesHistory:   copyStringSlice(options.NamesHistory),
 		TopLayer:       layer,
@@ -820,7 +820,7 @@ func (r *imageStore) removeName(image *Image, name string) {
 
 // The caller must hold r.inProcessLock for writing.
 func (i *Image) addNameToHistory(name string) {
-	i.NamesHistory = dedupeNames(append([]string{name}, i.NamesHistory...))
+	i.NamesHistory = dedupeStrings(append([]string{name}, i.NamesHistory...))
 }
 
 // Requires startWriting.

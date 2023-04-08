@@ -666,7 +666,7 @@ func (r *containerStore) create(id string, names []string, image, layer string, 
 	if _, idInUse := r.byid[id]; idInUse {
 		return nil, ErrDuplicateID
 	}
-	names = dedupeNames(names)
+	names = dedupeStrings(names)
 	for _, name := range names {
 		if _, nameInUse := r.byname[name]; nameInUse {
 			return nil, fmt.Errorf("the container name %q is already in use by %s. You have to remove that container to be able to reuse that name: %w", name, r.byname[name].ID, ErrDuplicateName)
