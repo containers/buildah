@@ -1230,7 +1230,7 @@ func (r *layerStore) create(id string, parentLayer *Layer, names []string, mount
 	if duplicateLayer, idInUse := r.byid[id]; idInUse {
 		return duplicateLayer, -1, ErrDuplicateID
 	}
-	names = dedupeNames(names)
+	names = dedupeStrings(names)
 	for _, name := range names {
 		if _, nameInUse := r.byname[name]; nameInUse {
 			return nil, -1, ErrDuplicateName
