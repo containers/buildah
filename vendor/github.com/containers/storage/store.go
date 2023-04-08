@@ -1384,26 +1384,90 @@ func (s *store) CreateImage(id string, names []string, layer, metadata string, i
 		layer = ilayer.ID
 	}
 
-	var res *Image
-	err := s.writeToImageStore(func() error {
-		var options ImageOptions
+	var options ImageOptions
+	var namesToAddAfterCreating []string
 
-		if iOptions != nil {
-			options = *iOptions
-			options.Digests = copyDigestSlice(iOptions.Digests)
-			options.BigData = copyImageBigDataOptionSlice(iOptions.BigData)
-			options.NamesHistory = copyStringSlice(iOptions.NamesHistory)
-			options.Flags = copyStringInterfaceMap(iOptions.Flags)
+	if err := s.imageStore.startWriting(); err != nil {
+		return nil, err
+	}
+	defer s.imageStore.stopWriting()
+
+	// Check if the ID refers to an image in a read-only store -- we want
+	// to allow images in read-only stores to have their names changed, so
+	// if we find one, merge the new values in with what we know about the
+	// image that's already there.
+	if id != "" {
+		for _, is := range s.roImageStores {
+			store := is
+			if err := store.startReading(); err != nil {
+				return nil, err
+			}
+			defer store.stopReading()
+			if i, err := store.Get(id); err == nil {
+				// set information about this image in "options"
+				options = ImageOptions{
+					Metadata:     i.Metadata,
+					CreationDate: i.Created,
+					Digest:       i.Digest,
+					Digests:      copyDigestSlice(i.Digests),
+					NamesHistory: copyStringSlice(i.NamesHistory),
+				}
+				for _, key := range i.BigDataNames {
+					data, err := store.BigData(id, key)
+					if err != nil {
+						return nil, err
+					}
+					dataDigest, err := store.BigDataDigest(id, key)
+					if err != nil {
+						return nil, err
+					}
+					options.BigData = append(options.BigData, ImageBigDataOption{
+						Key:    key,
+						Data:   data,
+						Digest: dataDigest,
+					})
+				}
+				namesToAddAfterCreating = dedupeStrings(append(append([]string{}, i.Names...), names...))
+				break
+			}
 		}
-		if options.CreationDate.IsZero() {
-			options.CreationDate = time.Now().UTC()
+	}
+
+	// merge any passed-in options into "options" as best we can
+	if iOptions != nil {
+		if !iOptions.CreationDate.IsZero() {
+			options.CreationDate = iOptions.CreationDate
 		}
+		if iOptions.Digest != "" {
+			options.Digest = iOptions.Digest
+		}
+		options.Digests = append(options.Digests, copyDigestSlice(iOptions.Digests)...)
+		if iOptions.Metadata != "" {
+			options.Metadata = iOptions.Metadata
+		}
+		options.BigData = append(options.BigData, copyImageBigDataOptionSlice(iOptions.BigData)...)
+		options.NamesHistory = append(options.NamesHistory, copyStringSlice(iOptions.NamesHistory)...)
+		if options.Flags == nil {
+			options.Flags = make(map[string]interface{})
+		}
+		for k, v := range iOptions.Flags {
+			options.Flags[k] = v
+		}
+	}
+
+	if options.CreationDate.IsZero() {
+		options.CreationDate = time.Now().UTC()
+	}
+	if metadata != "" {
 		options.Metadata = metadata
+	}
 
-		var err error
-		res, err = s.imageStore.create(id, names, layer, options)
-		return err
-	})
+	res, err := s.imageStore.create(id, names, layer, options)
+	if err == nil && len(namesToAddAfterCreating) > 0 {
+		// set any names we pulled up from an additional image store, now that we won't be
+		// triggering a duplicate names error
+		err = s.imageStore.updateNames(res.ID, namesToAddAfterCreating, addNames)
+	}
 	return res, err
 }
 
@@ -2130,13 +2194,25 @@ func (s *store) Exists(id string) bool {
 	return s.containerStore.Exists(id)
 }
 
-func dedupeNames(names []string) []string {
-	seen := make(map[string]bool)
+func dedupeStrings(names []string) []string {
+	seen := make(map[string]struct{})
 	deduped := make([]string, 0, len(names))
 	for _, name := range names {
 		if _, wasSeen := seen[name]; !wasSeen {
-			seen[name] = true
+			seen[name] = struct{}{}
 			deduped = append(deduped, name)
+		}
+	}
+	return deduped
+}
+
+func dedupeDigests(digests []digest.Digest) []digest.Digest {
+	seen := make(map[digest.Digest]struct{})
+	deduped := make([]digest.Digest, 0, len(digests))
+	for _, d := range digests {
+		if _, wasSeen := seen[d]; !wasSeen {
+			seen[d] = struct{}{}
+			deduped = append(deduped, d)
 		}
 	}
 	return deduped
@@ -2156,7 +2232,7 @@ func (s *store) RemoveNames(id string, names []string) error {
 }
 
 func (s *store) updateNames(id string, names []string, op updateNameOperation) error {
-	deduped := dedupeNames(names)
+	deduped := dedupeStrings(names)
 
 	layerFound := false
 	if err := s.writeToLayerStore(func(rlstore rwLayerStore) error {
@@ -2188,11 +2264,12 @@ func (s *store) updateNames(id string, names []string, op updateNameOperation) e
 		if i, err := store.Get(id); err == nil {
 			// "pull up" the image so that we can change its names list
 			options := ImageOptions{
-				Metadata:     i.Metadata,
 				CreationDate: i.Created,
 				Digest:       i.Digest,
 				Digests:      copyDigestSlice(i.Digests),
+				Metadata:     i.Metadata,
 				NamesHistory: copyStringSlice(i.NamesHistory),
+				Flags:        copyStringInterfaceMap(i.Flags),
 			}
 			for _, key := range i.BigDataNames {
 				data, err := store.BigData(id, key)
