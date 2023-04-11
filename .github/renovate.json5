@@ -53,7 +53,11 @@
   // Don't leave dep. update. PRs "hanging", assign them to people.
   "assignees": ["containers/buildah-maintainers"],
 
-  /*************************************************
-   ***** Golang-specific configuration options *****
-   *************************************************/
+  "ignorePaths": [
+    "**/vendor/**",
+    "**/docs/**",
+    "**/examples/**",
+    "**/tests/tools/vendor/**"
+  ],
+
 }
