@@ -621,9 +621,7 @@ the `arch` command.  Valid OS and architecture name combinations are listed as
 values for $GOOS and $GOARCH at https://golang.org/doc/install/source#environment,
 and can also be found by running `go tool dist list`.
 
-While `buildah bud` is happy to use base images and build images for any
-platform that exists, `RUN` instructions will not be able to succeed without
-the help of emulation provided by packages like `qemu-user-static`.
+The `buildah build` command allows building images for all Linux architectures, even non-native architectures. When building images for a different architecture,  the `RUN` instructions require emulation software installed on the host provided by packages like `qemu-user-static`. Note: it is always preferred to build images on the native architecture if possible.
 
 **NOTE:** The `--platform` option may not be used in combination with the `--arch`, `--os`, or `--variant` options.
 
@@ -1084,7 +1082,7 @@ buildah build --arch s390x --manifest myimage /tmp/mysrc
 
 buildah bud --platform linux/s390x,linux/ppc64le,linux/amd64 --manifest myimage /tmp/mysrc
 
-buildah bud --platform linux/arm64 --platform linux/amd64 --manifest myimage /tmp/mysrc
+buildah build --platform linux/arm64 --platform linux/amd64 --manifest myimage /tmp/mysrc
 
 buildah bud --all-platforms --manifest myimage /tmp/mysrc
 
