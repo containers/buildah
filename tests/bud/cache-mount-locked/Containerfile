@@ -1,4 +1,4 @@
-FROM quay.io/centos/centos:7
+FROM quay.io/centos/centos:8
 
 ARG WIPE_CACHE
 
