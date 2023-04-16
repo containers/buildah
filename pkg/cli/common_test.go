@@ -5,6 +5,7 @@ import (
 
 	"github.com/containers/common/pkg/completion"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
 )
 
 func testFlagCompletion(t *testing.T, flags pflag.FlagSet, flagCompletions completion.FlagCompletions) {
@@ -58,4 +59,56 @@ func TestFromAndBudFlagsCompletions(t *testing.T) {
 	}
 	flagCompletions := GetFromAndBudFlagsCompletions()
 	testFlagCompletion(t, flags, flagCompletions)
+}
+
+func TestLookupEnvVarReferences(t *testing.T) {
+	t.Run("EmptyInput", func(t *testing.T) {
+		assert.Empty(t, LookupEnvVarReferences(nil, nil))
+		assert.Empty(t, LookupEnvVarReferences([]string{}, nil))
+	})
+
+	t.Run("EmptyEnvironment", func(t *testing.T) {
+		assert.Equal(t, []string{"a=b"}, LookupEnvVarReferences([]string{"a=b"}, nil))
+		assert.Equal(t, []string{"a="}, LookupEnvVarReferences([]string{"a="}, nil))
+		assert.Equal(t, []string{}, LookupEnvVarReferences([]string{"a"}, nil))
+		assert.Equal(t, []string{}, LookupEnvVarReferences([]string{"*"}, nil))
+	})
+
+	t.Run("MissingEnvironment", func(t *testing.T) {
+		assert.Equal(t,
+			[]string{"a=b", "c="},
+			LookupEnvVarReferences([]string{"a=b", "c="}, []string{"x=y"}))
+
+		assert.Equal(t,
+			[]string{"a=b"},
+			LookupEnvVarReferences([]string{"a=b", "c"}, []string{"x=y"}))
+
+		assert.Equal(t,
+			[]string{"a=b"},
+			LookupEnvVarReferences([]string{"a=b", "c*"}, []string{"x=y"}))
+	})
+
+	t.Run("MatchingEnvironment", func(t *testing.T) {
+		assert.Equal(t,
+			[]string{"a=b", "c="},
+			LookupEnvVarReferences([]string{"a=b", "c="}, []string{"c=d", "x=y"}))
+
+		assert.Equal(t,
+			[]string{"a=b", "c=d"},
+			LookupEnvVarReferences([]string{"a=b", "c"}, []string{"c=d", "x=y"}))
+
+		assert.Equal(t,
+			[]string{"a=b", "c=d"},
+			LookupEnvVarReferences([]string{"a=b", "c*"}, []string{"c=d", "x=y"}))
+
+		assert.Equal(t,
+			[]string{"a=b", "c=d", "cg=i"},
+			LookupEnvVarReferences([]string{"a=b", "c*"}, []string{"c=d", "x=y", "cg=i"}))
+	})
+
+	t.Run("MultipleMatches", func(t *testing.T) {
+		assert.Equal(t,
+			[]string{"a=b", "c=d", "cg=i", "c=d", "x=y", "cg=i", "cg=i"},
+			LookupEnvVarReferences([]string{"a=b", "c*", "*", "cg*"}, []string{"c=d", "x=y", "cg=i"}))
+	})
 }

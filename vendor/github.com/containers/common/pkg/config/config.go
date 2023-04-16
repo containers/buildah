@@ -16,6 +16,7 @@ import (
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/util"
+	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/unshare"
 	units "github.com/docker/go-units"
 	selinux "github.com/opencontainers/selinux/go-selinux"
@@ -1262,16 +1263,21 @@ func (c *Config) Write() error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	configFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
+
+	opts := &ioutils.AtomicFileWriterOptions{ExplicitCommit: true}
+	configFile, err := ioutils.NewAtomicFileWriterWithOpts(path, 0o644, opts)
 	if err != nil {
 		return err
 	}
 	defer configFile.Close()
+
 	enc := toml.NewEncoder(configFile)
 	if err := enc.Encode(c); err != nil {
 		return err
 	}
-	return nil
+
+	// If no errors commit the changes to the config file
+	return configFile.Commit()
 }
 
 // Reload clean the cached config and reloads the configuration from containers.conf files

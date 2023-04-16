@@ -372,7 +372,6 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		ContextDirectory:        contextDir,
 		Devices:                 iopts.Devices,
 		DropCapabilities:        iopts.CapDrop,
-		Envs:                    iopts.Envs,
 		Err:                     stderr,
 		Excludes:                excludes,
 		ForceRmIntermediateCtrs: iopts.ForceRm,
@@ -422,6 +421,9 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	if iopts.Quiet {
 		options.ReportWriter = io.Discard
 	}
+
+	options.Envs = LookupEnvVarReferences(iopts.Envs, os.Environ())
+
 	return options, containerfiles, removeAll, nil
 }
 
