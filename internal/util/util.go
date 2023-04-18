@@ -117,7 +117,7 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 
 // DecryptConfig translates decryptionKeys into a DescriptionConfig structure
 func DecryptConfig(decryptionKeys []string) (*encconfig.DecryptConfig, error) {
-	decryptConfig := &encconfig.DecryptConfig{}
+	var decryptConfig *encconfig.DecryptConfig
 	if len(decryptionKeys) > 0 {
 		// decryption
 		dcc, err := enchelpers.CreateCryptoConfig([]string{}, decryptionKeys)

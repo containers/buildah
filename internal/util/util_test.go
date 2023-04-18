@@ -7,6 +7,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDecryptConfig(t *testing.T) {
+	// Just a smoke test for the default path.
+	res, err := DecryptConfig(nil)
+	assert.NoError(t, err)
+	assert.Nil(t, res)
+}
+
+func TestEncryptConfig(t *testing.T) {
+	// Just a smoke test for the default path.
+	cfg, layers, err := EncryptConfig(nil, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, cfg)
+	assert.Nil(t, layers)
+}
 func TestGetFormat(t *testing.T) {
 	_, err := GetFormat("bogus")
 	assert.NotNil(t, err)

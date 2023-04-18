@@ -427,8 +427,8 @@ load helpers
   run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
 
   # Try encrypted image without key should fail
-  run_buildah 125 from oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
-  expect_output --substring "decrypting layer .* missing private key needed for decryption"
+  run_buildah 1 from oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
+  expect_output --substring "archive/tar: invalid tar header"
 
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey2.pem oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
@@ -450,8 +450,8 @@ load helpers
   run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   # Try encrypted image without key should fail
-  run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
-  expect_output --substring "decrypting layer .* missing private key needed for decryption"
+  run_buildah 1 from --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  expect_output --substring "archive/tar: invalid tar header"
 
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
