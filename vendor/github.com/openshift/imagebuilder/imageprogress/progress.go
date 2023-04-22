@@ -6,11 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/containers/storage/pkg/regexp"
 )
 
 const (
@@ -271,7 +270,7 @@ func (w *imageProgressWriter) isStableLayerCount() bool {
 	return w.stableLines >= w.stableThreshhold
 }
 
-var layerIDRegexp = regexp.Delayed("^[a-f0-9]*$")
+var layerIDRegexp = regexp.MustCompile("^[a-f0-9]*$")
 
 func islayerStatus(line *progressLine) bool {
 	// ignore status lines with no layer id

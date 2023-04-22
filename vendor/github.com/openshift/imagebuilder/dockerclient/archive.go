@@ -185,7 +185,7 @@ func archiveFromDisk(directory string, src, dst string, allowDownload bool, excl
 		directory = filepath.Dir(directory)
 	}
 
-	options, err := archiveOptionsFor(directory, infos, dst, excludes, allowDownload, check)
+	options, err := archiveOptionsFor(directory, infos, dst, excludes, check)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -366,6 +366,7 @@ func transformArchive(r io.Reader, compressed bool, fn TransformFileFunc) (io.Re
 // a (file) -> test
 // a (dir)  -> test/
 // a (file) -> test/
+//
 func archivePathMapper(src, dst string, isDestDir bool) (fn func(itemCount *int, name string, isDir bool) (string, bool, error)) {
 	srcPattern := filepath.Clean(src)
 	if srcPattern == "." {
@@ -634,7 +635,7 @@ func (m *archiveMapper) Filter(h *tar.Header, r io.Reader) ([]byte, bool, bool, 
 	return nil, false, false, nil
 }
 
-func archiveOptionsFor(directory string, infos []CopyInfo, dst string, excludes []string, allowDownload bool, check DirectoryCheck) (*archive.TarOptions, error) {
+func archiveOptionsFor(directory string, infos []CopyInfo, dst string, excludes []string, check DirectoryCheck) (*archive.TarOptions, error) {
 	dst = trimLeadingPath(dst)
 	dstIsDir := strings.HasSuffix(dst, "/") || dst == "." || dst == "/" || strings.HasSuffix(dst, "/.")
 	dst = trimTrailingSlash(dst)
@@ -666,7 +667,7 @@ func archiveOptionsFor(directory string, infos []CopyInfo, dst string, excludes 
 			if directory != "" {
 				infoPath = filepath.Join(directory, infoPath)
 			}
-			if allowDownload && isArchivePath(infoPath) {
+			if isArchivePath(infoPath) {
 				dstIsDir = true
 				break
 			}

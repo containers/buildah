@@ -15,7 +15,7 @@ import (
 type CopyInfo struct {
 	os.FileInfo
 	Path       string
-	Decompress bool // deprecated, is never set and is ignored
+	Decompress bool
 	FromDir    bool
 }
 

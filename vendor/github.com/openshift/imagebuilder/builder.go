@@ -39,16 +39,11 @@ type Run struct {
 	Args  []string
 	// Mounts are mounts specified through the --mount flag inside the Containerfile
 	Mounts []string
-	// Network specifies the network mode to run the container with
-	Network string
 }
 
 type Executor interface {
 	Preserve(path string) error
-	// EnsureContainerPath should ensure that the directory exists, creating any components required
 	EnsureContainerPath(path string) error
-	// EnsureContainerPathAs should ensure that the directory exists, creating any components required
-	// with the specified owner and mode, if either is specified
 	EnsureContainerPathAs(path, user string, mode *os.FileMode) error
 	Copy(excludes []string, copies ...Copy) error
 	Run(run Run, config docker.Config) error
@@ -220,17 +215,6 @@ type Stage struct {
 
 func NewStages(node *parser.Node, b *Builder) (Stages, error) {
 	var stages Stages
-	var allDeclaredArgs []string
-	for _, root := range SplitBy(node, command.Arg) {
-		argNode := root.Children[0]
-		if argNode.Value == command.Arg {
-			// extract declared variable
-			s := strings.SplitN(argNode.Original, " ", 2)
-			if len(s) == 2 && (strings.ToLower(s[0]) == command.Arg) {
-				allDeclaredArgs = append(allDeclaredArgs, s[1])
-			}
-		}
-	}
 	if err := b.extractHeadingArgsFromNode(node); err != nil {
 		return stages, err
 	}
@@ -242,7 +226,7 @@ func NewStages(node *parser.Node, b *Builder) (Stages, error) {
 		stages = append(stages, Stage{
 			Position: i,
 			Name:     name,
-			Builder:  b.builderForStage(allDeclaredArgs),
+			Builder:  b.builderForStage(),
 			Node:     root,
 		})
 	}
@@ -306,8 +290,8 @@ func extractNameFromNode(node *parser.Node) (string, bool) {
 	return n.Next.Value, true
 }
 
-func (b *Builder) builderForStage(globalArgsList []string) *Builder {
-	stageBuilder := newBuilderWithGlobalAllowedArgs(b.UserArgs, globalArgsList)
+func (b *Builder) builderForStage() *Builder {
+	stageBuilder := NewBuilder(b.UserArgs)
 	for k, v := range b.HeadingArgs {
 		stageBuilder.HeadingArgs[k] = v
 	}
@@ -323,12 +307,6 @@ type Builder struct {
 	UserArgs    map[string]string
 	CmdSet      bool
 	Author      string
-	// Certain instructions like `FROM` will need to use
-	// `ARG` decalred before or not in this stage hence
-	// while processing instruction like `FROM ${SOME_ARG}`
-	// we will make sure to verify if they are declared any
-	// where in containerfile or not.
-	GlobalAllowedArgs []string
 
 	AllowedArgs map[string]bool
 	Volumes     VolumeSet
@@ -345,10 +323,6 @@ type Builder struct {
 }
 
 func NewBuilder(args map[string]string) *Builder {
-	return newBuilderWithGlobalAllowedArgs(args, []string{})
-}
-
-func newBuilderWithGlobalAllowedArgs(args map[string]string, globalallowedargs []string) *Builder {
 	allowed := make(map[string]bool)
 	for k, v := range builtinAllowedBuildArgs {
 		allowed[k] = v
@@ -360,11 +334,10 @@ func newBuilderWithGlobalAllowedArgs(args map[string]string, globalallowedargs [
 		initialArgs[k] = v
 	}
 	return &Builder{
-		Args:              initialArgs,
-		UserArgs:          userArgs,
-		HeadingArgs:       make(map[string]string),
-		AllowedArgs:       allowed,
-		GlobalAllowedArgs: globalallowedargs,
+		Args:        initialArgs,
+		UserArgs:    userArgs,
+		HeadingArgs: make(map[string]string),
+		AllowedArgs: allowed,
 	}
 }
 
