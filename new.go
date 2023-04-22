@@ -266,7 +266,9 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			return nil, fmt.Errorf("creating container: %w", err)
 		}
 		tmpName = fmt.Sprintf("%s-%d", name, rand.Int()%suffixDigitsModulo)
-		suffixDigitsModulo = suffixDigitsModulo * 10
+		if suffixDigitsModulo < 1_000_000_000 {
+			suffixDigitsModulo *= 10
+		}
 	}
 	defer func() {
 		if err != nil {
