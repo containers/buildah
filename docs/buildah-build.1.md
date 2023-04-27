@@ -608,7 +608,7 @@ process.
 
 Set the OS/ARCH of the built image (and its base image, if your build uses one)
 to the provided value instead of using the current operating system and
-architecture of the host (for example `linux/arm`).
+architecture of the host (for example `linux/arm`, `linux/arm64`, `linux/amd64`).
 
 The `--platform` flag can be specified more than once, or given a
 comma-separated list of values as its argument.  When more than one platform is

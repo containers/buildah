@@ -246,6 +246,14 @@ symlink(subdir)"
   run_buildah 1 run myctr ls -l subdir/
 }
 
+@test "build with --platform without OS" {
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+
+  run_buildah build --platform $myarch $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
+  expect_output --substring "This is built for $myarch"
+}
+
 @test "build with basename resolving default arg" {
   run_buildah info --format '{{.host.arch}}'
   myarch="$output"
