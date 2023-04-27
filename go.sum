@@ -48,8 +48,8 @@ github.com/containernetworking/cni v1.1.2 h1:wtRGZVv7olUHMOqouPpn3cXJWpJgM6+EUl3
 github.com/containernetworking/cni v1.1.2/go.mod h1:sDpYKmGVENF3s6uvMvGgldDWeG8dMxakj/u+i9ht9vw=
 github.com/containernetworking/plugins v1.2.0 h1:SWgg3dQG1yzUo4d9iD8cwSVh1VqI+bP7mkPDoSfP9VU=
 github.com/containernetworking/plugins v1.2.0/go.mod h1:/VjX4uHecW5vVimFa1wkG4s+r/s9qIfPdqlLF4TW8c4=
-github.com/containers/common v0.52.0 h1:S5GApgpNEGBuPhDHTFgMc55y5gsuxHcQeElvUpO5kp4=
-github.com/containers/common v0.52.0/go.mod h1:dNJJVNBu1wJtAH+vFIMXV+fQHBdEVNmNP3ImjbKper4=
+github.com/containers/common v0.53.0 h1:Ax814cLeX5VXSnkKUdxz762g+27fJj1st4UvKoXmkKs=
+github.com/containers/common v0.53.0/go.mod h1:pABPxJwlTE8oYk9/2BW0e0mumkuhJHIPsABHTGRXN3w=
 github.com/containers/image/v5 v5.25.0 h1:TJ0unmalbU+scd0i3Txap2wjGsAnv06MSCwgn6bsizk=
 github.com/containers/image/v5 v5.25.0/go.mod h1:EKvys0WVlRFkDw26R8y52TuhV9Tfn0yq2luLX6W52Ls=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
@@ -72,8 +72,8 @@ github.com/disiqueira/gotree/v3 v3.0.2 h1:ik5iuLQQoufZBNPY518dXhiO5056hyNBIK9lWh
 github.com/disiqueira/gotree/v3 v3.0.2/go.mod h1:ZuyjE4+mUQZlbpkI24AmruZKhg3VHEgPLDY8Qk+uUu8=
 github.com/docker/distribution v2.8.1+incompatible h1:Q50tZOPR6T/hjNsyc9g8/syEs6bk8XXApsHjKukMl68=
 github.com/docker/distribution v2.8.1+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
-github.com/docker/docker v23.0.3+incompatible h1:9GhVsShNWz1hO//9BNg/dpMnZW25KydO4wtVxWAIbho=
-github.com/docker/docker v23.0.3+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
+github.com/docker/docker v23.0.4+incompatible h1:Kd3Bh9V/rO+XpTP/BLqM+gx8z7+Yb0AA2Ibj+nNo4ek=
+github.com/docker/docker v23.0.4+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/docker-credential-helpers v0.7.0 h1:xtCHsjxogADNZcdv1pKUHXryefjlVRqWqIhk/uXJp0A=
 github.com/docker/docker-credential-helpers v0.7.0/go.mod h1:rETQfLdHNT3foU5kuNkFR1R1V12OJRRO5lzt2D1b5X0=
 github.com/docker/go-connections v0.4.1-0.20210727194412-58542c764a11 h1:IPrmumsT9t5BS7XcPhgsCTlkWbYg80SEXUzDpReaU6Y=

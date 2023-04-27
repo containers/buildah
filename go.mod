@@ -5,13 +5,13 @@ go 1.18
 require (
 	github.com/containerd/containerd v1.7.0
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.52.0
+	github.com/containers/common v0.53.0
 	github.com/containers/image/v5 v5.25.0
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.46.1
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker v23.0.3+incompatible
+	github.com/docker/docker v23.0.4+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.9.7
 	github.com/ghodss/yaml v1.0.0
