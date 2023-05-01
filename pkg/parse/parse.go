@@ -518,7 +518,7 @@ func DefaultPlatform() string {
 // Platform separates the platform string into os, arch and variant,
 // accepting any of $arch, $os/$arch, or $os/$arch/$variant.
 func Platform(platform string) (os, arch, variant string, err error) {
-	if platform == "local" {
+	if platform == "local" || platform == "" || platform == "/" {
 		return Platform(DefaultPlatform())
 	}
 	if platform[len(platform)-1] == '/' || platform[0] == '/' {

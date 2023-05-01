@@ -252,6 +252,10 @@ symlink(subdir)"
 
   run_buildah build --platform $myarch $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
   expect_output --substring "This is built for $myarch"
+
+  ## podman-remote binding has a bug where is sends `--platform as /`
+  run_buildah build --platform "/" $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
+  expect_output --substring "This is built for $myarch"
 }
 
 @test "build with basename resolving default arg" {
