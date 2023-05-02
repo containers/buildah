@@ -10,6 +10,17 @@ source $(dirname $0)/lib.sh
 
 req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
 
+_EOL=20260501
+if [[ $(date +%Y%m%d) -ge $_EOL ]]; then
+    die "As of $_EOL this branch is probably
+no longer supported in RHEL 9.2/8.8, please
+confirm this with RHEL Program Management.  If so:
+It should be removed from Cirrus-Cron,
+the .cirrus.yml file removed, and
+the VM images (manually) unmarked
+'permanent=true'"
+fi
+
 msg "Disabling git repository owner-check system-wide."
 # Newer versions of git bark if repo. files are unexpectedly owned.
 # This mainly affects rootless and containerized testing.  But
