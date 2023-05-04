@@ -5705,6 +5705,20 @@ _EOF
   run_buildah rmi -f testbud
 }
 
+@test "bud-verify-if-we-dont-clean-prexisting-path" {
+  skip_if_no_runtime
+  skip_if_in_container
+  run_buildah 1 build -t testbud $WITH_POLICY_JSON --secret id=secret-foo,src=$BUDFILES/verify-cleanup/secret1.txt -f $BUDFILES/verify-cleanup/Dockerfile $BUDFILES/verify-cleanup/
+  expect_output --substring "hello"
+  expect_output --substring "secrettext"
+  expect_output --substring "Directory /tmp exists."
+  expect_output --substring "Directory /var/tmp exists."
+  expect_output --substring "Directory /testdir DOES NOT exists."
+  expect_output --substring "Cache Directory /cachedir DOES NOT exists."
+  expect_output --substring "Secret File secret1.txt DOES NOT exists."
+  expect_output --substring "/tmp/hey: No such file or directory"
+}
+
 @test "bud-with-mount-with-tmpfs-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
