@@ -199,6 +199,10 @@ load helpers
   run_buildah login --authfile ${TEST_SCRATCH_DIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
   run_buildah push --authfile ${TEST_SCRATCH_DIR}/tmp/test.auth $WITH_POLICY_JSON --tls-verify=false busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   expect_output --substring "Copying"
+
+  run_buildah manifest create localhost:${REGISTRY_PORT}/testmanifest
+  run_buildah manifest push --authfile ${TEST_SCRATCH_DIR}/tmp/test.auth $WITH_POLICY_JSON --tls-verify=false localhost:${REGISTRY_PORT}/testmanifest
+  expect_output --substring "Writing manifest list to image destination"
 }
 
 @test "push with --quiet" {

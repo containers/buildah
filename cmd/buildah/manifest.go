@@ -210,7 +210,7 @@ func init() {
 			return manifestPushCmd(cmd, args, manifestPushOpts)
 		},
 		Example: `buildah manifest push mylist:v1.11 transport:imageName`,
-		Args:    cobra.MinimumNArgs(2),
+		Args:    cobra.MinimumNArgs(1),
 	}
 	manifestPushCommand.SetUsageTemplate(UsageTemplate())
 	flags = manifestPushCommand.Flags()
@@ -830,20 +830,20 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 	case 0:
 		return errors.New("At least a source list ID must be specified")
 	case 1:
-		return errors.New("Two arguments are necessary to push: source and destination")
+		listImageSpec = args[0]
+		destSpec = "docker://"+listImageSpec
 	case 2:
 		listImageSpec = args[0]
 		destSpec = args[1]
-		if listImageSpec == "" {
-			return fmt.Errorf(`invalid image name "%s"`, listImageSpec)
-		}
-		if destSpec == "" {
-			return fmt.Errorf(`invalid image name "%s"`, destSpec)
-		}
 	default:
 		return errors.New("Only two arguments are necessary to push: source and destination")
 	}
-
+	if listImageSpec == "" {
+		return fmt.Errorf(`invalid image name "%s"`, listImageSpec)
+	}
+	if destSpec == "" {
+		return fmt.Errorf(`invalid image name "%s"`, destSpec)
+	}
 	store, err := getStore(c)
 	if err != nil {
 		return err
