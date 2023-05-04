@@ -710,7 +710,7 @@ func testStat(t *testing.T) {
 								result := st.Results[glob]
 
 								switch testItem.Typeflag {
-								case tar.TypeReg, tar.TypeRegA:
+								case tar.TypeReg:
 									if actualContent, ok := testArchive.contents[testItem.Name]; ok {
 										testItem.Size = int64(len(actualContent))
 									}
