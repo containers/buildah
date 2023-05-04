@@ -274,7 +274,7 @@ func (c *ruleguardChecker) WalkFile(f *ast.File) {
 
 func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.Engine, runCtx *ruleguard.RunContext) {
 	type ruleguardReport struct {
-		node    ast.Node
+		pos     token.Pos
 		message string
 		fix     linter.QuickFix
 	}
@@ -284,7 +284,7 @@ func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.En
 		// TODO(quasilyte): investigate whether we should add a rule name as
 		// a message prefix here.
 		r := ruleguardReport{
-			node:    data.Node,
+			pos:     data.Node.Pos(),
 			message: data.Message,
 		}
 		fix := data.Suggestion
@@ -310,9 +310,9 @@ func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.En
 	})
 	for _, report := range reports {
 		if report.fix.Replacement != nil {
-			ctx.WarnFixable(report.node, report.fix, "%s", report.message)
+			ctx.WarnFixableWithPos(report.pos, report.fix, "%s", report.message)
 		} else {
-			ctx.Warn(report.node, "%s", report.message)
+			ctx.WarnWithPos(report.pos, "%s", report.message)
 		}
 	}
 }

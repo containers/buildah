@@ -41,7 +41,7 @@ func NewContextLoader(cfg *config.Config, log logutils.Log, goenv *goutil.Env,
 	return &ContextLoader{
 		cfg:         cfg,
 		log:         log,
-		debugf:      logutils.Debug("loader"),
+		debugf:      logutils.Debug(logutils.DebugKeyLoader),
 		goenv:       goenv,
 		pkgTestIDRe: regexp.MustCompile(`^(.*) \[(.*)\.test\]`),
 		lineCache:   lineCache,
@@ -59,7 +59,7 @@ func (cl *ContextLoader) prepareBuildContext() {
 		return
 	}
 
-	os.Setenv("GOROOT", goroot)
+	os.Setenv(string(goutil.EnvGoRoot), goroot)
 	build.Default.GOROOT = goroot
 	build.Default.BuildTags = cl.cfg.Run.BuildTags
 }
@@ -160,7 +160,17 @@ func (cl *ContextLoader) debugPrintLoadedPackages(pkgs []*packages.Package) {
 
 func (cl *ContextLoader) parseLoadedPackagesErrors(pkgs []*packages.Package) error {
 	for _, pkg := range pkgs {
+		var errs []packages.Error
 		for _, err := range pkg.Errors {
+			// quick fix: skip error related to `go list` invocation by packages.Load()
+			// The behavior has been changed between go1.19 and go1.20, the error is now inside the JSON content.
+			// https://github.com/golangci/golangci-lint/pull/3414#issuecomment-1364756303
+			if strings.Contains(err.Msg, "# command-line-arguments") {
+				continue
+			}
+
+			errs = append(errs, err)
+
 			if strings.Contains(err.Msg, "no Go files") {
 				return errors.Wrapf(exitcodes.ErrNoGoFiles, "package %s", pkg.PkgPath)
 			}
@@ -169,6 +179,8 @@ func (cl *ContextLoader) parseLoadedPackagesErrors(pkgs []*packages.Package) err
 				return errors.Wrap(exitcodes.ErrFailure, err.Msg)
 			}
 		}
+
+		pkg.Errors = errs
 	}
 
 	return nil

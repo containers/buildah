@@ -506,7 +506,7 @@ falsify results.`,
 	},
 
 	"SA4017": {
-		Title:    `A pure function's return value is discarded, making the call pointless`,
+		Title:    `Discarding the return values of a function without side effects, making the call pointless`,
 		Since:    "2017.1",
 		Severity: lint.SeverityWarning,
 		MergeIf:  lint.MergeIfAll,
@@ -1286,7 +1286,7 @@ the \'else\' branch. This means that in the following example
     if x, ok := x.(int); ok {
         // ...
     } else {
-        fmt.Println("unexpected type %T", x)
+        fmt.Printf("unexpected type %T", x)
     }
 
 \'x\' in the \'else\' branch will refer to the \'x\' from \'x, ok

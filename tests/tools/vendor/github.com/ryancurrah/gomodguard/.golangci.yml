@@ -60,7 +60,6 @@ linters:
   enable:
     - asciicheck
     - bodyclose
-    - deadcode
     - dogsled
     - dupl
     - durationcheck
@@ -100,7 +99,6 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
-    - structcheck
     - stylecheck
     - testpackage
     - thelper
@@ -109,6 +107,5 @@ linters:
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
     - wsl

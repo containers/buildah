@@ -12,13 +12,20 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/golangci/golangci-lint/pkg/config"
+	"github.com/golangci/golangci-lint/pkg/exitcodes"
 	"github.com/golangci/golangci-lint/pkg/logutils"
+)
+
+const (
+	// envHelpRun value: "1".
+	envHelpRun        = "HELP_RUN"
+	envMemProfileRate = "GL_MEM_PROFILE_RATE"
 )
 
 func (e *Executor) persistentPreRun(_ *cobra.Command, _ []string) error {
 	if e.cfg.Run.PrintVersion {
 		_, _ = fmt.Fprintf(logutils.StdOut, "golangci-lint has version %s built from %s on %s\n", e.version, e.commit, e.date)
-		return nil
+		os.Exit(exitcodes.Success) // a return nil is not enough to stop the process because we are inside the `preRun`.
 	}
 
 	runtime.GOMAXPROCS(e.cfg.Run.Concurrency)
@@ -34,7 +41,7 @@ func (e *Executor) persistentPreRun(_ *cobra.Command, _ []string) error {
 	}
 
 	if e.cfg.Run.MemProfilePath != "" {
-		if rate := os.Getenv("GL_MEMPROFILE_RATE"); rate != "" {
+		if rate := os.Getenv(envMemProfileRate); rate != "" {
 			runtime.MemProfileRate, _ = strconv.Atoi(rate)
 		}
 	}
@@ -111,7 +118,7 @@ func formatMemory(memBytes uint64) string {
 }
 
 func getDefaultConcurrency() int {
-	if os.Getenv("HELP_RUN") == "1" {
+	if os.Getenv(envHelpRun) == "1" {
 		// Make stable concurrency for README help generating builds.
 		const prettyConcurrency = 8
 		return prettyConcurrency
@@ -124,7 +131,7 @@ func (e *Executor) initRoot() {
 	rootCmd := &cobra.Command{
 		Use:   "golangci-lint",
 		Short: "golangci-lint is a smart linters runner.",
-		Long:  `Smart, fast linters runner. Run it in cloud for every GitHub pull request on https://golangci.com`,
+		Long:  `Smart, fast linters runner.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()

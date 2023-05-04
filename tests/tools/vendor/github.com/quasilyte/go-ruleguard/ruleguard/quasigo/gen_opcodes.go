@@ -45,6 +45,9 @@ var opcodePrototypes = []opcodeProto{
 
 	{"SetVariadicLen", "op len:u8", stackUnchanged},
 	{"CallNative", "op funcid:u16", "(args...) -> (results...)"},
+	{"Call", "op funcid:u16", "(args...) -> (result)"},
+	{"IntCall", "op funcid:u16", "(args...) -> (result:int)"},
+	{"VoidCall", "op funcid:u16", "(args...) -> ()"},
 
 	{"IsNil", "op", "(value) -> (result:bool)"},
 	{"IsNotNil", "op", "(value) -> (result:bool)"},

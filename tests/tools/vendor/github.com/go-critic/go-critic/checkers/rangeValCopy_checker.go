@@ -65,7 +65,8 @@ func (c *rangeValCopyChecker) VisitStmt(stmt ast.Stmt) {
 	if typ == nil {
 		return
 	}
-	if size := c.ctx.SizesInfo.Sizeof(typ); size >= c.sizeThreshold {
+	size, ok := c.ctx.SizeOf(typ)
+	if ok && size >= c.sizeThreshold {
 		c.warn(rng, size)
 	}
 }

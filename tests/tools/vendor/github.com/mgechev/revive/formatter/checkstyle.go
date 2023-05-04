@@ -15,7 +15,7 @@ type Checkstyle struct {
 }
 
 // Name returns the name of the formatter
-func (f *Checkstyle) Name() string {
+func (*Checkstyle) Name() string {
 	return "checkstyle"
 }
 
@@ -29,7 +29,7 @@ type issue struct {
 }
 
 // Format formats the failures gotten from the lint.
-func (f *Checkstyle) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
+func (*Checkstyle) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
 	issues := map[string][]issue{}
 	for failure := range failures {
 		buf := new(bytes.Buffer)

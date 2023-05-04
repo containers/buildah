@@ -1,13 +1,18 @@
 CONTAINER=nickg/misspell
 
+default: lint test build
+
 install:  ## install misspell into GOPATH/bin
 	go install ./cmd/misspell
 
-build: hooks  ## build and lint misspell
-	./scripts/build.sh
+build:  ## build and lint misspell
+	go build ./cmd/misspell
 
 test:  ## run all tests
-	go test .
+	go test -v .
+
+lint:  ## run linter
+	golangci-lint run
 
 # real publishing is done only by travis
 publish:  ## test goreleaser
@@ -39,8 +44,8 @@ clean:  ## clean up time
 
 ci:  ## run test like travis-ci does, requires docker
 	docker run --rm \
-		-v $(PWD):/go/src/github.com/client9/misspell \
-		-w /go/src/github.com/client9/misspell \
+		-v $(PWD):/go/src/github.com/golangci/misspell \
+		-w /go/src/github.com/golangci/misspell \
 		${CONTAINER} \
 		make build falsepositives
 
@@ -52,15 +57,9 @@ docker-pull:  ## pull latest test image
 
 docker-console:  ## log into the test image
 	docker run --rm -it \
-		-v $(PWD):/go/src/github.com/client9/misspell \
-		-w /go/src/github.com/client9/misspell \
+		-v $(PWD):/go/src/github.com/golangci/misspell \
+		-w /go/src/github.com/golangci/misspell \
 		${CONTAINER} sh
-
-.git/hooks/pre-commit: scripts/pre-commit.sh
-	cp -f scripts/pre-commit.sh .git/hooks/pre-commit
-.git/hooks/commit-msg: scripts/commit-msg.sh
-	cp -f scripts/commit-msg.sh .git/hooks/commit-msg
-hooks: .git/hooks/pre-commit .git/hooks/commit-msg  ## install git precommit hooks
 
 .PHONY: help ci console docker-build bench
 
@@ -69,6 +68,6 @@ help:
 	@awk -F ':|##' '/^[^\t].+?:.*?##/ {\
 	printf "\033[36m%-30s\033[0m %s\n", $$1, $$NF \
 	}' $(MAKEFILE_LIST)
-.DEFAULT_GOAL=help
+.DEFAULT_GOAL=default
 .PHONY=help
 

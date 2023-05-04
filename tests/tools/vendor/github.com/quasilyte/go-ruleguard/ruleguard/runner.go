@@ -17,6 +17,7 @@ import (
 
 	"github.com/quasilyte/go-ruleguard/ruleguard/goutil"
 	"github.com/quasilyte/go-ruleguard/ruleguard/profiling"
+	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
 	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
 	"github.com/quasilyte/gogrep"
 	"github.com/quasilyte/gogrep/nodetag"
@@ -55,45 +56,83 @@ type rulesRunner struct {
 	// For named submatches we can't use it as the node can be located
 	// deeper into the tree than the current node.
 	// In those cases we need a more complicated algorithm.
-	nodePath nodePath
+	nodePath *nodePath
 
 	filterParams filterParams
 }
 
+func newRunnerState(es *engineState) *RunnerState {
+	gogrepState := gogrep.NewMatcherState()
+	gogrepSubState := gogrep.NewMatcherState()
+	state := &RunnerState{
+		gogrepState:    gogrepState,
+		gogrepSubState: gogrepSubState,
+		nodePath:       newNodePath(),
+		evalEnv:        es.env.GetEvalEnv(),
+		typematchState: typematch.NewMatcherState(),
+		object:         &rulesRunner{},
+	}
+	return state
+}
+
+func (state *RunnerState) Reset() {
+	state.nodePath.stack = state.nodePath.stack[:0]
+	state.evalEnv.Stack.Reset()
+}
+
 func newRulesRunner(ctx *RunContext, buildContext *build.Context, state *engineState, rules *goRuleSet) *rulesRunner {
+	runnerState := ctx.State
+	if runnerState == nil {
+		runnerState = newRunnerState(state)
+	} else {
+		runnerState.Reset()
+	}
+
 	importer := newGoImporter(state, goImporterConfig{
 		fset:         ctx.Fset,
 		debugImports: ctx.DebugImports,
 		debugPrint:   ctx.DebugPrint,
 		buildContext: buildContext,
 	})
-	gogrepState := gogrep.NewMatcherState()
+	gogrepState := runnerState.gogrepState
 	gogrepState.Types = ctx.Types
-	gogrepSubState := gogrep.NewMatcherState()
+	gogrepSubState := runnerState.gogrepSubState
 	gogrepSubState.Types = ctx.Types
-	rr := &rulesRunner{
+	evalEnv := runnerState.evalEnv
+
+	rr := runnerState.object
+	*rr = rulesRunner{
 		bgContext:      context.Background(),
 		ctx:            ctx,
 		importer:       importer,
 		rules:          rules,
 		gogrepState:    gogrepState,
 		gogrepSubState: gogrepSubState,
-		nodePath:       newNodePath(),
+		nodePath:       runnerState.nodePath,
 		truncateLen:    ctx.TruncateLen,
 		filterParams: filterParams{
-			typematchState: typematch.NewMatcherState(),
-			env:            state.env.GetEvalEnv(),
+			typematchState: runnerState.typematchState,
+			env:            evalEnv,
 			importer:       importer,
 			ctx:            ctx,
 		},
 	}
+
+	evalEnv.Stack.Push(&rr.filterParams)
 	if ctx.TruncateLen == 0 {
 		rr.truncateLen = 60
 	}
 	rr.filterParams.nodeText = rr.nodeText
-	rr.filterParams.nodePath = &rr.nodePath
+	rr.filterParams.nodeString = rr.nodeString
+	rr.filterParams.nodePath = rr.nodePath
 	rr.filterParams.gogrepSubState = &rr.gogrepSubState
+
 	return rr
+}
+
+func (rr *rulesRunner) nodeString(n ast.Node) string {
+	b := rr.nodeText(n)
+	return string(b)
 }
 
 func (rr *rulesRunner) nodeText(n ast.Node) []byte {
@@ -151,7 +190,7 @@ func (rr *rulesRunner) run(f *ast.File) error {
 
 	if rr.rules.universal.categorizedNum != 0 {
 		var inspector astWalker
-		inspector.nodePath = &rr.nodePath
+		inspector.nodePath = rr.nodePath
 		inspector.filterParams = &rr.filterParams
 		inspector.Walk(f, func(n ast.Node, tag nodetag.Value) {
 			rr.runRules(n, tag)
@@ -174,7 +213,7 @@ func (rr *rulesRunner) runCommentRules(comment *ast.Comment) {
 	file := rr.ctx.Fset.File(comment.Pos())
 
 	for _, rule := range rr.rules.universal.commentRules {
-		var m commentMatchData
+		var m matchData
 		if rule.captureGroups {
 			result := rule.pat.FindStringSubmatchIndex(comment.Text)
 			if result == nil {
@@ -191,13 +230,13 @@ func (rr *rulesRunner) runCommentRules(comment *ast.Comment) {
 				// Consider this pattern: `(?P<x>foo)|(bar)`.
 				// If we have `bar` input string, <x> will remain empty.
 				if beginPos < 0 || endPos < 0 {
-					m.capture = append(m.capture, gogrep.CapturedNode{
+					m.match.Capture = append(m.match.Capture, gogrep.CapturedNode{
 						Name: name,
 						Node: &ast.Comment{Slash: comment.Pos()},
 					})
 					continue
 				}
-				m.capture = append(m.capture, gogrep.CapturedNode{
+				m.match.Capture = append(m.match.Capture, gogrep.CapturedNode{
 					Name: name,
 					Node: &ast.Comment{
 						Slash: file.Pos(beginPos + file.Offset(comment.Pos())),
@@ -205,7 +244,7 @@ func (rr *rulesRunner) runCommentRules(comment *ast.Comment) {
 					},
 				})
 			}
-			m.node = &ast.Comment{
+			m.match.Node = &ast.Comment{
 				Slash: file.Pos(result[0] + file.Offset(comment.Pos())),
 				Text:  comment.Text[result[0]:result[1]],
 			}
@@ -215,7 +254,7 @@ func (rr *rulesRunner) runCommentRules(comment *ast.Comment) {
 			if result == nil {
 				continue
 			}
-			m.node = &ast.Comment{
+			m.match.Node = &ast.Comment{
 				Slash: file.Pos(result[0] + file.Offset(comment.Pos())),
 				Text:  comment.Text[result[0]:result[1]],
 			}
@@ -298,7 +337,7 @@ func (rr *rulesRunner) reject(rule goRule, reason string, m matchData) {
 	}
 }
 
-func (rr *rulesRunner) handleCommentMatch(rule goCommentRule, m commentMatchData) bool {
+func (rr *rulesRunner) handleCommentMatch(rule goCommentRule, m matchData) bool {
 	if rule.base.filter.fn != nil {
 		rr.filterParams.match = m
 		filterResult := rule.base.filter.fn(&rr.filterParams)
@@ -335,35 +374,63 @@ func (rr *rulesRunner) handleCommentMatch(rule goCommentRule, m commentMatchData
 }
 
 func (rr *rulesRunner) handleMatch(rule goRule, m gogrep.MatchData) bool {
+	if rule.filter.fn != nil || rule.do != nil {
+		rr.filterParams.match = matchData{match: m}
+	}
+
 	if rule.filter.fn != nil {
-		rr.filterParams.match = astMatchData{match: m}
 		filterResult := rule.filter.fn(&rr.filterParams)
 		if !filterResult.Matched() {
-			rr.reject(rule, filterResult.RejectReason(), astMatchData{match: m})
+			rr.reject(rule, filterResult.RejectReason(), matchData{match: m})
 			return false
 		}
 	}
 
-	message := rr.renderMessage(rule.msg, astMatchData{match: m}, true)
 	node := m.Node
 	if rule.location != "" {
 		node, _ = m.CapturedByName(rule.location)
 	}
+
+	var messageText string
+	var suggestText string
+	if rule.do != nil {
+		rr.filterParams.reportString = ""
+		rr.filterParams.suggestString = ""
+		_ = quasigo.Call(rr.filterParams.env, rule.do)
+		messageText = rr.filterParams.reportString
+		if messageText == "" {
+			if rr.filterParams.suggestString != "" {
+				messageText = "suggestion: " + rr.filterParams.suggestString
+			} else {
+				messageText = "<empty message>"
+			}
+		}
+		if rr.filterParams.suggestString != "" {
+			suggestText = rr.filterParams.suggestString
+		}
+	} else {
+		messageText = rr.renderMessage(rule.msg, matchData{match: m}, true)
+		if rule.suggestion != "" {
+			suggestText = rr.renderMessage(rule.suggestion, matchData{match: m}, false)
+		}
+	}
+
 	var suggestion *Suggestion
-	if rule.suggestion != "" {
+	if suggestText != "" {
 		suggestion = &Suggestion{
-			Replacement: []byte(rr.renderMessage(rule.suggestion, astMatchData{match: m}, false)),
+			Replacement: []byte(suggestText),
 			From:        node.Pos(),
 			To:          node.End(),
 		}
 	}
+
 	info := GoRuleInfo{
 		Group: rule.group,
 		Line:  rule.line,
 	}
 	rr.reportData.RuleInfo = info
 	rr.reportData.Node = node
-	rr.reportData.Message = message
+	rr.reportData.Message = messageText
 	rr.reportData.Suggestion = suggestion
 
 	rr.reportData.Func = rr.filterParams.currentFunc

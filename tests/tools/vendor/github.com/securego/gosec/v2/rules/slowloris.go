@@ -35,7 +35,7 @@ func containsReadHeaderTimeout(node *ast.CompositeLit) bool {
 	for _, elt := range node.Elts {
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
 			if ident, ok := kv.Key.(*ast.Ident); ok {
-				if ident.Name == "ReadHeaderTimeout" {
+				if ident.Name == "ReadHeaderTimeout" || ident.Name == "ReadTimeout" {
 					return true
 				}
 			}

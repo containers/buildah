@@ -13,10 +13,10 @@ var (
 )
 
 // RemovePath attempts to strip away embedded file system paths, e.g.
-//  /foo/bar or /static/myimg.png
 //
-//  TODO: windows style
+//	/foo/bar or /static/myimg.png
 //
+//	TODO: windows style.
 func RemovePath(s string) string {
 	out := bytes.Buffer{}
 	var idx int
@@ -57,28 +57,28 @@ func RemovePath(s string) string {
 	return out.String()
 }
 
-// replaceWithBlanks returns a string with the same number of spaces as the input
+// replaceWithBlanks returns a string with the same number of spaces as the input.
 func replaceWithBlanks(s string) string {
 	return strings.Repeat(" ", len(s))
 }
 
-// RemoveEmail remove email-like strings, e.g. "nickg+junk@xfoobar.com", "nickg@xyz.abc123.biz"
+// RemoveEmail remove email-like strings, e.g. "nickg+junk@xfoobar.com", "nickg@xyz.abc123.biz".
 func RemoveEmail(s string) string {
 	return reEmail.ReplaceAllStringFunc(s, replaceWithBlanks)
 }
 
-// RemoveHost removes host-like strings "foobar.com" "abc123.fo1231.biz"
+// RemoveHost removes host-like strings "foobar.com" "abc123.fo1231.biz".
 func RemoveHost(s string) string {
 	return reHost.ReplaceAllStringFunc(s, replaceWithBlanks)
 }
 
-// RemoveBackslashEscapes removes characters that are preceeded by a backslash
-// commonly found in printf format stringd "\nto"
+// RemoveBackslashEscapes removes characters that are preceded by a backslash.
+// commonly found in printf format string "\nto".
 func removeBackslashEscapes(s string) string {
 	return reBackslash.ReplaceAllStringFunc(s, replaceWithBlanks)
 }
 
-// RemoveNotWords blanks out all the not words
+// RemoveNotWords blanks out all the not words.
 func RemoveNotWords(s string) string {
 	// do most selective/specific first
 	return removeBackslashEscapes(RemoveHost(RemoveEmail(RemovePath(StripURL(s)))))

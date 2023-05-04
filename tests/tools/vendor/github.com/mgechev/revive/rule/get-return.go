@@ -12,7 +12,7 @@ import (
 type GetReturnRule struct{}
 
 // Apply applies the rule to given file.
-func (r *GetReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*GetReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -25,7 +25,7 @@ func (r *GetReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure 
 }
 
 // Name returns the rule name.
-func (r *GetReturnRule) Name() string {
+func (*GetReturnRule) Name() string {
 	return "get-return"
 }
 

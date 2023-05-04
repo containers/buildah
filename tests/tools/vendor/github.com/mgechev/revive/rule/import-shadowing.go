@@ -13,7 +13,7 @@ import (
 type ImportShadowingRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ImportShadowingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ImportShadowingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	importNames := map[string]struct{}{}
@@ -37,7 +37,7 @@ func (r *ImportShadowingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 }
 
 // Name returns the rule name.
-func (r *ImportShadowingRule) Name() string {
+func (*ImportShadowingRule) Name() string {
 	return "import-shadowing"
 }
 

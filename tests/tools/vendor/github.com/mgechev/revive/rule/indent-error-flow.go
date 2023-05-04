@@ -11,7 +11,7 @@ import (
 type IndentErrorFlowRule struct{}
 
 // Apply applies the rule to given file.
-func (r *IndentErrorFlowRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*IndentErrorFlowRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -24,7 +24,7 @@ func (r *IndentErrorFlowRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 }
 
 // Name returns the rule name.
-func (r *IndentErrorFlowRule) Name() string {
+func (*IndentErrorFlowRule) Name() string {
 	return "indent-error-flow"
 }
 

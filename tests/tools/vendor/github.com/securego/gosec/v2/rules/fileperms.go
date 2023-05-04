@@ -50,11 +50,15 @@ func getConfiguredMode(conf map[string]interface{}, configKey string, defaultMod
 	return mode
 }
 
+func modeIsSubset(subset int64, superset int64) bool {
+	return (subset | superset) == superset
+}
+
 func (r *filePermissions) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 	for _, pkg := range r.pkgs {
 		if callexpr, matched := gosec.MatchCallByPackage(n, c, pkg, r.calls...); matched {
 			modeArg := callexpr.Args[len(callexpr.Args)-1]
-			if mode, err := gosec.GetInt(modeArg); err == nil && mode > r.mode {
+			if mode, err := gosec.GetInt(modeArg); err == nil && !modeIsSubset(mode, r.mode) {
 				return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
 			}
 		}

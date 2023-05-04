@@ -19,7 +19,7 @@ Both will install as `./bin/misspell`.  You can adjust the download location usi
 If you use [Go](https://golang.org/), the best way to run `misspell` is by using [gometalinter](#gometalinter).  Otherwise, install `misspell` the old-fashioned way:
 
 ```
-go get -u github.com/client9/misspell/cmd/misspell
+go install github.com/client9/misspell/cmd/misspell@latest
 ```
 
 and misspell will be in your `GOPATH`
