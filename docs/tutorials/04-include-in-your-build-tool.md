@@ -95,6 +95,40 @@ Now you can run commit the build:
 imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
 ```
 
+## Push the image
+first, add another image reference from the `alltransports` package to refer the destination image registry.
+Next , create a `types.DockerAuthConfig` object to authenticate your tool against the registry.
+
+```go
+
+//if the registry isn't docker hub you should add docker:// prefix to the image name
+destImageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image")
+
+	if err != nil {
+
+		fmt.Println(err)
+	}
+
+	// Build an image scratch
+	s1, s2, err := buildah.Push(context.TODO(), "", destImageRef, buildah.PushOptions{
+		SystemContext: &types.SystemContext{
+			DockerAuthConfig: &types.DockerAuthConfig{
+				Username: "your password",
+			},
+		},
+		Store: buildStore,
+	})
+
+  if err != nil {
+		fmt.Println("can't push the image :", err)
+		panic(err)
+	}
+	fmt.Println(s1)
+	fmt.Println(s2)
+	fmt.Println("push finish successfully ✅")
+```
+
+
 ## Supplying defaults for Run()
 
 If you need to run a command as part of the build, you'll have to dig up a couple of defaults that aren't picked up automatically:
@@ -126,6 +160,7 @@ import (
   "context"
   "fmt"
 
+  "github.com/containers/image/v5/transports/alltransports"
   "github.com/containers/buildah"
   "github.com/containers/buildah/pkg/parse"
   "github.com/containers/common/pkg/config"
@@ -199,5 +234,31 @@ func main() {
   }
 
   fmt.Printf("Image built! %s\n", imageId)
+
+  //if the registry isn't docker hub you should add docker:// prefix to the image name
+destImageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image")
+
+	if err != nil {
+
+		fmt.Println(err)
+	}
+
+	// Build an image scratch
+	s1, s2, err := buildah.Push(context.TODO(), "", destImageRef, buildah.PushOptions{
+		SystemContext: &types.SystemContext{
+			DockerAuthConfig: &types.DockerAuthConfig{
+				Username: "your password",
+			},
+		},
+		Store: buildStore,
+	})
+
+  if err != nil {
+		fmt.Println("can't push the image :", err)
+		panic(err)
+	}
+	fmt.Println(s1)
+	fmt.Println(s2)
+	fmt.Println("push finish successfully ✅")
 }
 ```
