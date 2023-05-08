@@ -247,7 +247,7 @@ destImageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image
 	s1, s2, err := buildah.Push(context.TODO(), "", destImageRef, buildah.PushOptions{
 		SystemContext: &types.SystemContext{
 			DockerAuthConfig: &types.DockerAuthConfig{
-				Username: "your password",
+				Username: "your username",
 			},
 		},
 		Store: buildStore,
