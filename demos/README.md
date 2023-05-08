@@ -35,7 +35,7 @@ $ sudo buildah login quay.io
 $ buildah login quay.io
 ```
 
-There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
+There are several variables you will want to set that are listed at the top of the script. The name for the container image, your Quay.io username, your name, and the Fedora release number:
 
     demoimg=myshdemo
     quayuser=UserNameHere
@@ -49,11 +49,11 @@ filename: [`docker-compatibility-demo.sh`](docker-compatibility-demo.sh)
 
 This demo builds an nginx container image using Buildah. It modifies the homepage and commits the image. The container is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested.
 
-There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
+There are several variables you will want to set that are listed at the top of the script. The name for the container image, your Quay.io username, your name, and the Fedora release number:
 
     demoimg=dockercompatibilitydemo
     quayuser=UsernameHere
-    myname=YourNameHear
+    myname=YourNameHere
     distro=fedora
     distrorelease=30
     pkgmgr=dnf   # switch to yum if using yum
@@ -64,11 +64,11 @@ filename: [`docker-bud-demo.sh`](buildah-bud-demo.sh)
 
 This demo builds an nginx container image using Buildah with. Buildah's `buildah-using-docker`, or `bud` option, provides a mechanism for using existing Dockerfiles to build the container image. This image is the same as the image in the Docker compatibility demo (at time of creating this README). The container is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested.
 
-There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
+There are several variables you will want to set that are listed at the top of the script. The name for the container image, your Quay.io username, your name, and the Fedora release number:
 
     demoimg=buildahbuddemo
     quayuser=UsernameHere
-    myname=YourNameHear
+    myname=YourNameHere
     distro=fedora
     distrorelease=30
     pkgmgr=dnf   # switch to yum if using yum
