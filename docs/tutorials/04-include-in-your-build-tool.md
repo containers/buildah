@@ -114,6 +114,7 @@ destImageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image
 		SystemContext: &types.SystemContext{
 			DockerAuthConfig: &types.DockerAuthConfig{
 				Username: "your username",
+                                Password: "your password",
 			},
 		},
 		Store: buildStore,
@@ -235,7 +236,7 @@ func main() {
 
   fmt.Printf("Image built! %s\n", imageId)
 
-  //if the registry isn't docker hub you should add docker:// prefix to the image name
+  //if the registry isn't Docker Hub you should add the docker:// prefix to the image name
 destImageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image")
 
 	if err != nil {
@@ -248,6 +249,7 @@ destImageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image
 		SystemContext: &types.SystemContext{
 			DockerAuthConfig: &types.DockerAuthConfig{
 				Username: "your username",
+                                Password: "your password",
 			},
 		},
 		Store: buildStore,
