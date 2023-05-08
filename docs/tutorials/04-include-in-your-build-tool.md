@@ -101,7 +101,7 @@ Next , create a `types.DockerAuthConfig` object to authenticate your tool agains
 
 ```go
 
-//if the registry isn't docker hub you should add docker:// prefix to the image name
+//if the registry isn't Docker Hub, you should add the docker:// prefix to the image name
 destImageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image")
 
 	if err != nil {
