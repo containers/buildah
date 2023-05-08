@@ -96,7 +96,7 @@ imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOpt
 ```
 
 ## Push the image
-first, add another image reference from the `alltransports` package to refer the destination image registry.
+First, add another image reference from the `alltransports` package to refer to the destination image registry.
 Next , create a `types.DockerAuthConfig` object to authenticate your tool against the registry.
 
 ```go
