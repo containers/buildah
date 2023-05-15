@@ -5368,6 +5368,10 @@ _EOF
 
   run_buildah 125 build $WITH_POLICY_JSON  -t secretreq -f $BUDFILES/run-mounts/Dockerfile.secret-required $BUDFILES/run-mounts
   expect_output --substring "secret required but no secret with id mysecret found"
+
+  # Also test secret required without value
+  run_buildah 125 build $WITH_POLICY_JSON  -t secretreq -f $BUDFILES/run-mounts/Dockerfile.secret-required-wo-value $BUDFILES/run-mounts
+  expect_output --substring "secret required but no secret with id mysecret found"
 }
 
 @test "bud with containerfile env secret" {

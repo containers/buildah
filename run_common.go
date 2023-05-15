@@ -1653,9 +1653,12 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 				target = filepath.Join(workdir, target)
 			}
 		case "required":
-			required, err = strconv.ParseBool(kv[1])
-			if err != nil {
-				return nil, "", errInvalidSyntax
+			required = true
+			if len(kv) > 1 {
+				required, err = strconv.ParseBool(kv[1])
+				if err != nil {
+					return nil, "", errInvalidSyntax
+				}
 			}
 		case "mode":
 			mode64, err := strconv.ParseUint(kv[1], 8, 32)
