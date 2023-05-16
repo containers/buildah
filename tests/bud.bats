@@ -5361,12 +5361,19 @@ _EOF
   _prefetch alpine
 
   run_buildah build $WITH_POLICY_JSON  -t secretnotreq -f $BUDFILES/run-mounts/Dockerfile.secret-not-required $BUDFILES/run-mounts
+  run_buildah 1 build $WITH_POLICY_JSON  -t secretnotreq -f $BUDFILES/run-mounts/Dockerfile.secret-required-false $BUDFILES/run-mounts
+  expect_output --substring "No such file or directory"
+  assert "$output" !~ "secret required but no secret with id mysecret found"
 }
 
 @test "bud with containerfile secret required" {
   _prefetch alpine
 
   run_buildah 125 build $WITH_POLICY_JSON  -t secretreq -f $BUDFILES/run-mounts/Dockerfile.secret-required $BUDFILES/run-mounts
+  expect_output --substring "secret required but no secret with id mysecret found"
+
+  # Also test secret required without value
+  run_buildah 125 build $WITH_POLICY_JSON  -t secretreq -f $BUDFILES/run-mounts/Dockerfile.secret-required-wo-value $BUDFILES/run-mounts
   expect_output --substring "secret required but no secret with id mysecret found"
 }
 
