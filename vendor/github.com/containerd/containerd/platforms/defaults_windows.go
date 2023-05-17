@@ -50,10 +50,7 @@ func (m windowsmatcher) Match(p specs.Platform) bool {
 	match := m.defaultMatcher.Match(p)
 
 	if match && m.OS == "windows" {
-		if strings.HasPrefix(p.OSVersion, m.osVersionPrefix) {
-			return true
-		}
-		return p.OSVersion == ""
+		return strings.HasPrefix(p.OSVersion, m.osVersionPrefix) && m.defaultMatcher.Match(p)
 	}
 
 	return match

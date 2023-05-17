@@ -54,19 +54,6 @@ type SearchOptions struct {
 	NoTrunc bool
 	// Authfile is the path to the authentication file.
 	Authfile string
-	// Path to the certificates directory.
-	CertDirPath string
-	// Username to use when authenticating at a container registry.
-	Username string
-	// Password to use when authenticating at a container registry.
-	Password string
-	// Credentials is an alternative way to specify credentials in format
-	// "username[:password]".  Cannot be used in combination with
-	// Username/Password.
-	Credentials string
-	// IdentityToken is used to authenticate the user and get
-	// an access token for the registry.
-	IdentityToken string `json:"identitytoken,omitempty"`
 	// InsecureSkipTLSVerify allows to skip TLS verification.
 	InsecureSkipTLSVerify types.OptionalBool
 	// ListTags returns the search result with available tags
@@ -214,18 +201,6 @@ func (r *Runtime) searchImageInRegistry(ctx context.Context, term, registry stri
 		sys.AuthFilePath = options.Authfile
 	}
 
-	if options.CertDirPath != "" {
-		sys.DockerCertPath = options.CertDirPath
-	}
-
-	dockerAuthConfig, err := getDockerAuthConfig(options.Username, options.Password, options.Credentials, options.IdentityToken)
-	if err != nil {
-		return nil, err
-	}
-	if dockerAuthConfig != nil {
-		sys.DockerAuthConfig = dockerAuthConfig
-	}
-
 	if options.ListTags {
 		results, err := searchRepositoryTags(ctx, sys, registry, term, options)
 		if err != nil {
@@ -306,7 +281,7 @@ func searchRepositoryTags(ctx context.Context, sys *types.SystemContext, registr
 	}
 	tags, err := registryTransport.GetRepositoryTags(ctx, sys, imageRef)
 	if err != nil {
-		return nil, fmt.Errorf("getting repository tags: %v", err)
+		return nil, fmt.Errorf("error getting repository tags: %v", err)
 	}
 	limit := searchMaxQueries
 	if len(tags) < limit {

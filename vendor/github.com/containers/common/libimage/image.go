@@ -23,17 +23,6 @@ import (
 // Image represents an image in the containers storage and allows for further
 // operations and data manipulation.
 type Image struct {
-	// ListData that is being set by (*Runtime).ListImages().  Note that
-	// the data may be outdated.
-	ListData struct {
-		// Dangling indicates if the image is dangling.  Use
-		// `IsDangling()` to compute the latest state.
-		IsDangling *bool
-		// Parent points to the parent image.  Use `Parent()` to
-		// compute the latest state.
-		Parent *Image
-	}
-
 	// Backwards pointer to the runtime.
 	runtime *Runtime
 
@@ -57,8 +46,6 @@ type Image struct {
 		ociv1Image *ociv1.Image
 		// Names() parsed into references.
 		namesReferences []reference.Reference
-		// Calculating the Size() is expensive, so cache it.
-		size *int64
 	}
 }
 
@@ -75,7 +62,6 @@ func (i *Image) reload() error {
 	i.cached.completeInspectData = nil
 	i.cached.ociv1Image = nil
 	i.cached.namesReferences = nil
-	i.cached.size = nil
 	return nil
 }
 
@@ -227,14 +213,10 @@ func (i *Image) TopLayer() string {
 
 // Parent returns the parent image or nil if there is none
 func (i *Image) Parent(ctx context.Context) (*Image, error) {
-	tree, err := i.runtime.layerTree(nil)
+	tree, err := i.runtime.layerTree()
 	if err != nil {
 		return nil, err
 	}
-	return i.parent(ctx, tree)
-}
-
-func (i *Image) parent(ctx context.Context, tree *layerTree) (*Image, error) {
 	return tree.parent(ctx, i)
 }
 
@@ -261,7 +243,7 @@ func (i *Image) Children(ctx context.Context) ([]*Image, error) {
 // created for this invocation only.
 func (i *Image) getChildren(ctx context.Context, all bool, tree *layerTree) ([]*Image, error) {
 	if tree == nil {
-		t, err := i.runtime.layerTree(nil)
+		t, err := i.runtime.layerTree()
 		if err != nil {
 			return nil, err
 		}
@@ -488,26 +470,12 @@ func (i *Image) removeRecursive(ctx context.Context, rmMap map[string]*RemoveIma
 	}
 
 	if _, err := i.runtime.store.DeleteImage(i.ID(), true); handleError(err) != nil {
-		if errors.Is(err, storage.ErrImageUsedByContainer) {
-			err = fmt.Errorf("%w: consider listing external containers and force-removing image", err)
-		}
 		return processedIDs, err
 	}
-
 	report.Untagged = append(report.Untagged, i.Names()...)
-	if i.runtime.eventChannel != nil {
-		for _, name := range i.Names() {
-			i.runtime.writeEvent(&Event{ID: i.ID(), Name: name, Time: time.Now(), Type: EventTypeImageUntag})
-		}
-	}
 
 	if !hasChildren {
 		report.Removed = true
-	}
-
-	// Do not delete any parents if NoPrune is true
-	if options.NoPrune {
-		return processedIDs, nil
 	}
 
 	// Check if can remove the parent image.
@@ -527,6 +495,7 @@ func (i *Image) removeRecursive(ctx context.Context, rmMap map[string]*RemoveIma
 	if !danglingParent {
 		return processedIDs, nil
 	}
+
 	// Recurse into removing the parent.
 	return parent.removeRecursive(ctx, rmMap, processedIDs, "", options)
 }
@@ -793,13 +762,7 @@ func (i *Image) Unmount(force bool) error {
 
 // Size computes the size of the image layers and associated data.
 func (i *Image) Size() (int64, error) {
-	if i.cached.size != nil {
-		return *i.cached.size, nil
-	}
-
-	size, err := i.runtime.store.ImageSize(i.ID())
-	i.cached.size = &size
-	return size, err
+	return i.runtime.store.ImageSize(i.ID())
 }
 
 // HasDifferentDigestOptions allows for customizing the check if another

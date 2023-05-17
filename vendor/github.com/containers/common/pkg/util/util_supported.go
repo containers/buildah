@@ -11,7 +11,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/sirupsen/logrus"
 )
@@ -32,10 +31,7 @@ func GetRuntimeDir() (string, error) {
 	var rootlessRuntimeDirError error
 
 	rootlessRuntimeDirOnce.Do(func() {
-		runtimeDir, err := homedir.GetRuntimeDir()
-		if err != nil {
-			logrus.Debug(err)
-		}
+		runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
 		if runtimeDir != "" {
 			st, err := os.Stat(runtimeDir)
 			if err != nil {

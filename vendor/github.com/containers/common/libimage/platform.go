@@ -6,7 +6,6 @@ import (
 	"runtime"
 
 	"github.com/containerd/containerd/platforms"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,18 +20,9 @@ const (
 )
 
 // NormalizePlatform normalizes (according to the OCI spec) the specified os,
-// arch and variant.  If left empty, the individual item will be normalized.
+// arch and variant.  If left empty, the individual item will not be normalized.
 func NormalizePlatform(rawOS, rawArch, rawVariant string) (os, arch, variant string) {
-	platformSpec := v1.Platform{
-		OS:           rawOS,
-		Architecture: rawArch,
-		Variant:      rawVariant,
-	}
-	normalizedSpec := platforms.Normalize(platformSpec)
-	if normalizedSpec.Variant == "" && rawVariant != "" {
-		normalizedSpec.Variant = rawVariant
-	}
-	rawPlatform := toPlatformString(normalizedSpec.OS, normalizedSpec.Architecture, normalizedSpec.Variant)
+	rawPlatform := toPlatformString(rawOS, rawArch, rawVariant)
 	normalizedPlatform, err := platforms.Parse(rawPlatform)
 	if err != nil {
 		logrus.Debugf("Error normalizing platform: %v", err)
@@ -48,7 +38,7 @@ func NormalizePlatform(rawOS, rawArch, rawVariant string) (os, arch, variant str
 		arch = normalizedPlatform.Architecture
 	}
 	variant = rawVariant
-	if rawVariant != "" || (rawVariant == "" && normalizedPlatform.Variant != "") {
+	if rawVariant != "" {
 		variant = normalizedPlatform.Variant
 	}
 	return os, arch, variant
@@ -69,13 +59,10 @@ func toPlatformString(os, arch, variant string) string {
 
 // Checks whether the image matches the specified platform.
 // Returns
-//   - 1) a matching error that can be used for logging (or returning) what does not match
-//   - 2) a bool indicating whether architecture, os or variant were set (some callers need that to decide whether they need to throw an error)
-//   - 3) a fatal error that occurred prior to check for matches (e.g., storage errors etc.)
+//  * 1) a matching error that can be used for logging (or returning) what does not match
+//  * 2) a bool indicating whether architecture, os or variant were set (some callers need that to decide whether they need to throw an error)
+//  * 3) a fatal error that occurred prior to check for matches (e.g., storage errors etc.)
 func (i *Image) matchesPlatform(ctx context.Context, os, arch, variant string) (error, bool, error) {
-	if err := i.isCorrupted(""); err != nil {
-		return err, false, nil
-	}
 	inspectInfo, err := i.inspectInfo(ctx)
 	if err != nil {
 		return nil, false, fmt.Errorf("inspecting image: %w", err)
@@ -96,5 +83,5 @@ func (i *Image) matchesPlatform(ctx context.Context, os, arch, variant string) (
 		return nil, customPlatform, nil
 	}
 
-	return fmt.Errorf("image platform (%s) does not match the expected platform (%s)", platforms.Format(fromImage), platforms.Format(expected)), customPlatform, nil
+	return fmt.Errorf("image platform (%s) does not match the expected platform (%s)", fromImage, expected), customPlatform, nil
 }

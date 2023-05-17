@@ -3,9 +3,9 @@ module github.com/containers/buildah
 go 1.18
 
 require (
-	github.com/containerd/containerd v1.7.1
+	github.com/containerd/containerd v1.7.0-beta.3
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.53.1-0.20230516065732-82045748b3e3
+	github.com/containers/common v0.49.3
 	github.com/containers/image/v5 v5.25.1-0.20230511204805-94ab8dee62ea
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.46.2-0.20230508110141-51c23d59f8f3
@@ -17,7 +17,8 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
-	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/ginkgo/v2 v2.9.5
 	github.com/onsi/gomega v1.27.6
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc3
@@ -25,7 +26,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.1.0-rc.2
 	github.com/opencontainers/runtime-tools v0.9.1-0.20230317050512-e931285f4b69
 	github.com/opencontainers/selinux v1.11.0
-	github.com/openshift/imagebuilder v1.2.5
+	github.com/openshift/imagebuilder v1.2.3
 	github.com/seccomp/libseccomp-golang v0.10.0
 	github.com/sirupsen/logrus v1.9.1
 	github.com/spf13/cobra v1.7.0

@@ -9,9 +9,7 @@ import (
 type ContainerNetwork interface {
 	// NetworkCreate will take a partial filled Network and fill the
 	// missing fields. It creates the Network and returns the full Network.
-	NetworkCreate(Network, *NetworkCreateOptions) (Network, error)
-	// NetworkUpdate will take network name and ID and updates network DNS Servers.
-	NetworkUpdate(nameOrID string, options NetworkUpdateOptions) error
+	NetworkCreate(Network) (Network, error)
 	// NetworkRemove will remove the Network with the given name or ID.
 	NetworkRemove(nameOrID string) error
 	// NetworkList will return all known Networks. Optionally you can
@@ -56,12 +54,8 @@ type Network struct {
 	// to public or other Networks.
 	Internal bool `json:"internal"`
 	// DNSEnabled is whether name resolution is active for container on
-	// this Network. Only supported with the bridge driver.
+	// this Network.
 	DNSEnabled bool `json:"dns_enabled"`
-	// List of custom DNS server for podman's DNS resolver at network level,
-	// all the containers attached to this network will consider resolvers
-	// configured at network level.
-	NetworkDNSServers []string `json:"network_dns_servers,omitempty"`
 	// Labels is a set of key-value labels that have been applied to the
 	// Network.
 	Labels map[string]string `json:"labels,omitempty"`
@@ -70,14 +64,6 @@ type Network struct {
 	Options map[string]string `json:"options,omitempty"`
 	// IPAMOptions contains options used for the ip assignment.
 	IPAMOptions map[string]string `json:"ipam_options,omitempty"`
-}
-
-// NetworkOptions for a given container.
-type NetworkUpdateOptions struct {
-	// List of custom DNS server for podman's DNS resolver.
-	// Priority order will be kept as defined by user in the configuration.
-	AddDNSServers    []string `json:"add_dns_servers,omitempty"`
-	RemoveDNSServers []string `json:"remove_dns_servers,omitempty"`
 }
 
 // IPNet is used as custom net.IPNet type to add Marshal/Unmarshal methods.
@@ -213,7 +199,6 @@ type NetAddress struct {
 // PerNetworkOptions are options which should be set on a per network basis.
 type PerNetworkOptions struct {
 	// StaticIPs for this container. Optional.
-	// swagger:type []string
 	StaticIPs []net.IP `json:"static_ips,omitempty"`
 	// Aliases contains a list of names which the dns server should resolve
 	// to this container. Should only be set when DNSEnabled is true on the Network.
@@ -222,7 +207,6 @@ type PerNetworkOptions struct {
 	// Optional.
 	Aliases []string `json:"aliases,omitempty"`
 	// StaticMac for this container. Optional.
-	// swagger:strfmt string
 	StaticMAC HardwareAddr `json:"static_mac,omitempty"`
 	// InterfaceName for this container. Required in the backend.
 	// Optional in the frontend. Will be filled with ethX (where X is a integer) when empty.
@@ -240,9 +224,6 @@ type NetworkOptions struct {
 	// Networks contains all networks with the PerNetworkOptions.
 	// The map should contain at least one element.
 	Networks map[string]PerNetworkOptions `json:"networks"`
-	// List of custom DNS server for podman's DNS resolver.
-	// Priority order will be kept as defined by user in the configuration.
-	DNSServers []string `json:"dns_servers,omitempty"`
 }
 
 // PortMapping is one or more ports that will be mapped into the container.
@@ -299,8 +280,3 @@ type TeardownOptions struct {
 
 // FilterFunc can be passed to NetworkList to filter the networks.
 type FilterFunc func(Network) bool
-
-type NetworkCreateOptions struct {
-	// IgnoreIfExists if true, do not fail if the network already exists
-	IgnoreIfExists bool
-}

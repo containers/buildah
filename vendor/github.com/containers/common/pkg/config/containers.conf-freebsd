@@ -29,11 +29,6 @@
 #
 #base_hosts_file = ""
 
-# The database backend of Podman.  Supported values are "boltdb" (default) and
-# "sqlite". Please run `podman-system-reset` prior to changing the database
-# backend of an existing deployment, to make sure Podman can operate correctly.
-#database_backend="boltdb"
-
 # List of default capabilities for containers. If it is empty or commented out,
 # the default capabilities defined in the container engine will be added.
 #
@@ -217,6 +212,12 @@ default_sysctls = [
 #
 #userns = "host"
 
+# Number of UIDs to allocate for the automatic container creation.
+# UIDs are allocated from the "container" UIDs listed in
+# /etc/subuid & /etc/subgid
+#
+#userns_size = 65536
+
 # Default way to to create a UTS namespace for the container
 # Options are:
 # `private`        Create private UTS Namespace for the container.
@@ -257,15 +258,6 @@ default_sysctls = [
 #  "/usr/local/lib/cni",
 #  "/usr/lib/cni",
 #  "/opt/cni/bin",
-#]
-
-# List of directories that will be searched for netavark plugins.
-#
-#netavark_plugin_dirs = [
-#  "/usr/local/libexec/netavark",
-#	"/usr/libexec/netavark",
-#	"/usr/local/lib/netavark",
-#	"/usr/lib/netavark",
 #]
 
 # The network name of the default network to attach pods to.
@@ -410,9 +402,9 @@ default_sysctls = [
 
 # Infra (pause) container image name for pod infra containers.  When running a
 # pod, we start a `pause` process in a container to hold open the namespaces
-# associated with the  pod.  This container does nothing other than sleep,
-# reserving the pod's resources for the lifetime of the pod. By default container
-# engines run a built-in container using the pause executable. If you want override
+# associated with the  pod.  This container does nothing other then sleep,
+# reserving the pods resources for the lifetime of the pod. By default container
+# engines run a builtin container using the pause executable. If you want override
 # specify an image to pull.
 #
 #infra_image = ""
@@ -493,7 +485,7 @@ default_sysctls = [
 # List of the OCI runtimes that support --format=json. When json is supported
 # engine will use it for reporting nicer errors.
 #
-#runtime_supports_json = ["crun", "runc", "kata", "runsc", "youki", "krun"]
+#runtime_supports_json = ["crun", "runc", "kata", "runsc", "krun"]
 
 # List of the OCI runtimes that supports running containers with KVM Separation.
 #
@@ -598,13 +590,6 @@ default_sysctls = [
 #  "/run/current-system/sw/bin/runsc",
 #]
 
-#youki = [
-#  "/usr/local/bin/youki",
-#  "/usr/bin/youki",
-#  "/bin/youki",
-#  "/run/current-system/sw/bin/youki",
-#]
-
 #krun = [
 #  "/usr/bin/krun",
 #  "/usr/local/bin/krun",
@@ -640,14 +625,9 @@ default_sysctls = [
 # the source and destination. An optional third field `:ro` can be used to
 # tell the container engines to mount the volume readonly.
 #
-#volumes = [
+# volumes = [
 #  "$HOME:$HOME",
 #]
-
-# Virtualization provider used to run Podman machine.
-# If it is empty or commented out, the default provider will be used.
-#
-#provider = ""
 
 # The [machine] table MUST be the last entry in this file.
 # (Unless another table is added)

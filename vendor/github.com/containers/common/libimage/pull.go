@@ -116,6 +116,10 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 		return nil, fmt.Errorf("pulling all tags is not supported for %s transport", ref.Transport().Name())
 	}
 
+	if r.eventChannel != nil {
+		defer r.writeEvent(&Event{ID: "", Name: name, Time: time.Now(), Type: EventTypeImagePull})
+	}
+
 	// Some callers may set the platform via the system context at creation
 	// time of the runtime.  We need this information to decide whether we
 	// need to enforce pulling from a registry (see
@@ -156,10 +160,10 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 	}
 
 	localImages := []*Image{}
-	for _, iName := range pulledImages {
-		image, _, err := r.LookupImage(iName, nil)
+	for _, name := range pulledImages {
+		image, _, err := r.LookupImage(name, nil)
 		if err != nil {
-			return nil, fmt.Errorf("locating pulled image %q name in containers storage: %w", iName, err)
+			return nil, fmt.Errorf("error locating pulled image %q name in containers storage: %w", name, err)
 		}
 
 		// Note that we can ignore the 2nd return value here. Some
@@ -178,11 +182,6 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 			} else {
 				fmt.Fprintf(options.Writer, "WARNING: %v\n", matchError)
 			}
-		}
-
-		if r.eventChannel != nil {
-			// Note that we use the input name here to preserve the transport data.
-			r.writeEvent(&Event{ID: image.ID(), Name: name, Time: time.Now(), Type: EventTypeImagePull})
 		}
 
 		localImages = append(localImages, image)
@@ -233,7 +232,7 @@ func (r *Runtime) copyFromDefault(ctx context.Context, ref types.ImageReference,
 		imageName = storageName
 
 	case ociArchiveTransport.Transport.Name():
-		manifestDescriptor, err := ociArchiveTransport.LoadManifestDescriptorWithContext(r.SystemContext(), ref)
+		manifestDescriptor, err := ociArchiveTransport.LoadManifestDescriptor(ref)
 		if err != nil {
 			return nil, err
 		}
@@ -319,7 +318,7 @@ func (r *Runtime) storageReferencesReferencesFromArchiveReader(ctx context.Conte
 	for _, destName := range destNames {
 		destRef, err := storageTransport.Transport.ParseStoreReference(r.store, destName)
 		if err != nil {
-			return nil, nil, fmt.Errorf("parsing dest reference name %#v: %w", destName, err)
+			return nil, nil, fmt.Errorf("error parsing dest reference name %#v: %w", destName, err)
 		}
 		references = append(references, destRef)
 	}
@@ -400,7 +399,7 @@ func (r *Runtime) copyFromRegistry(ctx context.Context, ref types.ImageReference
 		}
 		tagged, err := reference.WithTag(named, tag)
 		if err != nil {
-			return nil, fmt.Errorf("creating tagged reference (name %s, tag %s): %w", named.String(), tag, err)
+			return nil, fmt.Errorf("error creating tagged reference (name %s, tag %s): %w", named.String(), tag, err)
 		}
 		pulled, err := r.copySingleImageFromRegistry(ctx, tagged.String(), pullPolicy, options)
 		if err != nil {
