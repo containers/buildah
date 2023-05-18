@@ -524,14 +524,12 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	pidFile := filepath.Join(bundlePath, "pid")
 	args := append(append(append(runtimeArgs, "create", "--bundle", bundlePath, "--pid-file", pidFile), moreCreateArgs...), containerName)
 	create := exec.Command(runtime, args...)
-	setPdeathsig(create)
 	create.Dir = bundlePath
 	stdin, stdout, stderr := getCreateStdio()
 	create.Stdin, create.Stdout, create.Stderr = stdin, stdout, stderr
 
 	args = append(options.Args, "start", containerName)
 	start := exec.Command(runtime, args...)
-	setPdeathsig(start)
 	start.Dir = bundlePath
 	start.Stderr = os.Stderr
 
@@ -1122,7 +1120,6 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		return fmt.Errorf("encoding configuration for %q: %w", runUsingRuntimeCommand, conferr)
 	}
 	cmd := reexec.Command(runUsingRuntimeCommand)
-	setPdeathsig(cmd)
 	cmd.Dir = bundlePath
 	cmd.Stdin = options.Stdin
 	if cmd.Stdin == nil {
