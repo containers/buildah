@@ -10,8 +10,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/internal/util"
-	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/config"
@@ -32,9 +31,9 @@ type fromReply struct {
 	quiet           bool
 	signaturePolicy string
 	tlsVerify       bool
-	*buildahcli.FromAndBudResults
-	*buildahcli.UserNSResults
-	*buildahcli.NameSpaceResults
+	*cli.FromAndBudResults
+	*cli.UserNSResults
+	*cli.NameSpaceResults
 }
 
 var suffix string
@@ -44,9 +43,9 @@ func init() {
 		fromDescription = "\n  Creates a new working container, either from scratch or using a specified\n  image as a starting point."
 		opts            fromReply
 	)
-	fromAndBudResults := buildahcli.FromAndBudResults{}
-	userNSResults := buildahcli.UserNSResults{}
-	namespaceResults := buildahcli.NameSpaceResults{}
+	fromAndBudResults := cli.FromAndBudResults{}
+	userNSResults := cli.UserNSResults{}
+	namespaceResults := cli.NameSpaceResults{}
 	fromCommand := &cobra.Command{
 		Use:   "from",
 		Short: "Create a working container based on an image",
@@ -96,13 +95,13 @@ func init() {
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 
 	// Add in the common flags
-	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	fromAndBudFlags, err := cli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
 	if err != nil {
 		logrus.Errorf("failed to setup From and Bud flags: %v", err)
 		os.Exit(1)
 	}
 	flags.AddFlagSet(&fromAndBudFlags)
-	flags.SetNormalizeFunc(buildahcli.AliasFlags)
+	flags.SetNormalizeFunc(cli.AliasFlags)
 
 	rootCmd.AddCommand(fromCommand)
 }
@@ -197,7 +196,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if len(args) == 0 {
 		return errors.New("an image name (or \"scratch\") must be specified")
 	}
-	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+	if err := cli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 	if len(args) > 1 {
@@ -276,7 +275,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
-	format, err := util.GetFormat(iopts.format)
+	format, err := cli.GetFormat(iopts.format)
 	if err != nil {
 		return err
 	}
@@ -296,7 +295,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
 
-	decConfig, err := util.DecryptConfig(iopts.DecryptionKeys)
+	decConfig, err := cli.DecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
 		return fmt.Errorf("unable to obtain decrypt config: %w", err)
 	}

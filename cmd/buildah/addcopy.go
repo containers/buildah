@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/internal/util"
-	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/storage"
@@ -81,8 +80,8 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	}
 	flags.StringVar(&opts.ignoreFile, "ignorefile", "", "path to .containerignore file")
 	flags.StringVar(&opts.contextdir, "contextdir", "", "context directory path")
-	flags.IntVar(&opts.retry, "retry", buildahcli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
-	flags.StringVar(&opts.retryDelay, "retry-delay", buildahcli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
+	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
+	flags.StringVar(&opts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing registries when pulling images. TLS verification cannot be used when talking to an insecure registry.")
 	if err := flags.MarkHidden("tls-verify"); err != nil {
@@ -133,7 +132,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		return errors.New("src must be specified")
 	}
 
-	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+	if err := cli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 
@@ -166,7 +165,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 				return fmt.Errorf("building system context: %w", err2)
 			}
 
-			decryptConfig, err2 := util.DecryptConfig(iopts.decryptionKeys)
+			decryptConfig, err2 := cli.DecryptConfig(iopts.decryptionKeys)
 			if err2 != nil {
 				return fmt.Errorf("unable to obtain decrypt config: %w", err2)
 			}

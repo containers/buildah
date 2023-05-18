@@ -10,10 +10,9 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
-	iutil "github.com/containers/buildah/internal/util"
-	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
+	util "github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
@@ -90,8 +89,8 @@ func init() {
 	flags.StringVar(&opts.compressionFormat, "compression-format", "", "compression format to use")
 	flags.IntVar(&opts.compressionLevel, "compression-level", 0, "compression level to use")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
-	flags.IntVar(&opts.retry, "retry", buildahcli.MaxPullPushRetries, "number of times to retry in case of failure when performing push/pull")
-	flags.StringVar(&opts.retryDelay, "retry-delay", buildahcli.PullPushRetryDelay.String(), "delay between retries in case of push/pull failures")
+	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing push/pull")
+	flags.StringVar(&opts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of push/pull failures")
 	flags.BoolVar(&opts.rm, "rm", false, "remove the manifest list if push succeeds")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing image")
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
@@ -113,7 +112,7 @@ func init() {
 func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	var src, destSpec string
 
-	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+	if err := cli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
@@ -187,7 +186,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		}
 	}
 
-	encConfig, encLayers, err := iutil.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
+	encConfig, encLayers, err := cli.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
