@@ -2,7 +2,7 @@ FROM alpine as builder
 RUN mkdir subdir
 COPY hey .
 
-FROM docker.io/library/debian:testing-slim
+FROM debian
 RUN  --mount=type=bind,source=.,dst=/tmp,z \
      --mount=type=tmpfs,dst=/var/tmp \
     cat /tmp/hey
