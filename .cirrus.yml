@@ -191,7 +191,7 @@ conformance_task:
     gce_instance:
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
 
-    timeout_in: 25m
+    timeout_in: 30m
 
     matrix:
         - env:
