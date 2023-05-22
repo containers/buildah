@@ -3085,7 +3085,8 @@ _EOF
 }
 
 @test "bud with copy-from in Dockerfile no prior FROM" {
-  _prefetch busybox quay.io/libpod/testimage:20210610
+  want_tag=20221018
+  _prefetch busybox quay.io/libpod/testimage:$want_tag
   target=no-prior-from
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-from/Dockerfile $BUDFILES/copy-from
 
@@ -3096,7 +3097,7 @@ _EOF
 
   newfile="/home/busyboxpodman/copied-testimage-id"
   test -e $mnt/$newfile
-  expect_output --from="$(< $mnt/$newfile)" "20210610" "Contents of $newfile"
+  expect_output --from="$(< $mnt/$newfile)" "$want_tag" "Contents of $newfile"
 }
 
 @test "bud with copy-from with bad from flag in Dockerfile with --layers" {
