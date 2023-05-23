@@ -264,7 +264,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	hostFile := ""
 	if !options.NoHosts && !contains(volumes, config.DefaultHostsFile) && options.ConfigureNetwork != define.NetworkDisabled {
-		hostFile, err = b.generateHosts(path, rootIDPair, mountPoint)
+		hostFile, err = b.generateHosts(path, rootIDPair, mountPoint, spec.Hostname)
 		if err != nil {
 			return err
 		}

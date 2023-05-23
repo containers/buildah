@@ -41,6 +41,8 @@ type Params struct {
 	HostContainersInternalIP string
 	// TargetFile where the hosts are written to.
 	TargetFile string
+	// hostname of the working container
+	Hostname string
 }
 
 // New will create a new hosts file and write this to the target file.
@@ -120,6 +122,10 @@ func new(params *Params) error {
 	if params.HostContainersInternalIP != "" {
 		e := HostEntry{IP: params.HostContainersInternalIP, Names: []string{hostContainersInternal}}
 		containerIPs = append(containerIPs, e)
+		if params.Hostname != "" {
+			c := HostEntry{IP: params.HostContainersInternalIP, Names: []string{params.Hostname}}
+			containerIPs = append(containerIPs, c)
+		}
 	}
 	containerIPs = append(containerIPs, params.ContainerIPs...)
 

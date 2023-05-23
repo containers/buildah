@@ -117,7 +117,7 @@ func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServe
 }
 
 // generateHosts creates a containers hosts file
-func (b *Builder) generateHosts(rdir string, chownOpts *idtools.IDPair, imageRoot string) (string, error) {
+func (b *Builder) generateHosts(rdir string, chownOpts *idtools.IDPair, imageRoot, hostname string) (string, error) {
 	conf, err := config.Default()
 	if err != nil {
 		return "", err
@@ -134,6 +134,7 @@ func (b *Builder) generateHosts(rdir string, chownOpts *idtools.IDPair, imageRoo
 		ExtraHosts:               b.CommonBuildOpts.AddHost,
 		HostContainersInternalIP: etchosts.GetHostContainersInternalIP(conf, nil, nil),
 		TargetFile:               targetfile,
+		Hostname:                 hostname,
 	}); err != nil {
 		return "", err
 	}
