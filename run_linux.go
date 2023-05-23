@@ -504,6 +504,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	}
 
 	cmd := exec.Command(slirp4netns, "--mtu", "65520", "-r", "3", "-c", strconv.Itoa(pid), "tap0")
+	setPdeathsig(cmd)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	cmd.ExtraFiles = []*os.File{rootlessSlirpSyncW}
 

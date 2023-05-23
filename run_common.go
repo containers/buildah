@@ -524,12 +524,14 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	pidFile := filepath.Join(bundlePath, "pid")
 	args := append(append(append(runtimeArgs, "create", "--bundle", bundlePath, "--pid-file", pidFile), moreCreateArgs...), containerName)
 	create := exec.Command(runtime, args...)
+	setPdeathsig(create)
 	create.Dir = bundlePath
 	stdin, stdout, stderr := getCreateStdio()
 	create.Stdin, create.Stdout, create.Stderr = stdin, stdout, stderr
 
 	args = append(options.Args, "start", containerName)
 	start := exec.Command(runtime, args...)
+	setPdeathsig(start)
 	start.Dir = bundlePath
 	start.Stderr = os.Stderr
 
@@ -1105,6 +1107,10 @@ func runUsingRuntimeMain() {
 
 func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks,
 	moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName, buildContainerName, hostsFile string) (err error) {
+	// Lock the caller to a single OS-level thread.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	var confwg sync.WaitGroup
 	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{
 		Options:          options,
@@ -1120,6 +1126,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		return fmt.Errorf("encoding configuration for %q: %w", runUsingRuntimeCommand, conferr)
 	}
 	cmd := reexec.Command(runUsingRuntimeCommand)
+	setPdeathsig(cmd)
 	cmd.Dir = bundlePath
 	cmd.Stdin = options.Stdin
 	if cmd.Stdin == nil {
@@ -1929,4 +1936,14 @@ func (b *Builder) cleanupRunMounts(context *imageTypes.SystemContext, mountpoint
 	// unlock if any locked files from this RUN statement
 	internalParse.UnlockLockArray(artifacts.TargetLocks)
 	return prevErr
+}
+
+// setPdeathsig sets a parent-death signal for the process
+// the goroutine that starts the child process should lock itself to
+// a native thread using runtime.LockOSThread() until the child exits
+func setPdeathsig(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
 }
