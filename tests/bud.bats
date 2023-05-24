@@ -5983,7 +5983,7 @@ _EOF
   expect_output --substring "1000:1000 /home/http/public"
 }
 
-@test "build interruption" {
+function build_signalled {
   skip_if_no_runtime
 
   _prefetch alpine
@@ -5999,13 +5999,25 @@ _EOF
   echo cat is pid ${cat_pid}
   # kill the buildah process early
   sleep 30
-  kill -s SIGINT "${buildah_pid}"
+  kill -s ${1} "${buildah_pid}"
   # wait for output to stop getting written from anywhere
   wait "${buildah_pid}" "${cat_pid}"
   echo log:
   cat ${TEST_SCRATCH_DIR}/log
   echo checking:
   ! grep 'not fully killed' ${TEST_SCRATCH_DIR}/log
+}
+
+@test "build interrupted" {
+  build_signalled SIGINT
+}
+
+@test "build terminated" {
+  build_signalled SIGTERM
+}
+
+@test "build killed" {
+  build_signalled SIGKILL
 }
 
 @test "build-multiple-parse" {
