@@ -1,3 +1,3 @@
-FROM registry.centos.org/centos/centos:centos7
+FROM docker.io/library/centos:centos7
 COPY script /usr/bin
 RUN ls -al /usr/bin/script

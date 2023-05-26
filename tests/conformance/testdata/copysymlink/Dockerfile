@@ -1,2 +1,2 @@
-FROM registry.centos.org/centos/centos:centos7
+FROM docker.io/library/centos:centos7
 COPY file-link.tar.gz /
