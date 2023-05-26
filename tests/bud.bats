@@ -1965,6 +1965,17 @@ _EOF
   done
   run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imagetwo
   expect_output ""
+
+  # build another multi-stage image with different label, it should use stages from cache from previous build
+  run_buildah build --layers $WITH_POLICY_JSON --label anotherfancylabel=true -t imagethree -f Dockerfile.name $BUDFILES/multi-stage-builds
+  # must use all steps from cache but should not contain label
+  for i in 2 6;do
+      expect_output --substring --from="${lines[$i]}" "Using cache"
+  done
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imagetwo
+  expect_output ""
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "anotherfancylabel"}}' imagethree
+  expect_output "true"
 }
 
 @test "bud-multi-stage-builds" {
