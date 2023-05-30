@@ -17,7 +17,7 @@ Conformance tests use Docker CE to build images to be compared with images built
 
 You can run all of the tests with go test:
 ```
-go test -v -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" ./tests/conformance
+go test -v -timeout=30m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" ./tests/conformance
 ```
 
 If you want to run one of the test cases you can use the "-run" flag:
