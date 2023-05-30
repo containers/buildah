@@ -698,6 +698,8 @@ To later use the secret, use the --mount flag in a `RUN` instruction within a `C
 
 `RUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret`
 
+Note: Changing the contents of secret files will not trigger a rebuild of layers that use said secrets.
+
 **--security-opt**=[]
 
 Security Options

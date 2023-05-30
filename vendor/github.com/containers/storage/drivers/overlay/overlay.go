@@ -202,6 +202,8 @@ func checkSupportVolatile(home, runhome string) (bool, error) {
 			if err = cachedFeatureRecord(runhome, feature, usingVolatile, ""); err != nil {
 				return false, fmt.Errorf("recording volatile-being-used status: %w", err)
 			}
+		} else {
+			usingVolatile = false
 		}
 	}
 	return usingVolatile, nil
@@ -1054,6 +1056,11 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 		if err := d.quotaCtl.SetQuota(dir, quota); err != nil {
 			return err
 		}
+		if imageStore != "" {
+			if err := d.quotaCtl.SetQuota(imageStore, quota); err != nil {
+				return err
+			}
+		}
 	}
 
 	perms := defaultPerms
@@ -1285,6 +1292,9 @@ func (d *Driver) Remove(id string) error {
 	}
 	if d.quotaCtl != nil {
 		d.quotaCtl.ClearQuota(dir)
+		if d.imageStore != "" {
+			d.quotaCtl.ClearQuota(d.imageStore)
+		}
 	}
 	return nil
 }
@@ -1678,16 +1688,15 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		// Use mountFrom when the mount data has exceeded the page size. The mount syscall fails if
 		// the mount data cannot fit within a page and relative links make the mount data much
 		// smaller at the expense of requiring a fork exec to chdir().
-
-		workdir = path.Join(id, "work")
 		if readWrite {
 			diffDir := path.Join(id, "diff")
-			opts = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(absLowers, ":"), diffDir, workdir)
+			workDir := path.Join(id, "work")
+			opts = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(absLowers, ":"), diffDir, workDir)
 		} else {
 			opts = fmt.Sprintf("lowerdir=%s:%s", diffDir, strings.Join(absLowers, ":"))
 		}
 		if len(optsList) > 0 {
-			opts = fmt.Sprintf("%s,%s", opts, strings.Join(optsList, ","))
+			opts = strings.Join(append([]string{opts}, optsList...), ",")
 		}
 		mountData = label.FormatMountLabel(opts, options.MountLabel)
 		mountFunc = func(source string, target string, mType string, flags uintptr, label string) error {
@@ -1697,9 +1706,9 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 	}
 
 	// overlay has a check in place to prevent mounting the same file system twice
-	// if volatile was already specified.
-	err = os.RemoveAll(filepath.Join(workdir, "work/incompat/volatile"))
-	if err != nil && !os.IsNotExist(err) {
+	// if volatile was already specified. Yes, the kernel repeats the "work" component.
+	err = os.RemoveAll(filepath.Join(workdir, "work", "incompat", "volatile"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
 
@@ -1769,11 +1778,13 @@ func (d *Driver) Put(id string) error {
 	if !unmounted {
 		if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil && !os.IsNotExist(err) {
 			logrus.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
+			return fmt.Errorf("unmounting %q: %w", mountpoint, err)
 		}
 	}
 
 	if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
 		logrus.Debugf("Failed to remove mountpoint %s overlay: %s - %v", id, mountpoint, err)
+		return fmt.Errorf("removing mount point %q: %w", mountpoint, err)
 	}
 
 	return nil

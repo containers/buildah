@@ -342,12 +342,12 @@ func New(name string, config Options) (Driver, error) {
 	}
 
 	// Guess for prior driver
-	driversMap := scanPriorDrivers(config.Root)
+	driversMap := ScanPriorDrivers(config.Root)
 
 	// use the supplied priority list unless it is empty
 	prioList := config.DriverPriority
 	if len(prioList) == 0 {
-		prioList = priority
+		prioList = Priority
 	}
 
 	for _, name := range prioList {
@@ -419,12 +419,12 @@ func isDriverNotSupported(err error) bool {
 }
 
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
-func scanPriorDrivers(root string) map[string]bool {
+func ScanPriorDrivers(root string) map[string]bool {
 	driversMap := make(map[string]bool)
 
 	for driver := range drivers {
 		p := filepath.Join(root, driver)
-		if _, err := os.Stat(p); err == nil && driver != "vfs" {
+		if _, err := os.Stat(p); err == nil {
 			driversMap[driver] = true
 		}
 	}
