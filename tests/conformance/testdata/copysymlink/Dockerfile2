@@ -1,7 +1,7 @@
-FROM docker.io/library/centos:centos7
+FROM quay.io/libpod/centos:7
 COPY file.tar.gz /
 RUN ln -s file.tar.gz file-link.tar.gz
 RUN ls -l /file-link.tar.gz
-FROM docker.io/library/centos:centos7
+FROM quay.io/libpod/centos:7
 COPY --from=0 /file-link.tar.gz /
 RUN ls -l /file-link.tar.gz
