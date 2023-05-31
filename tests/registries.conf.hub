@@ -5,7 +5,7 @@
 
 # The default location for this configuration file is /etc/containers/registries.conf.
 
-# The only valid categories are: 'registries.search', 'registries.insecure', 
+# The only valid categories are: 'registries.search', 'registries.insecure',
 # and 'registries.block'.
 
 [registries.search]

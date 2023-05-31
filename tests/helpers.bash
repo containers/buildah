@@ -130,9 +130,7 @@ function teardown_tests() {
 function normalize_image_name() {
     for img in "$@"; do
         if [[ "${img##*/}" == "$img" ]] ; then
-            echo -n docker.io/library/"$img"
-        elif [[ docker.io/"${img##*/}" == "$img" ]] ; then
-            echo -n docker.io/library/"${img##*/}"
+            echo -n quay.io/libpod/"$img"
         else
             echo -n "$img"
         fi

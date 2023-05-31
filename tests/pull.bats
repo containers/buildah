@@ -29,10 +29,10 @@ load helpers
 }
 
 @test "pull-blocked" {
-  run_buildah 125 --registries-conf ${TEST_SOURCES}/registries.conf.block pull $WITH_POLICY_JSON docker.io/alpine
-  expect_output --substring "registry docker.io is blocked in"
+  run_buildah 125 --registries-conf ${TEST_SOURCES}/registries.conf.block pull $WITH_POLICY_JSON quay.io/libpod/alpine
+  expect_output --substring "registry quay.io is blocked in"
 
-  run_buildah --retry --registries-conf ${TEST_SOURCES}/registries.conf       pull $WITH_POLICY_JSON docker.io/alpine
+  run_buildah --retry --registries-conf ${TEST_SOURCES}/registries.conf       pull $WITH_POLICY_JSON quay.io/libpod/alpine
 }
 
 @test "pull-from-registry" {
@@ -61,7 +61,7 @@ load helpers
 
 @test "pull-from-docker-archive" {
   run_buildah --retry pull $WITH_POLICY_JSON alpine
-  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest docker-archive:${TEST_SCRATCH_DIR}/alp.tar:alpine:latest
+  run_buildah push $WITH_POLICY_JSON quay.io/libpod/alpine:latest docker-archive:${TEST_SCRATCH_DIR}/alp.tar:alpine:latest
   run_buildah rmi alpine
   run_buildah --retry pull $WITH_POLICY_JSON docker-archive:${TEST_SCRATCH_DIR}/alp.tar
   run_buildah images --format "{{.Name}}:{{.Tag}}"
@@ -72,7 +72,7 @@ load helpers
 
 @test "pull-from-oci-archive" {
   run_buildah --retry pull $WITH_POLICY_JSON alpine
-  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest oci-archive:${TEST_SCRATCH_DIR}/alp.tar:alpine
+  run_buildah push $WITH_POLICY_JSON quay.io/libpod/alpine:latest oci-archive:${TEST_SCRATCH_DIR}/alp.tar:alpine
   run_buildah rmi alpine
   run_buildah pull $WITH_POLICY_JSON oci-archive:${TEST_SCRATCH_DIR}/alp.tar
   run_buildah images --format "{{.Name}}:{{.Tag}}"
@@ -84,7 +84,7 @@ load helpers
 @test "pull-from-local-directory" {
   mkdir ${TEST_SCRATCH_DIR}/buildahtest
   run_buildah --retry pull $WITH_POLICY_JSON alpine
-  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest dir:${TEST_SCRATCH_DIR}/buildahtest
+  run_buildah push $WITH_POLICY_JSON quay.io/libpod/alpine:latest dir:${TEST_SCRATCH_DIR}/buildahtest
   run_buildah rmi alpine
   run_buildah pull --quiet $WITH_POLICY_JSON dir:${TEST_SCRATCH_DIR}/buildahtest
   imageID="$output"
@@ -101,11 +101,11 @@ load helpers
   run docker pull alpine
   echo "$output"
   assert "$status" -eq 0 "status of docker (yes, docker) pull alpine"
-  run_buildah pull $WITH_POLICY_JSON docker-daemon:docker.io/library/alpine:latest
+  run_buildah pull $WITH_POLICY_JSON docker-daemon:quay.io/libpod/alpine:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine:latest"
   run_buildah rmi alpine
-  run_buildah 125 pull --all-tags $WITH_POLICY_JSON docker-daemon:docker.io/library/alpine:latest
+  run_buildah 125 pull --all-tags $WITH_POLICY_JSON docker-daemon:quay.io/libpod/alpine:latest
   expect_output --substring "pulling all tags is not supported for docker-daemon transport"
 }
 
@@ -150,7 +150,7 @@ load helpers
 
 @test "pull-from-oci-directory" {
   run_buildah --retry pull $WITH_POLICY_JSON alpine
-  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest oci:${TEST_SCRATCH_DIR}/alpine
+  run_buildah push $WITH_POLICY_JSON quay.io/libpod/alpine:latest oci:${TEST_SCRATCH_DIR}/alpine
   run_buildah rmi alpine
   run_buildah pull $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
   run_buildah images --format "{{.Name}}:{{.Tag}}"
@@ -160,21 +160,21 @@ load helpers
 }
 
 @test "pull-denied-by-registry-sources" {
-  export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["docker.io"]}'
+  export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["quay.io"]}'
 
   run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
-  expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
+  expect_output --substring 'registry "quay.io" denied by policy: it is in the blocked registries list'
 
   run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
-  expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
+  expect_output --substring 'registry "quay.io" denied by policy: it is in the blocked registries list'
 
   export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
 
   run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
-  expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
+  expect_output --substring 'registry "quay.io" denied by policy: not in allowed registries list'
 
   run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
-  expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
+  expect_output --substring 'registry "quay.io" denied by policy: not in allowed registries list'
 }
 
 @test "pull should fail with nonexistent authfile" {
@@ -298,7 +298,7 @@ load helpers
   # create bogus alpine image
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit -q $cid docker.io/library/alpine
+  run_buildah commit -q $cid quay.io/libpod/alpine
   iid=$output
 
   #  If image does not exist the never will succeed, but iid should not change
@@ -310,7 +310,7 @@ load helpers
   assert "$output" != "$iid" "pulled image should have a new IID"
 
   # Recreate image
-  run_buildah commit -q $cid docker.io/library/alpine
+  run_buildah commit -q $cid quay.io/libpod/alpine
   iid=$output
 
   # Make sure missing image works

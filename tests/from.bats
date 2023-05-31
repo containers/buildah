@@ -98,21 +98,21 @@ load helpers
   run_buildah rm $output
   run_buildah rmi alpine alpine2
 
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/alpine
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON quay.io/libpod/alpine
   run_buildah rm $output
-  run_buildah rmi docker.io/alpine
+  run_buildah rmi quay.io/libpod/alpine
 
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/alpine:latest
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON quay.io/libpod/alpine:latest
   run_buildah rm $output
-  run_buildah rmi docker.io/alpine:latest
+  run_buildah rmi quay.io/libpod/alpine:latest
 
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:7
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON quay.io/libpod/centos:7
   run_buildah rm $output
-  run_buildah rmi docker.io/centos:7
+  run_buildah rmi quay.io/libpod/centos:7
 
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:latest
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON quay.io/libpod/centos:latest
   run_buildah rm $output
-  run_buildah rmi docker.io/centos:latest
+  run_buildah rmi quay.io/libpod/centos:latest
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
@@ -394,11 +394,11 @@ load helpers
 }
 
 @test "from --pull-always: emits 'Getting' even if image is cached" {
-  _prefetch docker.io/busybox
-  run_buildah inspect --format "{{.FromImageDigest}}" docker.io/busybox
+  _prefetch quay.io/libpod/busybox
+  run_buildah inspect --format "{{.FromImageDigest}}" quay.io/libpod/busybox
   fromDigest="$output"
-  run_buildah pull $WITH_POLICY_JSON docker.io/busybox
-  run_buildah from $WITH_POLICY_JSON --name busyboxc --pull-always docker.io/busybox
+  run_buildah pull $WITH_POLICY_JSON quay.io/libpod/busybox
+  run_buildah from $WITH_POLICY_JSON --name busyboxc --pull-always quay.io/libpod/busybox
   expect_output --substring "Getting"
   run_buildah commit $WITH_POLICY_JSON busyboxc fakename-img
   run_buildah 125 from $WITH_POLICY_JSON --pull=always fakename-img
@@ -407,14 +407,14 @@ load helpers
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' fakename-img
   expect_output "$fromDigest" "base digest from busybox"
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' fakename-img
-  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+  expect_output "quay.io/libpod/busybox:latest" "base name from busybox"
 }
 
 @test "from --quiet: should not emit progress messages" {
   # Force a pull. Normally this would say 'Getting image ...' and other
   # progress messages. With --quiet, we should see only the container name.
   run_buildah '?' rmi busybox
-  run_buildah from $WITH_POLICY_JSON --quiet docker.io/busybox
+  run_buildah from $WITH_POLICY_JSON --quiet quay.io/libpod/busybox
   expect_output "busybox-working-container"
 }
 

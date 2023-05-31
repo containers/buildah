@@ -1247,7 +1247,7 @@ _EOF
   run_buildah inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
   expect_output "map[8080/tcp:{}]"
   run_buildah inspect --format "{{index .Docker.History 2}}" test1
-  expect_output --substring "FROM docker.io/library/alpine:latest"
+  expect_output --substring "FROM quay.io/libpod/alpine:latest"
 
   run_buildah build $WITH_POLICY_JSON --layers -t test3 -f Dockerfile.2 $contextdir
   run_buildah images -a
@@ -1285,7 +1285,7 @@ _EOF
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' test
   expect_output "$fromDigest" "base digest from alpine"
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' test
-  expect_output "docker.io/library/alpine:latest" "base name from alpine"
+  expect_output "quay.io/libpod/alpine:latest" "base name from alpine"
 
   run_buildah build $WITH_POLICY_JSON --layers -t test1 -f Dockerfile.6 $BUDFILES/use-layers
   run_buildah images -a
@@ -1383,7 +1383,7 @@ _EOF
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
   expect_output "$fromDigest" "base digest from busybox"
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
-  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+  expect_output "quay.io/libpod/busybox:latest" "base name from busybox"
 
   run_buildah from $WITH_POLICY_JSON ${target}
   run_buildah rmi -f ${target}
@@ -1394,7 +1394,7 @@ _EOF
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
   expect_output "$fromDigest" "base digest from busybox"
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
-  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+  expect_output "quay.io/libpod/busybox:latest" "base name from busybox"
 
   run_buildah from $WITH_POLICY_JSON ${target}
   run_buildah rmi -f ${target}
@@ -1405,7 +1405,7 @@ _EOF
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
   expect_output "$fromDigest" "base digest from busybox"
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
-  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+  expect_output "quay.io/libpod/busybox:latest" "base name from busybox"
 
   run_buildah from $WITH_POLICY_JSON ${target}
   run_buildah rmi -f ${target}
@@ -1416,7 +1416,7 @@ _EOF
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
   expect_output "$fromDigest" "base digest from busybox"
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
-  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+  expect_output "quay.io/libpod/busybox:latest" "base name from busybox"
 
   run_buildah from $WITH_POLICY_JSON ${target}
   run_buildah rmi -f ${target}
@@ -5210,11 +5210,11 @@ _EOF
 }
 
 @test "bud with --pull-always" {
-  _prefetch docker.io/library/alpine
+  _prefetch quay.io/libpod/alpine
   run_buildah build --pull-always $WITH_POLICY_JSON -t testpull $BUDFILES/containerfile
-  expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
+  expect_output --from="${lines[1]}" "Trying to pull quay.io/libpod/alpine:latest..."
   run_buildah build --pull=always $WITH_POLICY_JSON -t testpull $BUDFILES/containerfile
-  expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
+  expect_output --from="${lines[1]}" "Trying to pull quay.io/libpod/alpine:latest..."
 }
 
 @test "bud with --memory and --memory-swap" {

@@ -26,7 +26,6 @@ load helpers
     run_buildah rmi -a
   }
   # Test with pairs of short and fully-qualified names that should be the same image.
-  registrypair busybox           docker.io/busybox
-  registrypair busybox           docker.io/library/busybox
+  registrypair busybox           quay.io/libpod/busybox
   registrypair fedora-minimal:32 registry.fedoraproject.org/fedora-minimal:32
 }

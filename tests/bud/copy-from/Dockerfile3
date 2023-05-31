@@ -1,4 +1,4 @@
-FROM docker.io/library/busybox AS build
+FROM quay.io/libpod/busybox AS build
 RUN rm -f /bin/paste
 USER 1001
-COPY --from=docker.io/library/busybox /bin/paste /test/
+COPY --from=quay.io/libpod/busybox /bin/paste /test/

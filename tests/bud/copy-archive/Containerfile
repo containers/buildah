@@ -1,2 +1,2 @@
-FROM docker.io/busybox
+FROM quay.io/libpod/busybox
 ADD test.tar.xz /

@@ -5,11 +5,11 @@
 
 # The default location for this configuration file is /etc/containers/registries.conf.
 
-# The only valid categories are: 'registries.search', 'registries.insecure', 
+# The only valid categories are: 'registries.search', 'registries.insecure',
 # and 'registries.block'.
 
 [registries.search]
-registries = ['docker.io', 'registry.fedoraproject.org', 'registry.access.redhat.com']
+registries = ['quay.io', 'registry.fedoraproject.org', 'registry.access.redhat.com']
 
 # If you need to access insecure registries, add the registry's fully-qualified name.
 # An insecure registry is one that does not have a valid SSL certificate or only does HTTP.
@@ -22,4 +22,4 @@ registries = []
 #
 # Docker only
 [registries.block]
-registries = ['docker.io', 'registry.fedoraproject.org', 'registry.access.redhat.com']
+registries = ['quay.io', 'registry.fedoraproject.org', 'registry.access.redhat.com']
