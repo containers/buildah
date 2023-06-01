@@ -5,13 +5,13 @@ go 1.18
 require (
 	github.com/containerd/containerd v1.7.1
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.53.1-0.20230516065732-82045748b3e3
+	github.com/containers/common v0.53.1-0.20230601085031-462ccddd6cd8
 	github.com/containers/image/v5 v5.25.1-0.20230511204805-94ab8dee62ea
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.46.2-0.20230526114421-55ee2d19292f
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.2+incompatible
-	github.com/docker/docker v23.0.6+incompatible
+	github.com/docker/docker v24.0.2+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.9.7
 	github.com/ghodss/yaml v1.0.0
@@ -30,7 +30,7 @@ require (
 	github.com/sirupsen/logrus v1.9.2
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/crypto v0.9.0
@@ -41,7 +41,7 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/BurntSushi/toml v1.3.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/Microsoft/hcsshim v0.10.0-rc.8 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
