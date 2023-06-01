@@ -147,6 +147,7 @@ func before(cmd *cobra.Command) error {
 	case "", "help", "version", "mount":
 		return nil
 	}
+	debugCapabilities()
 	unshare.MaybeReexecUsingUserNamespace(false)
 	if globalFlagResults.CPUProfile != "" {
 		globalFlagResults.cpuProfileFile, err = os.Create(globalFlagResults.CPUProfile)
