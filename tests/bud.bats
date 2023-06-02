@@ -266,6 +266,10 @@ symlink(subdir)"
 
   run_buildah build --platform linux/$myarch/$myvariant $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
   expect_output --substring "This is built for $myarch"
+
+  # Should work without platform string as well
+  run_buildah build $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
+  expect_output --substring "This is built for $myarch"
 }
 
 @test "build with basename resolving user arg" {
