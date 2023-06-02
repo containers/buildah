@@ -3,7 +3,7 @@ module github.com/containers/buildah
 go 1.18
 
 require (
-	github.com/containerd/containerd v1.7.1
+	github.com/containerd/containerd v1.7.2
 	github.com/containernetworking/cni v1.1.2
 	github.com/containers/common v0.53.1-0.20230601085031-462ccddd6cd8
 	github.com/containers/image/v5 v5.25.1-0.20230511204805-94ab8dee62ea
@@ -27,7 +27,7 @@ require (
 	github.com/opencontainers/selinux v1.11.0
 	github.com/openshift/imagebuilder v1.2.5
 	github.com/seccomp/libseccomp-golang v0.10.0
-	github.com/sirupsen/logrus v1.9.2
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
@@ -138,3 +138,5 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/openshift/imagebuilder => github.com/flouthoc/imagebuilder v1.2.2-0.20230616161108-0f679cacd523

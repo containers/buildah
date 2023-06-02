@@ -42,6 +42,15 @@ var builtinBuildArgs = map[string]string{
 	"BUILDVARIANT":   localspec.Variant,
 }
 
+//  Exposes map of global built-in args with their respective populated values.
+func GetBuiltinBuildArgs() map[string]string {
+	res := make(map[string]string)
+	for k, v := range builtinBuildArgs {
+		res[k] = v
+	}
+	return res
+}
+
 func init() {
 	if localspec.Variant != "" {
 		builtinBuildArgs["TARGETPLATFORM"] = builtinBuildArgs["TARGETPLATFORM"] + "/" + localspec.Variant
