@@ -15,7 +15,7 @@ docs: $(patsubst %.md,%,$(wildcard *.md))
 ### sed is used to filter http/s links as well as relative links
 ### replaces "\" at the end of a line with two spaces
 ### this ensures that manpages are rendered correctly
-	$(SED) -e 's/\((buildah[^)]*\.md\(#.*\)\?)\)//g' \
+	@$(SED) -e 's/\((buildah[^)]*\.md\(#.*\)\?)\)//g' \
 	 -e 's/\[\(buildah[^]]*\)\]/\1/g' \
 	 -e 's/\[\([^]]*\)](http[^)]\+)/\1/g' \
 	 -e 's;<\(/\)\?\(a\|a\s\+[^>]*\|sup\)>;;g' \
