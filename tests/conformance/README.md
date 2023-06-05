@@ -20,7 +20,7 @@ First, pull base images used by various conformance tests:
 bash
 docker pull alpine
 docker pull busybox
-docker pull docker.io/library/centos:centos7
+docker pull quay.io/libpod/centos:7
 ```
 
 Then you can run all of the tests with go test:

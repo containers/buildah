@@ -1,2 +1,2 @@
-FROM docker.io/library/centos:centos7
+FROM quay.io/libpod/centos:7
 COPY file-link.tar.gz /
