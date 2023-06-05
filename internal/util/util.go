@@ -8,6 +8,7 @@ import (
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/common/libimage"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	enchelpers "github.com/containers/ocicrypt/helpers"
@@ -55,6 +56,13 @@ func NormalizePlatform(platform v1.Platform) v1.Platform {
 func GetTempDir() string {
 	if tmpdir, ok := os.LookupEnv("TMPDIR"); ok {
 		return tmpdir
+	}
+	containerConfig, err := config.Default()
+	if err != nil {
+		tmpdir, err := containerConfig.ImageCopyTmpDir()
+		if err != nil {
+			return tmpdir
+		}
 	}
 	return "/var/tmp"
 }
