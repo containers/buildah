@@ -1955,27 +1955,33 @@ _EOF
 
 @test "build using intermediate images should not inherit label" {
   _prefetch alpine
+
+  # Build imageone, with a label
   run_buildah build --no-cache --layers --label somefancylabel=true $WITH_POLICY_JSON -t imageone -f Dockerfile.name $BUDFILES/multi-stage-builds
   run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imageone
-  expect_output "true"
+  expect_output "true" "imageone: somefancylabel"
+
+  # Build imagetwo. Must use all steps from cache but should not contain label
   run_buildah build --layers $WITH_POLICY_JSON -t imagetwo -f Dockerfile.name $BUDFILES/multi-stage-builds
-  # must use all steps from cache but should not contain label
   for i in 2 6;do
-      expect_output --substring --from="${lines[$i]}" "Using cache"
+      expect_output --substring --from="${lines[$i]}" "Using cache" \
+                    "build imagetwo (no label), line $i"
   done
   run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imagetwo
-  expect_output ""
+  expect_output "" "imagetwo: somefancylabel"
 
   # build another multi-stage image with different label, it should use stages from cache from previous build
   run_buildah build --layers $WITH_POLICY_JSON --label anotherfancylabel=true -t imagethree -f Dockerfile.name $BUDFILES/multi-stage-builds
-  # must use all steps from cache but should not contain label
   for i in 2 6;do
-      expect_output --substring --from="${lines[$i]}" "Using cache"
+      expect_output --substring --from="${lines[$i]}" "Using cache" \
+                    "build imagethree ('anotherfancylabel'), line $i"
   done
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imagetwo
-  expect_output ""
+
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "somefancylabel"}}' imagethree
+  expect_output "" "imagethree: somefancylabel"
+
   run_buildah inspect --format '{{ index .Docker.Config.Labels "anotherfancylabel"}}' imagethree
-  expect_output "true"
+  expect_output "true" "imagethree: anotherfancylabel"
 }
 
 @test "bud-multi-stage-builds" {
