@@ -162,10 +162,11 @@ in_podman() {
     local envfile=$(mktemp -p '' in_podman_env_tmp_XXXXXXXX)
     trap "rm -f $envfile" EXIT
 
+    # TODO: This env. var. processing is fugly and fragile.  Refactor
+    # this closer to how podman CI does it using passthrough_envars()
     msg "Gathering env. vars. to pass-through into container."
     for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | sort | \
-                     egrep "$envrx" | egrep -v "$SECRET_ENV_RE" | \
-                     egrep -v "^CIRRUS_.+(MESSAGE|TITLE)")
+                     egrep "$envrx" | egrep -v "$SECRET_ENV_RE");
     do
         envval="${!envname}"
         [[ -n $(tr -d "$xchars" <<<"$envval") ]] || continue

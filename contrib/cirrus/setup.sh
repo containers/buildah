@@ -8,13 +8,28 @@ set -e
 # expectation mismatch.
 source $(dirname $0)/lib.sh
 
-req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
+req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE CIRRUS_CHANGE_TITLE
 
 msg "Disabling git repository owner-check system-wide."
 # Newer versions of git bark if repo. files are unexpectedly owned.
 # This mainly affects rootless and containerized testing.  But
 # the testing environment is disposable, so we don't care.=
 git config --system --add safe.directory $GOSRC
+
+# Support optional/draft testing using latest/greatest
+# podman-next COPR packages.  This requires a draft PR
+# to ensure changes also pass CI w/o package updates.
+if [[ "$OS_RELEASE_ID" =~ "fedora" ]] && \
+   [[ "$CIRRUS_CHANGE_TITLE" =~ CI:NEXT ]]
+then
+    # shellcheck disable=SC2154
+    if [[ "$CIRRUS_PR_DRAFT" != "true" ]]; then
+        die "Magic 'CI:NEXT' string can only be used on DRAFT PRs"
+    fi
+
+    showrun dnf copr enable rhcontainerbot/podman-next -y
+    showrun dnf upgrade -y
+fi
 
 msg "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
 cd $GOSRC
