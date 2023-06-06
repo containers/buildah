@@ -1,7 +1,6 @@
 package printers
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/golangci/golangci-lint/pkg/result"
 )
+
+const defaultCheckstyleSeverity = "error"
 
 type checkstyleOutput struct {
 	XMLName xml.Name          `xml:"checkstyle"`
@@ -31,8 +32,6 @@ type checkstyleError struct {
 	Source   string `xml:"source,attr"`
 }
 
-const defaultCheckstyleSeverity = "error"
-
 type Checkstyle struct {
 	w io.Writer
 }
@@ -41,7 +40,7 @@ func NewCheckstyle(w io.Writer) *Checkstyle {
 	return &Checkstyle{w: w}
 }
 
-func (p Checkstyle) Print(ctx context.Context, issues []result.Issue) error {
+func (p Checkstyle) Print(issues []result.Issue) error {
 	out := checkstyleOutput{
 		Version: "5.0",
 	}

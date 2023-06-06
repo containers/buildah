@@ -1,9 +1,11 @@
 package config
 
 import (
+	"encoding"
+	"errors"
 	"runtime"
 
-	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
 var defaultLintersSettings = LintersSettings{
@@ -20,15 +22,19 @@ var defaultLintersSettings = LintersSettings{
 		MaxBlankIdentifiers: 2,
 	},
 	ErrorLint: ErrorLintSettings{
-		Errorf:     true,
-		Asserts:    true,
-		Comparison: true,
+		Errorf:      true,
+		ErrorfMulti: true,
+		Asserts:     true,
+		Comparison:  true,
 	},
 	Exhaustive: ExhaustiveSettings{
+		Check:                      []string{"switch"},
 		CheckGenerated:             false,
 		DefaultSignifiesExhaustive: false,
 		IgnoreEnumMembers:          "",
 		PackageScopeOnly:           false,
+		ExplicitExhaustiveMap:      false,
+		ExplicitExhaustiveSwitch:   false,
 	},
 	Forbidigo: ForbidigoSettings{
 		ExcludeGodocExamples: true,
@@ -40,8 +46,8 @@ var defaultLintersSettings = LintersSettings{
 	Gocognit: GocognitSettings{
 		MinComplexity: 30,
 	},
-	Gocritic: GocriticSettings{
-		SettingsPerCheck: map[string]GocriticCheckSettings{},
+	Gocritic: GoCriticSettings{
+		SettingsPerCheck: map[string]GoCriticCheckSettings{},
 	},
 	Godox: GodoxSettings{
 		Keywords: []string{},
@@ -58,13 +64,31 @@ var defaultLintersSettings = LintersSettings{
 	Gosec: GoSecSettings{
 		Concurrency: runtime.NumCPU(),
 	},
+	Gosmopolitan: GosmopolitanSettings{
+		AllowTimeLocal:  false,
+		EscapeHatches:   []string{},
+		IgnoreTests:     true,
+		WatchForScripts: []string{"Han"},
+	},
 	Ifshort: IfshortSettings{
 		MaxDeclLines: 1,
 		MaxDeclChars: 30,
 	},
+	InterfaceBloat: InterfaceBloatSettings{
+		Max: 10,
+	},
 	Lll: LllSettings{
 		LineLength: 120,
 		TabWidth:   1,
+	},
+	LoggerCheck: LoggerCheckSettings{
+		Kitlog:           true,
+		Klog:             true,
+		Logr:             true,
+		Zap:              true,
+		RequireStringKey: false,
+		NoPrintfLike:     false,
+		Rules:            nil,
 	},
 	MaintIdx: MaintIdxSettings{
 		Under: 20,
@@ -89,12 +113,21 @@ var defaultLintersSettings = LintersSettings{
 		Ignore:    "",
 		Qualified: false,
 	},
+	TagAlign: TagAlignSettings{
+		Align: true,
+		Sort:  true,
+		Order: nil,
+	},
 	Testpackage: TestpackageSettings{
 		SkipRegexp:    `(export|internal)_test\.go`,
 		AllowPackages: []string{"main"},
 	},
 	Unparam: UnparamSettings{
 		Algo: "cha",
+	},
+	UseStdlibVars: UseStdlibVarsSettings{
+		HTTPMethod:     true,
+		HTTPStatusCode: true,
 	},
 	Varnamelen: VarnamelenSettings{
 		MaxDistance:   5,
@@ -105,12 +138,15 @@ var defaultLintersSettings = LintersSettings{
 		AllowAssignAndCallCuddle:         true,
 		AllowAssignAndAnythingCuddle:     false,
 		AllowMultiLineAssignCuddle:       true,
-		AllowCuddleDeclaration:           false,
+		ForceCaseTrailingWhitespaceLimit: 0,
 		AllowTrailingComment:             false,
 		AllowSeparatedLeadingComment:     false,
+		AllowCuddleDeclaration:           false,
+		AllowCuddleWithCalls:             []string{"Lock", "RLock"},
+		AllowCuddleWithRHS:               []string{"Unlock", "RUnlock"},
 		ForceCuddleErrCheckAndAssign:     false,
+		ErrorVariableNames:               []string{"err"},
 		ForceExclusiveShortDeclarations:  false,
-		ForceCaseTrailingWhitespaceLimit: 0,
 	},
 }
 
@@ -122,6 +158,7 @@ type LintersSettings struct {
 	Depguard         DepGuardSettings
 	Dogsled          DogsledSettings
 	Dupl             DuplSettings
+	DupWord          DupWordSettings
 	Errcheck         ErrcheckSettings
 	ErrChkJSON       ErrChkJSONSettings
 	ErrorLint        ErrorLintSettings
@@ -131,9 +168,10 @@ type LintersSettings struct {
 	Forbidigo        ForbidigoSettings
 	Funlen           FunlenSettings
 	Gci              GciSettings
+	GinkgoLinter     GinkgoLinterSettings
 	Gocognit         GocognitSettings
 	Goconst          GoConstSettings
-	Gocritic         GocriticSettings
+	Gocritic         GoCriticSettings
 	Gocyclo          GoCycloSettings
 	Godot            GodotSettings
 	Godox            GodoxSettings
@@ -147,16 +185,20 @@ type LintersSettings struct {
 	Gomodguard       GoModGuardSettings
 	Gosec            GoSecSettings
 	Gosimple         StaticCheckSettings
+	Gosmopolitan     GosmopolitanSettings
 	Govet            GovetSettings
 	Grouper          GrouperSettings
 	Ifshort          IfshortSettings
 	ImportAs         ImportAsSettings
+	InterfaceBloat   InterfaceBloatSettings
 	Ireturn          IreturnSettings
 	Lll              LllSettings
+	LoggerCheck      LoggerCheckSettings
 	MaintIdx         MaintIdxSettings
 	Makezero         MakezeroSettings
 	Maligned         MalignedSettings
 	Misspell         MisspellSettings
+	MustTag          MustTagSettings
 	Nakedret         NakedretSettings
 	Nestif           NestifSettings
 	NilNil           NilNilSettings
@@ -167,17 +209,18 @@ type LintersSettings struct {
 	Prealloc         PreallocSettings
 	Predeclared      PredeclaredSettings
 	Promlinter       PromlinterSettings
+	Reassign         ReassignSettings
 	Revive           ReviveSettings
 	RowsErrCheck     RowsErrCheckSettings
 	Staticcheck      StaticCheckSettings
 	Structcheck      StructCheckSettings
 	Stylecheck       StaticCheckSettings
+	TagAlign         TagAlignSettings
 	Tagliatelle      TagliatelleSettings
 	Tenv             TenvSettings
 	Testpackage      TestpackageSettings
 	Thelper          ThelperSettings
 	Unparam          UnparamSettings
-	Unused           StaticCheckSettings
 	UseStdlibVars    UseStdlibVarsSettings
 	Varcheck         VarCheckSettings
 	Varnamelen       VarnamelenSettings
@@ -213,12 +256,18 @@ type Cyclop struct {
 }
 
 type DepGuardSettings struct {
-	ListType                 string `mapstructure:"list-type"`
-	Packages                 []string
-	IncludeGoRoot            bool               `mapstructure:"include-go-root"`
-	PackagesWithErrorMessage map[string]string  `mapstructure:"packages-with-error-message"`
-	IgnoreFileRules          []string           `mapstructure:"ignore-file-rules"`
-	AdditionalGuards         []DepGuardSettings `mapstructure:"additional-guards"`
+	Rules map[string]*DepGuardList `mapstructure:"rules"`
+}
+
+type DepGuardList struct {
+	Files []string       `mapstructure:"files"`
+	Allow []string       `mapstructure:"allow"`
+	Deny  []DepGuardDeny `mapstructure:"deny"`
+}
+
+type DepGuardDeny struct {
+	Pkg  string `mapstructure:"pkg"`
+	Desc string `mapstructure:"desc"`
 }
 
 type DecorderSettings struct {
@@ -234,6 +283,10 @@ type DogsledSettings struct {
 
 type DuplSettings struct {
 	Threshold int
+}
+
+type DupWordSettings struct {
+	Keywords []string `mapstructure:"keywords"`
 }
 
 type ErrcheckSettings struct {
@@ -253,16 +306,21 @@ type ErrChkJSONSettings struct {
 }
 
 type ErrorLintSettings struct {
-	Errorf     bool `mapstructure:"errorf"`
-	Asserts    bool `mapstructure:"asserts"`
-	Comparison bool `mapstructure:"comparison"`
+	Errorf      bool `mapstructure:"errorf"`
+	ErrorfMulti bool `mapstructure:"errorf-multi"`
+	Asserts     bool `mapstructure:"asserts"`
+	Comparison  bool `mapstructure:"comparison"`
 }
 
 type ExhaustiveSettings struct {
-	CheckGenerated             bool   `mapstructure:"check-generated"`
-	DefaultSignifiesExhaustive bool   `mapstructure:"default-signifies-exhaustive"`
-	IgnoreEnumMembers          string `mapstructure:"ignore-enum-members"`
-	PackageScopeOnly           bool   `mapstructure:"package-scope-only"`
+	Check                      []string `mapstructure:"check"`
+	CheckGenerated             bool     `mapstructure:"check-generated"`
+	DefaultSignifiesExhaustive bool     `mapstructure:"default-signifies-exhaustive"`
+	IgnoreEnumMembers          string   `mapstructure:"ignore-enum-members"`
+	IgnoreEnumTypes            string   `mapstructure:"ignore-enum-types"`
+	PackageScopeOnly           bool     `mapstructure:"package-scope-only"`
+	ExplicitExhaustiveMap      bool     `mapstructure:"explicit-exhaustive-map"`
+	ExplicitExhaustiveSwitch   bool     `mapstructure:"explicit-exhaustive-switch"`
 }
 
 type ExhaustiveStructSettings struct {
@@ -275,8 +333,45 @@ type ExhaustructSettings struct {
 }
 
 type ForbidigoSettings struct {
-	Forbid               []string `mapstructure:"forbid"`
-	ExcludeGodocExamples bool     `mapstructure:"exclude-godoc-examples"`
+	Forbid               []ForbidigoPattern `mapstructure:"forbid"`
+	ExcludeGodocExamples bool               `mapstructure:"exclude-godoc-examples"`
+	AnalyzeTypes         bool               `mapstructure:"analyze-types"`
+}
+
+var _ encoding.TextUnmarshaler = &ForbidigoPattern{}
+
+// ForbidigoPattern corresponds to forbidigo.pattern and adds mapstructure support.
+// The YAML field names must match what forbidigo expects.
+type ForbidigoPattern struct {
+	// patternString gets populated when the config contains a string as entry in ForbidigoSettings.Forbid[]
+	// because ForbidigoPattern implements encoding.TextUnmarshaler
+	// and the reader uses the mapstructure.TextUnmarshallerHookFunc as decoder hook.
+	//
+	// If the entry is a map, then the other fields are set as usual by mapstructure.
+	patternString string
+
+	Pattern string `yaml:"p" mapstructure:"p"`
+	Package string `yaml:"pkg,omitempty" mapstructure:"pkg,omitempty"`
+	Msg     string `yaml:"msg,omitempty" mapstructure:"msg,omitempty"`
+}
+
+func (p *ForbidigoPattern) UnmarshalText(text []byte) error {
+	// Validation happens when instantiating forbidigo.
+	p.patternString = string(text)
+	return nil
+}
+
+// MarshalString converts the pattern into a string as needed by forbidigo.NewLinter.
+//
+// MarshalString is intentionally not called MarshalText,
+// although it has the same signature
+// because implementing encoding.TextMarshaler led to infinite recursion when yaml.Marshal called MarshalText.
+func (p *ForbidigoPattern) MarshalString() ([]byte, error) {
+	if p.patternString != "" {
+		return []byte(p.patternString), nil
+	}
+
+	return yaml.Marshal(p)
 }
 
 type FunlenSettings struct {
@@ -289,6 +384,15 @@ type GciSettings struct {
 	Sections      []string `mapstructure:"sections"`
 	SkipGenerated bool     `mapstructure:"skip-generated"`
 	CustomOrder   bool     `mapstructure:"custom-order"`
+}
+
+type GinkgoLinterSettings struct {
+	SuppressLenAssertion     bool `mapstructure:"suppress-len-assertion"`
+	SuppressNilAssertion     bool `mapstructure:"suppress-nil-assertion"`
+	SuppressErrAssertion     bool `mapstructure:"suppress-err-assertion"`
+	SuppressCompareAssertion bool `mapstructure:"suppress-compare-assertion"`
+	SuppressAsyncAssertion   bool `mapstructure:"suppress-async-assertion"`
+	AllowHaveLenZero         bool `mapstructure:"allow-havelen-zero"`
 }
 
 type GocognitSettings struct {
@@ -305,6 +409,17 @@ type GoConstSettings struct {
 	NumberMax           int  `mapstructure:"max"`
 	IgnoreCalls         bool `mapstructure:"ignore-calls"`
 }
+
+type GoCriticSettings struct {
+	Go               string                           `mapstructure:"-"`
+	EnabledChecks    []string                         `mapstructure:"enabled-checks"`
+	DisabledChecks   []string                         `mapstructure:"disabled-checks"`
+	EnabledTags      []string                         `mapstructure:"enabled-tags"`
+	DisabledTags     []string                         `mapstructure:"disabled-tags"`
+	SettingsPerCheck map[string]GoCriticCheckSettings `mapstructure:"settings"`
+}
+
+type GoCriticCheckSettings map[string]any
 
 type GoCycloSettings struct {
 	MinComplexity int `mapstructure:"min-complexity"`
@@ -325,7 +440,13 @@ type GodoxSettings struct {
 }
 
 type GoFmtSettings struct {
-	Simplify bool
+	Simplify     bool
+	RewriteRules []GoFmtRewriteRule `mapstructure:"rewrite-rules"`
+}
+
+type GoFmtRewriteRule struct {
+	Pattern     string
+	Replacement string
 }
 
 type GofumptSettings struct {
@@ -351,11 +472,11 @@ type GoLintSettings struct {
 }
 
 type GoMndSettings struct {
-	Settings         map[string]map[string]interface{} // Deprecated
-	Checks           []string                          `mapstructure:"checks"`
-	IgnoredNumbers   []string                          `mapstructure:"ignored-numbers"`
-	IgnoredFiles     []string                          `mapstructure:"ignored-files"`
-	IgnoredFunctions []string                          `mapstructure:"ignored-functions"`
+	Settings         map[string]map[string]any // Deprecated
+	Checks           []string                  `mapstructure:"checks"`
+	IgnoredNumbers   []string                  `mapstructure:"ignored-numbers"`
+	IgnoredFiles     []string                  `mapstructure:"ignored-files"`
+	IgnoredFunctions []string                  `mapstructure:"ignored-functions"`
 }
 
 type GoModDirectivesSettings struct {
@@ -384,19 +505,26 @@ type GoModGuardSettings struct {
 }
 
 type GoSecSettings struct {
-	Includes         []string               `mapstructure:"includes"`
-	Excludes         []string               `mapstructure:"excludes"`
-	Severity         string                 `mapstructure:"severity"`
-	Confidence       string                 `mapstructure:"confidence"`
-	ExcludeGenerated bool                   `mapstructure:"exclude-generated"`
-	Config           map[string]interface{} `mapstructure:"config"`
-	Concurrency      int                    `mapstructure:"concurrency"`
+	Includes         []string       `mapstructure:"includes"`
+	Excludes         []string       `mapstructure:"excludes"`
+	Severity         string         `mapstructure:"severity"`
+	Confidence       string         `mapstructure:"confidence"`
+	ExcludeGenerated bool           `mapstructure:"exclude-generated"`
+	Config           map[string]any `mapstructure:"config"`
+	Concurrency      int            `mapstructure:"concurrency"`
+}
+
+type GosmopolitanSettings struct {
+	AllowTimeLocal  bool     `mapstructure:"allow-time-local"`
+	EscapeHatches   []string `mapstructure:"escape-hatches"`
+	IgnoreTests     bool     `mapstructure:"ignore-tests"`
+	WatchForScripts []string `mapstructure:"watch-for-scripts"`
 }
 
 type GovetSettings struct {
 	Go             string `mapstructure:"-"`
 	CheckShadowing bool   `mapstructure:"check-shadowing"`
-	Settings       map[string]map[string]interface{}
+	Settings       map[string]map[string]any
 
 	Enable     []string
 	Disable    []string
@@ -444,6 +572,10 @@ type ImportAsAlias struct {
 	Alias string
 }
 
+type InterfaceBloatSettings struct {
+	Max int `mapstructure:"max"`
+}
+
 type IreturnSettings struct {
 	Allow  []string `mapstructure:"allow"`
 	Reject []string `mapstructure:"reject"`
@@ -452,6 +584,16 @@ type IreturnSettings struct {
 type LllSettings struct {
 	LineLength int `mapstructure:"line-length"`
 	TabWidth   int `mapstructure:"tab-width"`
+}
+
+type LoggerCheckSettings struct {
+	Kitlog           bool     `mapstructure:"kitlog"`
+	Klog             bool     `mapstructure:"klog"`
+	Logr             bool     `mapstructure:"logr"`
+	Zap              bool     `mapstructure:"zap"`
+	RequireStringKey bool     `mapstructure:"require-string-key"`
+	NoPrintfLike     bool     `mapstructure:"no-printf-like"`
+	Rules            []string `mapstructure:"rules"`
 }
 
 type MaintIdxSettings struct {
@@ -469,6 +611,14 @@ type MalignedSettings struct {
 type MisspellSettings struct {
 	Locale      string
 	IgnoreWords []string `mapstructure:"ignore-words"`
+}
+
+type MustTagSettings struct {
+	Functions []struct {
+		Name   string `mapstructure:"name"`
+		Tag    string `mapstructure:"tag"`
+		ArgPos int    `mapstructure:"arg-pos"`
+	} `mapstructure:"functions"`
 }
 
 type NakedretSettings struct {
@@ -517,6 +667,10 @@ type PromlinterSettings struct {
 	DisabledLinters []string `mapstructure:"disabled-linters"`
 }
 
+type ReassignSettings struct {
+	Patterns []string `mapstructure:"patterns"`
+}
+
 type ReviveSettings struct {
 	MaxOpenFiles          int  `mapstructure:"max-open-files"`
 	IgnoreGeneratedHeader bool `mapstructure:"ignore-generated-header"`
@@ -525,7 +679,7 @@ type ReviveSettings struct {
 	EnableAllRules        bool `mapstructure:"enable-all-rules"`
 	Rules                 []struct {
 		Name      string
-		Arguments []interface{}
+		Arguments []any
 		Severity  string
 		Disabled  bool
 	}
@@ -557,6 +711,12 @@ func (s *StaticCheckSettings) HasConfiguration() bool {
 
 type StructCheckSettings struct {
 	CheckExportedFields bool `mapstructure:"exported-fields"`
+}
+
+type TagAlignSettings struct {
+	Align bool     `mapstructure:"align"`
+	Sort  bool     `mapstructure:"sort"`
+	Order []string `mapstructure:"order"`
 }
 
 type TagliatelleSettings struct {
@@ -595,7 +755,12 @@ type UseStdlibVarsSettings struct {
 	TimeMonth          bool `mapstructure:"time-month"`
 	TimeLayout         bool `mapstructure:"time-layout"`
 	CryptoHash         bool `mapstructure:"crypto-hash"`
-	DefaultRPCPathFlag bool `mapstructure:"default-rpc-path"`
+	DefaultRPCPath     bool `mapstructure:"default-rpc-path"`
+	OSDevNull          bool `mapstructure:"os-dev-null"`
+	SQLIsolationLevel  bool `mapstructure:"sql-isolation-level"`
+	TLSSignatureScheme bool `mapstructure:"tls-signature-scheme"`
+	ConstantKind       bool `mapstructure:"constant-kind"`
+	SyslogPriority     bool `mapstructure:"syslog-priority"`
 }
 
 type UnparamSettings struct {
@@ -634,16 +799,19 @@ type WrapcheckSettings struct {
 }
 
 type WSLSettings struct {
-	StrictAppend                     bool `mapstructure:"strict-append"`
-	AllowAssignAndCallCuddle         bool `mapstructure:"allow-assign-and-call"`
-	AllowAssignAndAnythingCuddle     bool `mapstructure:"allow-assign-and-anything"`
-	AllowMultiLineAssignCuddle       bool `mapstructure:"allow-multiline-assign"`
-	AllowCuddleDeclaration           bool `mapstructure:"allow-cuddle-declarations"`
-	AllowTrailingComment             bool `mapstructure:"allow-trailing-comment"`
-	AllowSeparatedLeadingComment     bool `mapstructure:"allow-separated-leading-comment"`
-	ForceCuddleErrCheckAndAssign     bool `mapstructure:"force-err-cuddling"`
-	ForceExclusiveShortDeclarations  bool `mapstructure:"force-short-decl-cuddling"`
-	ForceCaseTrailingWhitespaceLimit int  `mapstructure:"force-case-trailing-whitespace"`
+	StrictAppend                     bool     `mapstructure:"strict-append"`
+	AllowAssignAndCallCuddle         bool     `mapstructure:"allow-assign-and-call"`
+	AllowAssignAndAnythingCuddle     bool     `mapstructure:"allow-assign-and-anything"`
+	AllowMultiLineAssignCuddle       bool     `mapstructure:"allow-multiline-assign"`
+	ForceCaseTrailingWhitespaceLimit int      `mapstructure:"force-case-trailing-whitespace"`
+	AllowTrailingComment             bool     `mapstructure:"allow-trailing-comment"`
+	AllowSeparatedLeadingComment     bool     `mapstructure:"allow-separated-leading-comment"`
+	AllowCuddleDeclaration           bool     `mapstructure:"allow-cuddle-declarations"`
+	AllowCuddleWithCalls             []string `mapstructure:"allow-cuddle-with-calls"`
+	AllowCuddleWithRHS               []string `mapstructure:"allow-cuddle-with-rhs"`
+	ForceCuddleErrCheckAndAssign     bool     `mapstructure:"force-err-cuddling"`
+	ErrorVariableNames               []string `mapstructure:"error-variable-names"`
+	ForceExclusiveShortDeclarations  bool     `mapstructure:"force-short-decl-cuddling"`
 }
 
 // CustomLinterSettings encapsulates the meta-data of a private linter.

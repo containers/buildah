@@ -5,12 +5,12 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 )
 
-// Error reason strings
+// Error reason strings.
 const (
 	reasonMustCuddleErrCheck             = "if statements that check an error must be cuddled with the statement that assigned the error"
 	reasonOnlyCuddleIfWithAssign         = "if statements should only be cuddled with assignments"
@@ -44,7 +44,7 @@ const (
 	reasonShortDeclNotExclusive          = "short declaration should cuddle only with other short declarations"
 )
 
-// Warning strings
+// Warning strings.
 const (
 	warnTypeNotImplement           = "type not implemented"
 	warnStmtNotImplemented         = "stmt type not implemented"
@@ -176,7 +176,7 @@ type Configuration struct {
 	ForceExclusiveShortDeclarations bool
 }
 
-// DefaultConfig returns default configuration
+// DefaultConfig returns default configuration.
 func DefaultConfig() Configuration {
 	return Configuration{
 		StrictAppend:                     true,
@@ -216,6 +216,8 @@ type Processor struct {
 }
 
 // NewProcessor will create a Processor.
+//
+//nolint:gocritic // It's fine to copy config struct
 func NewProcessorWithConfig(cfg Configuration) *Processor {
 	return &Processor{
 		result: []Result{},
@@ -230,10 +232,11 @@ func NewProcessor() *Processor {
 
 // ProcessFiles takes a string slice with file names (full paths) and lints
 // them.
-// nolint: gocritic
+//
+//nolint:gocritic // Don't want named returns
 func (p *Processor) ProcessFiles(filenames []string) ([]Result, []string) {
 	for _, filename := range filenames {
-		data, err := ioutil.ReadFile(filename)
+		data, err := os.ReadFile(filename)
 		if err != nil {
 			panic(err)
 		}
@@ -247,7 +250,6 @@ func (p *Processor) ProcessFiles(filenames []string) ([]Result, []string) {
 func (p *Processor) process(filename string, data []byte) {
 	fileSet := token.NewFileSet()
 	file, err := parser.ParseFile(fileSet, filename, data, parser.ParseComments)
-
 	// If the file is not parsable let's add a syntax error and move on.
 	if err != nil {
 		p.result = append(p.result, Result{
@@ -292,7 +294,6 @@ func (p *Processor) parseBlockBody(ident *ast.Ident, block *ast.BlockStmt) {
 
 // parseBlockStatements will parse all the statements found in the body of a
 // node. A list of Result is returned.
-// nolint: gocognit
 func (p *Processor) parseBlockStatements(statements []ast.Stmt) {
 	for i, stmt := range statements {
 		// Start by checking if this statement is another block (other than if,
@@ -335,7 +336,7 @@ func (p *Processor) parseBlockStatements(statements []ast.Stmt) {
 		var calledOnLineAbove []string
 
 		// Check if the previous statement spans over multiple lines.
-		var cuddledWithMultiLineAssignment = cuddledWithLastStmt && p.nodeStart(previousStatement) != p.nodeStart(stmt)-1
+		cuddledWithMultiLineAssignment := cuddledWithLastStmt && p.nodeStart(previousStatement) != p.nodeStart(stmt)-1
 
 		// Ensure previous line is not a multi line assignment and if not get
 		// rightAndLeftHandSide assigned variables.
@@ -397,8 +398,7 @@ func (p *Processor) parseBlockStatements(statements []ast.Stmt) {
 			//     t.X = true
 			//     return t
 			// }
-			// nolint: gocritic
-			if i == len(statements)-1 && i == 1 {
+			if len(statements) == 2 && i == 1 {
 				if p.nodeEnd(stmt)-p.nodeStart(previousStatement) <= 2 {
 					return true
 				}
@@ -672,6 +672,22 @@ func (p *Processor) parseBlockStatements(statements []ast.Stmt) {
 				continue
 			}
 
+			if c, ok := t.Call.Fun.(*ast.SelectorExpr); ok {
+				goCallArgs := append(p.findLHS(c.X), p.findRHS(c.X)...)
+
+				if atLeastOneInListsMatch(calledOnLineAbove, goCallArgs) {
+					continue
+				}
+			}
+
+			if c, ok := t.Call.Fun.(*ast.FuncLit); ok {
+				goCallArgs := append(p.findLHS(c.Body), p.findRHS(c.Body)...)
+
+				if atLeastOneInListsMatch(assignedOnLineAbove, goCallArgs) {
+					continue
+				}
+			}
+
 			if !atLeastOneInListsMatch(rightAndLeftHandSide, assignedOnLineAbove) {
 				p.addError(t.Pos(), reasonGoFuncWithoutAssign)
 			}
@@ -845,8 +861,7 @@ func (p *Processor) findRHS(node ast.Node) []string {
 	case *ast.BasicLit, *ast.SelectStmt, *ast.ChanType,
 		*ast.LabeledStmt, *ast.DeclStmt, *ast.BranchStmt,
 		*ast.TypeSpec, *ast.ArrayType, *ast.CaseClause,
-		*ast.CommClause, *ast.KeyValueExpr, *ast.MapType,
-		*ast.FuncLit:
+		*ast.CommClause, *ast.MapType, *ast.FuncLit:
 	// Nothing to add to RHS
 	case *ast.Ident:
 		return []string{t.Name}
@@ -905,6 +920,9 @@ func (p *Processor) findRHS(node ast.Node) []string {
 		rhs = append(rhs, p.findRHS(t.X)...)
 		rhs = append(rhs, p.findRHS(t.Low)...)
 		rhs = append(rhs, p.findRHS(t.High)...)
+	case *ast.KeyValueExpr:
+		rhs = p.findRHS(t.Key)
+		rhs = append(rhs, p.findRHS(t.Value)...)
 	default:
 		if x, ok := maybeX(t); ok {
 			return p.findRHS(x)
@@ -1002,7 +1020,6 @@ func atLeastOneInListsMatch(listOne, listTwo []string) bool {
 // findLeadingAndTrailingWhitespaces will find leading and trailing whitespaces
 // in a node. The method takes comments in consideration which will make the
 // parser more gentle.
-// nolint: gocognit
 func (p *Processor) findLeadingAndTrailingWhitespaces(ident *ast.Ident, stmt, nextStatement ast.Node) {
 	var (
 		allowedLinesBeforeFirstStatement = 1
@@ -1094,7 +1111,7 @@ func (p *Processor) findLeadingAndTrailingWhitespaces(ident *ast.Ident, stmt, ne
 		if seenCommentGroups > 1 {
 			allowedLinesBeforeFirstStatement += seenCommentGroups - 1
 		} else if seenCommentGroups == 1 {
-			allowedLinesBeforeFirstStatement += 1
+			allowedLinesBeforeFirstStatement++
 		}
 	}
 
@@ -1205,7 +1222,7 @@ func (p *Processor) nodeStart(node ast.Node) int {
 }
 
 func (p *Processor) nodeEnd(node ast.Node) int {
-	var line = p.fileSet.Position(node.End()).Line
+	line := p.fileSet.Position(node.End()).Line
 
 	if isEmptyLabeledStmt(node) {
 		return p.fileSet.Position(node.Pos()).Line

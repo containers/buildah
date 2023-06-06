@@ -10,7 +10,7 @@ import (
 type ConfusingResultsRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ConfusingResultsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ConfusingResultsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -26,7 +26,7 @@ func (r *ConfusingResultsRule) Apply(file *lint.File, _ lint.Arguments) []lint.F
 }
 
 // Name returns the rule name.
-func (r *ConfusingResultsRule) Name() string {
+func (*ConfusingResultsRule) Name() string {
 	return "confusing-results"
 }
 
@@ -60,7 +60,6 @@ func (w lintConfusingResults) Visit(n ast.Node) ast.Visitor {
 			break
 		}
 		lastType = t.Name
-
 	}
 
 	return w

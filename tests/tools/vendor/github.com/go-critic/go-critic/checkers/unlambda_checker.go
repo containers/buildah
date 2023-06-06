@@ -7,7 +7,8 @@ import (
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/typep"
@@ -16,7 +17,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "unlambda"
-	info.Tags = []string{"style"}
+	info.Tags = []string{linter.StyleTag}
 	info.Summary = "Detects function literals that can be simplified"
 	info.Before = `func(x int) int { return fn(x) }`
 	info.After = `fn`

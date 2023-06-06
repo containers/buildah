@@ -16,8 +16,6 @@ import (
 
 	"honnef.co/go/tools/go/ast/astutil"
 	"honnef.co/go/tools/go/types/typeutil"
-
-	"golang.org/x/exp/typeparams"
 )
 
 //// AST utilities
@@ -26,7 +24,6 @@ func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 // isBlankIdent returns true iff e is an Ident with name "_".
 // They have no associated types.Object, and thus no type.
-//
 func isBlankIdent(e ast.Expr) bool {
 	id, ok := e.(*ast.Ident)
 	return ok && id.Name == "_"
@@ -51,7 +48,7 @@ func isInterface(T types.Type) bool { return types.IsInterface(T) }
 func deref(typ types.Type) types.Type {
 	orig := typ
 
-	if t, ok := typ.(*typeparams.TypeParam); ok {
+	if t, ok := typ.(*types.TypeParam); ok {
 		if ctyp := typeutil.CoreType(t); ctyp != nil {
 			typ = ctyp
 		}
@@ -71,7 +68,6 @@ func recvType(obj *types.Func) types.Type {
 // returns a closure that prints the corresponding "end" message.
 // Call using 'defer logStack(...)()' to show builder stack on panic.
 // Don't forget trailing parens!
-//
 func logStack(format string, args ...interface{}) func() {
 	msg := fmt.Sprintf(format, args...)
 	io.WriteString(os.Stderr, msg)
@@ -99,7 +95,7 @@ func makeLen(T types.Type) *Builtin {
 	lenParams := types.NewTuple(anonVar(T))
 	return &Builtin{
 		name: "len",
-		sig:  types.NewSignature(nil, lenParams, lenResults, false),
+		sig:  types.NewSignatureType(nil, nil, nil, lenParams, lenResults, false),
 	}
 }
 
@@ -147,3 +143,6 @@ func assert(x bool) {
 		panic("failed assertion")
 	}
 }
+
+// BlockMap is a mapping from basic blocks (identified by their indices) to values.
+type BlockMap[T any] []T

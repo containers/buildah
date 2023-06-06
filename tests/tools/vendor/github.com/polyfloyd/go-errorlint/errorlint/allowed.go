@@ -10,8 +10,8 @@ var allowedErrors = []struct {
 	fun string
 }{
 	// pkg/archive/tar
-	{err: "io.EOF", fun: "(*tar.Reader).Next"},
-	{err: "io.EOF", fun: "(*tar.Reader).Read"},
+	{err: "io.EOF", fun: "(*archive/tar.Reader).Next"},
+	{err: "io.EOF", fun: "(*archive/tar.Reader).Read"},
 	// pkg/bufio
 	{err: "io.EOF", fun: "(*bufio.Reader).Discard"},
 	{err: "io.EOF", fun: "(*bufio.Reader).Peek"},
@@ -40,6 +40,7 @@ var allowedErrors = []struct {
 	{err: "io.ErrClosedPipe", fun: "(*io.PipeWriter).Write"},
 	{err: "io.ErrShortBuffer", fun: "io.ReadAtLeast"},
 	{err: "io.ErrUnexpectedEOF", fun: "io.ReadAtLeast"},
+	{err: "io.EOF", fun: "io.ReadFull"},
 	{err: "io.ErrUnexpectedEOF", fun: "io.ReadFull"},
 	// pkg/net/http
 	{err: "http.ErrServerClosed", fun: "(*net/http.Server).ListenAndServe"},
@@ -153,10 +154,10 @@ func assigningCallExprs(info *TypesInfoExt, subject *ast.Ident) []*ast.CallExpr 
 
 			assigningExpr := assignment.Rhs[0]
 			// If the assignment is comprised of multiple expressions, find out
-			// which LHS expression we should use by finding its index in the LHS.
-			if len(assignment.Rhs) > 1 {
+			// which RHS expression we should use by finding its index in the LHS.
+			if len(assignment.Lhs) == len(assignment.Rhs) {
 				for i, lhs := range assignment.Lhs {
-					if subject.Name == lhs.(*ast.Ident).Name {
+					if ident, ok := lhs.(*ast.Ident); ok && subject.Name == ident.Name {
 						assigningExpr = assignment.Rhs[i]
 						break
 					}

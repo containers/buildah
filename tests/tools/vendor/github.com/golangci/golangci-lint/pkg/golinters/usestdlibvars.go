@@ -11,16 +11,21 @@ import (
 func NewUseStdlibVars(cfg *config.UseStdlibVarsSettings) *goanalysis.Linter {
 	a := analyzer.New()
 
-	cfgMap := make(map[string]map[string]interface{})
+	cfgMap := make(map[string]map[string]any)
 	if cfg != nil {
-		cfgMap[a.Name] = map[string]interface{}{
-			analyzer.HTTPMethodFlag:     cfg.HTTPMethod,
-			analyzer.HTTPStatusCodeFlag: cfg.HTTPStatusCode,
-			analyzer.TimeWeekdayFlag:    cfg.TimeWeekday,
-			analyzer.TimeMonthFlag:      cfg.TimeMonth,
-			analyzer.TimeLayoutFlag:     cfg.TimeLayout,
-			analyzer.CryptoHashFlag:     cfg.CryptoHash,
-			analyzer.DefaultRPCPathFlag: cfg.DefaultRPCPathFlag,
+		cfgMap[a.Name] = map[string]any{
+			analyzer.ConstantKindFlag:       cfg.ConstantKind,
+			analyzer.CryptoHashFlag:         cfg.CryptoHash,
+			analyzer.HTTPMethodFlag:         cfg.HTTPMethod,
+			analyzer.HTTPStatusCodeFlag:     cfg.HTTPStatusCode,
+			analyzer.OSDevNullFlag:          cfg.OSDevNull,
+			analyzer.RPCDefaultPathFlag:     cfg.DefaultRPCPath,
+			analyzer.SQLIsolationLevelFlag:  cfg.SQLIsolationLevel,
+			analyzer.SyslogPriorityFlag:     cfg.SyslogPriority,
+			analyzer.TimeLayoutFlag:         cfg.TimeLayout,
+			analyzer.TimeMonthFlag:          cfg.TimeMonth,
+			analyzer.TimeWeekdayFlag:        cfg.TimeWeekday,
+			analyzer.TLSSignatureSchemeFlag: cfg.TLSSignatureScheme,
 		}
 	}
 

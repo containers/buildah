@@ -24,7 +24,6 @@ import (
 	"honnef.co/go/tools/internal/passes/buildir"
 	"honnef.co/go/tools/pattern"
 
-	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -417,9 +416,9 @@ func CheckErrorStrings(pass *analysis.Pass) (interface{}, error) {
 					continue
 				}
 				for _, c := range word[n:] {
-					if unicode.IsUpper(c) {
-						// Word is probably an initialism or
-						// multi-word function name
+					if unicode.IsUpper(c) || unicode.IsDigit(c) {
+						// Word is probably an initialism or multi-word function name. Digits cover elliptic curves like
+						// P384.
 						continue instrLoop
 					}
 				}
@@ -846,7 +845,7 @@ func CheckExportedFunctionDocs(pass *analysis.Pass) (interface{}, error) {
 			switch T := T.(type) {
 			case *ast.IndexExpr:
 				ident = T.X.(*ast.Ident)
-			case *typeparams.IndexListExpr:
+			case *ast.IndexListExpr:
 				ident = T.X.(*ast.Ident)
 			case *ast.Ident:
 				ident = T

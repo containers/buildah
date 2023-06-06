@@ -16,6 +16,7 @@ var DefaultIgnoreSigs = []string{
 	".Errorf(",
 	"errors.New(",
 	"errors.Unwrap(",
+	"errors.Join(",
 	".Wrap(",
 	".Wrapf(",
 	".WithMessage(",
@@ -74,7 +75,7 @@ type WrapcheckConfig struct {
 	// to a underlying interface name, will ignore unwrapped errors returned from a
 	// function whose call is defined on the given interface.
 	//
-	// For example, an ignoreInterfaceRegexps of `[]string{"Transac(tor|tion)"}`` will ignore errors
+	// For example, an ignoreInterfaceRegexps of `[]string{"Transac(tor|tion)"}` will ignore errors
 	// returned from any function whose call is defined on a interface named 'Transactor'
 	// or 'Transaction' due to the name matching the regular expression `Transac(tor|tion)`.
 	IgnoreInterfaceRegexps []string `mapstructure:"ignoreInterfaceRegexps" yaml:"ignoreInterfaceRegexps"`
@@ -112,7 +113,6 @@ func run(cfg WrapcheckConfig) func(*analysis.Pass) (interface{}, error) {
 	}
 	if err == nil {
 		ignorePackageGlobs, err = compileGlobs(cfg.IgnorePackageGlobs)
-
 	}
 
 	return func(pass *analysis.Pass) (interface{}, error) {
@@ -235,7 +235,16 @@ func run(cfg WrapcheckConfig) func(*analysis.Pass) (interface{}, error) {
 
 // Report unwrapped takes a call expression and an identifier and reports
 // if the call is unwrapped.
-func reportUnwrapped(pass *analysis.Pass, call *ast.CallExpr, tokenPos token.Pos, cfg WrapcheckConfig, regexpsSig []*regexp.Regexp, regexpsInter []*regexp.Regexp, pkgGlobs []glob.Glob) {
+func reportUnwrapped(
+	pass *analysis.Pass,
+	call *ast.CallExpr,
+	tokenPos token.Pos,
+	cfg WrapcheckConfig,
+	regexpsSig []*regexp.Regexp,
+	regexpsInter []*regexp.Regexp,
+	pkgGlobs []glob.Glob,
+) {
+
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return
@@ -243,7 +252,6 @@ func reportUnwrapped(pass *analysis.Pass, call *ast.CallExpr, tokenPos token.Pos
 
 	// Check for ignored signatures
 	fnSig := pass.TypesInfo.ObjectOf(sel.Sel).String()
-
 	if contains(cfg.IgnoreSigs, fnSig) {
 		return
 	} else if containsMatch(regexpsSig, fnSig) {
@@ -254,9 +262,9 @@ func reportUnwrapped(pass *analysis.Pass, call *ast.CallExpr, tokenPos token.Pos
 	// errors returned from interface types should be wrapped, unless ignored
 	// as per `ignoreInterfaceRegexps`
 	if isInterface(pass, sel) {
+		pkgPath := pass.TypesInfo.ObjectOf(sel.Sel).Pkg().Path()
 		name := types.TypeString(pass.TypesInfo.TypeOf(sel.X), func(p *types.Package) string { return p.Name() })
-		if containsMatch(regexpsInter, name) {
-		} else {
+		if !containsMatch(regexpsInter, name) && !containsMatchGlob(pkgGlobs, pkgPath) {
 			pass.Reportf(tokenPos, "error returned from interface method should be wrapped: sig: %s", fnSig)
 			return
 		}
@@ -305,7 +313,7 @@ func isFromOtherPkg(pass *analysis.Pass, sel *ast.SelectorExpr, pkgGlobs []glob.
 // `=`. This does not include `var` statements. This function will return nil if
 // the only declaration is a `var` (aka ValueSpec) declaration.
 func prevErrAssign(pass *analysis.Pass, file *ast.File, returnIdent *ast.Ident) *ast.AssignStmt {
-	// A slice containing all the assignments which contain an identifer
+	// A slice containing all the assignments which contain an identifier
 	// referring to the source declaration of the error. This is to catch
 	// cases where err is defined once, and then reassigned multiple times
 	// within the same block. In these cases, we should check the method of
@@ -319,6 +327,7 @@ func prevErrAssign(pass *analysis.Pass, file *ast.File, returnIdent *ast.Ident) 
 				if !isError(pass.TypesInfo.TypeOf(expr)) {
 					continue
 				}
+
 				if assIdent, ok := expr.(*ast.Ident); ok {
 					if assIdent.Obj == nil || returnIdent.Obj == nil {
 						// If we can't find the Obj for one of the identifiers, just skip
@@ -342,6 +351,7 @@ func prevErrAssign(pass *analysis.Pass, file *ast.File, returnIdent *ast.Ident) 
 		if ass.Pos() > returnIdent.Pos() {
 			break
 		}
+
 		mostRecentAssign = ass
 	}
 
@@ -374,6 +384,7 @@ func containsMatchGlob(globs []glob.Glob, el string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -399,14 +410,14 @@ func isUnresolved(file *ast.File, ident *ast.Ident) bool {
 // compileRegexps compiles a set of regular expressions returning them for use,
 // or the first encountered error due to an invalid expression.
 func compileRegexps(regexps []string) ([]*regexp.Regexp, error) {
-	var compiledRegexps []*regexp.Regexp
-	for _, reg := range regexps {
+	compiledRegexps := make([]*regexp.Regexp, len(regexps))
+	for idx, reg := range regexps {
 		re, err := regexp.Compile(reg)
 		if err != nil {
 			return nil, fmt.Errorf("unable to compile regexp %s: %v\n", reg, err)
 		}
 
-		compiledRegexps = append(compiledRegexps, re)
+		compiledRegexps[idx] = re
 	}
 
 	return compiledRegexps, nil
@@ -415,14 +426,14 @@ func compileRegexps(regexps []string) ([]*regexp.Regexp, error) {
 // compileGlobs compiles a set of globs, returning them for use,
 // or the first encountered error due to an invalid expression.
 func compileGlobs(globs []string) ([]glob.Glob, error) {
-	var compiledGlobs []glob.Glob
-	for _, globString := range globs {
+	compiledGlobs := make([]glob.Glob, len(globs))
+	for idx, globString := range globs {
 		glob, err := glob.Compile(globString)
 		if err != nil {
 			return nil, fmt.Errorf("unable to compile globs %s: %v\n", glob, err)
 		}
 
-		compiledGlobs = append(compiledGlobs, glob)
+		compiledGlobs[idx] = glob
 	}
 	return compiledGlobs, nil
 }

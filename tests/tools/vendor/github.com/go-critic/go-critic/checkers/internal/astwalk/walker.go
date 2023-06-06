@@ -3,7 +3,7 @@ package astwalk
 import (
 	"go/types"
 
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 // WalkerForFuncDecl returns file walker implementation for FuncDeclVisitor.

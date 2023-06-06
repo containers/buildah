@@ -20,10 +20,11 @@ import (
 	"strconv"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type filePermissions struct {
-	gosec.MetaData
+	issue.MetaData
 	mode  int64
 	pkgs  []string
 	calls []string
@@ -50,12 +51,16 @@ func getConfiguredMode(conf map[string]interface{}, configKey string, defaultMod
 	return mode
 }
 
-func (r *filePermissions) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
+func modeIsSubset(subset int64, superset int64) bool {
+	return (subset | superset) == superset
+}
+
+func (r *filePermissions) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
 	for _, pkg := range r.pkgs {
 		if callexpr, matched := gosec.MatchCallByPackage(n, c, pkg, r.calls...); matched {
 			modeArg := callexpr.Args[len(callexpr.Args)-1]
-			if mode, err := gosec.GetInt(modeArg); err == nil && mode > r.mode {
-				return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+			if mode, err := gosec.GetInt(modeArg); err == nil && !modeIsSubset(mode, r.mode) {
+				return c.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 			}
 		}
 	}
@@ -69,10 +74,10 @@ func NewWritePerms(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 		mode:  mode,
 		pkgs:  []string{"io/ioutil", "os"},
 		calls: []string{"WriteFile"},
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 			What:       fmt.Sprintf("Expect WriteFile permissions to be %#o or less", mode),
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}
@@ -86,10 +91,10 @@ func NewFilePerms(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 		mode:  mode,
 		pkgs:  []string{"os"},
 		calls: []string{"OpenFile", "Chmod"},
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 			What:       fmt.Sprintf("Expect file permissions to be %#o or less", mode),
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}
@@ -103,10 +108,10 @@ func NewMkdirPerms(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 		mode:  mode,
 		pkgs:  []string{"os"},
 		calls: []string{"Mkdir", "MkdirAll"},
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 			What:       fmt.Sprintf("Expect directory permissions to be %#o or less", mode),
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}

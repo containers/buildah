@@ -235,7 +235,7 @@ func (c *Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err
 	}
 
 	if err := scanner.Err(); err != nil {
-		returnErr = fmt.Errorf("reading standard input: %w", err)
+		returnErr = fmt.Errorf("error reading standard input: %w", err)
 	}
 
 	return issues, returnErr
@@ -363,7 +363,7 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 	// make a patch for untracked files
 	ls, err := exec.Command("git", "ls-files", "--others", "--exclude-standard").CombinedOutput()
 	if err != nil {
-		return nil, nil, fmt.Errorf("executing git ls-files: %w", err)
+		return nil, nil, fmt.Errorf("error executing git ls-files: %w", err)
 	}
 
 	var newFiles []string
@@ -386,7 +386,7 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 
 		cmd.Stdout = &patch
 		if err := cmd.Run(); err != nil {
-			return nil, nil, fmt.Errorf("executing git diff %q %q: %w", revisionFrom, revisionTo, err)
+			return nil, nil, fmt.Errorf("error executing git diff %q %q: %w", revisionFrom, revisionTo, err)
 		}
 
 		if revisionTo == "" {
@@ -400,7 +400,7 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 	cmd := exec.Command("git", "diff", "--color=never", "--relative", "--")
 	cmd.Stdout = &patch
 	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("executing git diff: %w", err)
+		return nil, nil, fmt.Errorf("error executing git diff: %w", err)
 	}
 	unstaged := patch.Len() > 0
 
@@ -415,7 +415,7 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 	cmd = exec.Command("git", "diff", "--color=never", "--relative", "HEAD~", "--")
 	cmd.Stdout = &patch
 	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("executing git diff HEAD~: %w", err)
+		return nil, nil, fmt.Errorf("error executing git diff HEAD~: %w", err)
 	}
 
 	return &patch, nil, nil

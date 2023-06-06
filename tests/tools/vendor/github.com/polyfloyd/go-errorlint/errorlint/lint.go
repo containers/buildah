@@ -6,14 +6,11 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/go/analysis"
 )
 
-type Lint struct {
-	Message string
-	Pos     token.Pos
-}
-
-type ByPosition []Lint
+type ByPosition []analysis.Diagnostic
 
 func (l ByPosition) Len() int      { return len(l) }
 func (l ByPosition) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
@@ -22,8 +19,8 @@ func (l ByPosition) Less(i, j int) bool {
 	return l[i].Pos < l[j].Pos
 }
 
-func LintFmtErrorfCalls(fset *token.FileSet, info types.Info) []Lint {
-	lints := []Lint{}
+func LintFmtErrorfCalls(fset *token.FileSet, info types.Info, multipleWraps bool) []analysis.Diagnostic {
+	lints := []analysis.Diagnostic{}
 	for expr, t := range info.Types {
 		// Search for error expressions that are the result of fmt.Errorf
 		// invocations.
@@ -41,53 +38,88 @@ func LintFmtErrorfCalls(fset *token.FileSet, info types.Info) []Lint {
 			continue
 		}
 
-		// For any arguments that are errors, check whether the wrapping verb
-		// is used. Only one %w verb may be used in a single format string at a
-		// time, so we stop after finding a correct %w.
-		var lintArg ast.Expr
+		// For any arguments that are errors, check whether the wrapping verb is used. %w may occur
+		// for multiple errors in one Errorf invocation, unless multipleWraps is true. We raise an
+		// issue if at least one error does not have a corresponding wrapping verb.
 		args := call.Args[1:]
-		for i := 0; i < len(args) && i < len(formatVerbs); i++ {
-			if !implementsError(info.Types[args[i]].Type) && !isErrorStringCall(info, args[i]) {
-				continue
+		if !multipleWraps {
+			wrapCount := 0
+			for i := 0; i < len(args) && i < len(formatVerbs); i++ {
+				arg := args[i]
+				if !implementsError(info.Types[arg].Type) {
+					continue
+				}
+				verb := formatVerbs[i]
+
+				if verb.format == "w" {
+					wrapCount++
+					if wrapCount > 1 {
+						lints = append(lints, analysis.Diagnostic{
+							Message: "only one %w verb is permitted per format string",
+							Pos:     arg.Pos(),
+						})
+						break
+					}
+				}
+
+				if wrapCount == 0 {
+					lints = append(lints, analysis.Diagnostic{
+						Message: "non-wrapping format verb for fmt.Errorf. Use `%w` to format errors",
+						Pos:     args[i].Pos(),
+					})
+					break
+				}
 			}
 
-			if formatVerbs[i] == "w" {
-				lintArg = nil
-				break
-			}
+		} else {
+			var lint *analysis.Diagnostic
+			argIndex := 0
+			for _, verb := range formatVerbs {
+				if verb.index != -1 {
+					argIndex = verb.index
+				} else {
+					argIndex++
+				}
 
-			if lintArg == nil {
-				lintArg = args[i]
+				if verb.format == "w" {
+					continue
+				}
+				if argIndex-1 >= len(args) {
+					continue
+				}
+				arg := args[argIndex-1]
+				if !implementsError(info.Types[arg].Type) {
+					continue
+				}
+
+				strStart := call.Args[0].Pos()
+				if lint == nil {
+					lint = &analysis.Diagnostic{
+						Message: "non-wrapping format verb for fmt.Errorf. Use `%w` to format errors",
+						Pos:     arg.Pos(),
+					}
+				}
+				lint.SuggestedFixes = append(lint.SuggestedFixes, analysis.SuggestedFix{
+					Message: "Use `%w` to format errors",
+					TextEdits: []analysis.TextEdit{{
+						Pos:     strStart + token.Pos(verb.formatOffset) + 1,
+						End:     strStart + token.Pos(verb.formatOffset) + 2,
+						NewText: []byte("w"),
+					}},
+				})
 			}
-		}
-		if lintArg != nil {
-			lints = append(lints, Lint{
-				Message: "non-wrapping format verb for fmt.Errorf. Use `%w` to format errors",
-				Pos:     lintArg.Pos(),
-			})
+			if lint != nil {
+				lints = append(lints, *lint)
+			}
 		}
 	}
 	return lints
 }
 
-// isErrorStringCall tests whether the expression is a string expression that
-// is the result of an `(error).Error()` method call.
-func isErrorStringCall(info types.Info, expr ast.Expr) bool {
-	if info.Types[expr].Type.String() == "string" {
-		if call, ok := expr.(*ast.CallExpr); ok {
-			if callSel, ok := call.Fun.(*ast.SelectorExpr); ok {
-				fun := info.Uses[callSel.Sel].(*types.Func)
-				return fun.Type().String() == "func() string" && fun.Name() == "Error"
-			}
-		}
-	}
-	return false
-}
-
 // printfFormatStringVerbs returns a normalized list of all the verbs that are used per argument to
-// the printf function. The index of each returned element corresponds to index of the respective
-// argument.
-func printfFormatStringVerbs(info types.Info, call *ast.CallExpr) ([]string, bool) {
+// the printf function. The index of each returned element corresponds to the index of the
+// respective argument.
+func printfFormatStringVerbs(info types.Info, call *ast.CallExpr) ([]verb, bool) {
 	if len(call.Args) <= 1 {
 		return nil, false
 	}
@@ -103,18 +135,8 @@ func printfFormatStringVerbs(info types.Info, call *ast.CallExpr) ([]string, boo
 	if err != nil {
 		return nil, false
 	}
-	orderedVerbs := verbOrder(verbs, len(call.Args)-1)
 
-	resolvedVerbs := make([]string, len(orderedVerbs))
-	for i, vv := range orderedVerbs {
-		for _, v := range vv {
-			resolvedVerbs[i] = v.format
-			if v.format == "w" {
-				break
-			}
-		}
-	}
-	return resolvedVerbs, true
+	return verbs, true
 }
 
 func isFmtErrorfCallExpr(info types.Info, expr ast.Expr) (*ast.CallExpr, bool) {
@@ -136,8 +158,8 @@ func isFmtErrorfCallExpr(info types.Info, expr ast.Expr) (*ast.CallExpr, bool) {
 	return nil, false
 }
 
-func LintErrorComparisons(fset *token.FileSet, info *TypesInfoExt) []Lint {
-	lints := []Lint{}
+func LintErrorComparisons(fset *token.FileSet, info *TypesInfoExt) []analysis.Diagnostic {
+	lints := []analysis.Diagnostic{}
 
 	for expr := range info.Types {
 		// Find == and != operations.
@@ -156,12 +178,16 @@ func LintErrorComparisons(fset *token.FileSet, info *TypesInfoExt) []Lint {
 		if !isErrorComparison(info.Info, binExpr) {
 			continue
 		}
-
+		// Some errors that are returned from some functions are exempt.
 		if isAllowedErrorComparison(info, binExpr) {
 			continue
 		}
+		// Comparisons that happen in `func (type) Is(error) bool` are okay.
+		if isNodeInErrorIsFunc(info, binExpr) {
+			continue
+		}
 
-		lints = append(lints, Lint{
+		lints = append(lints, analysis.Diagnostic{
 			Message: fmt.Sprintf("comparing with %s will fail on wrapped errors. Use errors.Is to check for a specific error", binExpr.Op),
 			Pos:     binExpr.Pos(),
 		})
@@ -181,11 +207,17 @@ func LintErrorComparisons(fset *token.FileSet, info *TypesInfoExt) []Lint {
 		if tagType.Type.String() != "error" {
 			continue
 		}
+		if isNodeInErrorIsFunc(info, switchStmt) {
+			continue
+		}
 
-		lints = append(lints, Lint{
-			Message: "switch on an error will fail on wrapped errors. Use errors.Is to check for specific errors",
-			Pos:     switchStmt.Pos(),
-		})
+		if switchComparesNonNil(switchStmt) {
+			lints = append(lints, analysis.Diagnostic{
+				Message: "switch on an error will fail on wrapped errors. Use errors.Is to check for specific errors",
+				Pos:     switchStmt.Pos(),
+			})
+		}
+
 	}
 
 	return lints
@@ -207,8 +239,57 @@ func isErrorComparison(info types.Info, binExpr *ast.BinaryExpr) bool {
 	return tx.Type.String() == "error" || ty.Type.String() == "error"
 }
 
-func LintErrorTypeAssertions(fset *token.FileSet, info types.Info) []Lint {
-	lints := []Lint{}
+func isNodeInErrorIsFunc(info *TypesInfoExt, node ast.Node) bool {
+	funcDecl := info.ContainingFuncDecl(node)
+	if funcDecl == nil {
+		return false
+	}
+
+	if funcDecl.Name.Name != "Is" {
+		return false
+	}
+	if funcDecl.Recv == nil {
+		return false
+	}
+	// There should be 1 argument of type error.
+	if ii := funcDecl.Type.Params.List; len(ii) != 1 || info.Types[ii[0].Type].Type.String() != "error" {
+		return false
+	}
+	// The return type should be bool.
+	if ii := funcDecl.Type.Results.List; len(ii) != 1 || info.Types[ii[0].Type].Type.String() != "bool" {
+		return false
+	}
+
+	return true
+}
+
+// switchComparesNonNil returns true if one of its clauses compares by value.
+func switchComparesNonNil(switchStmt *ast.SwitchStmt) bool {
+	for _, caseBlock := range switchStmt.Body.List {
+		caseClause, ok := caseBlock.(*ast.CaseClause)
+		if !ok {
+			continue
+		}
+		for _, clause := range caseClause.List {
+			switch clause := clause.(type) {
+			case nil:
+				// default label is safe
+				continue
+			case *ast.Ident:
+				// `case nil` is safe
+				if clause.Name == "nil" {
+					continue
+				}
+			}
+			// anything else (including an Ident other than nil) isn't safe
+			return true
+		}
+	}
+	return false
+}
+
+func LintErrorTypeAssertions(fset *token.FileSet, info types.Info) []analysis.Diagnostic {
+	lints := []analysis.Diagnostic{}
 
 	for expr := range info.Types {
 		// Find type assertions.
@@ -222,7 +303,7 @@ func LintErrorTypeAssertions(fset *token.FileSet, info types.Info) []Lint {
 			continue
 		}
 
-		lints = append(lints, Lint{
+		lints = append(lints, analysis.Diagnostic{
 			Message: "type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors",
 			Pos:     typeAssert.Pos(),
 		})
@@ -249,7 +330,7 @@ func LintErrorTypeAssertions(fset *token.FileSet, info types.Info) []Lint {
 			continue
 		}
 
-		lints = append(lints, Lint{
+		lints = append(lints, analysis.Diagnostic{
 			Message: "type switch on error will fail on wrapped errors. Use errors.As to check for specific errors",
 			Pos:     typeAssert.Pos(),
 		})

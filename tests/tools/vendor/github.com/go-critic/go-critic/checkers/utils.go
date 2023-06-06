@@ -5,7 +5,7 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 // goStdlib contains `go list std` command output list.

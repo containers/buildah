@@ -50,15 +50,17 @@ var (
 	}
 )
 
-type typeSpecByName map[string]*ast.TypeSpec
+type typeSpecByName map[string]typer
 
 func (n *nilNil) run(pass *analysis.Pass) (interface{}, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	typeSpecs := typeSpecByName{}
+	typeSpecs := typeSpecByName{
+		"any": newTyper(new(ast.InterfaceType)),
+	}
 	insp.Preorder(types, func(node ast.Node) {
 		t := node.(*ast.TypeSpec)
-		typeSpecs[t.Name.Name] = t
+		typeSpecs[t.Name.Name] = newTyper(t.Type)
 	})
 
 	var fs funcTypeStack
@@ -125,7 +127,7 @@ func (n *nilNil) isDangerNilType(t ast.Expr, typeSpecs typeSpecByName) bool {
 
 	case *ast.Ident:
 		if t, ok := typeSpecs[v.Name]; ok {
-			return n.isDangerNilType(t.Type, nil)
+			return n.isDangerNilType(t.Type(), typeSpecs)
 		}
 	}
 	return false
@@ -146,3 +148,11 @@ func isIdent(n ast.Node, name string) bool {
 	}
 	return i.Name == name
 }
+
+type typer interface {
+	Type() ast.Expr
+}
+
+func newTyper(t ast.Expr) typer     { return typerImpl{t: t} } //
+type typerImpl struct{ t ast.Expr } //
+func (ti typerImpl) Type() ast.Expr { return ti.t }

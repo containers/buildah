@@ -41,7 +41,6 @@ package ssa
 import (
 	"fmt"
 	"go/token"
-	"go/types"
 	"math/big"
 	"os"
 )
@@ -381,13 +380,6 @@ type newPhiMap map[*BasicBlock][]newPhi
 //
 // fresh is a source of fresh ids for phi nodes.
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap, fresh *int) bool {
-	// Don't lift aggregates into registers, because we don't have
-	// a way to express their zero-constants.
-	switch deref(alloc.Type()).Underlying().(type) {
-	case *types.Array, *types.Struct:
-		return false
-	}
-
 	// Don't lift named return values in functions that defer
 	// calls that may recover from panic.
 	if fn := alloc.Parent(); fn.Recover != nil {
@@ -468,7 +460,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap, fresh *int) bool
 				*fresh++
 
 				phi.pos = alloc.Pos()
-				phi.setType(deref(alloc.Type()))
+				phi.setType(mustDeref(alloc.Type()))
 				phi.block = v
 				if debugLifting {
 					fmt.Fprintf(os.Stderr, "\tplace %s = %s at block %s\n", phi.Name(), phi, v)
@@ -513,7 +505,7 @@ func replaceAll(x, y Value) {
 func renamed(renaming []Value, alloc *Alloc) Value {
 	v := renaming[alloc.index]
 	if v == nil {
-		v = zeroConst(deref(alloc.Type()))
+		v = zeroConst(mustDeref(alloc.Type()))
 		renaming[alloc.index] = v
 	}
 	return v

@@ -3,6 +3,7 @@ package rule
 import (
 	"fmt"
 	"go/ast"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -10,18 +11,25 @@ import (
 // DeferRule lints unused params in functions.
 type DeferRule struct {
 	allow map[string]bool
+	sync.Mutex
+}
+
+func (r *DeferRule) configure(arguments lint.Arguments) {
+	r.Lock()
+	if r.allow == nil {
+		r.allow = r.allowFromArgs(arguments)
+	}
+	r.Unlock()
 }
 
 // Apply applies the rule to given file.
 func (r *DeferRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	if r.allow == nil {
-		r.allow = r.allowFromArgs(arguments)
-	}
+	r.configure(arguments)
+
 	var failures []lint.Failure
 	onFailure := func(failure lint.Failure) {
 		failures = append(failures, failure)
 	}
-
 	w := lintDeferRule{onFailure: onFailure, allow: r.allow}
 
 	ast.Walk(w, file.AST)
@@ -30,18 +38,19 @@ func (r *DeferRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Fail
 }
 
 // Name returns the rule name.
-func (r *DeferRule) Name() string {
+func (*DeferRule) Name() string {
 	return "defer"
 }
 
-func (r *DeferRule) allowFromArgs(args lint.Arguments) map[string]bool {
+func (*DeferRule) allowFromArgs(args lint.Arguments) map[string]bool {
 	if len(args) < 1 {
 		allow := map[string]bool{
-			"loop":        true,
-			"call-chain":  true,
-			"method-call": true,
-			"return":      true,
-			"recover":     true,
+			"loop":              true,
+			"call-chain":        true,
+			"method-call":       true,
+			"return":            true,
+			"recover":           true,
+			"immediate-recover": true,
 		}
 
 		return allow
@@ -89,11 +98,29 @@ func (w lintDeferRule) Visit(node ast.Node) ast.Visitor {
 		}
 	case *ast.CallExpr:
 		if !w.inADefer && isIdent(n.Fun, "recover") {
+			// func fn() { recover() }
+			//
 			// confidence is not 1 because recover can be in a function that is deferred elsewhere
 			w.newFailure("recover must be called inside a deferred function", n, 0.8, "logic", "recover")
+		} else if w.inADefer && !w.inAFuncLit && isIdent(n.Fun, "recover") {
+			// defer helper(recover())
+			//
+			// confidence is not truly 1 because this could be in a correctly-deferred func,
+			// but it is very likely to be a misunderstanding of defer's behavior around arguments.
+			w.newFailure("recover must be called inside a deferred function, this is executing recover immediately", n, 1, "logic", "immediate-recover")
 		}
 	case *ast.DeferStmt:
+		if isIdent(n.Call.Fun, "recover") {
+			// defer recover()
+			//
+			// confidence is not truly 1 because this could be in a correctly-deferred func,
+			// but normally this doesn't suppress a panic, and even if it did it would silently discard the value.
+			w.newFailure("recover must be called inside a deferred function, this is executing recover immediately", n, 1, "logic", "immediate-recover")
+		}
 		w.visitSubtree(n.Call.Fun, true, false, false)
+		for _, a := range n.Call.Args {
+			w.visitSubtree(a, true, false, false) // check arguments, they should not contain recover()
+		}
 
 		if w.inALoop {
 			w.newFailure("prefer not to defer inside loops", n, 1.0, "bad practice", "loop")
@@ -117,7 +144,7 @@ func (w lintDeferRule) Visit(node ast.Node) ast.Visitor {
 }
 
 func (w lintDeferRule) visitSubtree(n ast.Node, inADefer, inALoop, inAFuncLit bool) {
-	nw := &lintDeferRule{
+	nw := lintDeferRule{
 		onFailure:  w.onFailure,
 		inADefer:   inADefer,
 		inALoop:    inALoop,

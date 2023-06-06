@@ -1,6 +1,6 @@
 package section
 
-// Code generated based on go1.18.4. DO NOT EDIT.
+// Code generated based on go1.20.1. DO NOT EDIT.
 
 var standardPackages = map[string]struct{}{
 	"archive/tar":          {},
@@ -21,6 +21,7 @@ var standardPackages = map[string]struct{}{
 	"crypto/cipher":        {},
 	"crypto/des":           {},
 	"crypto/dsa":           {},
+	"crypto/ecdh":          {},
 	"crypto/ecdsa":         {},
 	"crypto/ed25519":       {},
 	"crypto/elliptic":      {},
@@ -67,6 +68,7 @@ var standardPackages = map[string]struct{}{
 	"go/build/constraint":  {},
 	"go/constant":          {},
 	"go/doc":               {},
+	"go/doc/comment":       {},
 	"go/format":            {},
 	"go/importer":          {},
 	"go/parser":            {},
@@ -131,6 +133,7 @@ var standardPackages = map[string]struct{}{
 	"regexp/syntax":        {},
 	"runtime":              {},
 	"runtime/cgo":          {},
+	"runtime/coverage":     {},
 	"runtime/debug":        {},
 	"runtime/metrics":      {},
 	"runtime/pprof":        {},

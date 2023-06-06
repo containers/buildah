@@ -183,4 +183,12 @@ var std = map[string]struct{}{
 	"runtime/metrics":     {},
 	"testing/fstest":      {},
 	// added in Go v1.17 in compare to v1.16 (docker image)
+	// added in Go v1.18 in compare to v1.17 (docker image)
+	"debug/buildinfo": {},
+	"net/netip":       {},
+	// added in Go v1.19 in compare to v1.18 (docker image)
+	"go/doc/comment": {},
+	// added in Go v1.20 in compare to v1.19 (docker image)
+	"crypto/ecdh":      {},
+	"runtime/coverage": {},
 }

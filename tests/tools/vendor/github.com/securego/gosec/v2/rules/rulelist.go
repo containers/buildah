@@ -76,6 +76,7 @@ func Generate(trackSuppressions bool, filters ...RuleFilter) RuleList {
 		{"G111", "Detect http.Dir('/') as a potential risk", NewDirectoryTraversal},
 		{"G112", "Detect ReadHeaderTimeout not configured as a potential risk", NewSlowloris},
 		{"G113", "Usage of Rat.SetString in math/big with an overflow", NewUsingOldMathBig},
+		{"G114", "Use of net/http serve function that has no support for setting timeouts", NewHTTPServeWithoutTimeouts},
 
 		// injection
 		{"G201", "SQL query construction using format string", NewSQLStrFormat},
@@ -90,7 +91,6 @@ func Generate(trackSuppressions bool, filters ...RuleFilter) RuleList {
 		{"G304", "File path provided as taint input", NewReadFile},
 		{"G305", "File path traversal when extracting zip archive", NewArchive},
 		{"G306", "Poor file permissions used when writing to a file", NewWritePerms},
-		{"G307", "Unsafe defer call of a method returning an error", NewDeferredClosing},
 
 		// crypto
 		{"G401", "Detect the usage of DES, RC4, MD5 or SHA1", NewUsesWeakCryptography},

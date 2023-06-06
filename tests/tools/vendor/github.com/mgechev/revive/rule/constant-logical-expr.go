@@ -25,7 +25,7 @@ func (r *ConstantLogicalExprRule) Apply(file *lint.File, _ lint.Arguments) []lin
 }
 
 // Name returns the rule name.
-func (r *ConstantLogicalExprRule) Name() string {
+func (*ConstantLogicalExprRule) Name() string {
 	return "constant-logical-expr"
 }
 

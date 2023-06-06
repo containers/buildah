@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/shazow/go-diff/difflib"
 	"golang.org/x/tools/go/analysis"
 	"mvdan.cc/gofumpt/format"
@@ -51,7 +50,7 @@ func NewGofumpt(settings *config.GofumptSettings) *goanalysis.Linter {
 		[]*analysis.Analyzer{analyzer},
 		nil,
 	).WithContextSetter(func(lintCtx *linter.Context) {
-		analyzer.Run = func(pass *analysis.Pass) (interface{}, error) {
+		analyzer.Run = func(pass *analysis.Pass) (any, error) {
 			issues, err := runGofumpt(lintCtx, pass, diff, options)
 			if err != nil {
 				return nil, err
@@ -85,25 +84,21 @@ func runGofumpt(lintCtx *linter.Context, pass *analysis.Pass, diff differ, optio
 
 		output, err := format.Source(input, options)
 		if err != nil {
-			return nil, fmt.Errorf("while running gofumpt: %w", err)
+			return nil, fmt.Errorf("error while running gofumpt: %w", err)
 		}
 
 		if !bytes.Equal(input, output) {
-			out := bytes.Buffer{}
-			_, err = out.WriteString(fmt.Sprintf("--- %[1]s\n+++ %[1]s\n", f))
-			if err != nil {
-				return nil, fmt.Errorf("while running gofumpt: %w", err)
-			}
+			out := bytes.NewBufferString(fmt.Sprintf("--- %[1]s\n+++ %[1]s\n", f))
 
-			err = diff.Diff(&out, bytes.NewReader(input), bytes.NewReader(output))
+			err := diff.Diff(out, bytes.NewReader(input), bytes.NewReader(output))
 			if err != nil {
-				return nil, fmt.Errorf("while running gofumpt: %w", err)
+				return nil, fmt.Errorf("error while running gofumpt: %w", err)
 			}
 
 			diff := out.String()
 			is, err := extractIssuesFromPatch(diff, lintCtx, gofumptName)
 			if err != nil {
-				return nil, errors.Wrapf(err, "can't extract issues from gofumpt diff output %q", diff)
+				return nil, fmt.Errorf("can't extract issues from gofumpt diff output %q: %w", diff, err)
 			}
 
 			for i := range is {

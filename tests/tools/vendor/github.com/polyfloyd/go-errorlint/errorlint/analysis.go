@@ -19,20 +19,22 @@ func NewAnalyzer() *analysis.Analyzer {
 }
 
 var (
-	flagSet         flag.FlagSet
-	checkComparison bool
-	checkAsserts    bool
-	checkErrorf     bool
+	flagSet          flag.FlagSet
+	checkComparison  bool
+	checkAsserts     bool
+	checkErrorf      bool
+	checkErrorfMulti bool
 )
 
 func init() {
 	flagSet.BoolVar(&checkComparison, "comparison", true, "Check for plain error comparisons")
 	flagSet.BoolVar(&checkAsserts, "asserts", true, "Check for plain type assertions and type switches")
 	flagSet.BoolVar(&checkErrorf, "errorf", false, "Check whether fmt.Errorf uses the %w verb for formatting errors. See the readme for caveats")
+	flagSet.BoolVar(&checkErrorfMulti, "errorf-multi", true, "Permit more than 1 %w verb, valid per Go 1.20 (Requires -errorf=true)")
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	lints := []Lint{}
+	lints := []analysis.Diagnostic{}
 	extInfo := newTypesInfoExt(pass.TypesInfo)
 	if checkComparison {
 		l := LintErrorComparisons(pass.Fset, extInfo)
@@ -43,13 +45,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		lints = append(lints, l...)
 	}
 	if checkErrorf {
-		l := LintFmtErrorfCalls(pass.Fset, *pass.TypesInfo)
+		l := LintFmtErrorfCalls(pass.Fset, *pass.TypesInfo, checkErrorfMulti)
 		lints = append(lints, l...)
 	}
 	sort.Sort(ByPosition(lints))
 
 	for _, l := range lints {
-		pass.Report(analysis.Diagnostic{Pos: l.Pos, Message: l.Message})
+		pass.Report(l)
 	}
 	return nil, nil
 }
@@ -57,7 +59,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 type TypesInfoExt struct {
 	types.Info
 
-	// Maps AST nodes back to the node they are contain within.
+	// Maps AST nodes back to the node they are contained within.
 	NodeParent map[ast.Node]ast.Node
 
 	// Maps an object back to all identifiers to refer to it.
@@ -96,4 +98,16 @@ func newTypesInfoExt(info *types.Info) *TypesInfoExt {
 		NodeParent:           nodeParent,
 		IdentifiersForObject: identifiersForObject,
 	}
+}
+
+func (info *TypesInfoExt) ContainingFuncDecl(node ast.Node) *ast.FuncDecl {
+	for parent := info.NodeParent[node]; ; parent = info.NodeParent[parent] {
+		if _, ok := parent.(*ast.File); ok {
+			break
+		}
+		if fun, ok := parent.(*ast.FuncDecl); ok {
+			return fun
+		}
+	}
+	return nil
 }

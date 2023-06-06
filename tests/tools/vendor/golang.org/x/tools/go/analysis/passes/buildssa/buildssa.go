@@ -22,6 +22,7 @@ import (
 var Analyzer = &analysis.Analyzer{
 	Name:       "buildssa",
 	Doc:        "build SSA-form IR for later passes",
+	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/buildssa",
 	Run:        run,
 	ResultType: reflect.TypeOf(new(SSA)),
 }
@@ -48,8 +49,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	// Some Analyzers may need GlobalDebug, in which case we'll have
 	// to set it globally, but let's wait till we need it.
-	// Monomorphize at least until type parameters are available.
-	mode := ssa.InstantiateGenerics
+	mode := ssa.BuilderMode(0)
 
 	prog := ssa.NewProgram(pass.Fset, mode)
 

@@ -19,7 +19,11 @@ func (w *Weakness) SprintURL() string {
 
 // SprintID format the CWE ID
 func (w *Weakness) SprintID() string {
-	return fmt.Sprintf("%s-%s", Acronym, w.ID)
+	id := "0000"
+	if w != nil {
+		id = w.ID
+	}
+	return fmt.Sprintf("%s-%s", Acronym, id)
 }
 
 // MarshalJSON print only id and URL

@@ -8,14 +8,15 @@ import (
 	"strings"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/strparse"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "commentedOutCode"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Summary = "Detects commented-out code inside function bodies"
 	info.Before = `
 // fmt.Println("Debugging hard")

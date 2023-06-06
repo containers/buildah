@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	duplAPI "github.com/golangci/dupl"
-	"github.com/pkg/errors"
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/golangci/golangci-lint/pkg/config"
@@ -26,7 +25,7 @@ func NewDupl(settings *config.DuplSettings) *goanalysis.Linter {
 	analyzer := &analysis.Analyzer{
 		Name: duplName,
 		Doc:  goanalysis.TheOnlyanalyzerDoc,
-		Run: func(pass *analysis.Pass) (interface{}, error) {
+		Run: func(pass *analysis.Pass) (any, error) {
 			issues, err := runDupl(pass, settings)
 			if err != nil {
 				return nil, err
@@ -71,7 +70,7 @@ func runDupl(pass *analysis.Pass, settings *config.DuplSettings) ([]goanalysis.I
 	for _, i := range issues {
 		toFilename, err := fsutils.ShortestRelPath(i.To.Filename(), "")
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get shortest rel path for %q", i.To.Filename())
+			return nil, fmt.Errorf("failed to get shortest rel path for %q: %w", i.To.Filename(), err)
 		}
 
 		dupl := fmt.Sprintf("%s:%d-%d", toFilename, i.To.LineStart(), i.To.LineEnd())

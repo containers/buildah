@@ -16,14 +16,14 @@ type Sarif struct {
 }
 
 // Name returns the name of the formatter
-func (f *Sarif) Name() string {
+func (*Sarif) Name() string {
 	return "sarif"
 }
 
 const reviveSite = "https://revive.run"
 
 // Format formats the failures gotten from the lint.
-func (f *Sarif) Format(failures <-chan lint.Failure, cfg lint.Config) (string, error) {
+func (*Sarif) Format(failures <-chan lint.Failure, cfg lint.Config) (string, error) {
 	sarifLog := newReviveRunLog(cfg)
 
 	for failure := range failures {
@@ -81,8 +81,8 @@ func (l *reviveRunLog) AddResult(failure lint.Failure) {
 	}
 	position := failure.Position
 	filename := position.Start.Filename
-	line := positiveOrZero(position.Start.Line - 1)     // https://docs.oasis-open.org/sarif/sarif/v2.1.0/csprd01/sarif-v2.1.0-csprd01.html#def_line
-	column := positiveOrZero(position.Start.Column - 1) // https://docs.oasis-open.org/sarif/sarif/v2.1.0/csprd01/sarif-v2.1.0-csprd01.html#def_column
+	line := positiveOrZero(position.Start.Line)     // https://docs.oasis-open.org/sarif/sarif/v2.1.0/csprd01/sarif-v2.1.0-csprd01.html#def_line
+	column := positiveOrZero(position.Start.Column) // https://docs.oasis-open.org/sarif/sarif/v2.1.0/csprd01/sarif-v2.1.0-csprd01.html#def_column
 
 	result := garif.NewResult(garif.NewMessageFromText(failure.Failure))
 	location := garif.NewLocation().WithURI(filename).WithLineColumn(line, column)

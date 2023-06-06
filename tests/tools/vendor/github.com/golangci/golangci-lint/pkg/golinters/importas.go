@@ -3,6 +3,7 @@ package golinters
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/julz/importas" //nolint:misspell
 	"golang.org/x/tools/go/analysis"
@@ -36,10 +37,25 @@ func NewImportAs(settings *config.ImportAsSettings) *goanalysis.Linter {
 			lintCtx.Log.Errorf("failed to parse configuration: %v", err)
 		}
 
+		uniqPackages := make(map[string]config.ImportAsAlias)
+		uniqAliases := make(map[string]config.ImportAsAlias)
 		for _, a := range settings.Alias {
 			if a.Pkg == "" {
 				lintCtx.Log.Errorf("invalid configuration, empty package: pkg=%s alias=%s", a.Pkg, a.Alias)
 				continue
+			}
+
+			if v, ok := uniqPackages[a.Pkg]; ok {
+				lintCtx.Log.Errorf("invalid configuration, multiple aliases for the same package: pkg=%s aliases=[%s,%s]", a.Pkg, a.Alias, v.Alias)
+			} else {
+				uniqPackages[a.Pkg] = a
+			}
+
+			// skip the duplication check when the alias is a regular expression replacement pattern (ie. contains `$`).
+			if v, ok := uniqAliases[a.Alias]; ok && !strings.Contains(a.Alias, "$") {
+				lintCtx.Log.Errorf("invalid configuration, multiple packages with the same alias: alias=%s packages=[%s,%s]", a.Alias, a.Pkg, v.Pkg)
+			} else {
+				uniqAliases[a.Alias] = a
 			}
 
 			err := analyzer.Flags.Set("alias", fmt.Sprintf("%s:%s", a.Pkg, a.Alias))

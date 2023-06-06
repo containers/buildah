@@ -15,12 +15,14 @@ package gosec
 import (
 	"go/ast"
 	"reflect"
+
+	"github.com/securego/gosec/v2/issue"
 )
 
 // The Rule interface used by all rules supported by gosec.
 type Rule interface {
 	ID() string
-	Match(ast.Node, *Context) (*Issue, error)
+	Match(ast.Node, *Context) (*issue.Issue, error)
 }
 
 // RuleBuilder is used to register a rule definition with the analyzer

@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/mgechev/revive/formatter"
 
@@ -31,21 +31,23 @@ var defaultRules = []lint.Rule{
 	&rule.TimeNamingRule{},
 	&rule.ContextKeysType{},
 	&rule.ContextAsArgumentRule{},
+	&rule.IfReturnRule{},
+	&rule.EmptyBlockRule{},
+	&rule.SuperfluousElseRule{},
+	&rule.UnusedParamRule{},
+	&rule.UnreachableCodeRule{},
+	&rule.RedefinesBuiltinIDRule{},
 }
 
 var allRules = append([]lint.Rule{
 	&rule.ArgumentsLimitRule{},
 	&rule.CyclomaticRule{},
 	&rule.FileHeaderRule{},
-	&rule.EmptyBlockRule{},
-	&rule.SuperfluousElseRule{},
 	&rule.ConfusingNamingRule{},
 	&rule.GetReturnRule{},
 	&rule.ModifiesParamRule{},
 	&rule.ConfusingResultsRule{},
 	&rule.DeepExitRule{},
-	&rule.UnusedParamRule{},
-	&rule.UnreachableCodeRule{},
 	&rule.AddConstantRule{},
 	&rule.FlagParamRule{},
 	&rule.UnnecessaryStmtRule{},
@@ -53,7 +55,6 @@ var allRules = append([]lint.Rule{
 	&rule.ModifiesValRecRule{},
 	&rule.ConstantLogicalExprRule{},
 	&rule.BoolLiteralRule{},
-	&rule.RedefinesBuiltinIDRule{},
 	&rule.ImportsBlacklistRule{},
 	&rule.FunctionResultsLimitRule{},
 	&rule.MaxPublicStructsRule{},
@@ -79,12 +80,13 @@ var allRules = append([]lint.Rule{
 	&rule.UnexportedNamingRule{},
 	&rule.FunctionLength{},
 	&rule.NestedStructs{},
-	&rule.IfReturnRule{},
 	&rule.UselessBreak{},
 	&rule.TimeEqualRule{},
 	&rule.BannedCharsRule{},
 	&rule.OptimizeOperandsOrderRule{},
 	&rule.UseAnyRule{},
+	&rule.DataRaceRule{},
+	&rule.CommentSpacingsRule{},
 }, defaultRules...)
 
 var allFormatters = []lint.Formatter{
@@ -122,7 +124,7 @@ func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, 
 
 	var lintingRules []lint.Rule
 	for name, ruleConfig := range config.Rules {
-		rule, ok := rulesMap[name]
+		r, ok := rulesMap[name]
 		if !ok {
 			return nil, fmt.Errorf("cannot find rule: %s", name)
 		}
@@ -131,14 +133,14 @@ func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, 
 			continue // skip disabled rules
 		}
 
-		lintingRules = append(lintingRules, rule)
+		lintingRules = append(lintingRules, r)
 	}
 
 	return lintingRules, nil
 }
 
 func parseConfig(path string, config *lint.Config) error {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return errors.New("cannot read the config file")
 	}
@@ -155,8 +157,8 @@ func normalizeConfig(config *lint.Config) {
 	}
 	if config.EnableAllRules {
 		// Add to the configuration all rules not yet present in it
-		for _, rule := range allRules {
-			ruleName := rule.Name()
+		for _, r := range allRules {
+			ruleName := r.Name()
 			_, alreadyInConf := config.Rules[ruleName]
 			if alreadyInConf {
 				continue
@@ -207,15 +209,15 @@ func GetConfig(configPath string) (*lint.Config, error) {
 // GetFormatter yields the formatter for lint failures
 func GetFormatter(formatterName string) (lint.Formatter, error) {
 	formatters := getFormatters()
-	formatter := formatters["default"]
+	fmtr := formatters["default"]
 	if formatterName != "" {
 		f, ok := formatters[formatterName]
 		if !ok {
 			return nil, fmt.Errorf("unknown formatter %v", formatterName)
 		}
-		formatter = f
+		fmtr = f
 	}
-	return formatter, nil
+	return fmtr, nil
 }
 
 func defaultConfig() *lint.Config {

@@ -18,10 +18,11 @@ import (
 	"go/ast"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type templateCheck struct {
-	gosec.MetaData
+	issue.MetaData
 	calls gosec.CallList
 }
 
@@ -29,11 +30,11 @@ func (t *templateCheck) ID() string {
 	return t.MetaData.ID
 }
 
-func (t *templateCheck) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
+func (t *templateCheck) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
 	if node := t.calls.ContainsPkgCallExpr(n, c, false); node != nil {
 		for _, arg := range node.Args {
 			if _, ok := arg.(*ast.BasicLit); !ok { // basic lits are safe
-				return gosec.NewIssue(c, n, t.ID(), t.What, t.Severity, t.Confidence), nil
+				return c.NewIssue(n, t.ID(), t.What, t.Severity, t.Confidence), nil
 			}
 		}
 	}
@@ -42,7 +43,7 @@ func (t *templateCheck) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error
 
 // NewTemplateCheck constructs the template check rule. This rule is used to
 // find use of templates where HTML/JS escaping is not being used
-func NewTemplateCheck(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewTemplateCheck(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	calls := gosec.NewCallList()
 	calls.Add("html/template", "HTML")
 	calls.Add("html/template", "HTMLAttr")
@@ -50,10 +51,10 @@ func NewTemplateCheck(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 	calls.Add("html/template", "URL")
 	return &templateCheck{
 		calls: calls,
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.Low,
+			Severity:   issue.Medium,
+			Confidence: issue.Low,
 			What:       "The used method does not auto-escape HTML. This can potentially lead to 'Cross-site Scripting' vulnerabilities, in case the attacker controls the input.",
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}

@@ -17,7 +17,7 @@ type tpWalker struct {
 	seen map[types.Type]bool
 }
 
-// isParameterized returns true when typ contains any type parameters.
+// isParameterized returns true when typ reaches any type parameter.
 func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
 	// NOTE: Adapted from go/types/infer.go. Try to keep in sync.
 
@@ -63,7 +63,7 @@ func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
 		// of a generic function type (or an interface method) that is
 		// part of the type we're testing. We don't care about these type
 		// parameters.
-		// Similarly, the receiver of a method may declare (rather then
+		// Similarly, the receiver of a method may declare (rather than
 		// use) type parameters, we don't care about those either.
 		// Thus, we only need to look at the input and result parameters.
 		return w.isParameterized(t.Params()) || w.isParameterized(t.Results())
@@ -101,6 +101,7 @@ func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
 				return true
 			}
 		}
+		return w.isParameterized(t.Underlying()) // recurse for types local to parameterized functions
 
 	case *typeparams.TypeParam:
 		return true
@@ -109,5 +110,14 @@ func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
 		panic(t) // unreachable
 	}
 
+	return false
+}
+
+func (w *tpWalker) anyParameterized(ts []types.Type) bool {
+	for _, t := range ts {
+		if w.isParameterized(t) {
+			return true
+		}
+	}
 	return false
 }

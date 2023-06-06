@@ -1,0 +1,28 @@
+version: '3'
+
+tasks:
+  default:
+    sources:
+    - "./**/*.go"
+    method: timestamp
+    cmds:
+    - clear
+    - make build
+    - make build-race
+    - task: lints
+    # - make test-generate
+    - task: tests
+    - cmd: go run ./cmd/mirror/ --with-tests --with-debug ./sandbox
+      ignore_error: true
+
+  testcase: go test -v -failfast -count=1 -run "TestAll/{{ .Case }}" ./...
+
+  tests:
+    cmds:
+    - cmd: make tests
+      ignore_error: true
+
+  lints:
+    cmds:
+    - cmd: make lints
+      ignore_error: true

@@ -1,0 +1,28 @@
+package tagalign
+
+type Option func(*Helper)
+
+// WithMode specify the mode of tagalign.
+func WithMode(mode Mode) Option {
+	return func(h *Helper) {
+		h.mode = mode
+	}
+}
+
+// WithSort enable tags sort.
+// fixedOrder specify the order of tags, the other tags will be sorted by name.
+// Sory is disabled by default.
+func WithSort(fixedOrder ...string) Option {
+	return func(h *Helper) {
+		h.sort = true
+		h.fixedTagOrder = fixedOrder
+	}
+}
+
+// WithAlign configure whether enable tags align.
+// Align is enabled by default.
+func WithAlign(enabled bool) Option {
+	return func(h *Helper) {
+		h.align = enabled
+	}
+}

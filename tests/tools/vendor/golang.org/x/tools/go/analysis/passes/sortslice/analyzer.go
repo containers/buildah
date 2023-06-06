@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -27,11 +28,16 @@ the interface{} value passed to sort.Slice is actually a slice.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "sortslice",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sortslice",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	if !analysisutil.Imports(pass.Pkg, "sort") {
+		return nil, nil // doesn't directly import sort
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -52,10 +58,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		arg := call.Args[0]
 		typ := pass.TypesInfo.Types[arg].Type
+
+		if tuple, ok := typ.(*types.Tuple); ok {
+			typ = tuple.At(0).Type() // special case for Slice(f(...))
+		}
+
 		switch typ.Underlying().(type) {
 		case *types.Slice, *types.Interface:
 			return
 		}
+
+		// Restore typ to the original type, we may unwrap the tuple above,
+		// typ might not be the type of arg.
+		typ = pass.TypesInfo.Types[arg].Type
 
 		var fixes []analysis.SuggestedFix
 		switch v := typ.Underlying().(type) {

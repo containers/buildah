@@ -3,7 +3,7 @@
 [![forthebadge](https://forthebadge.com/images/badges/made-with-go.svg)](https://forthebadge.com)
 [![forthebadge](https://forthebadge.com/images/badges/built-with-love.svg)](https://forthebadge.com)
 
-[![Build Status](https://travis-ci.org/bombsimon/wsl.svg?branch=master)](https://travis-ci.org/bombsimon/wsl)
+[![GitHub Actions](https://github.com/bombsimon/wsl/actions/workflows/go.yml/badge.svg)](https://github.com/bombsimon/wsl/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/bombsimon/wsl/badge.svg?branch=master)](https://coveralls.io/github/bombsimon/wsl?branch=master)
 
 WSL is a linter that enforces a very **non scientific** vision of how to make
@@ -28,7 +28,7 @@ make something configurable!
 You can do that by using:
 
 ```sh
-go get -u github.com/bombsimon/wsl/cmd/...
+go get -u github.com/bombsimon/wsl/v3/cmd/...
 ```
 
 ### By golangci-lint (CI automation)

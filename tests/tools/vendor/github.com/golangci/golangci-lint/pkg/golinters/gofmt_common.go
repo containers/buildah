@@ -6,7 +6,6 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/pkg/errors"
 	diffpkg "github.com/sourcegraph/go-diff/diff"
 
 	"github.com/golangci/golangci-lint/pkg/config"
@@ -223,6 +222,9 @@ func getErrorTextForLinter(settings *config.LintersSettings, linterName string) 
 		if settings.Gofmt.Simplify {
 			text += " with `-s`"
 		}
+		for _, rule := range settings.Gofmt.RewriteRules {
+			text += fmt.Sprintf(" `-r '%s -> %s'`", rule.Pattern, rule.Replacement)
+		}
 	case goimportsName:
 		text = "File is not `goimports`-ed"
 		if settings.Goimports.LocalPrefixes != "" {
@@ -235,11 +237,11 @@ func getErrorTextForLinter(settings *config.LintersSettings, linterName string) 
 func extractIssuesFromPatch(patch string, lintCtx *linter.Context, linterName string) ([]result.Issue, error) {
 	diffs, err := diffpkg.ParseMultiFileDiff([]byte(patch))
 	if err != nil {
-		return nil, errors.Wrap(err, "can't parse patch")
+		return nil, fmt.Errorf("can't parse patch: %w", err)
 	}
 
 	if len(diffs) == 0 {
-		return nil, fmt.Errorf("got no diffs from patch parser: %v", diffs)
+		return nil, fmt.Errorf("got no diffs from patch parser: %v", patch)
 	}
 
 	var issues []result.Issue

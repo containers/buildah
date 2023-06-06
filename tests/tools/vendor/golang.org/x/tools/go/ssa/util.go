@@ -43,25 +43,100 @@ func isBlankIdent(e ast.Expr) bool {
 
 //// Type utilities.  Some of these belong in go/types.
 
-// isPointer returns true for types whose underlying type is a pointer.
-func isPointer(typ types.Type) bool {
-	_, ok := typ.Underlying().(*types.Pointer)
+// isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
+func isNonTypeParamInterface(t types.Type) bool {
+	return !typeparams.IsTypeParam(t) && types.IsInterface(t)
+}
+
+// isBasic reports whether t is a basic type.
+func isBasic(t types.Type) bool {
+	_, ok := t.(*types.Basic)
 	return ok
 }
 
-func isInterface(T types.Type) bool { return types.IsInterface(T) }
+// isString reports whether t is exactly a string type.
+func isString(t types.Type) bool {
+	return isBasic(t) && t.(*types.Basic).Info()&types.IsString != 0
+}
 
-// deref returns a pointer's element type; otherwise it returns typ.
-func deref(typ types.Type) types.Type {
-	if p, ok := typ.Underlying().(*types.Pointer); ok {
-		return p.Elem()
+// isByteSlice reports whether t is of the form []~bytes.
+func isByteSlice(t types.Type) bool {
+	if b, ok := t.(*types.Slice); ok {
+		e, _ := b.Elem().Underlying().(*types.Basic)
+		return e != nil && e.Kind() == types.Byte
 	}
-	return typ
+	return false
+}
+
+// isRuneSlice reports whether t is of the form []~runes.
+func isRuneSlice(t types.Type) bool {
+	if b, ok := t.(*types.Slice); ok {
+		e, _ := b.Elem().Underlying().(*types.Basic)
+		return e != nil && e.Kind() == types.Rune
+	}
+	return false
+}
+
+// isBasicConvTypes returns true when a type set can be
+// one side of a Convert operation. This is when:
+// - All are basic, []byte, or []rune.
+// - At least 1 is basic.
+// - At most 1 is []byte or []rune.
+func isBasicConvTypes(tset termList) bool {
+	basics := 0
+	all := underIs(tset, func(t types.Type) bool {
+		if isBasic(t) {
+			basics++
+			return true
+		}
+		return isByteSlice(t) || isRuneSlice(t)
+	})
+	return all && basics >= 1 && tset.Len()-basics <= 1
+}
+
+// deptr returns a pointer's element type and true; otherwise it returns (typ, false).
+// This function is oblivious to core types and is not suitable for generics.
+//
+// TODO: Deprecate this function once all usages have been audited.
+func deptr(typ types.Type) (types.Type, bool) {
+	if p, ok := typ.Underlying().(*types.Pointer); ok {
+		return p.Elem(), true
+	}
+	return typ, false
+}
+
+// deref returns the element type of a type with a pointer core type and true;
+// otherwise it returns (typ, false).
+func deref(typ types.Type) (types.Type, bool) {
+	if p, ok := typeparams.CoreType(typ).(*types.Pointer); ok {
+		return p.Elem(), true
+	}
+	return typ, false
+}
+
+// mustDeref returns the element type of a type with a pointer core type.
+// Panics on failure.
+func mustDeref(typ types.Type) types.Type {
+	if et, ok := deref(typ); ok {
+		return et
+	}
+	panic("cannot dereference type " + typ.String())
 }
 
 // recvType returns the receiver type of method obj.
 func recvType(obj *types.Func) types.Type {
 	return obj.Type().(*types.Signature).Recv().Type()
+}
+
+// fieldOf returns the index'th field of the (core type of) a struct type;
+// otherwise returns nil.
+func fieldOf(typ types.Type, index int) *types.Var {
+	if st, ok := typeparams.CoreType(typ).(*types.Struct); ok {
+		if 0 <= index && index < st.NumFields() {
+			return st.Field(index)
+		}
+	}
+	return nil
 }
 
 // isUntyped returns true for types that are untyped.
@@ -113,7 +188,7 @@ func nonbasicTypes(ts []types.Type) []types.Type {
 	added := make(map[types.Type]bool) // additionally filter duplicates
 	var filtered []types.Type
 	for _, T := range ts {
-		if _, basic := T.(*types.Basic); !basic {
+		if !isBasic(T) {
 			if !added[T] {
 				added[T] = true
 				filtered = append(filtered, T)
@@ -123,32 +198,14 @@ func nonbasicTypes(ts []types.Type) []types.Type {
 	return filtered
 }
 
-// isGeneric returns true if a package-level member is generic.
-func isGeneric(m Member) bool {
-	switch m := m.(type) {
-	case *NamedConst, *Global:
-		return false
-	case *Type:
-		// lifted from types.isGeneric.
-		named, _ := m.Type().(*types.Named)
-		return named != nil && named.Obj() != nil && typeparams.NamedTypeArgs(named) == nil && typeparams.ForNamed(named) != nil
-	case *Function:
-		return len(m._TypeParams) != len(m._TypeArgs)
-	default:
-		panic("unreachable")
-	}
-}
-
-// receiverTypeArgs returns the type arguments to a function's reciever.
-// Returns an empty list if obj does not have a reciever or its reciever does not have type arguments.
+// receiverTypeArgs returns the type arguments to a function's receiver.
+// Returns an empty list if obj does not have a receiver or its receiver does not have type arguments.
 func receiverTypeArgs(obj *types.Func) []types.Type {
 	rtype := recvType(obj)
 	if rtype == nil {
 		return nil
 	}
-	if isPointer(rtype) {
-		rtype = rtype.(*types.Pointer).Elem()
-	}
+	rtype, _ = deptr(rtype)
 	named, ok := rtype.(*types.Named)
 	if !ok {
 		return nil

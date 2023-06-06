@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 
 	"github.com/golangci/golangci-lint/pkg/exitcodes"
 	"github.com/golangci/golangci-lint/pkg/fsutils"
 	"github.com/golangci/golangci-lint/pkg/logutils"
-	"github.com/golangci/golangci-lint/pkg/sliceutil"
 )
 
 type FileReader struct {
@@ -72,18 +73,33 @@ func (r *FileReader) parseConfig() error {
 		return nil
 	}
 
-	usedConfigFile, err := fsutils.ShortestRelPath(usedConfigFile, "")
-	if err != nil {
-		r.log.Warnf("Can't pretty print config file path: %s", err)
+	if usedConfigFile == os.Stdin.Name() {
+		usedConfigFile = ""
+		r.log.Infof("Reading config file stdin")
+	} else {
+		var err error
+		usedConfigFile, err = fsutils.ShortestRelPath(usedConfigFile, "")
+		if err != nil {
+			r.log.Warnf("Can't pretty print config file path: %v", err)
+		}
+
+		r.log.Infof("Used config file %s", usedConfigFile)
 	}
-	r.log.Infof("Used config file %s", usedConfigFile)
-	usedConfigDir := filepath.Dir(usedConfigFile)
-	if usedConfigDir, err = filepath.Abs(usedConfigDir); err != nil {
+
+	usedConfigDir, err := filepath.Abs(filepath.Dir(usedConfigFile))
+	if err != nil {
 		return errors.New("can't get config directory")
 	}
 	r.cfg.cfgDir = usedConfigDir
 
-	if err := viper.Unmarshal(r.cfg); err != nil {
+	if err := viper.Unmarshal(r.cfg, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+		// Default hooks (https://github.com/spf13/viper/blob/518241257478c557633ab36e474dfcaeb9a3c623/viper.go#L135-L138).
+		mapstructure.StringToTimeDurationHookFunc(),
+		mapstructure.StringToSliceHookFunc(","),
+
+		// Needed for forbidigo.
+		mapstructure.TextUnmarshallerHookFunc(),
+	))); err != nil {
 		return fmt.Errorf("can't unmarshal config by viper: %s", err)
 	}
 
@@ -122,7 +138,7 @@ func (r *FileReader) validateConfig() error {
 	}
 	for i, rule := range c.Issues.ExcludeRules {
 		if err := rule.Validate(); err != nil {
-			return fmt.Errorf("in exclude rule #%d: %v", i, err)
+			return fmt.Errorf("error in exclude rule #%d: %v", i, err)
 		}
 	}
 	if len(c.Severity.Rules) > 0 && c.Severity.Default == "" {
@@ -130,11 +146,11 @@ func (r *FileReader) validateConfig() error {
 	}
 	for i, rule := range c.Severity.Rules {
 		if err := rule.Validate(); err != nil {
-			return fmt.Errorf("in severity rule #%d: %v", i, err)
+			return fmt.Errorf("error in severity rule #%d: %v", i, err)
 		}
 	}
 	if err := c.LintersSettings.Govet.Validate(); err != nil {
-		return fmt.Errorf("in govet config: %v", err)
+		return fmt.Errorf("error in govet config: %v", err)
 	}
 	return nil
 }
@@ -195,7 +211,7 @@ func (r *FileReader) setupConfigFileSearch() {
 	// find home directory for global config
 	if home, err := homedir.Dir(); err != nil {
 		r.log.Warnf("Can't get user's home directory: %s", err.Error())
-	} else if !sliceutil.Contains(configSearchPaths, home) {
+	} else if !slices.Contains(configSearchPaths, home) {
 		configSearchPaths = append(configSearchPaths, home)
 	}
 

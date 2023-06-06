@@ -19,10 +19,11 @@ import (
 	"go/ast"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type integerOverflowCheck struct {
-	gosec.MetaData
+	issue.MetaData
 	calls gosec.CallList
 }
 
@@ -30,7 +31,7 @@ func (i *integerOverflowCheck) ID() string {
 	return i.MetaData.ID
 }
 
-func (i *integerOverflowCheck) Match(node ast.Node, ctx *gosec.Context) (*gosec.Issue, error) {
+func (i *integerOverflowCheck) Match(node ast.Node, ctx *gosec.Context) (*issue.Issue, error) {
 	var atoiVarObj map[*ast.Object]ast.Node
 
 	// To check multiple lines, ctx.PassedValues is used to store temporary data.
@@ -61,9 +62,9 @@ func (i *integerOverflowCheck) Match(node ast.Node, ctx *gosec.Context) (*gosec.
 		if fun, ok := n.Fun.(*ast.Ident); ok {
 			if fun.Name == "int32" || fun.Name == "int16" {
 				if idt, ok := n.Args[0].(*ast.Ident); ok {
-					if n, ok := atoiVarObj[idt.Obj]; ok {
+					if _, ok := atoiVarObj[idt.Obj]; ok {
 						// Detect int32(v) and int16(v)
-						return gosec.NewIssue(ctx, n, i.ID(), i.What, i.Severity, i.Confidence), nil
+						return ctx.NewIssue(n, i.ID(), i.What, i.Severity, i.Confidence), nil
 					}
 				}
 			}
@@ -74,14 +75,14 @@ func (i *integerOverflowCheck) Match(node ast.Node, ctx *gosec.Context) (*gosec.
 }
 
 // NewIntegerOverflowCheck detects if there is potential Integer OverFlow
-func NewIntegerOverflowCheck(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewIntegerOverflowCheck(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	calls := gosec.NewCallList()
 	calls.Add("strconv", "Atoi")
 	return &integerOverflowCheck{
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.High,
-			Confidence: gosec.Medium,
+			Severity:   issue.High,
+			Confidence: issue.Medium,
 			What:       "Potential Integer overflow made by strconv.Atoi result conversion to int16/32",
 		},
 		calls: calls,

@@ -1,10 +1,10 @@
 package golinters
 
 import (
+	"fmt"
 	"sync"
 
 	gofmtAPI "github.com/golangci/gofmt/gofmt"
-	"github.com/pkg/errors"
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/golangci/golangci-lint/pkg/config"
@@ -31,7 +31,7 @@ func NewGofmt(settings *config.GoFmtSettings) *goanalysis.Linter {
 		[]*analysis.Analyzer{analyzer},
 		nil,
 	).WithContextSetter(func(lintCtx *linter.Context) {
-		analyzer.Run = func(pass *analysis.Pass) (interface{}, error) {
+		analyzer.Run = func(pass *analysis.Pass) (any, error) {
 			issues, err := runGofmt(lintCtx, pass, settings)
 			if err != nil {
 				return nil, err
@@ -55,10 +55,15 @@ func NewGofmt(settings *config.GoFmtSettings) *goanalysis.Linter {
 func runGofmt(lintCtx *linter.Context, pass *analysis.Pass, settings *config.GoFmtSettings) ([]goanalysis.Issue, error) {
 	fileNames := getFileNames(pass)
 
+	var rewriteRules []gofmtAPI.RewriteRule
+	for _, rule := range settings.RewriteRules {
+		rewriteRules = append(rewriteRules, gofmtAPI.RewriteRule(rule))
+	}
+
 	var issues []goanalysis.Issue
 
 	for _, f := range fileNames {
-		diff, err := gofmtAPI.Run(f, settings.Simplify)
+		diff, err := gofmtAPI.RunRewrite(f, settings.Simplify, rewriteRules)
 		if err != nil { // TODO: skip
 			return nil, err
 		}
@@ -68,7 +73,7 @@ func runGofmt(lintCtx *linter.Context, pass *analysis.Pass, settings *config.GoF
 
 		is, err := extractIssuesFromPatch(string(diff), lintCtx, gofmtName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't extract issues from gofmt diff output %q", string(diff))
+			return nil, fmt.Errorf("can't extract issues from gofmt diff output %q: %w", string(diff), err)
 		}
 
 		for i := range is {

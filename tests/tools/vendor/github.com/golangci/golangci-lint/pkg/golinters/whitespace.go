@@ -1,10 +1,10 @@
 package golinters
 
 import (
+	"fmt"
 	"go/token"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/ultraware/whitespace"
 	"golang.org/x/tools/go/analysis"
 
@@ -41,7 +41,7 @@ func NewWhitespace(settings *config.WhitespaceSettings) *goanalysis.Linter {
 		[]*analysis.Analyzer{analyzer},
 		nil,
 	).WithContextSetter(func(lintCtx *linter.Context) {
-		analyzer.Run = func(pass *analysis.Pass) (interface{}, error) {
+		analyzer.Run = func(pass *analysis.Pass) (any, error) {
 			issues, err := runWhitespace(lintCtx, pass, wsSettings)
 			if err != nil {
 				return nil, err
@@ -87,7 +87,7 @@ func runWhitespace(lintCtx *linter.Context, pass *analysis.Pass, wsSettings whit
 
 		bracketLine, err := lintCtx.LineCache.GetLine(issue.Pos.Filename, issue.Pos.Line)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get line %s:%d", issue.Pos.Filename, issue.Pos.Line)
+			return nil, fmt.Errorf("failed to get line %s:%d: %w", issue.Pos.Filename, issue.Pos.Line, err)
 		}
 
 		switch i.Type {

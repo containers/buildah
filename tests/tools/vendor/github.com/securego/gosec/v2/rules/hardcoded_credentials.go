@@ -21,11 +21,13 @@ import (
 	"strconv"
 
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
+
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type credentials struct {
-	gosec.MetaData
+	issue.MetaData
 	pattern          *regexp.Regexp
 	entropyThreshold float64
 	perCharThreshold float64
@@ -53,7 +55,7 @@ func (r *credentials) isHighEntropyString(str string) bool {
 			entropyPerChar >= r.perCharThreshold))
 }
 
-func (r *credentials) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) Match(n ast.Node, ctx *gosec.Context) (*issue.Issue, error) {
 	switch node := n.(type) {
 	case *ast.AssignStmt:
 		return r.matchAssign(node, ctx)
@@ -65,14 +67,14 @@ func (r *credentials) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, error
 	return nil, nil
 }
 
-func (r *credentials) matchAssign(assign *ast.AssignStmt, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) matchAssign(assign *ast.AssignStmt, ctx *gosec.Context) (*issue.Issue, error) {
 	for _, i := range assign.Lhs {
 		if ident, ok := i.(*ast.Ident); ok {
 			if r.pattern.MatchString(ident.Name) {
 				for _, e := range assign.Rhs {
 					if val, err := gosec.GetString(e); err == nil {
 						if r.ignoreEntropy || (!r.ignoreEntropy && r.isHighEntropyString(val)) {
-							return gosec.NewIssue(ctx, assign, r.ID(), r.What, r.Severity, r.Confidence), nil
+							return ctx.NewIssue(assign, r.ID(), r.What, r.Severity, r.Confidence), nil
 						}
 					}
 				}
@@ -82,7 +84,7 @@ func (r *credentials) matchAssign(assign *ast.AssignStmt, ctx *gosec.Context) (*
 	return nil, nil
 }
 
-func (r *credentials) matchValueSpec(valueSpec *ast.ValueSpec, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) matchValueSpec(valueSpec *ast.ValueSpec, ctx *gosec.Context) (*issue.Issue, error) {
 	for index, ident := range valueSpec.Names {
 		if r.pattern.MatchString(ident.Name) && valueSpec.Values != nil {
 			// const foo, bar = "same value"
@@ -91,7 +93,7 @@ func (r *credentials) matchValueSpec(valueSpec *ast.ValueSpec, ctx *gosec.Contex
 			}
 			if val, err := gosec.GetString(valueSpec.Values[index]); err == nil {
 				if r.ignoreEntropy || (!r.ignoreEntropy && r.isHighEntropyString(val)) {
-					return gosec.NewIssue(ctx, valueSpec, r.ID(), r.What, r.Severity, r.Confidence), nil
+					return ctx.NewIssue(valueSpec, r.ID(), r.What, r.Severity, r.Confidence), nil
 				}
 			}
 		}
@@ -99,14 +101,21 @@ func (r *credentials) matchValueSpec(valueSpec *ast.ValueSpec, ctx *gosec.Contex
 	return nil, nil
 }
 
-func (r *credentials) matchEqualityCheck(binaryExpr *ast.BinaryExpr, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) matchEqualityCheck(binaryExpr *ast.BinaryExpr, ctx *gosec.Context) (*issue.Issue, error) {
 	if binaryExpr.Op == token.EQL || binaryExpr.Op == token.NEQ {
-		if ident, ok := binaryExpr.X.(*ast.Ident); ok {
-			if r.pattern.MatchString(ident.Name) {
-				if val, err := gosec.GetString(binaryExpr.Y); err == nil {
-					if r.ignoreEntropy || (!r.ignoreEntropy && r.isHighEntropyString(val)) {
-						return gosec.NewIssue(ctx, binaryExpr, r.ID(), r.What, r.Severity, r.Confidence), nil
-					}
+		ident, ok := binaryExpr.X.(*ast.Ident)
+		if !ok {
+			ident, _ = binaryExpr.Y.(*ast.Ident)
+		}
+
+		if ident != nil && r.pattern.MatchString(ident.Name) {
+			valueNode := binaryExpr.Y
+			if !ok {
+				valueNode = binaryExpr.X
+			}
+			if val, err := gosec.GetString(valueNode); err == nil {
+				if r.ignoreEntropy || (!r.ignoreEntropy && r.isHighEntropyString(val)) {
+					return ctx.NewIssue(binaryExpr, r.ID(), r.What, r.Severity, r.Confidence), nil
 				}
 			}
 		}
@@ -163,11 +172,11 @@ func NewHardcodedCredentials(id string, conf gosec.Config) (gosec.Rule, []ast.No
 		perCharThreshold: perCharThreshold,
 		ignoreEntropy:    ignoreEntropy,
 		truncate:         truncateString,
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
 			What:       "Potential hardcoded credentials",
-			Confidence: gosec.Low,
-			Severity:   gosec.High,
+			Confidence: issue.Low,
+			Severity:   issue.High,
 		},
 	}, []ast.Node{(*ast.AssignStmt)(nil), (*ast.ValueSpec)(nil), (*ast.BinaryExpr)(nil)}
 }

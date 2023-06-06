@@ -19,6 +19,8 @@ import (
 
 const lllName = "lll"
 
+const goCommentDirectivePrefix = "//go:"
+
 //nolint:dupl
 func NewLLL(settings *config.LllSettings) *goanalysis.Linter {
 	var mu sync.Mutex
@@ -27,7 +29,7 @@ func NewLLL(settings *config.LllSettings) *goanalysis.Linter {
 	analyzer := &analysis.Analyzer{
 		Name: lllName,
 		Doc:  goanalysis.TheOnlyanalyzerDoc,
-		Run: func(pass *analysis.Pass) (interface{}, error) {
+		Run: func(pass *analysis.Pass) (any, error) {
 			issues, err := runLll(pass, settings)
 			if err != nil {
 				return nil, err
@@ -84,11 +86,33 @@ func getLLLIssuesForFile(filename string, maxLineLen int, tabSpaces string) ([]r
 	}
 	defer f.Close()
 
-	lineNumber := 1
+	lineNumber := 0
+	multiImportEnabled := false
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
+		lineNumber++
+
 		line := scanner.Text()
-		line = strings.Replace(line, "\t", tabSpaces, -1)
+		line = strings.ReplaceAll(line, "\t", tabSpaces)
+
+		if strings.HasPrefix(line, goCommentDirectivePrefix) {
+			continue
+		}
+
+		if strings.HasPrefix(line, "import") {
+			multiImportEnabled = strings.HasSuffix(line, "(")
+			continue
+		}
+
+		if multiImportEnabled {
+			if line == ")" {
+				multiImportEnabled = false
+			}
+
+			continue
+		}
+
 		lineLen := utf8.RuneCountInString(line)
 		if lineLen > maxLineLen {
 			res = append(res, result.Issue{
@@ -100,7 +124,6 @@ func getLLLIssuesForFile(filename string, maxLineLen int, tabSpaces string) ([]r
 				FromLinter: lllName,
 			})
 		}
-		lineNumber++
 	}
 
 	if err := scanner.Err(); err != nil {

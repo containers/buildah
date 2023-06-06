@@ -249,7 +249,9 @@ func isTestFunction(funcDecl *ast.FuncDecl) (bool, string) {
 		if selectExpr, ok := starExp.X.(*ast.SelectorExpr); ok {
 			if selectExpr.Sel.Name == testMethodStruct {
 				if s, ok := selectExpr.X.(*ast.Ident); ok {
-					return s.Name == testMethodPackageType, param.Names[0].Name
+					if len(param.Names) > 0 {
+						return s.Name == testMethodPackageType, param.Names[0].Name
+					}
 				}
 			}
 		}
