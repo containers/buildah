@@ -1,4 +1,4 @@
-FROM quay.io/libpod/centos:7 AS base
+FROM quay.io/libpod/centos:8 AS base
 RUN touch -t 201701261659.13 /1
 ENV LOCAL=/1
 

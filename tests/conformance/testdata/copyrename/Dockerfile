@@ -1,3 +1,3 @@
-FROM quay.io/libpod/centos:7
+FROM quay.io/libpod/centos:8
 COPY file1 /usr/bin/file2
 RUN ls -al /usr/bin/file2 && ! ls -al /usr/bin/file1

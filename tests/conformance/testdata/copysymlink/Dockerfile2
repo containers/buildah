@@ -1,7 +1,7 @@
-FROM quay.io/libpod/centos:7
+FROM quay.io/libpod/centos:8
 COPY file.tar.gz /
 RUN ln -s file.tar.gz file-link.tar.gz
 RUN ls -l /file-link.tar.gz
-FROM quay.io/libpod/centos:7
+FROM quay.io/libpod/centos:8
 COPY --from=0 /file-link.tar.gz /
 RUN ls -l /file-link.tar.gz
