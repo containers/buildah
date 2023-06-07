@@ -1,2 +1,2 @@
-FROM registry.centos.org/centos/centos:centos7
+FROM quay.io/libpod/centos:7
 COPY file-link.tar.gz /

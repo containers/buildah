@@ -1,3 +1,4 @@
+# Note: Hopefully a registries.conf alias redirects this to quay.io/libpod/busybox
 FROM busybox
 
 MAINTAINER docker <docker@docker.io>
