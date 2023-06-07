@@ -12,7 +12,7 @@ load helpers
         skip_if_no_runtime
 
         # Build a container to use for building the binaries.
-        image=registry.centos.org/centos/centos:centos7
+        image=quay.io/libpod/centos:7
         cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
         root=$(buildah mount $cid)
         commit=$(git log --format=%H -n 1)
