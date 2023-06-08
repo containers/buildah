@@ -185,7 +185,9 @@ unnecessary.
 **--port**, **-p** *port*
 
 Add a *port* to expose when running containers based on any images which
-will be built using the specified container. Can be used multiple times.
+will be built using the specified container. Can be used multiple times. To specify
+whether the port listens on TCP or UDP, use <Port>/<Protocol. The default is TCP if the
+protocol is not specified. To expose on both TCP/UDP, specify the port option multiple times.
 If *port* has a trailing `-`, and is already set, then the *port* is removed from the config.
 If the port is set to "-" then all exposed ports settings are removed from the config.
 
@@ -250,6 +252,8 @@ buildah config --volume /usr/myvol containerID
 buildah config --volume /usr/myvol- containerID
 
 buildah config --port 1234 --port 8080 containerID
+                                                              
+buildah config --port 514/tcp --port 514/udp containerID
 
 buildah config --env 1234=5678 containerID
 
