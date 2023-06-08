@@ -4,8 +4,8 @@ run:
   deadline: 5m
   skip-dirs-use-default: true
 linters:
+  enable:
+    - gofumpt
   disable:
     - errcheck
-    - gosimple
-    - govet
     - staticcheck

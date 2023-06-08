@@ -8,7 +8,7 @@ require (
 	github.com/containers/common v0.53.1-0.20230601085031-462ccddd6cd8
 	github.com/containers/image/v5 v5.25.1-0.20230605120906-abe51339f34d
 	github.com/containers/ocicrypt v1.1.7
-	github.com/containers/storage v1.46.2-0.20230526114421-55ee2d19292f
+	github.com/containers/storage v1.46.2-0.20230606141859-3f3fb2f93a7b
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/docker/docker v24.0.2+incompatible
@@ -41,7 +41,7 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/BurntSushi/toml v1.3.0 // indirect
+	github.com/BurntSushi/toml v1.3.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/Microsoft/hcsshim v0.10.0-rc.8 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect

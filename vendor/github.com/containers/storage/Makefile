@@ -68,9 +68,8 @@ local-test-unit test-unit: local-binary ## run the unit tests on the host (requi
 local-test-integration test-integration: local-binary ## run the integration tests on the host (requires\nsuperuser privileges)
 	@cd tests; ./test_runner.bash
 
-local-validate validate: install.tools ## validate DCO and gofmt on the host
+local-validate validate: install.tools ## validate DCO on the host
 	@./hack/git-validation.sh
-	@./hack/gofmt.sh
 
 install.tools:
 	$(MAKE) -C tests/tools

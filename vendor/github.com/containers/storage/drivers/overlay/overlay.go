@@ -40,13 +40,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	// untar defines the untar method
-	untar = chrootarchive.UntarUncompressed
-)
+// untar defines the untar method
+var untar = chrootarchive.UntarUncompressed
 
 const (
-	defaultPerms         = os.FileMode(0555)
+	defaultPerms         = os.FileMode(0o555)
 	selinuxLabelTest     = "system_u:object_r:container_file_t:s0"
 	mountProgramFlagFile = ".has-mount-program"
 )
@@ -181,7 +179,7 @@ func getMountProgramFlagFile(path string) string {
 }
 
 func checkSupportVolatile(home, runhome string) (bool, error) {
-	feature := fmt.Sprintf("volatile")
+	const feature = "volatile"
 	volatileCacheResult, _, err := cachedFeatureCheck(runhome, feature)
 	var usingVolatile bool
 	if err == nil {
@@ -339,17 +337,17 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 	}
 
 	// Create the driver home dir
-	if err := idtools.MkdirAllAs(path.Join(home, linkDir), 0755, 0, 0); err != nil {
+	if err := idtools.MkdirAllAs(path.Join(home, linkDir), 0o755, 0, 0); err != nil {
 		return nil, err
 	}
 
 	if options.ImageStore != "" {
-		if err := idtools.MkdirAllAs(path.Join(options.ImageStore, linkDir), 0755, 0, 0); err != nil {
+		if err := idtools.MkdirAllAs(path.Join(options.ImageStore, linkDir), 0o755, 0, 0); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := idtools.MkdirAllAs(runhome, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(runhome, 0o700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
@@ -365,12 +363,12 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 
 	if opts.mountProgram != "" {
 		if unshare.IsRootless() && isNetworkFileSystem(fsMagic) && opts.forceMask == nil {
-			m := os.FileMode(0700)
+			m := os.FileMode(0o700)
 			opts.forceMask = &m
 			logrus.Warnf("Network file system detected as backing store.  Enforcing overlay option `force_mask=\"%o\"`.  Add it to storage.conf to silence this warning", m)
 		}
 
-		if err := os.WriteFile(getMountProgramFlagFile(home), []byte("true"), 0600); err != nil {
+		if err := os.WriteFile(getMountProgramFlagFile(home), []byte("true"), 0o600); err != nil {
 			return nil, err
 		}
 	} else {
@@ -581,9 +579,9 @@ func parseOptions(options []string) (*overlayOptions, error) {
 			var mask int64
 			switch val {
 			case "shared":
-				mask = 0755
+				mask = 0o755
 			case "private":
-				mask = 0700
+				mask = 0o700
 			default:
 				mask, err = strconv.ParseInt(val, 8, 32)
 				if err != nil {
@@ -648,7 +646,7 @@ func SupportsNativeOverlay(home, runhome string) (bool, error) {
 		if err != nil && !os.IsNotExist(err) {
 			return false, err
 		}
-		if err := os.WriteFile(getMountProgramFlagFile(home), []byte(fmt.Sprintf("%t", needsMountProgram)), 0600); err != nil && !os.IsNotExist(err) {
+		if err := os.WriteFile(getMountProgramFlagFile(home), []byte(fmt.Sprintf("%t", needsMountProgram)), 0o600); err != nil && !os.IsNotExist(err) {
 			return false, err
 		}
 		if needsMountProgram {
@@ -661,7 +659,7 @@ func SupportsNativeOverlay(home, runhome string) (bool, error) {
 
 	for _, dir := range []string{home, runhome} {
 		if _, err := os.Stat(dir); err != nil {
-			_ = idtools.MkdirAllAs(dir, 0700, 0, 0)
+			_ = idtools.MkdirAllAs(dir, 0o700, 0, 0)
 		}
 	}
 
@@ -721,12 +719,12 @@ func supportsOverlay(home string, homeMagic graphdriver.FsMagic, rootUID, rootGI
 			_ = os.RemoveAll(layerDir)
 			_ = os.Remove(home)
 		}()
-		_ = idtools.MkdirAs(mergedDir, 0700, rootUID, rootGID)
-		_ = idtools.MkdirAs(lower1Dir, 0700, rootUID, rootGID)
-		_ = idtools.MkdirAs(lower2Dir, 0700, rootUID, rootGID)
-		_ = idtools.MkdirAs(lower2Subdir, 0700, rootUID, rootGID)
-		_ = idtools.MkdirAs(upperDir, 0700, rootUID, rootGID)
-		_ = idtools.MkdirAs(workDir, 0700, rootUID, rootGID)
+		_ = idtools.MkdirAs(mergedDir, 0o700, rootUID, rootGID)
+		_ = idtools.MkdirAs(lower1Dir, 0o700, rootUID, rootGID)
+		_ = idtools.MkdirAs(lower2Dir, 0o700, rootUID, rootGID)
+		_ = idtools.MkdirAs(lower2Subdir, 0o700, rootUID, rootGID)
+		_ = idtools.MkdirAs(upperDir, 0o700, rootUID, rootGID)
+		_ = idtools.MkdirAs(workDir, 0o700, rootUID, rootGID)
 		f, err := os.Create(lower2SubdirFile)
 		if err != nil {
 			logrus.Debugf("Unable to create test file: %v", err)
@@ -744,7 +742,7 @@ func supportsOverlay(home string, homeMagic graphdriver.FsMagic, rootUID, rootGI
 		if unshare.IsRootless() {
 			flags = fmt.Sprintf("%s,userxattr", flags)
 		}
-		if err := syscall.Mknod(filepath.Join(upperDir, "whiteout"), syscall.S_IFCHR|0600, int(unix.Mkdev(0, 0))); err != nil {
+		if err := syscall.Mknod(filepath.Join(upperDir, "whiteout"), syscall.S_IFCHR|0o600, int(unix.Mkdev(0, 0))); err != nil {
 			logrus.Debugf("Unable to create kernel-style whiteout: %v", err)
 			return supportsDType, fmt.Errorf("unable to create kernel-style whiteout: %w", err)
 		}
@@ -968,7 +966,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 	}
 
 	// Make the link directory if it does not exist
-	if err := idtools.MkdirAllAs(path.Join(d.home, linkDir), 0755, 0, 0); err != nil {
+	if err := idtools.MkdirAllAs(path.Join(d.home, linkDir), 0o755, 0, 0); err != nil {
 		return err
 	}
 
@@ -982,13 +980,13 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 		GID: rootGID,
 	}
 
-	if err := idtools.MkdirAllAndChownNew(path.Dir(dir), 0755, idPair); err != nil {
+	if err := idtools.MkdirAllAndChownNew(path.Dir(dir), 0o755, idPair); err != nil {
 		return err
 	}
 	workDirBase := dir
 	if imageStore != "" {
 		workDirBase = imageStore
-		if err := idtools.MkdirAllAndChownNew(path.Dir(imageStore), 0755, idPair); err != nil {
+		if err := idtools.MkdirAllAndChownNew(path.Dir(imageStore), 0o755, idPair); err != nil {
 			return err
 		}
 	}
@@ -1014,11 +1012,11 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 		}
 	}
 
-	if err := idtools.MkdirAllAndChownNew(dir, 0700, idPair); err != nil {
+	if err := idtools.MkdirAllAndChownNew(dir, 0o700, idPair); err != nil {
 		return err
 	}
 	if imageStore != "" {
-		if err := idtools.MkdirAllAndChownNew(imageStore, 0700, idPair); err != nil {
+		if err := idtools.MkdirAllAndChownNew(imageStore, 0o700, idPair); err != nil {
 			return err
 		}
 	}
@@ -1096,20 +1094,20 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 	}
 
 	// Write link id to link file
-	if err := os.WriteFile(path.Join(dir, "link"), []byte(lid), 0644); err != nil {
+	if err := os.WriteFile(path.Join(dir, "link"), []byte(lid), 0o644); err != nil {
 		return err
 	}
 
-	if err := idtools.MkdirAs(path.Join(workDirBase, "work"), 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAs(path.Join(workDirBase, "work"), 0o700, rootUID, rootGID); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAs(path.Join(dir, "merged"), 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAs(path.Join(dir, "merged"), 0o700, rootUID, rootGID); err != nil {
 		return err
 	}
 
 	// if no parent directory, create a dummy lower directory and skip writing a "lowers" file
 	if parent == "" {
-		return idtools.MkdirAs(path.Join(dir, "empty"), 0700, rootUID, rootGID)
+		return idtools.MkdirAs(path.Join(dir, "empty"), 0o700, rootUID, rootGID)
 	}
 
 	lower, err := d.getLower(parent)
@@ -1117,7 +1115,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 		return err
 	}
 	if lower != "" {
-		if err := os.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0666); err != nil {
+		if err := os.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0o666); err != nil {
 			return err
 		}
 	}
@@ -1312,7 +1310,7 @@ func (d *Driver) recreateSymlinks() error {
 		return fmt.Errorf("reading driver home directory %q: %w", d.home, err)
 	}
 	// This makes the link directory if it doesn't exist
-	if err := idtools.MkdirAllAs(path.Join(d.home, linkDir), 0755, 0, 0); err != nil {
+	if err := idtools.MkdirAllAs(path.Join(d.home, linkDir), 0o755, 0, 0); err != nil {
 		return err
 	}
 	// Keep looping as long as we take some corrective action in each iteration
@@ -1389,7 +1387,7 @@ func (d *Driver) recreateSymlinks() error {
 			if err != nil || string(data) != link.Name() {
 				// NOTE: If two or more links point to the same target, we will update linkFile
 				// with every value of link.Name(), and set madeProgress = true every time.
-				if err := os.WriteFile(linkFile, []byte(link.Name()), 0644); err != nil {
+				if err := os.WriteFile(linkFile, []byte(link.Name()), 0o644); err != nil {
 					errs = multierror.Append(errs, fmt.Errorf("correcting link for layer %s: %w", targetID, err))
 					continue
 				}
@@ -1565,7 +1563,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 
 	mergedDir := path.Join(dir, "merged")
 	// Create the driver merged dir
-	if err := idtools.MkdirAs(mergedDir, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAs(mergedDir, 0o700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 	if count := d.ctr.Increment(mergedDir); count > 1 {
@@ -1601,7 +1599,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 	if !disableShifting && len(options.UidMaps) > 0 && len(options.GidMaps) > 0 && d.options.mountProgram == "" {
 		var newAbsDir []string
 		mappedRoot := filepath.Join(d.home, id, "mapped")
-		if err := os.MkdirAll(mappedRoot, 0700); err != nil {
+		if err := os.MkdirAll(mappedRoot, 0o700); err != nil {
 			return "", err
 		}
 
@@ -1911,7 +1909,7 @@ func (d *Driver) ApplyDiffWithDiffer(id, parent string, options *graphdriver.App
 	var applyDir string
 
 	if id == "" {
-		err := os.MkdirAll(d.getStagingDir(), 0700)
+		err := os.MkdirAll(d.getStagingDir(), 0o700)
 		if err != nil && !os.IsExist(err) {
 			return graphdriver.DriverWithDifferOutput{}, err
 		}
@@ -1964,7 +1962,6 @@ func (d *Driver) DifferTarget(id string) (string, error) {
 
 // ApplyDiff applies the new layer into a root
 func (d *Driver) ApplyDiff(id, parent string, options graphdriver.ApplyDiffOpts) (size int64, err error) {
-
 	if !d.isParent(id, parent) {
 		if d.options.ignoreChownErrors {
 			options.IgnoreChownErrors = d.options.ignoreChownErrors
@@ -2284,7 +2281,7 @@ func (al *additionalLayer) CreateAs(id, parent string) error {
 	}
 	// tell the additional layer store that we use this layer.
 	// mark this layer as "additional layer"
-	if err := os.WriteFile(path.Join(dir, "additionallayer"), []byte(al.path), 0644); err != nil {
+	if err := os.WriteFile(path.Join(dir, "additionallayer"), []byte(al.path), 0o644); err != nil {
 		return err
 	}
 	notifyUseAdditionalLayer(al.path)
