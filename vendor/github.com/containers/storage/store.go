@@ -758,22 +758,22 @@ func GetStore(options types.StoreOptions) (Store, error) {
 		options.RunRoot = defaultOpts.RunRoot
 	}
 
-	if err := os.MkdirAll(options.RunRoot, 0700); err != nil {
+	if err := os.MkdirAll(options.RunRoot, 0o700); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(options.GraphRoot, 0700); err != nil {
+	if err := os.MkdirAll(options.GraphRoot, 0o700); err != nil {
 		return nil, err
 	}
 	if options.ImageStore != "" {
-		if err := os.MkdirAll(options.ImageStore, 0700); err != nil {
+		if err := os.MkdirAll(options.ImageStore, 0o700); err != nil {
 			return nil, err
 		}
 	}
-	if err := os.MkdirAll(filepath.Join(options.GraphRoot, options.GraphDriverName), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(options.GraphRoot, options.GraphDriverName), 0o700); err != nil {
 		return nil, err
 	}
 	if options.ImageStore != "" {
-		if err := os.MkdirAll(filepath.Join(options.ImageStore, options.GraphDriverName), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Join(options.ImageStore, options.GraphDriverName), 0o700); err != nil {
 			return nil, err
 		}
 	}
@@ -914,7 +914,7 @@ func (s *store) load() error {
 		imgStoreRoot = s.graphRoot
 	}
 	gipath := filepath.Join(imgStoreRoot, driverPrefix+"images")
-	if err := os.MkdirAll(gipath, 0700); err != nil {
+	if err := os.MkdirAll(gipath, 0o700); err != nil {
 		return err
 	}
 	ris, err := newImageStore(gipath)
@@ -924,11 +924,11 @@ func (s *store) load() error {
 	s.imageStore = ris
 
 	gcpath := filepath.Join(s.graphRoot, driverPrefix+"containers")
-	if err := os.MkdirAll(gcpath, 0700); err != nil {
+	if err := os.MkdirAll(gcpath, 0o700); err != nil {
 		return err
 	}
 	rcpath := filepath.Join(s.runRoot, driverPrefix+"containers")
-	if err := os.MkdirAll(rcpath, 0700); err != nil {
+	if err := os.MkdirAll(rcpath, 0o700); err != nil {
 		return err
 	}
 
@@ -962,7 +962,7 @@ func (s *store) load() error {
 	}
 
 	s.digestLockRoot = filepath.Join(s.runRoot, driverPrefix+"locks")
-	if err := os.MkdirAll(s.digestLockRoot, 0700); err != nil {
+	if err := os.MkdirAll(s.digestLockRoot, 0o700); err != nil {
 		return err
 	}
 
@@ -1061,7 +1061,7 @@ func (s *store) getLayerStoreLocked() (rwLayerStore, error) {
 	}
 	driverPrefix := s.graphDriverName + "-"
 	rlpath := filepath.Join(s.runRoot, driverPrefix+"layers")
-	if err := os.MkdirAll(rlpath, 0700); err != nil {
+	if err := os.MkdirAll(rlpath, 0o700); err != nil {
 		return nil, err
 	}
 	imgStoreRoot := s.imageStoreDir
@@ -1069,7 +1069,7 @@ func (s *store) getLayerStoreLocked() (rwLayerStore, error) {
 		imgStoreRoot = s.graphRoot
 	}
 	glpath := filepath.Join(imgStoreRoot, driverPrefix+"layers")
-	if err := os.MkdirAll(glpath, 0700); err != nil {
+	if err := os.MkdirAll(glpath, 0o700); err != nil {
 		return nil, err
 	}
 	rls, err := s.newLayerStore(rlpath, glpath, s.graphDriver, s.transientStore)
@@ -1100,7 +1100,7 @@ func (s *store) getROLayerStoresLocked() ([]roLayerStore, error) {
 	}
 	driverPrefix := s.graphDriverName + "-"
 	rlpath := filepath.Join(s.runRoot, driverPrefix+"layers")
-	if err := os.MkdirAll(rlpath, 0700); err != nil {
+	if err := os.MkdirAll(rlpath, 0o700); err != nil {
 		return nil, err
 	}
 	for _, store := range s.graphDriver.AdditionalImageStores() {
@@ -2382,7 +2382,6 @@ func (s *store) Names(id string) ([]string, error) {
 	}
 
 	return nil, ErrLayerUnknown
-
 }
 
 func (s *store) Lookup(name string) (string, error) {
@@ -3250,7 +3249,7 @@ func (s *store) ContainerDirectory(id string) (string, error) {
 
 		middleDir := s.graphDriverName + "-containers"
 		gcpath := filepath.Join(s.GraphRoot(), middleDir, id, "userdata")
-		if err := os.MkdirAll(gcpath, 0700); err != nil {
+		if err := os.MkdirAll(gcpath, 0o700); err != nil {
 			return "", true, err
 		}
 		return gcpath, true, nil
@@ -3267,7 +3266,7 @@ func (s *store) ContainerRunDirectory(id string) (string, error) {
 
 		middleDir := s.graphDriverName + "-containers"
 		rcpath := filepath.Join(s.RunRoot(), middleDir, id, "userdata")
-		if err := os.MkdirAll(rcpath, 0700); err != nil {
+		if err := os.MkdirAll(rcpath, 0o700); err != nil {
 			return "", true, err
 		}
 		return rcpath, true, nil
@@ -3280,11 +3279,11 @@ func (s *store) SetContainerDirectoryFile(id, file string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(filepath.Dir(filepath.Join(dir, file)), 0700)
+	err = os.MkdirAll(filepath.Dir(filepath.Join(dir, file)), 0o700)
 	if err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(dir, file), data, 0600)
+	return ioutils.AtomicWriteFile(filepath.Join(dir, file), data, 0o600)
 }
 
 func (s *store) FromContainerDirectory(id, file string) ([]byte, error) {
@@ -3300,11 +3299,11 @@ func (s *store) SetContainerRunDirectoryFile(id, file string, data []byte) error
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(filepath.Dir(filepath.Join(dir, file)), 0700)
+	err = os.MkdirAll(filepath.Dir(filepath.Join(dir, file)), 0o700)
 	if err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(dir, file), data, 0600)
+	return ioutils.AtomicWriteFile(filepath.Join(dir, file), data, 0o600)
 }
 
 func (s *store) FromContainerRunDirectory(id, file string) ([]byte, error) {

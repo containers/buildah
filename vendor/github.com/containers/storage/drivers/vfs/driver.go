@@ -20,7 +20,7 @@ import (
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
-const defaultPerms = os.FileMode(0555)
+const defaultPerms = os.FileMode(0o555)
 
 func init() {
 	graphdriver.MustRegister("vfs", Init)
@@ -36,7 +36,7 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 	}
 
 	rootIDs := d.idMappings.RootPair()
-	if err := idtools.MkdirAllAndChown(filepath.Join(home, "dir"), 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAllAndChown(filepath.Join(home, "dir"), 0o700, rootIDs); err != nil {
 		return nil, err
 	}
 	for _, option := range options.DriverOptions {
@@ -160,7 +160,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, ro bool
 
 	dir := d.dir(id)
 	rootIDs := idMappings.RootPair()
-	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0o700, rootIDs); err != nil {
 		return err
 	}
 
@@ -172,7 +172,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, ro bool
 
 	rootPerms := defaultPerms
 	if runtime.GOOS == "darwin" {
-		rootPerms = os.FileMode(0700)
+		rootPerms = os.FileMode(0o700)
 	}
 
 	if parent != "" {
@@ -202,7 +202,6 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, ro bool
 	}
 
 	return nil
-
 }
 
 func (d *Driver) dir(id string) string {
@@ -312,7 +311,6 @@ func (d *Driver) UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMapp
 		return err
 	}
 	return os.Chown(dir, rootIDs.UID, rootIDs.GID)
-
 }
 
 // Changes produces a list of changes between the specified layer

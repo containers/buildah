@@ -30,7 +30,7 @@ type zfsOptions struct {
 	mountOptions string
 }
 
-const defaultPerms = os.FileMode(0555)
+const defaultPerms = os.FileMode(0o555)
 
 func init() {
 	graphdriver.MustRegister("zfs", Init)
@@ -57,7 +57,7 @@ func Init(base string, opt graphdriver.Options) (graphdriver.Driver, error) {
 		return nil, fmt.Errorf("the 'zfs' command is not available: %w", graphdriver.ErrPrerequisites)
 	}
 
-	file, err := unix.Open("/dev/zfs", unix.O_RDWR, 0600)
+	file, err := unix.Open("/dev/zfs", unix.O_RDWR, 0o600)
 	if err != nil {
 		logger.Debugf("cannot open /dev/zfs: %v", err)
 		return nil, fmt.Errorf("could not open /dev/zfs: %v: %w", err, graphdriver.ErrPrerequisites)
@@ -110,7 +110,7 @@ func Init(base string, opt graphdriver.Options) (graphdriver.Driver, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get root uid/gid: %w", err)
 	}
-	if err := idtools.MkdirAllAs(base, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(base, 0o700, rootUID, rootGID); err != nil {
 		return nil, fmt.Errorf("failed to create '%s': %w", base, err)
 	}
 
@@ -453,7 +453,7 @@ func (d *Driver) Get(id string, options graphdriver.MountOpts) (_ string, retErr
 		return "", err
 	}
 	// Create the target directories if they don't exist
-	if err := idtools.MkdirAllAs(mountpoint, 0755, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(mountpoint, 0o755, rootUID, rootGID); err != nil {
 		return "", err
 	}
 

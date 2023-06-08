@@ -42,7 +42,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const defaultPerms = os.FileMode(0555)
+const defaultPerms = os.FileMode(0o555)
 
 func init() {
 	graphdriver.MustRegister("btrfs", Init)
@@ -56,7 +56,6 @@ type btrfsOptions struct {
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
 func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) {
-
 	fsMagic, err := graphdriver.GetFSMagic(home)
 	if err != nil {
 		return nil, err
@@ -70,7 +69,7 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 	if err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAllAs(filepath.Join(home, "subvolumes"), 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(filepath.Join(home, "subvolumes"), 0o700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +126,7 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 
 // Driver contains information about the filesystem mounted.
 type Driver struct {
-	//root of the file system
+	// root of the file system
 	home         string
 	uidMaps      []idtools.IDMap
 	gidMaps      []idtools.IDMap
@@ -226,7 +225,7 @@ func subvolSnapshot(src, dest, name string) error {
 	var args C.struct_btrfs_ioctl_vol_args_v2
 	args.fd = C.__s64(getDirFd(srcDir))
 
-	var cs = C.CString(name)
+	cs := C.CString(name)
 	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
 	C.free(unsafe.Pointer(cs))
 
@@ -485,7 +484,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	if err != nil {
 		return err
 	}
-	if err := idtools.MkdirAllAs(subvolumes, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(subvolumes, 0o700, rootUID, rootGID); err != nil {
 		return err
 	}
 	if parent == "" {
@@ -523,10 +522,10 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if err := d.setStorageSize(path.Join(subvolumes, id), driver); err != nil {
 			return err
 		}
-		if err := idtools.MkdirAllAs(quotas, 0700, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAs(quotas, 0o700, rootUID, rootGID); err != nil {
 			return err
 		}
-		if err := os.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
+		if err := os.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0o644); err != nil {
 			return err
 		}
 	}

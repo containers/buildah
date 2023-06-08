@@ -50,6 +50,7 @@ struct fsxattr {
 #endif
 */
 import "C"
+
 import (
 	"errors"
 	"fmt"
@@ -98,7 +99,6 @@ func generateUniqueProjectID(path string) (uint32, error) {
 	stat, ok := fileinfo.Sys().(*syscall.Stat_t)
 	if !ok {
 		return 0, fmt.Errorf("not a syscall.Stat_t %s", path)
-
 	}
 	projectID := projectIDsAllocatedPerQuotaHome + (stat.Ino*projectIDsAllocatedPerQuotaHome)%(math.MaxUint32-projectIDsAllocatedPerQuotaHome)
 	return uint32(projectID), nil
@@ -191,7 +191,6 @@ func NewControl(basePath string) (*Control, error) {
 // SetQuota - assign a unique project id to directory and set the quota limits
 // for that project id
 func (q *Control) SetQuota(targetPath string, quota Quota) error {
-
 	projectID, ok := q.quotas[targetPath]
 	if !ok {
 		projectID = q.nextProjectID
@@ -239,7 +238,7 @@ func (q *Control) setProjectQuota(projectID uint32, quota Quota) error {
 		d.d_ino_softlimit = d.d_ino_hardlimit
 	}
 
-	var cs = C.CString(q.backingFsBlockDev)
+	cs := C.CString(q.backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
 	runQuotactl := func() syscall.Errno {
@@ -307,7 +306,7 @@ func (q *Control) fsDiskQuotaFromPath(targetPath string) (C.fs_disk_quota_t, err
 	//
 	// get the quota limit for the container's project id
 	//
-	var cs = C.CString(q.backingFsBlockDev)
+	cs := C.CString(q.backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
 	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XGETPQUOTA,
@@ -428,8 +427,15 @@ func makeBackingFsDev(home string) (string, error) {
 	backingFsBlockDev := path.Join(home, BackingFsBlockDeviceLink)
 	backingFsBlockDevTmp := backingFsBlockDev + ".tmp"
 	// Re-create just in case someone copied the home directory over to a new device
-	if err := unix.Mknod(backingFsBlockDevTmp, unix.S_IFBLK|0600, int(stat.Dev)); err != nil {
-		return "", fmt.Errorf("failed to mknod %s: %w", backingFsBlockDevTmp, err)
+	if err := unix.Mknod(backingFsBlockDevTmp, unix.S_IFBLK|0o600, int(stat.Dev)); err != nil {
+		if !errors.Is(err, unix.EEXIST) {
+			return "", fmt.Errorf("failed to mknod %s: %w", backingFsBlockDevTmp, err)
+		}
+		// On EEXIST, try again after unlinking any potential leftover.
+		_ = unix.Unlink(backingFsBlockDevTmp)
+		if err := unix.Mknod(backingFsBlockDevTmp, unix.S_IFBLK|0o600, int(stat.Dev)); err != nil {
+			return "", fmt.Errorf("failed to mknod %s: %w", backingFsBlockDevTmp, err)
+		}
 	}
 	if err := unix.Rename(backingFsBlockDevTmp, backingFsBlockDev); err != nil {
 		return "", fmt.Errorf("failed to rename %s to %s: %w", backingFsBlockDevTmp, backingFsBlockDev, err)

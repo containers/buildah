@@ -31,8 +31,7 @@ func NewDefaultChecker() Checker {
 	return &defaultChecker{}
 }
 
-type defaultChecker struct {
-}
+type defaultChecker struct{}
 
 func (c *defaultChecker) IsMounted(path string) bool {
 	m, _ := mount.Mounted(path)

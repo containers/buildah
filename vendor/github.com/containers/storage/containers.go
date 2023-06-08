@@ -536,7 +536,7 @@ func (r *containerStore) save(saveLocations containerLocations) error {
 			continue
 		}
 		rpath := r.jsonPath[locationIndex]
-		if err := os.MkdirAll(filepath.Dir(rpath), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(rpath), 0o700); err != nil {
 			return err
 		}
 		subsetContainers := make([]*Container, 0, len(r.containers))
@@ -556,7 +556,7 @@ func (r *containerStore) save(saveLocations containerLocations) error {
 				NoSync: true,
 			}
 		}
-		if err := ioutils.AtomicWriteFileWithOpts(rpath, jdata, 0600, opts); err != nil {
+		if err := ioutils.AtomicWriteFileWithOpts(rpath, jdata, 0o600, opts); err != nil {
 			return err
 		}
 	}
@@ -571,12 +571,12 @@ func (r *containerStore) saveFor(modifiedContainer *Container) error {
 }
 
 func newContainerStore(dir string, runDir string, transient bool) (rwContainerStore, error) {
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	volatileDir := dir
 	if transient {
-		if err := os.MkdirAll(runDir, 0700); err != nil {
+		if err := os.MkdirAll(runDir, 0o700); err != nil {
 			return nil, err
 		}
 		volatileDir = runDir
@@ -928,10 +928,10 @@ func (r *containerStore) SetBigData(id, key string, data []byte) error {
 	if !ok {
 		return ErrContainerUnknown
 	}
-	if err := os.MkdirAll(r.datadir(c.ID), 0700); err != nil {
+	if err := os.MkdirAll(r.datadir(c.ID), 0o700); err != nil {
 		return err
 	}
-	err := ioutils.AtomicWriteFile(r.datapath(c.ID, key), data, 0600)
+	err := ioutils.AtomicWriteFile(r.datapath(c.ID, key), data, 0o600)
 	if err == nil {
 		save := false
 		if c.BigDataSizes == nil {
