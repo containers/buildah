@@ -57,6 +57,34 @@ func NewDeferredClosing(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 				typ:     "os.File",
 				methods: []string{"Close"},
 			},
+			{
+				typ:     "io.ReadCloser",
+				methods: []string{"Close"},
+			},
+			{
+				typ:     "io.WriteCloser",
+				methods: []string{"Close"},
+			},
+			{
+				typ:     "io.ReadWriteCloser",
+				methods: []string{"Close"},
+			},
+			{
+				typ:     "io.ReadSeekCloser",
+				methods: []string{"Close"},
+			},
+			{
+				typ:     "io.Closer",
+				methods: []string{"Close"},
+			},
+			{
+				typ:     "net.Conn",
+				methods: []string{"Close"},
+			},
+			{
+				typ:     "net.Listener",
+				methods: []string{"Close"},
+			},
 		},
 		MetaData: gosec.MetaData{
 			ID:         id,

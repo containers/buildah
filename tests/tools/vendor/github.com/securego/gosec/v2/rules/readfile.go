@@ -24,8 +24,9 @@ import (
 type readfile struct {
 	gosec.MetaData
 	gosec.CallList
-	pathJoin gosec.CallList
-	clean    gosec.CallList
+	pathJoin   gosec.CallList
+	clean      gosec.CallList
+	cleanedVar map[any]ast.Node
 }
 
 // ID returns the identifier for this rule
@@ -57,8 +58,11 @@ func (r *readfile) isJoinFunc(n ast.Node, c *gosec.Context) bool {
 	return false
 }
 
-// isFilepathClean checks if there is a filepath.Clean before assigning to a variable
+// isFilepathClean checks if there is a filepath.Clean for given variable
 func (r *readfile) isFilepathClean(n *ast.Ident, c *gosec.Context) bool {
+	if _, ok := r.cleanedVar[n.Obj.Decl]; ok {
+		return true
+	}
 	if n.Obj.Kind != ast.Var {
 		return false
 	}
@@ -72,9 +76,21 @@ func (r *readfile) isFilepathClean(n *ast.Ident, c *gosec.Context) bool {
 	return false
 }
 
+// trackFilepathClean tracks back the declaration of variable from filepath.Clean argument
+func (r *readfile) trackFilepathClean(n ast.Node) {
+	if clean, ok := n.(*ast.CallExpr); ok && len(clean.Args) > 0 {
+		if ident, ok := clean.Args[0].(*ast.Ident); ok {
+			r.cleanedVar[ident.Obj.Decl] = n
+		}
+	}
+}
+
 // Match inspects AST nodes to determine if the match the methods `os.Open` or `ioutil.ReadFile`
 func (r *readfile) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
-	if node := r.ContainsPkgCallExpr(n, c, false); node != nil {
+	if node := r.clean.ContainsPkgCallExpr(n, c, false); node != nil {
+		r.trackFilepathClean(n)
+		return nil, nil
+	} else if node := r.ContainsPkgCallExpr(n, c, false); node != nil {
 		for _, arg := range node.Args {
 			// handles path joining functions in Arg
 			// eg. os.Open(filepath.Join("/tmp/", file))
@@ -116,6 +132,7 @@ func NewReadFile(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 			Severity:   gosec.Medium,
 			Confidence: gosec.High,
 		},
+		cleanedVar: map[any]ast.Node{},
 	}
 	rule.pathJoin.Add("path/filepath", "Join")
 	rule.pathJoin.Add("path", "Join")

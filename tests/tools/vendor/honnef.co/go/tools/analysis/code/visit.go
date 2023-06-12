@@ -30,7 +30,7 @@ func Match(pass *analysis.Pass, q pattern.Pattern, node ast.Node) (*pattern.Matc
 	// AST inspectors that already filter on nodes we're interested
 	// in.
 	m := &pattern.Matcher{TypesInfo: pass.TypesInfo}
-	ok := m.Match(q.Root, node)
+	ok := m.Match(q, node)
 	return m, ok
 }
 

@@ -17,21 +17,15 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 	RunDespiteErrors: true,
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
-	// ResultType reflect.Type
-	// FactTypes []Fact
-}
-
-func init() {
-	//	Analyzer.Flags.StringVar(&v, "name", "default", "description")
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	search := &Searcher{
-		Stats: map[token.Pos]struct{}{},
-		Vars:  map[token.Pos]map[token.Pos]struct{}{},
-		Types: pass.TypesInfo.Types,
+		LoopVars:  map[token.Pos]struct{}{},
+		LocalVars: map[token.Pos]map[token.Pos]struct{}{},
+		Pass:      pass,
 	}
 
 	nodeFilter := []ast.Node{
@@ -42,50 +36,60 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.UnaryExpr)(nil),
 	}
 
-	inspect.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
-		id, insert, digg := search.Check(n, stack)
-		if id != nil {
-			dMsg := fmt.Sprintf("exporting a pointer for the loop variable %s", id.Name)
-			fMsg := fmt.Sprintf("loop variable %s should be pinned", id.Name)
-			var suggest []analysis.SuggestedFix
-			if insert != token.NoPos {
-				suggest = []analysis.SuggestedFix{{
-					Message: fMsg,
-					TextEdits: []analysis.TextEdit{{
-						Pos:     insert,
-						End:     insert,
-						NewText: []byte(fmt.Sprintf("%[1]s := %[1]s\n", id.Name)),
-					}},
-				}}
-			}
-			d := analysis.Diagnostic{Pos: id.Pos(),
-				End:            id.End(),
-				Message:        dMsg,
-				Category:       "exportloopref",
-				SuggestedFixes: suggest,
-			}
-			pass.Report(d)
-		}
-		return digg
-	})
+	inspect.WithStack(nodeFilter, search.CheckAndReport)
 
 	return nil, nil
 }
 
 type Searcher struct {
-	// Statement variables : map to collect positions that
-	// variables are declared like below.
+	// LoopVars is positions that loop-variables are declared like below.
 	//  - for <KEY>, <VALUE> := range ...
-	//  - var <X> int
-	//  - D := ...
-	Stats map[token.Pos]struct{}
-	// Local variables maps loop-position, decl-location to ignore
-	// safe pointers for variable which declared in the loop.
-	Vars  map[token.Pos]map[token.Pos]struct{}
-	Types map[ast.Expr]types.TypeAndValue
+	//  - for <VALUE> := <INIT>; <CONDITION>; <INCREMENT>
+	LoopVars map[token.Pos]struct{}
+	// LocalVars is positions of loops and the variables declared in them.
+	// Use this to determine if a point assignment is an export outside the loop.
+	LocalVars map[token.Pos]map[token.Pos]struct{}
+
+	Pass *analysis.Pass
 }
 
-func (s *Searcher) Check(n ast.Node, stack []ast.Node) (*ast.Ident, token.Pos, bool) {
+// CheckAndReport inspects each node with stack.
+// It is implemented as the I/F of the "golang.org/x/tools/go/analysis/passes/inspect".Analysis.WithStack.
+func (s *Searcher) CheckAndReport(n ast.Node, push bool, stack []ast.Node) bool {
+	id, insert, digg := s.Check(n, stack)
+	if id == nil {
+		// no prob.
+		return digg
+	}
+
+	// suggests fix
+	var suggest []analysis.SuggestedFix
+	if insert != token.NoPos {
+		suggest = []analysis.SuggestedFix{{
+			Message: fmt.Sprintf("loop variable %s should be pinned", id.Name),
+			TextEdits: []analysis.TextEdit{{
+				Pos:     insert,
+				End:     insert,
+				NewText: []byte(fmt.Sprintf("%[1]s := %[1]s\n", id.Name)),
+			}},
+		}}
+	}
+
+	// report a diagnostic
+	d := analysis.Diagnostic{Pos: id.Pos(),
+		End:            id.End(),
+		Message:        fmt.Sprintf("exporting a pointer for the loop variable %s", id.Name),
+		Category:       "exportloopref",
+		SuggestedFixes: suggest,
+	}
+	s.Pass.Report(d)
+	return digg
+}
+
+// Check each node and stack, whether it exports loop variables or not.
+// Finding export, report the *ast.Ident of exported loop variable,
+// and token.Pos to insert assignment to fix the diagnostic.
+func (s *Searcher) Check(n ast.Node, stack []ast.Node) (loopVar *ast.Ident, insertPos token.Pos, digg bool) {
 	switch typed := n.(type) {
 	case *ast.RangeStmt:
 		s.parseRangeStmt(typed)
@@ -102,72 +106,92 @@ func (s *Searcher) Check(n ast.Node, stack []ast.Node) (*ast.Ident, token.Pos, b
 	return nil, token.NoPos, true
 }
 
+// parseRangeStmt will check range statement (i.e. `for <KEY>, <VALUE> := range ...`),
+// and collect positions of <KEY> and <VALUE>.
 func (s *Searcher) parseRangeStmt(n *ast.RangeStmt) {
-	s.addStat(n.Key)
-	s.addStat(n.Value)
+	s.storeLoopVars(n.Key)
+	s.storeLoopVars(n.Value)
 }
 
+// parseForStmt will check for statement (i.e. `for <VALUE> := <INIT>; <CONDITION>; <INCREMENT>`),
+// and collect positions of <VALUE>.
 func (s *Searcher) parseForStmt(n *ast.ForStmt) {
 	switch post := n.Post.(type) {
 	case *ast.AssignStmt:
 		// e.g. for p = head; p != nil; p = p.next
 		for _, lhs := range post.Lhs {
-			s.addStat(lhs)
+			s.storeLoopVars(lhs)
 		}
 	case *ast.IncDecStmt:
 		// e.g. for i := 0; i < n; i++
-		s.addStat(post.X)
+		s.storeLoopVars(post.X)
 	}
 }
 
-func (s *Searcher) addStat(expr ast.Expr) {
+func (s *Searcher) storeLoopVars(expr ast.Expr) {
 	if id, ok := expr.(*ast.Ident); ok {
-		s.Stats[id.Pos()] = struct{}{}
+		s.LoopVars[id.Pos()] = struct{}{}
 	}
 }
 
+// parseDeclStmt will parse declaring statement (i.e. `var`, `type`, `const`),
+// and store the position if it is "var" declaration and is in any loop.
 func (s *Searcher) parseDeclStmt(n *ast.DeclStmt, stack []ast.Node) {
+	genDecl, ok := n.Decl.(*ast.GenDecl)
+	if !ok {
+		// (dead branch)
+		// if the Decl is not GenDecl (i.e. `var`, `type` or `const` statement), it is ignored
+		return
+	}
+	if genDecl.Tok != token.VAR {
+		// if the Decl is not `var` (may be `type` or `const`), it is ignored
+		return
+	}
+
 	loop, _ := s.innermostLoop(stack)
 	if loop == nil {
 		return
 	}
 
-	// Register declaring variables
-	if genDecl, ok := n.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
-		for _, spec := range genDecl.Specs {
-			for _, name := range spec.(*ast.ValueSpec).Names {
-				s.addVar(loop, name)
-			}
+	// Register declared variables
+	for _, spec := range genDecl.Specs {
+		for _, name := range spec.(*ast.ValueSpec).Names {
+			s.storeLocalVar(loop, name)
 		}
 	}
 }
 
+// parseDeclStmt will parse assignment statement (i.e. `<VAR> = <VALUE>`),
+// and store the position if it is .
 func (s *Searcher) parseAssignStmt(n *ast.AssignStmt, stack []ast.Node) {
+	if n.Tok != token.DEFINE {
+		// if the statement is simple assignment (without definement), it is ignored
+		return
+	}
+
 	loop, _ := s.innermostLoop(stack)
 	if loop == nil {
 		return
 	}
 
 	// Find statements declaring local variable
-	if n.Tok == token.DEFINE {
-		for _, h := range n.Lhs {
-			s.addVar(loop, h)
-		}
+	for _, h := range n.Lhs {
+		s.storeLocalVar(loop, h)
 	}
 }
 
-func (s *Searcher) addVar(loop ast.Node, expr ast.Expr) {
+func (s *Searcher) storeLocalVar(loop ast.Node, expr ast.Expr) {
 	loopPos := loop.Pos()
 	id, ok := expr.(*ast.Ident)
 	if !ok {
 		return
 	}
-	vars, ok := s.Vars[loopPos]
+	vars, ok := s.LocalVars[loopPos]
 	if !ok {
 		vars = map[token.Pos]struct{}{}
 	}
 	vars[id.Obj.Pos()] = struct{}{}
-	s.Vars[loopPos] = vars
+	s.LocalVars[loopPos] = vars
 }
 
 func insertionPosition(block *ast.BlockStmt) token.Pos {
@@ -189,13 +213,15 @@ func (s *Searcher) innermostLoop(stack []ast.Node) (ast.Node, token.Pos) {
 	return nil, token.NoPos
 }
 
+// checkUnaryExpr check unary expression (i.e. <OPERATOR><VAR> like `-x`, `*p` or `&v`) and stack.
+// THIS IS THE ESSENTIAL PART OF THIS PARSER.
 func (s *Searcher) checkUnaryExpr(n *ast.UnaryExpr, stack []ast.Node) (*ast.Ident, token.Pos, bool) {
-	loop, insert := s.innermostLoop(stack)
-	if loop == nil {
+	if n.Op != token.AND {
 		return nil, token.NoPos, true
 	}
 
-	if n.Op != token.AND {
+	loop, insert := s.innermostLoop(stack)
+	if loop == nil {
 		return nil, token.NoPos, true
 	}
 
@@ -207,7 +233,7 @@ func (s *Searcher) checkUnaryExpr(n *ast.UnaryExpr, stack []ast.Node) (*ast.Iden
 
 	// If the identity is not the loop statement variable,
 	// it will not be reported.
-	if _, isStat := s.Stats[id.Obj.Pos()]; !isStat {
+	if _, isDecl := s.LoopVars[id.Obj.Pos()]; !isDecl {
 		return nil, token.NoPos, true
 	}
 
@@ -266,12 +292,15 @@ func (s *Searcher) checkUnaryExpr(n *ast.UnaryExpr, stack []ast.Node) (*ast.Iden
 }
 
 func (s *Searcher) isVar(loop ast.Node, expr ast.Expr) bool {
-	vars := s.Vars[loop.Pos()] // map[token.Pos]struct{}
+	vars := s.LocalVars[loop.Pos()] // map[token.Pos]struct{}
 	if vars == nil {
 		return false
 	}
 	switch typed := expr.(type) {
 	case (*ast.Ident):
+		if typed.Obj == nil {
+			return false // global var in another file (ref: #13)
+		}
 		_, isVar := vars[typed.Obj.Pos()]
 		return isVar
 	case (*ast.IndexExpr): // like X[Y], check X
@@ -287,7 +316,7 @@ func (s *Searcher) getIdentity(expr ast.Expr) *ast.Ident {
 	switch typed := expr.(type) {
 	case *ast.SelectorExpr:
 		// Ignore if the parent is pointer ref (fix for #2)
-		if _, ok := s.Types[typed.X].Type.(*types.Pointer); ok {
+		if _, ok := s.Pass.TypesInfo.Types[typed.X].Type.(*types.Pointer); ok {
 			return nil
 		}
 

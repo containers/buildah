@@ -8,9 +8,6 @@ RUN apk add --no-cache git make
 
 # these are my standard testing / linting tools
 RUN /bin/true \
-    && go get -u github.com/golang/dep/cmd/dep \
-    && go get -u github.com/alecthomas/gometalinter \
-    && gometalinter --install \
     && rm -rf /go/src /go/pkg
 #
 # * SCOWL word list

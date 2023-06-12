@@ -17,7 +17,6 @@ import (
 	"honnef.co/go/tools/go/types/typeutil"
 	"honnef.co/go/tools/pattern"
 
-	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -146,7 +145,7 @@ func CallName(pass *analysis.Pass, call *ast.CallExpr) string {
 	switch idx := fun.(type) {
 	case *ast.IndexExpr:
 		fun = idx.X
-	case *typeparams.IndexListExpr:
+	case *ast.IndexListExpr:
 		fun = idx.X
 	}
 
@@ -277,7 +276,7 @@ func MayHaveSideEffects(pass *analysis.Pass, expr ast.Expr, purity purity.Result
 		return false
 	case *ast.IndexExpr:
 		return MayHaveSideEffects(pass, expr.X, purity) || MayHaveSideEffects(pass, expr.Index, purity)
-	case *typeparams.IndexListExpr:
+	case *ast.IndexListExpr:
 		// In theory, none of the checks are necessary, as IndexListExpr only involves types. But there is no harm in
 		// being safe.
 		if MayHaveSideEffects(pass, expr.X, purity) {

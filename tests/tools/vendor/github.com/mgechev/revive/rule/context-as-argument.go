@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -11,21 +12,26 @@ import (
 // ContextAsArgumentRule lints given else constructs.
 type ContextAsArgumentRule struct {
 	allowTypesLUT map[string]struct{}
+	sync.Mutex
 }
 
 // Apply applies the rule to given file.
 func (r *ContextAsArgumentRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+	r.Lock()
 	if r.allowTypesLUT == nil {
 		r.allowTypesLUT = getAllowTypesFromArguments(args)
 	}
+	r.Unlock()
 
 	var failures []lint.Failure
+	r.Lock()
 	walker := lintContextArguments{
 		allowTypesLUT: r.allowTypesLUT,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
 		},
 	}
+	r.Unlock()
 
 	ast.Walk(walker, file.AST)
 
@@ -33,7 +39,7 @@ func (r *ContextAsArgumentRule) Apply(file *lint.File, args lint.Arguments) []li
 }
 
 // Name returns the rule name.
-func (r *ContextAsArgumentRule) Name() string {
+func (*ContextAsArgumentRule) Name() string {
 	return "context-as-argument"
 }
 

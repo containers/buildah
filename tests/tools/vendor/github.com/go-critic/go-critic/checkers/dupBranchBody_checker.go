@@ -54,5 +54,5 @@ func (c *dupBranchBodyChecker) checkIf(stmt *ast.IfStmt) {
 }
 
 func (c *dupBranchBodyChecker) warnIf(cause ast.Node) {
-	c.ctx.Warn(cause, "both branches in if statement has same body")
+	c.ctx.Warn(cause, "both branches in if statement have same body")
 }

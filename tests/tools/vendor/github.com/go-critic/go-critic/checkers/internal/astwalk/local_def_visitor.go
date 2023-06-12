@@ -7,9 +7,9 @@ import (
 // LocalDefVisitor visits every name definitions inside a function.
 //
 // Next elements are considered as name definitions:
-//	- Function parameters (input, output, receiver)
-//	- Every LHS of ":=" assignment that defines a new name
-//	- Every local var/const declaration.
+//   - Function parameters (input, output, receiver)
+//   - Every LHS of ":=" assignment that defines a new name
+//   - Every local var/const declaration.
 //
 // NOTE: this visitor is experimental.
 // This is also why it lives in a separate file.

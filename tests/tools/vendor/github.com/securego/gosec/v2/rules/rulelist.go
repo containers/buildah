@@ -76,6 +76,7 @@ func Generate(trackSuppressions bool, filters ...RuleFilter) RuleList {
 		{"G111", "Detect http.Dir('/') as a potential risk", NewDirectoryTraversal},
 		{"G112", "Detect ReadHeaderTimeout not configured as a potential risk", NewSlowloris},
 		{"G113", "Usage of Rat.SetString in math/big with an overflow", NewUsingOldMathBig},
+		{"G114", "Use of net/http serve function that has no support for setting timeouts", NewHTTPServeWithoutTimeouts},
 
 		// injection
 		{"G201", "SQL query construction using format string", NewSQLStrFormat},

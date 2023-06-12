@@ -61,7 +61,7 @@ func (i *integerOverflowCheck) Match(node ast.Node, ctx *gosec.Context) (*gosec.
 		if fun, ok := n.Fun.(*ast.Ident); ok {
 			if fun.Name == "int32" || fun.Name == "int16" {
 				if idt, ok := n.Args[0].(*ast.Ident); ok {
-					if n, ok := atoiVarObj[idt.Obj]; ok {
+					if _, ok := atoiVarObj[idt.Obj]; ok {
 						// Detect int32(v) and int16(v)
 						return gosec.NewIssue(ctx, n, i.ID(), i.What, i.Severity, i.Confidence), nil
 					}

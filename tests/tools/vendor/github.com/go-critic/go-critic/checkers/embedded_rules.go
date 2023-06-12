@@ -15,7 +15,7 @@ import (
 
 //go:generate go run ./rules/precompile.go -rules ./rules/rules.go -o ./rulesdata/rulesdata.go
 
-func init() {
+func InitEmbeddedRules() error {
 	filename := "rules/rules.go"
 
 	fset := token.NewFileSet()
@@ -44,7 +44,7 @@ func init() {
 			},
 		}
 		if err := rootEngine.LoadFromIR(loadContext, filename, rulesdata.PrecompiledRules); err != nil {
-			panic(fmt.Sprintf("load embedded ruleguard rules: %v", err))
+			return fmt.Errorf("load embedded ruleguard rules: %w", err)
 		}
 		groups = rootEngine.LoadedGroups()
 	}
@@ -87,6 +87,8 @@ func init() {
 			return c, nil
 		})
 	}
+
+	return nil
 }
 
 type embeddedRuleguardChecker struct {

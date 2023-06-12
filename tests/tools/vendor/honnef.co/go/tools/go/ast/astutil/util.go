@@ -6,8 +6,6 @@ import (
 	"go/token"
 	"reflect"
 	"strings"
-
-	"golang.org/x/exp/typeparams"
 )
 
 func IsIdent(expr ast.Expr, ident string) bool {
@@ -132,7 +130,7 @@ func CopyExpr(node ast.Expr) (ast.Expr, bool) {
 		cp.X, ok1 = CopyExpr(cp.X)
 		cp.Index, ok2 = CopyExpr(cp.Index)
 		return &cp, ok1 && ok2
-	case *typeparams.IndexListExpr:
+	case *ast.IndexListExpr:
 		var ok bool
 		cp := *node
 		cp.X, ok = CopyExpr(cp.X)
@@ -280,8 +278,8 @@ func Equal(a, b ast.Node) bool {
 	case *ast.IndexExpr:
 		b := b.(*ast.IndexExpr)
 		return Equal(a.X, b.X) && Equal(a.Index, b.Index)
-	case *typeparams.IndexListExpr:
-		b := b.(*typeparams.IndexListExpr)
+	case *ast.IndexListExpr:
+		b := b.(*ast.IndexListExpr)
 		if len(a.Indices) != len(b.Indices) {
 			return false
 		}

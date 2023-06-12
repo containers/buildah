@@ -27,7 +27,7 @@ func inArray(haystack []string, needle string) bool {
 
 var wordRegexp = regexp.MustCompile(`[a-zA-Z0-9']+`)
 
-// Diff is datastructure showing what changed in a single line
+// Diff is datastructures showing what changed in a single line.
 type Diff struct {
 	Filename  string
 	FullLine  string
@@ -37,7 +37,7 @@ type Diff struct {
 	Corrected string
 }
 
-// Replacer is the main struct for spelling correction
+// Replacer is the main struct for spelling correction.
 type Replacer struct {
 	Replacements []string
 	Debug        bool
@@ -45,7 +45,7 @@ type Replacer struct {
 	corrected    map[string]string
 }
 
-// New creates a new default Replacer using the main rule list
+// New creates a new default Replacer using the main rule list.
 func New() *Replacer {
 	r := Replacer{
 		Replacements: DictMain,
@@ -54,31 +54,31 @@ func New() *Replacer {
 	return &r
 }
 
-// RemoveRule deletes existings rules.
-// TODO: make inplace to save memory
+// RemoveRule deletes existing rules.
+// TODO: make in place to save memory.
 func (r *Replacer) RemoveRule(ignore []string) {
-	newwords := make([]string, 0, len(r.Replacements))
+	newWords := make([]string, 0, len(r.Replacements))
 	for i := 0; i < len(r.Replacements); i += 2 {
 		if inArray(ignore, r.Replacements[i]) {
 			continue
 		}
-		newwords = append(newwords, r.Replacements[i:i+2]...)
+		newWords = append(newWords, r.Replacements[i:i+2]...)
 	}
 	r.engine = nil
-	r.Replacements = newwords
+	r.Replacements = newWords
 }
 
 // AddRuleList appends new rules.
 // Input is in the same form as Strings.Replacer: [ old1, new1, old2, new2, ....]
-// Note: does not check for duplictes
+// Note: does not check for duplicates.
 func (r *Replacer) AddRuleList(additions []string) {
 	r.engine = nil
 	r.Replacements = append(r.Replacements, additions...)
 }
 
-// Compile compiles the rules.  Required before using the Replace functions
+// Compile compiles the rules.
+// Required before using the Replace functions.
 func (r *Replacer) Compile() {
-
 	r.corrected = make(map[string]string, len(r.Replacements)/2)
 	for i := 0; i < len(r.Replacements); i += 2 {
 		r.corrected[r.Replacements[i]] = r.Replacements[i+1]
@@ -92,11 +92,14 @@ extract words from each line1
 
 replace word -> newword
 if word == new-word
-  continue
+
+	continue
+
 if new-word in list of replacements
-  continue
-new word not original, and not in list of replacements
-  some substring got mixed up.  UNdo
+
+	continue
+
+new word not original, and not in list of replacements some substring got mixed up.  UNdo.
 */
 func (r *Replacer) recheckLine(s string, lineNum int, buf io.Writer, next func(Diff)) {
 	first := 0
@@ -136,9 +139,8 @@ func (r *Replacer) recheckLine(s string, lineNum int, buf io.Writer, next func(D
 	io.WriteString(buf, s[first:])
 }
 
-// ReplaceGo is a specialized routine for correcting Golang source
-// files.  Currently only checks comments, not identifiers for
-// spelling.
+// ReplaceGo is a specialized routine for correcting Golang source files.
+// Currently only checks comments, not identifiers for spelling.
 func (r *Replacer) ReplaceGo(input string) (string, []Diff) {
 	var s scanner.Scanner
 	s.Init(strings.NewReader(input))
@@ -169,7 +171,7 @@ Loop:
 		return input, nil
 	}
 	if lastPos < len(input) {
-		output = output + input[lastPos:]
+		output += input[lastPos:]
 	}
 	diffs := make([]Diff, 0, 8)
 	buf := bytes.NewBuffer(make([]byte, 0, max(len(input), len(output))+100))
@@ -187,11 +189,9 @@ Loop:
 	}
 
 	return buf.String(), diffs
-
 }
 
-// Replace is corrects misspellings in input, returning corrected version
-//  along with a list of diffs.
+// Replace is corrects misspellings in input, returning corrected version along with a list of diffs.
 func (r *Replacer) Replace(input string) (string, []Diff) {
 	output := r.engine.Replace(input)
 	if input == output {
@@ -215,8 +215,8 @@ func (r *Replacer) Replace(input string) (string, []Diff) {
 	return buf.String(), diffs
 }
 
-// ReplaceReader applies spelling corrections to a reader stream.  Diffs are
-// emitted through a callback.
+// ReplaceReader applies spelling corrections to a reader stream.
+// Diffs are emitted through a callback.
 func (r *Replacer) ReplaceReader(raw io.Reader, w io.Writer, next func(Diff)) error {
 	var (
 		err     error
@@ -239,7 +239,7 @@ func (r *Replacer) ReplaceReader(raw io.Reader, w io.Writer, next func(Diff)) er
 			io.WriteString(w, line)
 			continue
 		}
-		// but it can be inaccurate, so we need to double check
+		// but it can be inaccurate, so we need to double-check
 		r.recheckLine(line, lineNum, w, next)
 	}
 	return nil

@@ -57,7 +57,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 type TypesInfoExt struct {
 	types.Info
 
-	// Maps AST nodes back to the node they are contain within.
+	// Maps AST nodes back to the node they are contained within.
 	NodeParent map[ast.Node]ast.Node
 
 	// Maps an object back to all identifiers to refer to it.
@@ -96,4 +96,16 @@ func newTypesInfoExt(info *types.Info) *TypesInfoExt {
 		NodeParent:           nodeParent,
 		IdentifiersForObject: identifiersForObject,
 	}
+}
+
+func (info *TypesInfoExt) ContainingFuncDecl(node ast.Node) *ast.FuncDecl {
+	for parent := info.NodeParent[node]; ; parent = info.NodeParent[parent] {
+		if _, ok := parent.(*ast.File); ok {
+			break
+		}
+		if fun, ok := parent.(*ast.FuncDecl); ok {
+			return fun
+		}
+	}
+	return nil
 }

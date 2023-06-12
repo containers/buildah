@@ -7,6 +7,7 @@ import (
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
 	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/go-toolsmith/astcast"
+	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/ast/astutil"
 )
 
@@ -33,6 +34,10 @@ func (c *newDerefChecker) VisitExpr(expr ast.Expr) {
 	call := astcast.ToCallExpr(deref.X)
 	if astcast.ToIdent(call.Fun).Name == "new" {
 		typ := c.ctx.TypeOf(call.Args[0])
+		// allow *new(T) if T is a type parameter, see #1272 for details
+		if typeparams.IsTypeParam(typ) {
+			return
+		}
 		zv := lintutil.ZeroValueOf(astutil.Unparen(call.Args[0]), typ)
 		if zv != nil {
 			c.warn(expr, zv)

@@ -24,6 +24,10 @@ cover:
 dockerrun: dockerbuild
 	docker run -v "${current_dir}/.gomodguard.yaml:/.gomodguard.yaml" ryancurrah/gomodguard:latest
 
+.PHONY: snapshot
+snapshot:
+	goreleaser --rm-dist --snapshot
+
 .PHONY: release
 release:
 	goreleaser --rm-dist
@@ -39,4 +43,4 @@ install-tools-mac:
 
 .PHONY: install-go-tools
 install-go-tools:
-	go get github.com/t-yuki/gocover-cobertura
+	go install -v github.com/t-yuki/gocover-cobertura

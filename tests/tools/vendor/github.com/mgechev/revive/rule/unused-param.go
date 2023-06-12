@@ -11,7 +11,7 @@ import (
 type UnusedParamRule struct{}
 
 // Apply applies the rule to given file.
-func (r *UnusedParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*UnusedParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -26,7 +26,7 @@ func (r *UnusedParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failur
 }
 
 // Name returns the rule name.
-func (r *UnusedParamRule) Name() string {
+func (*UnusedParamRule) Name() string {
 	return "unused-parameter"
 }
 
