@@ -9,8 +9,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/internal/util"
-	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/sirupsen/logrus"
@@ -75,8 +74,8 @@ func init() {
 	flags.StringSlice("platform", []string{parse.DefaultPlatform()}, "prefer OS/ARCH instead of the current operating system and architecture for choosing images")
 	flags.String("variant", "", "override the `variant` of the specified image")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
-	flags.IntVar(&opts.retry, "retry", buildahcli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
-	flags.StringVar(&opts.retryDelay, "retry-delay", buildahcli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
+	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
+	flags.StringVar(&opts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
 	if err := flags.MarkHidden("blob-cache"); err != nil {
 		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
 	}
@@ -88,7 +87,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 	if len(args) == 0 {
 		return errors.New("an image name must be specified")
 	}
-	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+	if err := cli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 	if len(args) > 1 {
@@ -115,7 +114,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		return err
 	}
 
-	decConfig, err := util.DecryptConfig(iopts.decryptionKeys)
+	decConfig, err := cli.DecryptConfig(iopts.decryptionKeys)
 	if err != nil {
 		return fmt.Errorf("unable to obtain decryption config: %w", err)
 	}

@@ -3,6 +3,7 @@ package cli
 import (
 	"testing"
 
+	"github.com/containers/buildah/define"
 	"github.com/containers/common/pkg/completion"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
@@ -111,4 +112,16 @@ func TestLookupEnvVarReferences(t *testing.T) {
 			[]string{"a=b", "c=d", "cg=i", "c=d", "x=y", "cg=i", "cg=i"},
 			LookupEnvVarReferences([]string{"a=b", "c*", "*", "cg*"}, []string{"c=d", "x=y", "cg=i"}))
 	})
+}
+
+func TestGetFormat(t *testing.T) {
+	_, err := GetFormat("bogus")
+	assert.NotNil(t, err)
+
+	format, err := GetFormat("oci")
+	assert.Nil(t, err)
+	assert.Equalf(t, define.OCIv1ImageManifest, format, "expected oci format but got %v.", format)
+	format, err = GetFormat("docker")
+	assert.Nil(t, err)
+	assert.Equalf(t, define.Dockerv2ImageManifest, format, "expected docker format but got %v.", format)
 }

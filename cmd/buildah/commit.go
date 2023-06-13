@@ -8,8 +8,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
-	iutil "github.com/containers/buildah/internal/util"
-	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
@@ -132,7 +131,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	if len(args) == 0 {
 		return errors.New("container ID must be specified")
 	}
-	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+	if err := cli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
@@ -153,7 +152,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		compress = define.Uncompressed
 	}
 
-	format, err := iutil.GetFormat(iopts.format)
+	format, err := cli.GetFormat(iopts.format)
 	if err != nil {
 		return err
 	}
@@ -198,7 +197,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 	}
 
-	encConfig, encLayers, err := iutil.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
+	encConfig, encLayers, err := cli.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
