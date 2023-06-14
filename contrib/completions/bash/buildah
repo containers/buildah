@@ -198,7 +198,7 @@ return 1
              return
              ;;
          --storage-driver)
-             COMPREPLY=($(compgen -W 'devicemapper overlay2' -- "$cur"))
+             COMPREPLY=($(compgen -W 'overlay' 'vfs' -- "$cur"))
              return
              ;;
          --cgroup-manager)

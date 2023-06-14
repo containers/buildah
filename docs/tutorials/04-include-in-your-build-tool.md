@@ -24,20 +24,20 @@ Next, we should import Buildah as a dependency. However, make sure that you have
 developer packages installed:
 
 ```shell
-dnf install btrfs-progs-devel gpgme-devel device-mapper-devel
+dnf install btrfs-progs-devel gpgme-devel
 ```
 
 Depending on your Linux distribution, the names of the packages can be slightly different. For instance, on
 OpenSUSE it would be
 
 ```shell
-zypper in libbtrfs-devel libgpgme-devel device-mapper-devel
+zypper in libbtrfs-devel libgpgme-devel
 ```
 
 On Debian and Ubuntu, it would be
 
 ```shell
-apt install libbtrfs-dev libgpgme-dev libdevmapper-dev
+apt install libbtrfs-dev libgpgme-dev
 ```
 
 Now import Buildah as a dependency:

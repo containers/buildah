@@ -25,15 +25,15 @@ docker pull quay.io/libpod/centos:7
 
 Then you can run all of the tests with go test:
 ```
-go test -v -timeout=30m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" ./tests/conformance
+go test -v -timeout=30m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh)" ./tests/conformance
 ```
 
 If you want to run one of the test cases you can use the "-run" flag:
 ```
-go test -v -timeout=30m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" -run TestConformance/shell ./tests/conformance
+go test -v -timeout=30m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh)" -run TestConformance/shell ./tests/conformance
 ```
 
 If you also want to build and compare on a line-by-line basis, run:
 ```
-go test -v -timeout=60m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" ./tests/conformance -compare-layers
+go test -v -timeout=60m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh)" ./tests/conformance -compare-layers
 ```

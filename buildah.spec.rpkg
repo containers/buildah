@@ -41,7 +41,6 @@ License:   ASL 2.0
 URL:        https://github.com/containers/buildah
 VCS:        {{{ git_dir_vcs }}}
 Source:     {{{ git_dir_pack }}}
-BuildRequires: device-mapper-devel
 BuildRequires: git-core
 BuildRequires: golang
 BuildRequires: glib2-devel
@@ -121,7 +120,7 @@ mv vendor src
 export CNI_VERSION=`grep '^# github.com/containernetworking/cni ' src/modules.txt | sed 's,.* ,,'`
 export LDFLAGS="-X main.buildInfo=`date +%s` -X main.cniVersion=${CNI_VERSION}"
 
-export BUILDTAGS="$(hack/libsubid_tag.sh) seccomp selinux $(hack/systemd_tag.sh)"
+export BUILDTAGS="$(hack/libsubid_tag.sh) seccomp selinux $(hack/systemd_tag.sh) exclude_graphdriver_devicemapper"
 %if 0%{?rhel}
 export BUILDTAGS="$BUILDTAGS exclude_graphdriver_btrfs btrfs_noversion"
 %endif
