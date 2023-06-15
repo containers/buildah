@@ -35,6 +35,7 @@ import (
 	"github.com/containers/common/libnetwork/network"
 	"github.com/containers/common/libnetwork/resolvconf"
 	netTypes "github.com/containers/common/libnetwork/types"
+	netUtil "github.com/containers/common/libnetwork/util"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/subscriptions"
 	imageTypes "github.com/containers/image/v5/types"
@@ -117,7 +118,7 @@ func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServe
 }
 
 // generateHosts creates a containers hosts file
-func (b *Builder) generateHosts(rdir string, chownOpts *idtools.IDPair, imageRoot string) (string, error) {
+func (b *Builder) generateHosts(rdir string, chownOpts *idtools.IDPair, imageRoot string, spec *spec.Spec) (string, error) {
 	conf, err := config.Default()
 	if err != nil {
 		return "", err
@@ -128,12 +129,34 @@ func (b *Builder) generateHosts(rdir string, chownOpts *idtools.IDPair, imageRoo
 		return "", err
 	}
 
+	var entries etchosts.HostEntries
+	isHost := true
+	if spec.Linux != nil {
+		for _, ns := range spec.Linux.Namespaces {
+			if ns.Type == specs.NetworkNamespace {
+				isHost = false
+				break
+			}
+		}
+	}
+	// add host entry for local ip when running in host network
+	if spec.Hostname != "" && isHost {
+		ip := netUtil.GetLocalIP()
+		if ip != "" {
+			entries = append(entries, etchosts.HostEntry{
+				Names: []string{spec.Hostname},
+				IP:    ip,
+			})
+		}
+	}
+
 	targetfile := filepath.Join(rdir, "hosts")
 	if err := etchosts.New(&etchosts.Params{
 		BaseFile:                 path,
 		ExtraHosts:               b.CommonBuildOpts.AddHost,
 		HostContainersInternalIP: etchosts.GetHostContainersInternalIP(conf, nil, nil),
 		TargetFile:               targetfile,
+		ContainerIPs:             entries,
 	}); err != nil {
 		return "", err
 	}
@@ -368,6 +391,9 @@ func checkAndOverrideIsolationOptions(isolation define.Isolation, options *RunOp
 		if (pidns != nil && pidns.Host) && (userns != nil && !userns.Host) {
 			return fmt.Errorf("not allowed to mix host PID namespace with container user namespace")
 		}
+	case IsolationChroot:
+		logrus.Info("network namespace isolation not supported with chroot isolation, forcing host network")
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.NetworkNamespace), Host: true})
 	}
 	return nil
 }

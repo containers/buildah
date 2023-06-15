@@ -682,7 +682,8 @@ function configure_and_check_user() {
 
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
 	cid=$output
-	run_buildah run --network=host $cid cat /etc/hosts
+	run_buildah run --network=host --hostname $hostname $cid cat /etc/hosts
+	assert "$output" =~ "$ip[[:blank:]]$hostname"
 	hostOutput=$output
 	m=$(buildah mount $cid)
 	run cat $m/etc/hosts
@@ -690,6 +691,9 @@ function configure_and_check_user() {
 	expect_output --substring ""
 	run_buildah run --network=host --no-hosts $cid cat /etc/hosts
 	[ "$output" != "$hostOutput" ]
+	# --isolation chroot implies host networking so check for the correct hosts entry
+	run_buildah run --isolation chroot --hostname $hostname $cid cat /etc/hosts
+	assert "$output" =~ "$ip[[:blank:]]$hostname"
 	run_buildah rm -a
 
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
