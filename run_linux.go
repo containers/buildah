@@ -318,7 +318,7 @@ rootless=%d
 	}
 
 	// Setup OCI hooks
-	_, err = b.setupOCIHooks(spec, (len(options.Mounts) > 0 || len(volumes) > 0))
+	_, err = b.setupOCIHooks(spec, path, (len(options.Mounts) > 0 || len(volumes) > 0))
 	if err != nil {
 		return fmt.Errorf("unable to setup OCI hooks: %w", err)
 	}
@@ -379,7 +379,7 @@ rootless=%d
 	return err
 }
 
-func (b *Builder) setupOCIHooks(config *specs.Spec, hasVolumes bool) (map[string][]specs.Hook, error) {
+func (b *Builder) setupOCIHooks(config *specs.Spec, bundlePath string, hasVolumes bool) (map[string][]specs.Hook, error) {
 	allHooks := make(map[string][]specs.Hook)
 	if len(b.CommonBuildOpts.OCIHooksDir) == 0 {
 		if unshare.IsRootless() {
@@ -416,7 +416,15 @@ func (b *Builder) setupOCIHooks(config *specs.Spec, hasVolumes bool) (map[string
 		}
 	}
 
-	hookErr, err := hooksExec.RuntimeConfigFilter(context.Background(), allHooks["precreate"], config, hooksExec.DefaultPostKillTimeout) //nolint:staticcheck
+	hookErr, err := hooksExec.RuntimeConfigFilterWithOptions(
+		context.Background(),
+		hooksExec.RuntimeConfigFilterOptions{
+			Hooks:           allHooks["precreate"],
+			Dir:             bundlePath,
+			Config:          config,
+			PostKillTimeout: hooksExec.DefaultPostKillTimeout,
+		},
+	)
 	if err != nil {
 		logrus.Warnf("Container: precreate hook: %v", err)
 		if hookErr != nil && hookErr != err {
