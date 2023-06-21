@@ -72,13 +72,6 @@ CIRRUS_TASK_ID=${CIRRUS_BUILD_ID:-unknown$(date +%d)}   # to prevent state thras
 # Unsafe env. vars for display
 SECRET_ENV_RE='(IRCID)|(ACCOUNT)|(^GC[EP]..+)|(SSH)'
 
-# GCE image-name compatible string representation of distribution name
-OS_RELEASE_ID="$(source /etc/os-release; echo $ID)"
-# GCE image-name compatible string representation of distribution _major_ version
-OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | tr -d '.')"
-# Combined to ease soe usage
-OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
-
 # FQINs needed for testing
 REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
 ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
