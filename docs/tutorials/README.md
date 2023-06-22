@@ -24,3 +24,7 @@ Learn how to include Buildah as a library in your build tool.
 
 Learn how to build an image from a rootless OpenShift container.
 
+**[Continuous Integration with GitLab](06-ci-caching.md)**
+
+Learn how to build an image in CI with GitLab and cache the results to improve performance.
+
