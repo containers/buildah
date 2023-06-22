@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/copier"
@@ -22,9 +23,11 @@ import (
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libnetwork/pasta"
 	"github.com/containers/common/libnetwork/resolvconf"
 	"github.com/containers/common/libnetwork/slirp4netns"
 	nettypes "github.com/containers/common/libnetwork/types"
+	netUtil "github.com/containers/common/libnetwork/util"
 	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/config"
@@ -516,19 +519,64 @@ func setupSlirp4netnsNetwork(netns, cid string, options []string) (func(), map[s
 	}, netStatus, nil
 }
 
+func setupPasta(netns string, options []string) (func(), map[string]nettypes.StatusBlock, error) {
+	defConfig, err := config.Default()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get container config: %w", err)
+	}
+
+	err = pasta.Setup(&pasta.SetupOptions{
+		Config:       defConfig,
+		Netns:        netns,
+		ExtraOptions: options,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var ip string
+	err = ns.WithNetNSPath(netns, func(_ ns.NetNS) error {
+		// get the first ip in the netns and use this as our ip for /etc/hosts
+		ip = netUtil.GetLocalIP()
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// create fake status to make sure we get the correct ip in hosts
+	subnet := nettypes.IPNet{IPNet: net.IPNet{
+		IP:   net.ParseIP(ip),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	}}
+	netStatus := map[string]nettypes.StatusBlock{
+		slirp4netns.BinaryName: nettypes.StatusBlock{
+			Interfaces: map[string]nettypes.NetInterface{
+				"tap0": {
+					Subnets: []nettypes.NetAddress{{IPNet: subnet}},
+				},
+			},
+		},
+	}
+
+	return nil, netStatus, nil
+}
+
 func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, network, containerName string) (teardown func(), netStatus map[string]nettypes.StatusBlock, err error) {
 	netns := fmt.Sprintf("/proc/%d/ns/net", pid)
 	var configureNetworks []string
 
 	name, networkOpts, hasOpts := strings.Cut(network, ":")
+	var netOpts []string
+	if hasOpts {
+		netOpts = strings.Split(networkOpts, ",")
+	}
 	switch {
 	case name == slirp4netns.BinaryName,
 		isolation == IsolationOCIRootless && name == "":
-		var slirpOpts []string
-		if hasOpts {
-			slirpOpts = strings.Split(networkOpts, ",")
-		}
-		return setupSlirp4netnsNetwork(netns, containerName, slirpOpts)
+		return setupSlirp4netnsNetwork(netns, containerName, netOpts)
+	case name == pasta.BinaryName:
+		return setupPasta(netns, netOpts)
 
 	// Basically default case except we make sure to not split an empty
 	// name as this would return a slice with one empty string which is

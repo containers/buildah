@@ -6008,6 +6008,30 @@ _EOF
   assert "$output" =~ "mtu 2000" "ip addr shows mtu 2000"
 }
 
+@test "bud with --network pasta" {
+  skip_if_no_runtime
+  skip_if_chroot
+  skip_if_root_environment "pasta only works rootless"
+
+  # FIXME: unskip when we have a new pasta version with:
+  # https://archives.passt.top/passt-dev/20230623082531.25947-2-pholzing@redhat.com/
+  skip "pasta bug prevents this from working"
+
+  _prefetch alpine
+
+  # pasta by default copies the host ip
+  ip=$(hostname -I | cut -f 1 -d " ")
+
+  run_buildah bud $WITH_POLICY_JSON --network pasta $BUDFILES/network
+  assert "$output" =~ "$ip" "ip addr shows default subnet"
+
+  # check some entwork options, it accepts raw pasta(1) areguments
+  mac="9a:dd:31:ea:92:98"
+  run_buildah bud $WITH_POLICY_JSON --network pasta:--mtu,2000,--ns-mac-addr,"$mac" $BUDFILES/network
+  assert "$output" =~ "$mac" "ip addr shows custom mac address"
+  assert "$output" =~ "mtu 2000" "ip addr shows mtu 2000"
+}
+
 @test "bud WORKDIR owned by USER" {
   _prefetch alpine
   target=alpine-image

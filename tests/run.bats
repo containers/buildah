@@ -711,6 +711,24 @@ function configure_and_check_user() {
 	run_buildah rm -a
 }
 
+@test "run check /etc/hosts with --network pasta" {
+	skip_if_no_runtime
+	skip_if_chroot
+	skip_if_root_environment "pasta only works rootless"
+
+	# FIXME: unskip when we have a new pasta version with:
+	# https://archives.passt.top/passt-dev/20230623082531.25947-2-pholzing@redhat.com/
+	skip "pasta bug prevents this from working"
+
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
+	cid=$output
+
+	local hostname=h-$(random_string)
+	ip=$(hostname -I | cut -f 1 -d " ")
+	run_buildah run --network pasta --hostname $hostname $cid cat /etc/hosts
+	assert "$output" =~ "$ip[[:blank:]]$hostname $cid"
+}
+
 @test "run check /etc/resolv.conf" {
         skip_if_rootless_environment
 	skip_if_no_runtime
