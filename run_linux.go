@@ -7,13 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/chroot"
@@ -25,6 +23,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/resolvconf"
+	"github.com/containers/common/libnetwork/slirp4netns"
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/chown"
@@ -202,14 +201,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	setupTerminal(g, options.Terminal, options.TerminalSize)
 
-	configureNetwork, configureNetworks, err := b.configureNamespaces(g, &options)
+	configureNetwork, networkString, err := b.configureNamespaces(g, &options)
 	if err != nil {
 		return err
-	}
-
-	// rootless and networks are not supported
-	if len(configureNetworks) > 0 && isolation == IsolationOCIRootless {
-		return errors.New("cannot use networks as rootless")
 	}
 
 	homeDir, err := b.configureUIDGID(g, mountPoint, options)
@@ -366,7 +360,7 @@ rootless=%d
 		if options.NoPivot {
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec,
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec,
 			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostFile)
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
@@ -375,7 +369,7 @@ rootless=%d
 		if options.NoPivot {
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec,
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec,
 			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostFile)
 	default:
 		err = errors.New("don't know how to run this command")
@@ -475,80 +469,77 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 	return nil
 }
 
-func setupRootlessNetwork(pid int) (teardown func(), err error) {
-	slirp4netns, err := exec.LookPath("slirp4netns")
+func setupSlirp4netnsNetwork(netns, cid string, options []string) (func(), map[string]nettypes.StatusBlock, error) {
+	defConfig, err := config.Default()
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("failed to get container config: %w", err)
 	}
-
-	rootlessSlirpSyncR, rootlessSlirpSyncW, err := os.Pipe()
+	// we need the TmpDir for the slirp4netns code
+	if err := os.MkdirAll(defConfig.Engine.TmpDir, 0o751); err != nil {
+		return nil, nil, fmt.Errorf("failed to create tempdir: %w", err)
+	}
+	res, err := slirp4netns.Setup(&slirp4netns.SetupOptions{
+		Config:       defConfig,
+		ContainerID:  cid,
+		Netns:        netns,
+		ExtraOptions: options,
+		Pdeathsig:    syscall.SIGKILL,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("cannot create slirp4netns sync pipe: %w", err)
+		return nil, nil, err
 	}
-	defer rootlessSlirpSyncR.Close()
 
-	// Be sure there are no fds inherited to slirp4netns except the sync pipe
-	files, err := os.ReadDir("/proc/self/fd")
+	ip, err := slirp4netns.GetIP(res.Subnet)
 	if err != nil {
-		return nil, fmt.Errorf("cannot list open fds: %w", err)
-	}
-	for _, f := range files {
-		fd, err := strconv.Atoi(f.Name())
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse fd: %w", err)
-		}
-		if fd == int(rootlessSlirpSyncW.Fd()) {
-			continue
-		}
-		unix.CloseOnExec(fd)
+		return nil, nil, fmt.Errorf("get slirp4netns ip: %w", err)
 	}
 
-	cmd := exec.Command(slirp4netns, "--mtu", "65520", "-r", "3", "-c", strconv.Itoa(pid), "tap0")
-	setPdeathsig(cmd)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	cmd.ExtraFiles = []*os.File{rootlessSlirpSyncW}
-
-	err = cmd.Start()
-	rootlessSlirpSyncW.Close()
-	if err != nil {
-		return nil, fmt.Errorf("cannot start slirp4netns: %w", err)
-	}
-
-	b := make([]byte, 1)
-	for {
-		if err := rootlessSlirpSyncR.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			return nil, fmt.Errorf("setting slirp4netns pipe timeout: %w", err)
-		}
-		if _, err := rootlessSlirpSyncR.Read(b); err == nil {
-			break
-		} else {
-			if os.IsTimeout(err) {
-				// Check if the process is still running.
-				var status syscall.WaitStatus
-				_, err := syscall.Wait4(cmd.Process.Pid, &status, syscall.WNOHANG, nil)
-				if err != nil {
-					return nil, fmt.Errorf("failed to read slirp4netns process status: %w", err)
-				}
-				if status.Exited() || status.Signaled() {
-					return nil, errors.New("slirp4netns failed")
-				}
-
-				continue
-			}
-			return nil, fmt.Errorf("failed to read from slirp4netns sync pipe: %w", err)
-		}
+	// create fake status to make sure we get the correct ip in hosts
+	subnet := nettypes.IPNet{IPNet: net.IPNet{
+		IP:   *ip,
+		Mask: res.Subnet.Mask,
+	}}
+	netStatus := map[string]nettypes.StatusBlock{
+		slirp4netns.BinaryName: nettypes.StatusBlock{
+			Interfaces: map[string]nettypes.NetInterface{
+				"tap0": {
+					Subnets: []nettypes.NetAddress{{IPNet: subnet}},
+				},
+			},
+		},
 	}
 
 	return func() {
-		cmd.Process.Kill() // nolint:errcheck
-		cmd.Wait()         // nolint:errcheck
-	}, nil
+		syscall.Kill(res.Pid, syscall.SIGKILL) // nolint:errcheck
+		var status syscall.WaitStatus
+		syscall.Wait4(res.Pid, &status, 0, nil) // nolint:errcheck
+	}, netStatus, nil
 }
 
-func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, configureNetworks []string, containerName string) (teardown func(), netStatus map[string]nettypes.StatusBlock, err error) {
+func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, network, containerName string) (teardown func(), netStatus map[string]nettypes.StatusBlock, err error) {
+	netns := fmt.Sprintf("/proc/%d/ns/net", pid)
+	var configureNetworks []string
+
+	name, networkOpts, hasOpts := strings.Cut(network, ":")
+	switch {
+	case name == slirp4netns.BinaryName,
+		isolation == IsolationOCIRootless && name == "":
+		var slirpOpts []string
+		if hasOpts {
+			slirpOpts = strings.Split(networkOpts, ",")
+		}
+		return setupSlirp4netnsNetwork(netns, containerName, slirpOpts)
+
+	// Basically default case except we make sure to not split an empty
+	// name as this would return a slice with one empty string which is
+	// not a valid network name.
+	case len(network) > 0:
+		// old syntax allow comma separated network names
+		configureNetworks = strings.Split(network, ",")
+	}
+
 	if isolation == IsolationOCIRootless {
-		teardown, err = setupRootlessNetwork(pid)
-		return teardown, nil, err
+		return nil, nil, errors.New("cannot use networks as rootless")
 	}
 
 	if len(configureNetworks) == 0 {
@@ -560,7 +551,6 @@ func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, optio
 	// interfaces.  Ensure this by opening a handle to the network
 	// namespace, and using our copy to both configure and
 	// deconfigure it.
-	netns := fmt.Sprintf("/proc/%d/ns/net", pid)
 	netFD, err := unix.Open(netns, unix.O_RDONLY, 0)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening network namespace: %w", err)
@@ -615,10 +605,10 @@ func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 	return stdioPipe, nil
 }
 
-func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, configureUTS bool, err error) {
+func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, networkString string, configureUTS bool, err error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
-		return false, nil, false, fmt.Errorf("failed to get container config: %w", err)
+		return false, "", false, fmt.Errorf("failed to get container config: %w", err)
 	}
 
 	addSysctl := func(prefixes []string) error {
@@ -644,7 +634,7 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 		case string(specs.IPCNamespace):
 			if !namespaceOption.Host {
 				if err := addSysctl([]string{"fs.mqueue"}); err != nil {
-					return false, nil, false, err
+					return false, "", false, err
 				}
 			}
 		case string(specs.UserNamespace):
@@ -657,7 +647,7 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 			configureNetwork = false
 			if !namespaceOption.Host && (namespaceOption.Path == "" || !filepath.IsAbs(namespaceOption.Path)) {
 				if namespaceOption.Path != "" && !filepath.IsAbs(namespaceOption.Path) {
-					configureNetworks = strings.Split(namespaceOption.Path, ",")
+					networkString = namespaceOption.Path
 					namespaceOption.Path = ""
 				}
 				configureNetwork = (policy != define.NetworkDisabled)
@@ -669,30 +659,30 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 					configureUTS = true
 				}
 				if err := addSysctl([]string{"kernel.hostname", "kernel.domainame"}); err != nil {
-					return false, nil, false, err
+					return false, "", false, err
 				}
 			}
 		}
 		if namespaceOption.Host {
 			if err := g.RemoveLinuxNamespace(namespaceOption.Name); err != nil {
-				return false, nil, false, fmt.Errorf("removing %q namespace for run: %w", namespaceOption.Name, err)
+				return false, "", false, fmt.Errorf("removing %q namespace for run: %w", namespaceOption.Name, err)
 			}
 		} else if err := g.AddOrReplaceLinuxNamespace(namespaceOption.Name, namespaceOption.Path); err != nil {
 			if namespaceOption.Path == "" {
-				return false, nil, false, fmt.Errorf("adding new %q namespace for run: %w", namespaceOption.Name, err)
+				return false, "", false, fmt.Errorf("adding new %q namespace for run: %w", namespaceOption.Name, err)
 			}
-			return false, nil, false, fmt.Errorf("adding %q namespace %q for run: %w", namespaceOption.Name, namespaceOption.Path, err)
+			return false, "", false, fmt.Errorf("adding %q namespace %q for run: %w", namespaceOption.Name, namespaceOption.Path, err)
 		}
 	}
 
 	// If we've got mappings, we're going to have to create a user namespace.
 	if len(idmapOptions.UIDMap) > 0 || len(idmapOptions.GIDMap) > 0 || configureUserns {
 		if err := g.AddOrReplaceLinuxNamespace(string(specs.UserNamespace), ""); err != nil {
-			return false, nil, false, fmt.Errorf("adding new %q namespace for run: %w", string(specs.UserNamespace), err)
+			return false, "", false, fmt.Errorf("adding new %q namespace for run: %w", string(specs.UserNamespace), err)
 		}
 		hostUidmap, hostGidmap, err := unshare.GetHostIDMappings("")
 		if err != nil {
-			return false, nil, false, err
+			return false, "", false, err
 		}
 		for _, m := range idmapOptions.UIDMap {
 			g.AddLinuxUIDMapping(m.HostID, m.ContainerID, m.Size)
@@ -712,23 +702,23 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 		}
 		if !specifiedNetwork {
 			if err := g.AddOrReplaceLinuxNamespace(string(specs.NetworkNamespace), ""); err != nil {
-				return false, nil, false, fmt.Errorf("adding new %q namespace for run: %w", string(specs.NetworkNamespace), err)
+				return false, "", false, fmt.Errorf("adding new %q namespace for run: %w", string(specs.NetworkNamespace), err)
 			}
 			configureNetwork = (policy != define.NetworkDisabled)
 		}
 	} else {
 		if err := g.RemoveLinuxNamespace(string(specs.UserNamespace)); err != nil {
-			return false, nil, false, fmt.Errorf("removing %q namespace for run: %w", string(specs.UserNamespace), err)
+			return false, "", false, fmt.Errorf("removing %q namespace for run: %w", string(specs.UserNamespace), err)
 		}
 		if !specifiedNetwork {
 			if err := g.RemoveLinuxNamespace(string(specs.NetworkNamespace)); err != nil {
-				return false, nil, false, fmt.Errorf("removing %q namespace for run: %w", string(specs.NetworkNamespace), err)
+				return false, "", false, fmt.Errorf("removing %q namespace for run: %w", string(specs.NetworkNamespace), err)
 			}
 		}
 	}
 	if configureNetwork {
 		if err := addSysctl([]string{"net"}); err != nil {
-			return false, nil, false, err
+			return false, "", false, err
 		}
 		for name, val := range define.DefaultNetworkSysctl {
 			// Check that the sysctl we are adding is actually supported
@@ -736,7 +726,7 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 			p := filepath.Join("/proc/sys", strings.Replace(name, ".", "/", -1))
 			_, err := os.Stat(p)
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				return false, nil, false, err
+				return false, "", false, err
 			}
 			if err == nil {
 				g.AddLinuxSysctl(name, val)
@@ -745,13 +735,13 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 			}
 		}
 	}
-	return configureNetwork, configureNetworks, configureUTS, nil
+	return configureNetwork, networkString, configureUTS, nil
 }
 
-func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions) (bool, []string, error) {
+func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions) (bool, string, error) {
 	defaultNamespaceOptions, err := DefaultNamespaceOptions()
 	if err != nil {
-		return false, nil, err
+		return false, "", err
 	}
 
 	namespaceOptions := defaultNamespaceOptions
@@ -774,9 +764,9 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions
 	if networkPolicy == NetworkDisabled {
 		namespaceOptions.AddOrReplace(define.NamespaceOptions{{Name: string(specs.NetworkNamespace), Host: false}}...)
 	}
-	configureNetwork, configureNetworks, configureUTS, err := setupNamespaces(options.Logger, g, namespaceOptions, b.IDMappingOptions, networkPolicy)
+	configureNetwork, networkString, configureUTS, err := setupNamespaces(options.Logger, g, namespaceOptions, b.IDMappingOptions, networkPolicy)
 	if err != nil {
-		return false, nil, err
+		return false, "", err
 	}
 
 	if configureUTS {
@@ -803,7 +793,7 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions
 		spec.Process.Env = append(spec.Process.Env, fmt.Sprintf("HOSTNAME=%s", spec.Hostname))
 	}
 
-	return configureNetwork, configureNetworks, nil
+	return configureNetwork, networkString, nil
 }
 
 func runSetupBoundFiles(bundlePath string, bindFiles map[string]string) (mounts []specs.Mount) {

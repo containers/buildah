@@ -163,10 +163,22 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
 Sets the configuration for the network namespace for the container.
 
-- **none**: no networking;
+Valid _mode_ values are:
+
+- **none**: no networking. Invalid if using **--dns**, **--dns-opt**, or **--dns-search**;
 - **host**: use the host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
 - **ns:**_path_: path to a network namespace to join;
-- `private`: create a new namespace for the container (default)
+- **private**: create a new namespace for the container (default)
+- **\<network name|ID\>**: Join the network with the given name or ID, e.g. use `--network mynet` to join the network with the name mynet. Only supported for rootful users.
+- **slirp4netns[:OPTIONS,...]**: use **slirp4netns**(1) to create a user network stack. This is the default for rootless containers. It is possible to specify these additional options, they can also be set with `network_cmd_options` in containers.conf:
+  - **allow_host_loopback=true|false**: Allow slirp4netns to reach the host loopback IP (default is 10.0.2.2 or the second IP from slirp4netns cidr subnet when changed, see the cidr option below). The default is false.
+  - **mtu=MTU**: Specify the MTU to use for this network. (Default is `65520`).
+  - **cidr=CIDR**: Specify ip range to use for this network. (Default is `10.0.2.0/24`).
+  - **enable_ipv6=true|false**: Enable IPv6. Default is true. (Required for `outbound_addr6`).
+  - **outbound_addr=INTERFACE**: Specify the outbound interface slirp binds to (ipv4 traffic only).
+  - **outbound_addr=IPv4**: Specify the outbound ipv4 address slirp binds to.
+  - **outbound_addr6=INTERFACE**: Specify the outbound interface slirp binds to (ipv6 traffic only).
+  - **outbound_addr6=IPv6**: Specify the outbound ipv6 address slirp binds to.
 
 **--no-hosts**
 

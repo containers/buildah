@@ -673,6 +673,10 @@ function configure_and_check_user() {
 	expect_output --substring "(10.88.*|10.0.2.100)[[:blank:]]$cid"
 	assert "$output" !~ "(10.88.*|10.0.2.100)[[:blank:]]host1 $cid" "Container IP should not contain host1"
 
+	# check slirp4netns sets correct hostname with another cidr
+	run_buildah run --network slirp4netns:cidr=192.168.2.0/24 --hostname $hostname $cid cat /etc/hosts
+	expect_output --substring "192.168.2.100[[:blank:]]$hostname $cid"
+
 	run_buildah run --network=container $cid cat /etc/hosts
 	m=$(buildah mount $cid)
 	run cat $m/etc/hosts

@@ -5992,6 +5992,22 @@ _EOF
   fi
 }
 
+@test "bud with --network slirp4netns" {
+  skip_if_no_runtime
+  skip_if_in_container
+  skip_if_chroot
+
+  _prefetch alpine
+
+  run_buildah bud $WITH_POLICY_JSON --network slirp4netns $BUDFILES/network
+  # default subnet is 10.0.2.100/24
+  assert "$output" =~ "10.0.2.100/24" "ip addr shows default subnet"
+
+  run_buildah bud $WITH_POLICY_JSON --network slirp4netns:cidr=192.168.255.0/24,mtu=2000 $BUDFILES/network
+  assert "$output" =~ "192.168.255.100/24" "ip addr shows custom subnet"
+  assert "$output" =~ "mtu 2000" "ip addr shows mtu 2000"
+}
+
 @test "bud WORKDIR owned by USER" {
   _prefetch alpine
   target=alpine-image
