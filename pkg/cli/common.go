@@ -72,6 +72,7 @@ type BudResults struct {
 	From                string
 	Iidfile             string
 	Label               []string
+	LabelsToAnnotations bool
 	Logfile             string
 	LogSplitByPlatform  bool
 	Manifest            string
@@ -226,6 +227,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Iidfile, "iidfile", "", "`file` to write the image ID to")
 	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
 	fs.StringArrayVar(&flags.Label, "label", []string{}, "set metadata for an image (default [])")
+	fs.BoolVar(&flags.LabelsToAnnotations, "label2annotation", false, "save labels as annotations when defined in Containerfile")
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
 	fs.BoolVar(&flags.LogSplitByPlatform, "logsplit", false, "split logfile to different files for each platform")
 	fs.Int("loglevel", 0, "NO LONGER USED, flag ignored, and hidden")

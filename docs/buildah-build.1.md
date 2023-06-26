@@ -476,6 +476,10 @@ If the specified capabilities are not in the default set, container engines
 should print an error message and will run the container with the default
 capabilities.
 
+**--label2annotation** *bool-value*
+
+Labels defined in the Containerfile are saved annotations in OCI Images. These labels will not be added as labels to the image. This options is not supported for --format=docker. (Default is `false`).
+
 **--layers** *bool-value*
 
 Cache intermediate images during the build process (Default is `false`).

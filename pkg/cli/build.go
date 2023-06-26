@@ -138,10 +138,15 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	if err != nil {
 		return options, nil, nil, err
 	}
+	if iopts.LabelsToAnnotations && format == define.Dockerv2ImageManifest {
+		return options, nil, nil, fmt.Errorf("annotations not supported in %q format", iopts.Format)
+	}
+
 	layers := UseLayers()
 	if c.Flag("layers").Changed {
 		layers = iopts.Layers
 	}
+
 	contextDir := ""
 	cliArgs := inputArgs
 
@@ -383,6 +388,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		Isolation:               isolation,
 		Jobs:                    &iopts.Jobs,
 		Labels:                  iopts.Label,
+		LabelsToAnnotations:     iopts.LabelsToAnnotations,
 		Layers:                  layers,
 		LogFile:                 iopts.Logfile,
 		LogRusage:               iopts.LogRusage,

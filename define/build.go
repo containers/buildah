@@ -244,6 +244,8 @@ type BuildOptions struct {
 	Squash bool
 	// Labels metadata for an image
 	Labels []string
+	// LabelsToAnnotations tells Buildah to save labels as annotations in OCI Images
+	LabelsToAnnotations bool
 	// Annotation metadata for an image
 	Annotations []string
 	// OnBuild commands to be run by images based on this image

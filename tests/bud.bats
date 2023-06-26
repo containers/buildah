@@ -6168,3 +6168,19 @@ _EOF
     false
   fi
 }
+
+@test "bud with --label2annotation flag" {
+  run_buildah build -t test -f $BUDFILES/containerfile/Containerfile .
+  run_buildah inspect --format '{{ .OCIv1.Config.Labels }}' test
+  expect_output --substring "foo:bar"
+
+  run_buildah 125 build --format docker --label2annotation -t test -f $BUDFILES/containerfile/Containerfile .
+  expect_output 'Error: annotations not supported in "docker" format'
+
+  run_buildah build --label2annotation -t test -f $BUDFILES/containerfile/Containerfile .
+  run_buildah inspect --format '{{index .ImageAnnotations "foo" }}' test
+  expect_output --substring "bar"
+  run_buildah inspect --format '{{ .OCIv1.Config.Labels }}' test
+  assert "$output" !~ "foo" \
+         "oci format should not have Containerfile labels"
+}

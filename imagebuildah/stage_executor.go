@@ -740,34 +740,34 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 
 	builderOptions := buildah.BuilderOptions{
 		Args:                  ib.Args,
+		BlobDirectory:         s.executor.blobDirectory,
+		CNIConfigDir:          s.executor.cniConfigDir,
+		CNIPluginPath:         s.executor.cniPluginPath,
+		Capabilities:          s.executor.capabilities,
+		CommonBuildOpts:       s.executor.commonBuildOptions,
+		ConfigureNetwork:      s.executor.configureNetwork,
+		ContainerSuffix:       s.executor.containerSuffix,
+		DefaultMountsFilePath: s.executor.defaultMountsFilePath,
+		Devices:               s.executor.devices,
+		Format:                s.executor.outputFormat,
 		FromImage:             from,
 		GroupAdd:              s.executor.groupAdd,
-		PullPolicy:            pullPolicy,
-		ContainerSuffix:       s.executor.containerSuffix,
-		Registry:              s.executor.registry,
-		BlobDirectory:         s.executor.blobDirectory,
-		SignaturePolicyPath:   s.executor.signaturePolicyPath,
-		ReportWriter:          s.executor.reportWriter,
-		SystemContext:         builderSystemContext,
-		Isolation:             s.executor.isolation,
-		NamespaceOptions:      s.executor.namespaceOptions,
-		ConfigureNetwork:      s.executor.configureNetwork,
-		CNIPluginPath:         s.executor.cniPluginPath,
-		CNIConfigDir:          s.executor.cniConfigDir,
-		NetworkInterface:      s.executor.networkInterface,
 		IDMappingOptions:      s.executor.idmappingOptions,
-		CommonBuildOpts:       s.executor.commonBuildOptions,
-		DefaultMountsFilePath: s.executor.defaultMountsFilePath,
-		Format:                s.executor.outputFormat,
-		Capabilities:          s.executor.capabilities,
-		Devices:               s.executor.devices,
-		MaxPullRetries:        s.executor.maxPullPushRetries,
-		PullRetryDelay:        s.executor.retryPullPushDelay,
-		OciDecryptConfig:      s.executor.ociDecryptConfig,
+		Isolation:             s.executor.isolation,
 		Logger:                s.executor.logger,
-		ProcessLabel:          s.executor.processLabel,
+		MaxPullRetries:        s.executor.maxPullPushRetries,
 		MountLabel:            s.executor.mountLabel,
+		NamespaceOptions:      s.executor.namespaceOptions,
+		NetworkInterface:      s.executor.networkInterface,
+		OciDecryptConfig:      s.executor.ociDecryptConfig,
 		PreserveBaseImageAnns: preserveBaseImageAnnotations,
+		ProcessLabel:          s.executor.processLabel,
+		PullPolicy:            pullPolicy,
+		PullRetryDelay:        s.executor.retryPullPushDelay,
+		Registry:              s.executor.registry,
+		ReportWriter:          s.executor.reportWriter,
+		SignaturePolicyPath:   s.executor.signaturePolicyPath,
+		SystemContext:         builderSystemContext,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
@@ -2017,7 +2017,11 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	s.builder.ClearLabels()
 
 	for k, v := range config.Labels {
-		s.builder.SetLabel(k, v)
+		if s.executor.labelsToAnnotations {
+			s.builder.SetAnnotation(k, v)
+		} else {
+			s.builder.SetLabel(k, v)
+		}
 	}
 	if s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolUndefined || s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolTrue {
 		s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)

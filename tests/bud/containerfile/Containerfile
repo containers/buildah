@@ -1,2 +1,3 @@
 # This is for testing Containerfile with Buildah
 FROM alpine
+LABEL foo=bar

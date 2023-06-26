@@ -100,6 +100,7 @@ type Executor struct {
 	iidfile                 string
 	squash                  bool
 	labels                  []string
+	labelsToAnnotations     bool
 	annotations             []string
 	layers                  bool
 	noHosts                 bool
@@ -263,6 +264,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		iidfile:                        options.IIDFile,
 		squash:                         options.Squash,
 		labels:                         append([]string{}, options.Labels...),
+		labelsToAnnotations:            options.LabelsToAnnotations,
 		annotations:                    append([]string{}, options.Annotations...),
 		layers:                         options.Layers,
 		noHosts:                        options.CommonBuildOpts.NoHosts,
