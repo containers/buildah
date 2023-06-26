@@ -88,7 +88,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.3.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.53.1-0.20230620132900-ac2475afa81d
+# github.com/containers/common v0.53.1-0.20230622141517-6eebb3712106
 ## explicit; go 1.18
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
@@ -98,7 +98,9 @@ github.com/containers/common/libnetwork/etchosts
 github.com/containers/common/libnetwork/internal/util
 github.com/containers/common/libnetwork/netavark
 github.com/containers/common/libnetwork/network
+github.com/containers/common/libnetwork/pasta
 github.com/containers/common/libnetwork/resolvconf
+github.com/containers/common/libnetwork/slirp4netns
 github.com/containers/common/libnetwork/types
 github.com/containers/common/libnetwork/util
 github.com/containers/common/pkg/apparmor
@@ -119,7 +121,9 @@ github.com/containers/common/pkg/machine
 github.com/containers/common/pkg/manifests
 github.com/containers/common/pkg/parse
 github.com/containers/common/pkg/retry
+github.com/containers/common/pkg/rootlessport
 github.com/containers/common/pkg/seccomp
+github.com/containers/common/pkg/servicereaper
 github.com/containers/common/pkg/signal
 github.com/containers/common/pkg/subscriptions
 github.com/containers/common/pkg/supplemented

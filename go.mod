@@ -5,7 +5,8 @@ go 1.18
 require (
 	github.com/containerd/containerd v1.7.2
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.53.1-0.20230620132900-ac2475afa81d
+	github.com/containernetworking/plugins v1.3.0
+	github.com/containers/common v0.53.1-0.20230622141517-6eebb3712106
 	github.com/containers/image/v5 v5.25.1-0.20230613183705-07ced6137083
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.46.2-0.20230613134951-e424b6649be3
@@ -51,7 +52,6 @@ require (
 	github.com/container-orchestrated-devices/container-device-interface v0.5.4 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
-	github.com/containernetworking/plugins v1.3.0 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20230514072755-504adb8a8af1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
