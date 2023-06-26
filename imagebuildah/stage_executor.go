@@ -24,6 +24,7 @@ import (
 	"github.com/containers/buildah/util"
 	config "github.com/containers/common/pkg/config"
 	cp "github.com/containers/image/v5/copy"
+	imagedirectory "github.com/containers/image/v5/directory"
 	imagedocker "github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
@@ -985,10 +986,16 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	}
 	// logCachePulled produces build log for cases when `--cache-from`
 	// is used and a valid intermediate image is pulled from remote source.
-	logCachePulled := func(cacheKey string, remote reference.Named) {
+	logCachePulled := func(cacheKey string, remote types.ImageReference) {
 		if !s.executor.quiet {
 			cachePullMessage := "--> Cache pulled from remote"
-			fmt.Fprintf(s.executor.out, "%s %s\n", cachePullMessage, fmt.Sprintf("%s:%s", remote.String(), cacheKey))
+			repo := ""
+			if remote.Transport().Name() == imagedocker.Transport.Name() {
+				repo = remote.DockerReference().String()
+			} else {
+				repo = remote.StringWithinTransport()
+			}
+			fmt.Fprintf(s.executor.out, "%s %s\n", cachePullMessage, fmt.Sprintf("%s:%s", repo, cacheKey))
 		}
 	}
 	// logCachePush produces build log for cases when `--cache-to`
@@ -1782,18 +1789,29 @@ func (s *StageExecutor) generateCacheKey(ctx context.Context, currNode *parser.N
 
 // cacheImageReference is internal function which generates ImageReference from Named repo sources
 // and a tag.
-func cacheImageReferences(repos []reference.Named, cachekey string) ([]types.ImageReference, error) {
+func cacheImageReferences(repos []types.ImageReference, cachekey string) ([]types.ImageReference, error) {
 	var result []types.ImageReference
 	for _, repo := range repos {
-		tagged, err := reference.WithTag(repo, cachekey)
-		if err != nil {
-			return nil, fmt.Errorf("failed generating tagged reference for %q: %w", repo, err)
+		if repo.Transport().Name() == imagedocker.Transport.Name() {
+			ref := repo.DockerReference()
+			tagged, err := reference.WithTag(ref, cachekey)
+			if err != nil {
+				return nil, fmt.Errorf("failed generating tagged reference for %q: %w", repo, err)
+			}
+			dest, err := imagedocker.NewReference(tagged)
+			if err != nil {
+				return nil, fmt.Errorf("failed generating docker reference for %q: %w", tagged, err)
+			}
+			result = append(result, dest)
+		} else if repo.Transport().Name() == imagedirectory.Transport.Name() {
+			dirPath := repo.StringWithinTransport()
+			tagged := filepath.Join(dirPath, cachekey)
+			dest, err := imagedirectory.NewReference(tagged)
+			if err != nil {
+				return nil, fmt.Errorf("failed generating directory reference for %q: %w", tagged, err)
+			}
+			result = append(result, dest)
 		}
-		dest, err := imagedocker.NewReference(tagged)
-		if err != nil {
-			return nil, fmt.Errorf("failed generating docker reference for %q: %w", tagged, err)
-		}
-		result = append(result, dest)
 	}
 	return result, nil
 }
@@ -1833,7 +1851,7 @@ func (s *StageExecutor) pushCache(ctx context.Context, src, cacheKey string) err
 // or a newer version of cache was found in the upstream repo. If new
 // image was pulled function returns image id otherwise returns empty
 // string "" or error if any error was encontered while pulling the cache.
-func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (reference.Named, string, error) {
+func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (types.ImageReference, string, error) {
 	srcList, err := cacheImageReferences(s.executor.cacheFrom, cacheKey)
 	if err != nil {
 		return nil, "", err
@@ -1851,14 +1869,20 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 			ReportWriter:        nil,
 			PullPolicy:          define.PullIfNewer,
 		}
-		id, err := buildah.Pull(ctx, src.DockerReference().String(), options)
+		srcString := ""
+		if src.Transport().Name() == imagedocker.Transport.Name() {
+			srcString = src.DockerReference().String()
+		} else if src.Transport().Name() == imagedirectory.Transport.Name() {
+			srcString = "dir://" + src.StringWithinTransport()
+		}
+		id, err := buildah.Pull(ctx, srcString, options)
 		if err != nil {
 			logrus.Debugf("failed pulling cache from source %s: %v", src, err)
 			continue // failed pulling this one try next
 			//return "", fmt.Errorf("failed while pulling cache from %q: %w", src, err)
 		}
 		logrus.Debugf("successfully pulled cache from repo %s: %s", src, id)
-		return src.DockerReference(), id, nil
+		return src, id, nil
 	}
 	return nil, "", fmt.Errorf("failed pulling cache from all available sources %q", srcList)
 }
