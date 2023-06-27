@@ -139,7 +139,7 @@ EOM
 
   # After login, push should pass
   run_buildah push $WITH_POLICY_JSON --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "Storing signatures"
+  expect_output --substring "Writing manifest to image destination"
 
   run_buildah 125 login --tls-verify=false --username testuser --password WRONGPASSWORD localhost:$REGISTRY_PORT
   expect_output --substring 'logging into "localhost:'"$REGISTRY_PORT"'": invalid username/password' \

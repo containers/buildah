@@ -145,7 +145,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	setupTerminal(g, options.Terminal, options.TerminalSize)
 
-	configureNetwork, configureNetworks, err := b.configureNamespaces(g, &options)
+	configureNetwork, networkString, err := b.configureNamespaces(g, &options)
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		} else {
 			moreCreateArgs = nil
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, containerName, b.Container, hostFile)
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec, mountPoint, path, containerName, b.Container, hostFile)
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	default:
@@ -374,10 +374,15 @@ func setupCapabilities(g *generate.Generator, defaultCapabilities, adds, drops [
 	return nil
 }
 
-func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, configureNetworks []string, containerName string) (teardown func(), netStatus map[string]nettypes.StatusBlock, err error) {
+func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, networkString string, containerName string) (teardown func(), netStatus map[string]nettypes.StatusBlock, err error) {
 	//if isolation == IsolationOCIRootless {
 	//return setupRootlessNetwork(pid)
 	//}
+
+	var configureNetworks []string
+	if len(networkString) > 0 {
+		configureNetworks = strings.Split(networkString, ",")
+	}
 
 	if len(configureNetworks) == 0 {
 		configureNetworks = []string{b.NetworkInterface.DefaultNetworkName()}
@@ -413,7 +418,7 @@ func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, optio
 	return teardown, nil, nil
 }
 
-func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, configureUTS bool, err error) {
+func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, networkString string, configureUTS bool, err error) {
 	// Set namespace options in the container configuration.
 	for _, namespaceOption := range namespaceOptions {
 		switch namespaceOption.Name {
@@ -421,7 +426,7 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 			configureNetwork = false
 			if !namespaceOption.Host && (namespaceOption.Path == "" || !filepath.IsAbs(namespaceOption.Path)) {
 				if namespaceOption.Path != "" && !filepath.IsAbs(namespaceOption.Path) {
-					configureNetworks = strings.Split(namespaceOption.Path, ",")
+					networkString = namespaceOption.Path
 					namespaceOption.Path = ""
 				}
 				configureNetwork = (policy != define.NetworkDisabled)
@@ -437,13 +442,13 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 		// equivalents for UTS and and network namespaces.
 	}
 
-	return configureNetwork, configureNetworks, configureUTS, nil
+	return configureNetwork, networkString, configureUTS, nil
 }
 
-func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions) (bool, []string, error) {
+func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions) (bool, string, error) {
 	defaultNamespaceOptions, err := DefaultNamespaceOptions()
 	if err != nil {
-		return false, nil, err
+		return false, "", err
 	}
 
 	namespaceOptions := defaultNamespaceOptions
@@ -464,9 +469,9 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions
 		}
 	}
 
-	configureNetwork, configureNetworks, configureUTS, err := setupNamespaces(options.Logger, g, namespaceOptions, b.IDMappingOptions, networkPolicy)
+	configureNetwork, networkString, configureUTS, err := setupNamespaces(options.Logger, g, namespaceOptions, b.IDMappingOptions, networkPolicy)
 	if err != nil {
-		return false, nil, err
+		return false, "", err
 	}
 
 	if configureUTS {
@@ -493,7 +498,7 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions
 		spec.Process.Env = append(spec.Process.Env, fmt.Sprintf("HOSTNAME=%s", spec.Hostname))
 	}
 
-	return configureNetwork, configureNetworks, nil
+	return configureNetwork, networkString, nil
 }
 
 func runSetupBoundFiles(bundlePath string, bindFiles map[string]string) (mounts []specs.Mount) {

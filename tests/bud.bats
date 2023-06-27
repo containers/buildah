@@ -30,7 +30,7 @@ load helpers
   run readlink /proc/self/ns/net
   hostns="$output"
   run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/inline-network/Dockerfile1
-  expect_output --from="${lines[9]}" "${hostns}"
+  expect_output --from="${lines[8]}" "${hostns}"
 }
 
 @test "build with inline RUN --network=none" {
@@ -5990,6 +5990,46 @@ _EOF
     # default subnet is 10.88.0.0/16
     expect_output --substring "10.88."
   fi
+}
+
+@test "bud with --network slirp4netns" {
+  skip_if_no_runtime
+  skip_if_in_container
+  skip_if_chroot
+
+  _prefetch alpine
+
+  run_buildah bud $WITH_POLICY_JSON --network slirp4netns $BUDFILES/network
+  # default subnet is 10.0.2.100/24
+  assert "$output" =~ "10.0.2.100/24" "ip addr shows default subnet"
+
+  run_buildah bud $WITH_POLICY_JSON --network slirp4netns:cidr=192.168.255.0/24,mtu=2000 $BUDFILES/network
+  assert "$output" =~ "192.168.255.100/24" "ip addr shows custom subnet"
+  assert "$output" =~ "mtu 2000" "ip addr shows mtu 2000"
+}
+
+@test "bud with --network pasta" {
+  skip_if_no_runtime
+  skip_if_chroot
+  skip_if_root_environment "pasta only works rootless"
+
+  # FIXME: unskip when we have a new pasta version with:
+  # https://archives.passt.top/passt-dev/20230623082531.25947-2-pholzing@redhat.com/
+  skip "pasta bug prevents this from working"
+
+  _prefetch alpine
+
+  # pasta by default copies the host ip
+  ip=$(hostname -I | cut -f 1 -d " ")
+
+  run_buildah bud $WITH_POLICY_JSON --network pasta $BUDFILES/network
+  assert "$output" =~ "$ip" "ip addr shows default subnet"
+
+  # check some entwork options, it accepts raw pasta(1) areguments
+  mac="9a:dd:31:ea:92:98"
+  run_buildah bud $WITH_POLICY_JSON --network pasta:--mtu,2000,--ns-mac-addr,"$mac" $BUDFILES/network
+  assert "$output" =~ "$mac" "ip addr shows custom mac address"
+  assert "$output" =~ "mtu 2000" "ip addr shows mtu 2000"
 }
 
 @test "bud WORKDIR owned by USER" {

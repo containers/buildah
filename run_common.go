@@ -1130,7 +1130,7 @@ func runUsingRuntimeMain() {
 	os.Exit(1)
 }
 
-func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks,
+func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, networkString string,
 	moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName, buildContainerName, hostsFile string) (err error) {
 	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
@@ -1236,7 +1236,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 				return fmt.Errorf("parsing pid %s as a number: %w", string(pidValue), err)
 			}
 
-			teardown, netstatus, err := b.runConfigureNetwork(pid, isolation, options, configureNetworks, containerName)
+			teardown, netstatus, err := b.runConfigureNetwork(pid, isolation, options, networkString, containerName)
 			if teardown != nil {
 				defer teardown()
 			}
@@ -1246,13 +1246,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 
 			// only add hosts if we manage the hosts file
 			if hostsFile != "" {
-				var entries etchosts.HostEntries
-				if netstatus != nil {
-					entries = etchosts.GetNetworkHostEntries(netstatus, spec.Hostname, buildContainerName)
-				} else {
-					// we have slirp4netns, default to slirp4netns ip since this is not configurable in buildah
-					entries = etchosts.HostEntries{{IP: "10.0.2.100", Names: []string{spec.Hostname, buildContainerName}}}
-				}
+				entries := etchosts.GetNetworkHostEntries(netstatus, spec.Hostname, buildContainerName)
 				// make sure to sync this with (b *Builder) generateHosts()
 				err = etchosts.Add(hostsFile, entries)
 				if err != nil {
