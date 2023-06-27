@@ -6,10 +6,10 @@ require (
 	github.com/containerd/containerd v1.7.2
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
-	github.com/containers/common v0.53.1-0.20230622141517-6eebb3712106
-	github.com/containers/image/v5 v5.25.1-0.20230613183705-07ced6137083
+	github.com/containers/common v0.53.1-0.20230627061926-e6f314e59b81
+	github.com/containers/image/v5 v5.25.1-0.20230623174242-68798a22ce3e
 	github.com/containers/ocicrypt v1.1.7
-	github.com/containers/storage v1.46.2-0.20230613134951-e424b6649be3
+	github.com/containers/storage v1.47.0
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/docker/docker v24.0.2+incompatible
@@ -41,6 +41,7 @@ require (
 )
 
 require (
+	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
@@ -78,7 +79,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -108,7 +108,7 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sigstore/fulcio v1.3.1 // indirect
 	github.com/sigstore/rekor v1.2.2-0.20230601122533-4c81ff246d12 // indirect
-	github.com/sigstore/sigstore v1.6.5 // indirect
+	github.com/sigstore/sigstore v1.7.1 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980 // indirect
 	github.com/sylabs/sif/v2 v2.11.5 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect

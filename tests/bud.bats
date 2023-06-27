@@ -30,7 +30,7 @@ load helpers
   run readlink /proc/self/ns/net
   hostns="$output"
   run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/inline-network/Dockerfile1
-  expect_output --from="${lines[9]}" "${hostns}"
+  expect_output --from="${lines[8]}" "${hostns}"
 }
 
 @test "build with inline RUN --network=none" {

@@ -314,9 +314,6 @@ type rwLayerStore interface {
 
 	// Clean up unreferenced layers
 	GarbageCollect() error
-
-	// supportsShifting() returns true if the driver.Driver.SupportsShifting().
-	supportsShifting() bool
 }
 
 type layerStore struct {
@@ -2395,8 +2392,26 @@ func (r *layerStore) ApplyDiffFromStagingDirectory(id, stagingDirectory string, 
 	layer.UncompressedDigest = diffOutput.UncompressedDigest
 	layer.UncompressedSize = diffOutput.Size
 	layer.Metadata = diffOutput.Metadata
-	if err = r.saveFor(layer); err != nil {
-		return err
+	if len(diffOutput.TarSplit) != 0 {
+		tsdata := bytes.Buffer{}
+		compressor, err := pgzip.NewWriterLevel(&tsdata, pgzip.BestSpeed)
+		if err != nil {
+			compressor = pgzip.NewWriter(&tsdata)
+		}
+		if err := compressor.SetConcurrency(1024*1024, 1); err != nil { // 1024*1024 is the hard-coded default; we're not changing that
+			logrus.Infof("setting compression concurrency threads to 1: %v; ignoring", err)
+		}
+		if _, err := compressor.Write(diffOutput.TarSplit); err != nil {
+			compressor.Close()
+			return err
+		}
+		compressor.Close()
+		if err := os.MkdirAll(filepath.Dir(r.tspath(layer.ID)), 0o700); err != nil {
+			return err
+		}
+		if err := ioutils.AtomicWriteFile(r.tspath(layer.ID), tsdata.Bytes(), 0o600); err != nil {
+			return err
+		}
 	}
 	for k, v := range diffOutput.BigData {
 		if err := r.SetBigData(id, k, bytes.NewReader(v)); err != nil {
@@ -2405,6 +2420,9 @@ func (r *layerStore) ApplyDiffFromStagingDirectory(id, stagingDirectory string, 
 			}
 			return err
 		}
+	}
+	if err = r.saveFor(layer); err != nil {
+		return err
 	}
 	return err
 }
@@ -2470,10 +2488,6 @@ func (r *layerStore) LayersByCompressedDigest(d digest.Digest) ([]Layer, error) 
 // Requires startReading or startWriting.
 func (r *layerStore) LayersByUncompressedDigest(d digest.Digest) ([]Layer, error) {
 	return r.layersByDigestMap(r.byuncompressedsum, d)
-}
-
-func (r *layerStore) supportsShifting() bool {
-	return r.driver.SupportsShifting()
 }
 
 func closeAll(closes ...func() error) (rErr error) {
