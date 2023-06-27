@@ -417,7 +417,7 @@ func (b *Builder) setupOCIHooks(config *spec.Spec, hasVolumes bool) (map[string]
 		}
 	}
 
-	hookErr, err := hooksExec.RuntimeConfigFilter(context.Background(), allHooks["precreate"], config, hooksExec.DefaultPostKillTimeout)
+	hookErr, err := hooksExec.RuntimeConfigFilter(context.Background(), allHooks["precreate"], config, hooksExec.DefaultPostKillTimeout) //nolint:staticcheck
 	if err != nil {
 		logrus.Warnf("Container: precreate hook: %v", err)
 		if hookErr != nil && hookErr != err {

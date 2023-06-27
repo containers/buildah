@@ -1029,7 +1029,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 			}
 			if imageStore != "" {
 				if err2 := os.RemoveAll(workDirBase); err2 != nil {
-					logrus.Errorf("While recovering from a failure creating a layer, error deleting %#v: %v", dir, err2)
+					logrus.Errorf("While recovering from a failure creating a layer, error deleting %#v: %v", workDirBase, err2)
 				}
 			}
 		}
@@ -1952,6 +1952,9 @@ func (d *Driver) ApplyDiffFromStagingDirectory(id, parent, stagingDirectory stri
 	if err := os.RemoveAll(diff); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
+	diffOutput.UncompressedDigest = diffOutput.TOCDigest
+
 	return os.Rename(stagingDirectory, diff)
 }
 
