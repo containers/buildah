@@ -9,5 +9,6 @@ run:
 linters:
   enable:
     - revive
+    - staticcheck
     - unconvert
     - unparam
