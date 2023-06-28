@@ -1,0 +1,36 @@
+---
+
+name: "Golang Static Check"
+
+on: ["push", "pull_request"]
+
+permissions: "read-all"
+
+jobs:
+  static_check:
+    name: "Golang Static Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      # Ref: https://github.com/WillAbides/setup-go-faster
+      - uses: WillAbides/setup-go-faster@v1.7.0
+        with:
+          go-version: "*"
+          # Ignore whatever was already installed on the system
+          ignore-local: "true"
+      # Lookup minimum version, don't make suggestions for go versions older than it.
+      - id: gomod
+        run: |
+          printf "version=%s" $(grep -E -m 1 '^go' go.mod | awk '{print $2}') >> $GITHUB_OUTPUT
+          tail -1 $GITHUB_OUTPUT
+      # Ref: https://staticcheck.dev/docs/running-staticcheck/ci/github-actions/
+      # N/B: The staticcheck tool requires golang 1.19+
+      - uses: dominikh/staticcheck-action@v1.2.0
+        with:
+          # Golang was already installed (above)
+          install-go: "false"
+          # Renovate manages this value, manual changes are permitted if required.
+          version: "2023.1.3"
+          min-go-version: "${{ steps.gomod.outputs.version }}"
