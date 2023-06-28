@@ -138,3 +138,5 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/containers/storage => github.com/rhatdan/storage v1.45.1-0.20230628115629-f9be80cf2fdc
