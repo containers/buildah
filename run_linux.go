@@ -471,17 +471,13 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 	return nil
 }
 
-func setupSlirp4netnsNetwork(netns, cid string, options []string) (func(), map[string]nettypes.StatusBlock, error) {
-	defConfig, err := config.Default()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get container config: %w", err)
-	}
+func setupSlirp4netnsNetwork(config *config.Config, netns, cid string, options []string) (func(), map[string]nettypes.StatusBlock, error) {
 	// we need the TmpDir for the slirp4netns code
-	if err := os.MkdirAll(defConfig.Engine.TmpDir, 0o751); err != nil {
+	if err := os.MkdirAll(config.Engine.TmpDir, 0o751); err != nil {
 		return nil, nil, fmt.Errorf("failed to create tempdir: %w", err)
 	}
 	res, err := slirp4netns.Setup(&slirp4netns.SetupOptions{
-		Config:       defConfig,
+		Config:       config,
 		ContainerID:  cid,
 		Netns:        netns,
 		ExtraOptions: options,
@@ -518,14 +514,9 @@ func setupSlirp4netnsNetwork(netns, cid string, options []string) (func(), map[s
 	}, netStatus, nil
 }
 
-func setupPasta(netns string, options []string) (func(), map[string]nettypes.StatusBlock, error) {
-	defConfig, err := config.Default()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get container config: %w", err)
-	}
-
-	err = pasta.Setup(&pasta.SetupOptions{
-		Config:       defConfig,
+func setupPasta(config *config.Config, netns string, options []string) (func(), map[string]nettypes.StatusBlock, error) {
+	err := pasta.Setup(&pasta.SetupOptions{
+		Config:       config,
 		Netns:        netns,
 		ExtraOptions: options,
 	})
@@ -564,18 +555,33 @@ func setupPasta(netns string, options []string) (func(), map[string]nettypes.Sta
 func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, network, containerName string) (teardown func(), netStatus map[string]nettypes.StatusBlock, err error) {
 	netns := fmt.Sprintf("/proc/%d/ns/net", pid)
 	var configureNetworks []string
+	defConfig, err := config.Default()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get container config: %w", err)
+	}
 
 	name, networkOpts, hasOpts := strings.Cut(network, ":")
 	var netOpts []string
 	if hasOpts {
 		netOpts = strings.Split(networkOpts, ",")
 	}
+	if isolation == IsolationOCIRootless && name == "" {
+		switch defConfig.Network.DefaultRootlessNetworkCmd {
+		case slirp4netns.BinaryName, "":
+			name = slirp4netns.BinaryName
+		case pasta.BinaryName:
+			name = pasta.BinaryName
+		default:
+			return nil, nil, fmt.Errorf("invalid default_rootless_network_cmd option %q",
+				defConfig.Network.DefaultRootlessNetworkCmd)
+		}
+	}
+
 	switch {
-	case name == slirp4netns.BinaryName,
-		isolation == IsolationOCIRootless && name == "":
-		return setupSlirp4netnsNetwork(netns, containerName, netOpts)
+	case name == slirp4netns.BinaryName:
+		return setupSlirp4netnsNetwork(defConfig, netns, containerName, netOpts)
 	case name == pasta.BinaryName:
-		return setupPasta(netns, netOpts)
+		return setupPasta(defConfig, netns, netOpts)
 
 	// Basically default case except we make sure to not split an empty
 	// name as this would return a slice with one empty string which is
