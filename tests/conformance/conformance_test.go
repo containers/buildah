@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -782,7 +783,7 @@ func fsHeaderForEntry(hdr *tar.Header) FSHeader {
 		Name:     hdr.Name,
 		Linkname: hdr.Linkname,
 		Size:     hdr.Size,
-		Mode:     hdr.Mode,
+		Mode:     (hdr.Mode & int64(fs.ModePerm)),
 		UID:      hdr.Uid,
 		GID:      hdr.Gid,
 		ModTime:  hdr.ModTime,
