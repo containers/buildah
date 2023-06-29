@@ -726,7 +726,12 @@ function configure_and_check_user() {
 	local hostname=h-$(random_string)
 	ip=$(hostname -I | cut -f 1 -d " ")
 	run_buildah run --network pasta --hostname $hostname $cid cat /etc/hosts
-	assert "$output" =~ "$ip[[:blank:]]$hostname $cid"
+	assert "$output" =~ "$ip[[:blank:]]$hostname $cid" "--network pasta adds correct hostname"
+
+	# check with containers.conf setting
+	echo -e "[network]\ndefault_rootless_network_cmd = \"pasta\"" > ${TEST_SCRATCH_DIR}/containers.conf
+	CONTAINERS_CONF_OVERRIDE=${TEST_SCRATCH_DIR}/containers.conf run_buildah run --hostname $hostname $cid cat /etc/hosts
+	assert "$output" =~ "$ip[[:blank:]]$hostname $cid" "default_rootless_network_cmd = \"pasta\" works"
 }
 
 @test "run check /etc/resolv.conf" {
