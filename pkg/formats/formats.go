@@ -10,8 +10,8 @@ import (
 	"text/tabwriter"
 	"text/template"
 
-	"github.com/ghodss/yaml"
 	"golang.org/x/term"
+	"sigs.k8s.io/yaml"
 )
 
 const (
