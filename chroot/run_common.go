@@ -127,7 +127,7 @@ func RunUsingChroot(spec *specs.Spec, bundlePath, homeDir string, stdin io.Reade
 	setPdeathsig(cmd.Cmd)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
 	cmd.Dir = "/"
-	cmd.Env = []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())}
+	cmd.Env = []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel()), "GOCOVERDIR=" + os.Getenv("GOCOVERDIR")}
 
 	interrupted := make(chan os.Signal, 100)
 	cmd.Hook = func(int) error {
@@ -510,7 +510,7 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	setPdeathsig(cmd.Cmd)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
 	cmd.Dir = "/"
-	cmd.Env = []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())}
+	cmd.Env = []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel()), "GOCOVERDIR=" + os.Getenv("GOCOVERDIR")}
 	if ctty != nil {
 		cmd.Setsid = true
 		cmd.Ctty = ctty

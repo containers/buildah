@@ -6,8 +6,10 @@ package chroot
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,7 +32,20 @@ func TestMain(m *testing.M) {
 	if reexec.Init() {
 		return
 	}
-	os.Exit(m.Run())
+	removeGoCoverDir := ""
+	if goCoverDir := os.Getenv("GOCOVERDIR"); goCoverDir == "" && testing.CoverMode() != "" {
+		if tmp, err := os.MkdirTemp("", "buildahtest"); err == nil {
+			if err = os.Chmod(tmp, fs.ModeSticky|0o777); err == nil {
+				os.Setenv("GOCOVERDIR", tmp)
+				removeGoCoverDir = tmp
+			}
+		}
+	}
+	resultCode := m.Run()
+	if removeGoCoverDir != "" {
+		_ = os.RemoveAll(removeGoCoverDir)
+	}
+	os.Exit(resultCode)
 }
 
 func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundleDir string), verify func(t *testing.T, report *types.TestReport)) {
@@ -55,8 +70,11 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	}
 
 	rootTmpDir := filepath.Join(rootDir, "tmp")
-	if err := os.Mkdir(rootTmpDir, 01777); err != nil {
+	if err := os.Mkdir(rootTmpDir, 0o777); err != nil {
 		t.Fatalf("os.Mkdir(%q): %v", rootTmpDir, err)
+	}
+	if err := os.Chmod(rootTmpDir, fs.ModeSticky|0o777); err != nil {
+		t.Fatalf("os.Chmod(%q): %v", rootTmpDir, err)
 	}
 
 	specPath := filepath.Join("..", "tests", reportCommand, reportCommand)
@@ -93,6 +111,25 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	}
 	if err := os.Chown(rootDir, int(uid), int(gid)); err != nil {
 		t.Fatalf("os.Chown(%q): %v", rootDir, err)
+	}
+
+	if goCoverDir := os.Getenv("GOCOVERDIR"); goCoverDir != "" {
+		if err := os.MkdirAll(filepath.Join(rootDir, goCoverDir), 0o777); err != nil {
+			fmt.Fprintf(os.Stderr, "mkdir(%q): %v\n", goCoverDir, err)
+			os.Exit(1)
+		}
+		if err := os.Chmod(filepath.Join(rootDir, goCoverDir), fs.ModeSticky|0o777); err != nil {
+			fmt.Fprintf(os.Stderr, "chmod(%q): %v\n", goCoverDir, err)
+			os.Exit(1)
+		}
+		if err := os.Chmod(filepath.Join(rootDir, "/var/tmp"), 0o777|fs.ModeSticky); err != nil && !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "chmod(/var/tmp): %v\n", err)
+			os.Exit(1)
+		}
+		if err := os.Chmod(filepath.Join(rootDir, "/tmp"), 0o777|fs.ModeSticky); err != nil && !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "chmod(/tmp): %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	output := new(bytes.Buffer)
