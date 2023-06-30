@@ -137,3 +137,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog v1.0.0 // indirect
 )
+
+replace github.com/containers/common => github.com/vrothberg/common v0.0.3-0.20230630080948-ffc7d8e68f1f

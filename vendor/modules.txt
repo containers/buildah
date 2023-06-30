@@ -91,7 +91,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.3.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.54.0
+# github.com/containers/common v0.54.0 => github.com/vrothberg/common v0.0.3-0.20230630080948-ffc7d8e68f1f
 ## explicit; go 1.18
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
@@ -899,3 +899,4 @@ k8s.io/klog
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/containers/common => github.com/vrothberg/common v0.0.3-0.20230630080948-ffc7d8e68f1f
