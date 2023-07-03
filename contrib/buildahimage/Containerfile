@@ -89,7 +89,17 @@ RUN useradd build && \
     echo -e "build:1:999\nbuild:1001:64535" > /etc/subuid && \
     echo -e "build:1:999\nbuild:1001:64535" > /etc/subgid && \
     mkdir -p /home/build/.local/share/containers && \
+    mkdir -p /home/build/.config/containers && \
     chown -R build:build /home/build
+# See:  https://github.com/containers/buildah/issues/4669
+# Copy & modify the config for the `build` user and remove the global
+# `runroot` and `graphroot` which current `build` user cannot access,
+# in such case storage will choose a runroot in `/var/tmp`.
+RUN sed -e 's|^#mount_program|mount_program|g' \
+        -e 's|^graphroot|#graphroot|g' \
+        -e 's|^runroot|#runroot|g' \
+        /etc/containers/storage.conf \
+        > /home/build/.config/containers/storage.conf
 
 VOLUME /var/lib/containers
 VOLUME /home/build/.local/share/containers
