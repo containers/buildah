@@ -4,11 +4,16 @@
 # packaging, via the `propose-downstream` packit action.
 # The goimports don't need to be present upstream.
 
-set -eo pipefail
+set -eox pipefail
 
 PACKAGE=buildah
 # script is run from git root directory
 SPEC_FILE=rpm/$PACKAGE.spec
+
+export GOPATH=~/go
+GOPATHDIR=$GOPATH/src/github.com/containers/
+mkdir -p $GOPATHDIR
+ln -sf $(pwd) $GOPATHDIR/.
 
 # Packit sandbox doesn't allow root
 # Install golist by downloading and extracting rpm
