@@ -72,8 +72,6 @@ BuildRequires: libseccomp-devel
 %endif
 Requires: libseccomp >= 2.4.1-0
 Suggests: cpp
-# DO NOT DELETE BELOW LINE - used for updating downstream goimports
-# vendored libraries
 
 %description
 The %{name} package provides a command line tool which can be used to
