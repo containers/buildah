@@ -27,6 +27,7 @@ type commitInputOptions struct {
 	blobCache          string
 	certDir            string
 	creds              string
+	cwOptions          string
 	disableCompression bool
 	format             string
 	iidfile            string
@@ -87,6 +88,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	_ = cmd.RegisterFlagCompletionFunc("cert-dir", completion.AutocompleteDefault)
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	_ = cmd.RegisterFlagCompletionFunc("creds", completion.AutocompleteNone)
+	flags.StringVar(&opts.cwOptions, "cw", "", "confidential workload `options`")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", true, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	_ = cmd.RegisterFlagCompletionFunc("format", completion.AutocompleteNone)
@@ -237,6 +239,14 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		exclusiveFlags++
 		timestamp := time.Unix(0, 0).UTC()
 		options.HistoryTimestamp = &timestamp
+	}
+
+	if iopts.cwOptions != "" {
+		confidentialWorkloadOptions, err := parse.GetConfidentialWorkloadOptions(iopts.cwOptions)
+		if err != nil {
+			return fmt.Errorf("parsing --cw arguments: %w", err)
+		}
+		options.ConfidentialWorkloadOptions = confidentialWorkloadOptions
 	}
 
 	if exclusiveFlags > 1 {

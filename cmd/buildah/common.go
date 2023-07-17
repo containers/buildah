@@ -224,8 +224,8 @@ func Tail(a []string) []string {
 	return []string{}
 }
 
-// UsageTemplate returns the usage template for podman commands
-// This blocks the displaying of the global options. The main podman
+// UsageTemplate returns the usage template for buildah commands
+// This blocks the displaying of the global options. The main buildah
 // command should not use this.
 func UsageTemplate() string {
 	return `Usage:{{if .Runnable}}
