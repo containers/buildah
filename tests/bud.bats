@@ -11,6 +11,34 @@ load helpers
   run_buildah build $BUDFILES/stdio
 }
 
+@test "bud: build manifest list and --add-compression zstd" {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile1 << _EOF
+FROM alpine
+_EOF
+
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $contextdir/Dockerfile1
+
+  run_buildah manifest create foo
+  run_buildah manifest add foo image1
+  run_buildah manifest add foo image2
+
+  run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
+
+  run_buildah manifest inspect --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false localhost:${REGISTRY_PORT}/list
+  list="$output"
+
+  validate_instance_compression "0" "$list" "amd64" "gzip"
+  validate_instance_compression "1" "$list" "arm64" "gzip"
+  validate_instance_compression "2" "$list" "amd64" "zstd"
+  validate_instance_compression "3" "$list" "arm64" "zstd"
+}
+
 @test "bud with --dns* flags" {
   _prefetch alpine
 
@@ -2101,6 +2129,39 @@ function _test_http() {
 	      http://0.0.0.0:${HTTP_SERVER_PORT}/$urlpath
   stophttpd
   run_buildah from ${target}
+}
+
+# Helper function for several of the tests which verifies compression.
+#
+#  Usage:  validate_instance_compression INDEX MANIFEST ARCH COMPRESSION
+#
+#     INDEX             instance which needs to be verified in
+#                       provided manifest list.
+#
+#     MANIFEST          OCI manifest specification in json format
+#
+#     ARCH              instance architecture
+#
+#     COMPRESSION       compression algorithm name; e.g "zstd".
+#
+function validate_instance_compression {
+  case $4 in
+
+   gzip)
+    run jq -r '.manifests['$1'].annotations' <<< $2
+    # annotation is `null` for gzip compression
+    assert "$output" = "null" ".manifests[$1].annotations (null means gzip)"
+    ;;
+
+  zstd)
+    # annotation `'"io.github.containers.compression.zstd": "true"'` must be there for zstd compression
+    run jq -r '.manifests['$1'].annotations."io.github.containers.compression.zstd"' <<< $2
+    assert "$output" = "true" ".manifests[$1].annotations.'io.github.containers.compression.zstd' (io.github.containers.compression.zstd must be set)"
+    ;;
+  esac
+
+  run jq -r '.manifests['$1'].platform.architecture' <<< $2
+  assert "$output" = $3 ".manifests[$1].platform.architecture"
 }
 
 @test "bud-http-Dockerfile" {

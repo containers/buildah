@@ -227,6 +227,7 @@ func init() {
 	flags.StringVar(&manifestPushOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&manifestPushOpts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting digest to the file")
 	flags.StringVarP(&manifestPushOpts.format, "format", "f", "", "manifest type (oci or v2s2) to attempt to use when pushing the manifest list (default is manifest type of source)")
+	flags.StringSliceVar(&manifestPushOpts.addCompression, "add-compression", nil, "add instances with selected compression while pushing")
 	flags.BoolVarP(&manifestPushOpts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing images")
 	flags.StringVar(&manifestPushOpts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	flags.StringVar(&manifestPushOpts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
@@ -908,6 +909,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		RemoveSignatures:   opts.removeSignatures,
 		SignBy:             opts.signBy,
 		ManifestType:       manifestType,
+		AddCompression:     opts.addCompression,
 	}
 	if opts.all {
 		options.ImageListSelection = cp.CopyAllImages

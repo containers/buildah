@@ -18,6 +18,15 @@ The list image's ID and the digest of the image's manifest.
 
 ## OPTIONS
 
+**--add-compression** *compression*
+
+Makes sure that requested compression variant for each platform is added to the manifest list keeping original instance
+intact in the same manifest list. Supported values are (`gzip`, `zstd` and `zstd:chunked`)
+
+Note: This is different than `--compression` which replaces the instance with requested with specified compression
+while `--add-compression` makes sure than each instance has it variant added to manifest list without modifying the
+original instance.
+
 **--all**
 
 Push the images mentioned in the manifest list or image index, in addition to

@@ -46,6 +46,7 @@ type pushOptions struct {
 	encryptionKeys     []string
 	encryptLayers      []int
 	insecure           bool
+	addCompression     []string
 }
 
 func init() {
