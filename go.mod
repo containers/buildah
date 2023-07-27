@@ -137,3 +137,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog v1.0.0 // indirect
 )
+
+replace github.com/openshift/imagebuilder => github.com/flouthoc/imagebuilder v1.2.2-0.20230616161108-0f679cacd523

@@ -750,9 +750,11 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							}
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
+							populatedBuiltInBuildArgs := argsMapToSlice(imagebuilder.GetBuiltinBuildArgs())
 							// append heading args so if --build-arg key=value is not
 							// specified but default value is set in Containerfile
 							// via `ARG key=value` so default value can be used.
+							userArgs = append(userArgs, populatedBuiltInBuildArgs...)
 							userArgs = append(headingArgs, userArgs...)
 							baseWithArg, err := imagebuilder.ProcessWord(base, userArgs)
 							if err != nil {

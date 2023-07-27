@@ -573,7 +573,7 @@ github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/imagebuilder v1.2.5
+# github.com/openshift/imagebuilder v1.2.5 => github.com/flouthoc/imagebuilder v1.2.2-0.20230616161108-0f679cacd523
 ## explicit; go 1.19
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerclient
@@ -902,3 +902,4 @@ k8s.io/klog
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/openshift/imagebuilder => github.com/flouthoc/imagebuilder v1.2.2-0.20230616161108-0f679cacd523

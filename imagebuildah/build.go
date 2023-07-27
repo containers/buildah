@@ -672,6 +672,8 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 						if base != "scratch" && !nicknames[base] {
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
+							populatedBuiltInBuildArgs := argsMapToSlice(imagebuilder.GetBuiltinBuildArgs())
+							userArgs = append(userArgs, populatedBuiltInBuildArgs...)
 							// append heading args so if --build-arg key=value is not
 							// specified but default value is set in Containerfile
 							// via `ARG key=value` so default value can be used.
