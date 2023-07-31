@@ -77,6 +77,7 @@ func readManifestFromOCIPath(ctx context.Context, sourcePath string) (*specV1.Ma
 	if err != nil {
 		return nil, nil, -1, err
 	}
+	defer ociSource.Close()
 
 	return readManifestFromImageSource(ctx, ociSource)
 }
