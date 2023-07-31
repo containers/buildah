@@ -42,7 +42,10 @@ type manifestAnnotateOpts = struct {
 	os, arch, variant, osVersion      string
 	features, osFeatures, annotations []string
 }
-type manifestInspectOpts = struct{}
+type manifestInspectOpts = struct {
+	authfile  string
+	tlsVerify bool
+}
 
 func init() {
 	var (
@@ -199,6 +202,9 @@ func init() {
 		Example: `buildah manifest inspect mylist:v1.11`,
 		Args:    cobra.MinimumNArgs(1),
 	}
+	flags = manifestInspectCommand.Flags()
+	flags.StringVar(&manifestInspectOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.BoolVar(&manifestInspectOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	manifestInspectCommand.SetUsageTemplate(UsageTemplate())
 	manifestCommand.AddCommand(manifestInspectCommand)
 
@@ -221,6 +227,7 @@ func init() {
 	flags.StringVar(&manifestPushOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&manifestPushOpts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting digest to the file")
 	flags.StringVarP(&manifestPushOpts.format, "format", "f", "", "manifest type (oci or v2s2) to attempt to use when pushing the manifest list (default is manifest type of source)")
+	flags.StringSliceVar(&manifestPushOpts.addCompression, "add-compression", nil, "add instances with selected compression while pushing")
 	flags.BoolVarP(&manifestPushOpts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing images")
 	flags.StringVar(&manifestPushOpts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	flags.StringVar(&manifestPushOpts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
@@ -696,6 +703,11 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 }
 
 func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpts) error {
+	if c.Flag("authfile").Changed {
+		if err := auth.CheckAuthFile(opts.authfile); err != nil {
+			return err
+		}
+	}
 	imageSpec := ""
 	switch len(args) {
 	case 0:
@@ -831,7 +843,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 		return errors.New("At least a source list ID must be specified")
 	case 1:
 		listImageSpec = args[0]
-		destSpec = "docker://"+listImageSpec
+		destSpec = "docker://" + listImageSpec
 	case 2:
 		listImageSpec = args[0]
 		destSpec = args[1]
@@ -897,6 +909,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		RemoveSignatures:   opts.removeSignatures,
 		SignBy:             opts.signBy,
 		ManifestType:       manifestType,
+		AddCompression:     opts.addCompression,
 	}
 	if opts.all {
 		options.ImageListSelection = cp.CopyAllImages

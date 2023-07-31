@@ -6,8 +6,8 @@ require (
 	github.com/containerd/containerd v1.7.3
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
-	github.com/containers/common v0.55.1-0.20230721175448-664d013a6ae2
-	github.com/containers/image/v5 v5.26.1
+	github.com/containers/common v0.55.1-0.20230727095721-647ed1d4d79a
+	github.com/containers/image/v5 v5.26.1-0.20230727122416-da7899237198
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.48.1-0.20230721123825-4a3a3019d765
 	github.com/cyphar/filepath-securejoin v0.2.3
@@ -115,7 +115,7 @@ require (
 	github.com/theupdateframework/go-tuf v0.5.2 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
-	github.com/vbatts/tar-split v0.11.3 // indirect
+	github.com/vbatts/tar-split v0.11.5 // indirect
 	github.com/vbauerster/mpb/v8 v8.5.2 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
