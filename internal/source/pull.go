@@ -7,6 +7,7 @@ import (
 
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/pkg/shortnames"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -34,6 +35,10 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 	if err != nil {
 		return err
 	}
+	destRef, err := layout.ParseReference(sourcePath)
+	if err != nil {
+		return err
+	}
 
 	sysCtx := &types.SystemContext{
 		DockerInsecureSkipTLSVerify: types.NewOptionalBool(!options.TLSVerify),
@@ -47,11 +52,6 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 	}
 
 	if err := validateSourceImageReference(ctx, srcRef, sysCtx); err != nil {
-		return err
-	}
-
-	ociDest, err := openOrCreateSourceImage(ctx, sourcePath)
-	if err != nil {
 		return err
 	}
 
@@ -70,7 +70,7 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 	if !options.Quiet {
 		copyOpts.ReportWriter = os.Stderr
 	}
-	if _, err := copy.Image(ctx, policyContext, ociDest.Reference(), srcRef, &copyOpts); err != nil {
+	if _, err := copy.Image(ctx, policyContext, destRef, srcRef, &copyOpts); err != nil {
 		return fmt.Errorf("pulling source image: %w", err)
 	}
 
