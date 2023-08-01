@@ -40,6 +40,7 @@ func Create(ctx context.Context, sourcePath string, options CreateOptions) error
 	if err != nil {
 		return err
 	}
+	defer ociDest.Close()
 
 	// Create and add a config.
 	config := ImageConfig{
