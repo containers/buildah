@@ -1,0 +1,4 @@
+FROM alpine
+RUN echo helloworld
+RUN echo helloworld2
+RUN echo helloworld3

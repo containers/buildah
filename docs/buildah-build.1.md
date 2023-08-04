@@ -476,6 +476,11 @@ If the specified capabilities are not in the default set, container engines
 should print an error message and will run the container with the default
 capabilities.
 
+**--layer-label** *label[=value]*
+
+Add an intermediate image *label* (e.g. label=*value*) to the intermediate image metadata. It can be used multiple times.
+If *label* is named, but neither `=` nor a `value` is provided, then the *label* is set to an empty value.
+
 **--layers** *bool-value*
 
 Cache intermediate images during the build process (Default is `false`).

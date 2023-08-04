@@ -1981,6 +1981,34 @@ _EOF
   test -s $root/etc/passwd
 }
 
+@test "build using --layer-label and test labels on intermediate images" {
+  # Remove all images so no intermediate images are present
+  run_buildah rmi --all -f
+  _prefetch alpine
+  label="l_$(random_string)"
+  labelvalue="v_$(random_string)"
+
+  run_buildah build --no-cache --layers --layer-label $label=$labelvalue --layer-label emptylabel $WITH_POLICY_JSON -t exp -f $BUDFILES/simple-multi-step/Containerfile
+
+  # Final image must not contain the layer-label
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "'$label'"}}' exp
+  expect_output "" "label on actual image"
+
+  # Find all intermediate images...
+  run_buildah images -a --format '{{.ID}}' --filter intermediate=true
+  # ...and confirm that they have both $label and emptylabel
+  for image in "${lines[@]}";do
+    run_buildah inspect $image
+    inspect="$output"
+
+    run jq -r ".Docker.config.Labels.$label" <<<"$inspect"
+    assert "$output" = "$labelvalue" "label in intermediate layer $image"
+
+    run jq -r ".Docker.config.Labels.emptylabel" <<<"$inspect"
+    assert "$output" = "" "emptylabel in intermediate layer $image"
+  done
+}
+
 @test "build using intermediate images should not inherit label" {
   _prefetch alpine
 
