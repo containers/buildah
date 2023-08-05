@@ -23,11 +23,11 @@ sudo yum -y install buildah
 #### [Debian](https://debian.org)
 
 The buildah package is available in
-the [Bookwarm](https://packages.debian.org/bookwarm/buildah), which
+the [Bookworm](https://packages.debian.org/bookworm/buildah), which
 is the current stable release (Debian 12), as well as Debian Unstable/Sid.
 
 ```bash
-# Debian Stable/Bookwarm or Unstable/Sid
+# Debian Stable/Bookworm or Unstable/Sid
 sudo apt-get update
 sudo apt-get -y install buildah
 ```
