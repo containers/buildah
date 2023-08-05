@@ -26,8 +26,15 @@ if [[ "$PRIV_NAME" == "rootless" ]] && [[ "$UID" -eq 0 ]]; then
             -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
             -o CheckHostIP=no $GOSRC/$SCRIPT_BASE/test.sh $1
     # Does not return!
+elif [[ "$UID" -ne 0 ]]; then
+    # Load important env. vars written during setup.sh (run as root)
+    # call to setup_rootless()
+    source /home/$ROOTLESS_USER/ci_environment
 fi
 # else: not running rootless, do nothing special
+
+msg "Test-time env. var. definitions (filtered):"
+show_env_vars
 
 if [[ "$IN_PODMAN" == "true" ]]
 then
