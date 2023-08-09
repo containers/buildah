@@ -1,0 +1,64 @@
+---
+
+name: Test MacOS Build
+
+on: [push, pull_request]
+
+jobs:
+  # Workflows only record minimal details about the event which triggered them.
+  trigger_event_debug:
+    name: Archive workflow trigger event details
+    runs-on: ubuntu-latest
+    steps:
+      - name: Archive workflow trigger event details
+        uses: actions/upload-artifact@v3
+        with:
+          name: workflow_trigger_event
+          path: ${{ github.event_path }}
+  process_pr_description:
+    name: Process PR Description
+    runs-on: ubuntu-latest
+    outputs:
+      ci_docs: ${{ steps.ci_docs_check.outputs.present }}
+    steps:
+      - name: "Check for '[CI:DOCS]'"
+        id: ci_docs_check
+        env:
+          # DANGER: Command-injection risk, bounce value through env. var.
+          PR_DESC: "${{ github.event.pull_request.title }}"
+        run: |
+          if [[ "$PR_DESC" =~ CI:DOCS ]]; then
+            # GHA provides no indication of output values, assist human debuggers.
+            echo "::warning::Skipping job due to [CI:DOCS] in PR description"
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+  test_macos_build:
+    name: Test MacOS Build
+    runs-on: macos-latest
+    needs: process_pr_description
+    if: ${{ needs.process_pr_description.outputs.ci_docs == 'false' }}
+    steps:
+      # Side-effect: Checkout action alters the execution environment.
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      # Workflows do not save any record of their environment.  Assist future
+      # human debuggers by logging all values.  DANGER: Some values may be
+      # sensitive.  The github-runner will mask them _only_ on output, not any
+      # files/artifacts they may wind up in.
+      - name: Debug workflow trigger and environment
+        run: printenv | sort
+      - name: Test MacOS Build
+        run: |
+          brew update
+          brew install --overwrite go
+          brew install go-md2man
+          brew install gpgme
+          go version
+          make cross CGO_ENABLED=0
+      - name: Archive compiled binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: binary
+          path: "./bin/*"
