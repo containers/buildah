@@ -47,7 +47,6 @@ Summary: A command line tool used for creating OCI Images
 URL: https://%{name}.io
 # Tarball fetched from upstream
 Source: %{git0}/archive/v%{version}.tar.gz
-BuildRequires: %{_bindir}/go-md2man
 BuildRequires: device-mapper-devel
 BuildRequires: git-core
 BuildRequires: golang >= 1.16.6
@@ -129,18 +128,18 @@ export BUILDTAGS+=' btrfs_noversion exclude_graphdriver_btrfs'
 %gobuild -o bin/imgtype ./tests/imgtype
 %gobuild -o bin/copy ./tests/copy
 %gobuild -o bin/tutorial ./tests/tutorial
-GOMD2MAN=go-md2man %{__make} -C docs
+%{__make} docs
 
 %install
-export GOPATH=$(pwd)/_build:$(pwd)
 make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
-make DESTDIR=%{buildroot} PREFIX=%{_prefix} -C docs install
 
 install -d -p %{buildroot}/%{_datadir}/%{name}/test/system
 cp -pav tests/. %{buildroot}/%{_datadir}/%{name}/test/system
 cp bin/imgtype %{buildroot}/%{_bindir}/%{name}-imgtype
 cp bin/copy    %{buildroot}/%{_bindir}/%{name}-copy
 cp bin/tutorial %{buildroot}/%{_bindir}/%{name}-tutorial
+
+rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
