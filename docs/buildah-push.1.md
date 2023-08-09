@@ -40,7 +40,7 @@ The default certificates directory is _/etc/containers/certs.d_.
 
 **--compression-format** *format*
 
-Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+Specifies the compression format to use.  Supported values are: `gzip` and `zstd`.
 
 **--compression-level** *level*
 
