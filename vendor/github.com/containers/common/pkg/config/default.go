@@ -87,16 +87,6 @@ var (
 	// should be set during link-time, if different packagers put their
 	// helper binary in a different location.
 	additionalHelperBinariesDir string
-
-	defaultUnixComposeProviders = []string{
-		"docker-compose",
-		"$HOME/.docker/cli-plugins/docker-compose",
-		"/usr/local/lib/docker/cli-plugins/docker-compose",
-		"/usr/local/libexec/docker/cli-plugins/docker-compose",
-		"/usr/lib/docker/cli-plugins/docker-compose",
-		"/usr/libexec/docker/cli-plugins/docker-compose",
-		"podman-compose",
-	}
 )
 
 // nolint:unparam
@@ -186,18 +176,19 @@ func DefaultConfig() (*Config, error) {
 
 	return &Config{
 		Containers: ContainersConfig{
+			Devices:             []string{},
+			Volumes:             []string{},
 			Annotations:         []string{},
 			ApparmorProfile:     DefaultApparmorProfile,
 			BaseHostsFile:       "",
 			CgroupNS:            cgroupNS,
 			Cgroups:             getDefaultCgroupsMode(),
-			DNSOptions:          []string{},
-			DNSSearches:         []string{},
-			DNSServers:          []string{},
 			DefaultCapabilities: DefaultCapabilities,
 			DefaultSysctls:      []string{},
 			DefaultUlimits:      getDefaultProcessLimits(),
-			Devices:             []string{},
+			DNSServers:          []string{},
+			DNSOptions:          []string{},
+			DNSSearches:         []string{},
 			EnableKeyring:       true,
 			EnableLabeling:      selinuxEnabled(),
 			Env: []string{
@@ -206,22 +197,20 @@ func DefaultConfig() (*Config, error) {
 			},
 			EnvHost:    false,
 			HTTPProxy:  true,
-			IPCNS:      "shareable",
 			Init:       false,
 			InitPath:   "",
+			IPCNS:      "shareable",
 			LogDriver:  defaultLogDriver(),
 			LogSizeMax: DefaultLogSizeMax,
-			Mounts:     []string{},
 			NetNS:      "private",
 			NoHosts:    false,
-			PidNS:      "private",
 			PidsLimit:  DefaultPidsLimit,
+			PidNS:      "private",
 			ShmSize:    DefaultShmSize,
 			TZ:         "",
-			UTSNS:      "private",
 			Umask:      "0022",
+			UTSNS:      "private",
 			UserNSSize: DefaultUserNSSize, // Deprecated
-			Volumes:    []string{},
 		},
 		Network: NetworkConfig{
 			DefaultNetwork:            "podman",
@@ -271,8 +260,6 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 	c.EventsLogFileMaxSize = eventsLogMaxSize(DefaultEventsLogSizeMax)
 
 	c.CompatAPIEnforceDockerHub = true
-	c.ComposeProviders = getDefaultComposeProviders() // may vary across supported platforms
-	c.ComposeWarningLogs = true
 
 	if path, ok := os.LookupEnv("CONTAINERS_STORAGE_CONF"); ok {
 		if err := types.SetDefaultConfigFilePath(path); err != nil {
@@ -311,7 +298,6 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 	c.CgroupManager = defaultCgroupManager()
 	c.ServiceTimeout = uint(5)
 	c.StopTimeout = uint(10)
-	c.PodmanshTimeout = uint(30)
 	c.ExitCommandDelay = uint(5 * 60)
 	c.Remote = isRemote()
 	c.OCIRuntimes = map[string][]string{
@@ -419,7 +405,6 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 		"runsc",
 		"youki",
 		"krun",
-		"ocijail",
 	}
 	c.RuntimeSupportsNoCgroups = []string{"crun", "krun"}
 	c.RuntimeSupportsKVM = []string{"kata", "kata-runtime", "kata-qemu", "kata-fc", "krun"}
@@ -499,11 +484,6 @@ func (c *Config) Sysctls() []string {
 // Volumes returns the default set of volumes that should be mounted in containers.
 func (c *Config) Volumes() []string {
 	return c.Containers.Volumes
-}
-
-// Mounts returns the default set of mounts that should be mounted in containers.
-func (c *Config) Mounts() []string {
-	return c.Containers.Mounts
 }
 
 // Devices returns the default additional devices for containers.

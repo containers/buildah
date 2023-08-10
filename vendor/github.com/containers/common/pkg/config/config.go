@@ -185,9 +185,6 @@ type ContainersConfig struct {
 	// Containers logs default to truncated container ID as a tag.
 	LogTag string `toml:"log_tag,omitempty"`
 
-	// Mount to add to all containers
-	Mounts []string `toml:"mounts,omitempty"`
-
 	// NetNS indicates how to create a network namespace for the container
 	NetNS string `toml:"netns,omitempty"`
 
@@ -268,17 +265,6 @@ type EngineConfig struct {
 	// ignore unqualified-search-registries and short-name aliases defined
 	// in containers-registries.conf(5).
 	CompatAPIEnforceDockerHub bool `toml:"compat_api_enforce_docker_hub,omitempty"`
-
-	// ComposeProviders specifies one or more external providers for the
-	// compose command.  The first found provider is used for execution.
-	// Can be an absolute and relative path or a (file) name.  Make sure to
-	// expand the return items via `os.ExpandEnv`.
-	ComposeProviders []string `toml:"compose_providers,omitempty"`
-
-	// ComposeWarningLogs emits logs on each invocation of the compose
-	// command indicating that an external compose provider is being
-	// executed.
-	ComposeWarningLogs bool `toml:"compose_warning_logs,omitempty"`
 
 	// DBBackend is the database backend to be used by Podman.
 	DBBackend string `toml:"database_backend,omitempty"`
@@ -527,11 +513,6 @@ type EngineConfig struct {
 
 	// CompressionLevel is the compression level used to compress image layers.
 	CompressionLevel *int `toml:"compression_level,omitempty"`
-
-	// PodmanshTimeout is the number of seconds to wait for podmansh logins.
-	// In other words, the timeout for the `podmansh` container to be in running
-	// state.
-	PodmanshTimeout uint `toml:"podmansh_timeout,omitempty,omitzero"`
 }
 
 // SetOptions contains a subset of options in a Config. It's used to indicate if
@@ -1024,7 +1005,17 @@ func (c *NetworkConfig) Validate() error {
 		}
 	}
 
-	return nil
+	if stringsEq(c.CNIPluginDirs, DefaultCNIPluginDirs) {
+		return nil
+	}
+
+	for _, pluginDir := range c.CNIPluginDirs {
+		if err := isDirectory(pluginDir); err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid cni_plugin_dirs: %s", strings.Join(c.CNIPluginDirs, ","))
 }
 
 // FindConmon iterates over (*Config).ConmonPath and returns the path
