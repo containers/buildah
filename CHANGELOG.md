@@ -2,6 +2,9 @@
 
 # Changelog
 
+## v1.31.2 (2023-08-10)
+    [release-1.31] Bump to v1.31.2
+
 ## v1.31.1 (2023-08-09)
     [release-1.31] Remove zstd:chunked from man, bump c/common to v0.55.3
     CI:BUILD] RPM: define gobuild macro for rhel/centos stream
