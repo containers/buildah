@@ -79,6 +79,8 @@ type Config struct {
 	Secrets SecretConfig `toml:"secrets"`
 	// ConfigMap section defines configurations for the configmaps management
 	ConfigMaps ConfigMapConfig `toml:"configmaps"`
+	// Farms defines configurations for the buildfarm farms
+	Farms FarmConfig `toml:"farms"`
 }
 
 // ContainersConfig represents the "containers" TOML config table
@@ -676,6 +678,14 @@ type MachineConfig struct {
 	Provider string `toml:"provider,omitempty"`
 }
 
+// FarmConfig represents the "farm" TOML config tabls
+type FarmConfig struct {
+	// Default is the default farm to be used when farming out builds
+	Default string `toml:"default,omitempty"`
+	// List is a map of farms created where key=farm-name and value=list of connections
+	List map[string][]string `toml:"list,omitempty"`
+}
+
 // Destination represents destination for remote service
 type Destination struct {
 	// URI, required. Example: ssh://root@example.com:22/run/podman/podman.sock
@@ -1168,27 +1178,6 @@ func IsValidDeviceMode(mode string) bool {
 	return true
 }
 
-// resolveHomeDir converts a path referencing the home directory via "~"
-// to an absolute path
-func resolveHomeDir(path string) (string, error) {
-	// check if the path references the home dir to avoid work
-	// don't use strings.HasPrefix(path, "~") as this doesn't match "~" alone
-	// use strings.HasPrefix(...) to not match "something/~/something"
-	if !(path == "~" || strings.HasPrefix(path, "~/")) {
-		// path does not reference home dir -> Nothing to do
-		return path, nil
-	}
-
-	// only get HomeDir when necessary
-	home, err := unshare.HomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	// replace the first "~" (start of path) with the HomeDir to resolve "~"
-	return strings.Replace(path, "~", home, 1), nil
-}
-
 func rootlessConfigPath() (string, error) {
 	if configHome := os.Getenv("XDG_CONFIG_HOME"); configHome != "" {
 		return filepath.Join(configHome, _configPath), nil
@@ -1199,20 +1188,6 @@ func rootlessConfigPath() (string, error) {
 	}
 
 	return filepath.Join(home, UserOverrideContainersConfig), nil
-}
-
-func stringsEq(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 var (
@@ -1275,6 +1250,10 @@ func ReadCustomConfig() (*Config, error) {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
+	}
+	// Let's always initialize the farm list so it is never nil
+	if newConfig.Farms.List == nil {
+		newConfig.Farms.List = make(map[string][]string)
 	}
 	return newConfig, nil
 }
