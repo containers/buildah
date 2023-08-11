@@ -42,6 +42,16 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 The default certificates directory is _/etc/containers/certs.d_.
 
+**--compression-format** *format*
+
+Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+
+**--compression-level** *level*
+
+Specify the compression level used with the compression.
+
+Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
+
 **--creds** *creds*
 
 The [username[:password]] to use to authenticate with the registry if required.
@@ -51,6 +61,10 @@ value can be entered.  The password is entered without echo.
 **--digestfile** *Digestfile*
 
 After copying the image, write the digest of the resulting image to the file.
+
+**--force-compression**
+
+Use the specified compression algorithm even if the destination contains a differently-compressed variant already.
 
 **--format**, **-f**
 

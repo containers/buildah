@@ -39,6 +39,72 @@ _EOF
   validate_instance_compression "3" "$list" "arm64" "zstd"
 }
 
+@test "bud: build manifest list with --add-compression zstd, --compression and --force-compression" {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile1 << _EOF
+FROM alpine
+_EOF
+
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $contextdir/Dockerfile1
+
+  run_buildah manifest create foo
+  run_buildah manifest add foo image1
+  run_buildah manifest add foo image2
+
+  run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
+
+  run_buildah manifest inspect --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false localhost:${REGISTRY_PORT}/list
+  list="$output"
+
+  validate_instance_compression "0" "$list" "amd64" "gzip"
+  validate_instance_compression "1" "$list" "arm64" "gzip"
+  validate_instance_compression "2" "$list" "amd64" "zstd"
+  validate_instance_compression "3" "$list" "arm64" "zstd"
+
+  # Pushing again should keep every thing intact if original compression is `gzip` and `--force-compression` is specified
+  run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --compression-format gzip --force-compression --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
+
+  run_buildah manifest inspect --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false localhost:${REGISTRY_PORT}/list
+  list="$output"
+
+  validate_instance_compression "0" "$list" "amd64" "gzip"
+  validate_instance_compression "1" "$list" "arm64" "gzip"
+  validate_instance_compression "2" "$list" "amd64" "zstd"
+  validate_instance_compression "3" "$list" "arm64" "zstd"
+}
+
+@test "bud: build push with --force-compression" {
+  skip_if_no_podman
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile1 << _EOF
+FROM alpine
+_EOF
+
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
+
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format gzip image1 docker://localhost:${REGISTRY_PORT}/image
+  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/image
+  # layers should have no trace of zstd since push was with --compression-format gzip
+  assert "$output" !~ "zstd" "zstd found in layers where push was with --compression-format gzip"
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd image1 docker://localhost:${REGISTRY_PORT}/image
+  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/image
+  # layers should have no trace of zstd since push is without --force-compression
+  assert "$output" !~ "zstd" "zstd found even though push was without --force-compression"
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression image1 docker://localhost:${REGISTRY_PORT}/image
+  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/image
+  # layers should container `zstd`
+  expect_output --substring "zstd" "layers must contain zstd compression"
+}
+
 @test "bud with --dns* flags" {
   _prefetch alpine
 
