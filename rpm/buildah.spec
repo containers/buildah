@@ -119,9 +119,9 @@ export CGO_CFLAGS+=" -m64 -mtune=generic -fcf-protection=full"
 export CNI_VERSION=`grep '^# github.com/containernetworking/cni ' src/modules.txt | sed 's,.* ,,'`
 export LDFLAGS="-X main.buildInfo=`date +%s` -X main.cniVersion=${CNI_VERSION}"
 
-export BUILDTAGS='seccomp exclude_graphdriver_devicemapper $(hack/systemd_tag.sh) $hack/libsubid_tag.sh)'
+export BUILDTAGS="seccomp exclude_graphdriver_devicemapper $(hack/systemd_tag.sh) $(hack/libsubid_tag.sh)"
 %if !%{defined build_with_btrfs}
-export BUILDTAGS+=' btrfs_noversion exclude_graphdriver_btrfs'
+export BUILDTAGS+=" btrfs_noversion exclude_graphdriver_btrfs"
 %endif
 
 %gobuild -o bin/%{name} ./cmd/%{name}
