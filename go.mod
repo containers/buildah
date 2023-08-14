@@ -8,7 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.3.0
 	github.com/containers/common v0.55.1-0.20230727095721-647ed1d4d79a
 	github.com/containers/image/v5 v5.26.1-0.20230727122416-da7899237198
-	github.com/containers/ocicrypt v1.1.7
+	github.com/containers/ocicrypt v1.1.8
 	github.com/containers/storage v1.48.1-0.20230728131509-c3da76fa3f63
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/docker/distribution v2.8.2+incompatible
@@ -60,6 +60,7 @@ require (
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go-connections v0.4.1-0.20210727194412-58542c764a11 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
 	github.com/go-openapi/errors v0.20.4 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
