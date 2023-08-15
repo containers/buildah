@@ -6,8 +6,8 @@ require (
 	github.com/containerd/containerd v1.7.3
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
-	github.com/containers/common v0.55.1-0.20230727095721-647ed1d4d79a
-	github.com/containers/image/v5 v5.26.1-0.20230727122416-da7899237198
+	github.com/containers/common v0.55.1-0.20230811093040-524b4d5c12f9
+	github.com/containers/image/v5 v5.26.1-0.20230807184415-3fb422379cfa
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.48.1-0.20230728131509-c3da76fa3f63
 	github.com/cyphar/filepath-securejoin v0.2.3
@@ -54,7 +54,7 @@ require (
 	github.com/containerd/cgroups/v3 v3.0.2 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
-	github.com/cyberphone/json-canonicalization v0.0.0-20230701045847-91eb5f1b7744 // indirect
+	github.com/cyberphone/json-canonicalization v0.0.0-20230710064741-aa7fe85c7dbd // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/disiqueira/gotree/v3 v3.0.2 // indirect
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
@@ -122,9 +122,9 @@ require (
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
+	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b // indirect
 	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/tools v0.9.3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect

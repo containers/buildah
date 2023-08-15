@@ -17,6 +17,7 @@ import (
 	"github.com/containers/common/pkg/auth"
 	cp "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
@@ -226,6 +227,9 @@ func init() {
 	flags.StringVar(&manifestPushOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&manifestPushOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&manifestPushOpts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting digest to the file")
+	flags.BoolVarP(&manifestPushOpts.forceCompressionFormat, "force-compression", "", false, "use the specified compression algorithm if the destination contains a differently-compressed variant already")
+	flags.StringVar(&manifestPushOpts.compressionFormat, "compression-format", "", "compression format to use")
+	flags.IntVar(&manifestPushOpts.compressionLevel, "compression-level", 0, "compression level to use")
 	flags.StringVarP(&manifestPushOpts.format, "format", "f", "", "manifest type (oci or v2s2) to attempt to use when pushing the manifest list (default is manifest type of source)")
 	flags.StringSliceVar(&manifestPushOpts.addCompression, "add-compression", nil, "add instances with selected compression while pushing")
 	flags.BoolVarP(&manifestPushOpts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing images")
@@ -864,6 +868,16 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
+	if opts.compressionFormat != "" {
+		algo, err := compression.AlgorithmByName(opts.compressionFormat)
+		if err != nil {
+			return err
+		}
+		systemContext.CompressionFormat = &algo
+	}
+	if c.Flag("compression-level").Changed {
+		systemContext.CompressionLevel = &opts.compressionLevel
+	}
 
 	return manifestPush(systemContext, store, listImageSpec, destSpec, opts)
 }
@@ -902,14 +916,15 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 	}
 
 	options := manifests.PushOptions{
-		Store:              store,
-		SystemContext:      systemContext,
-		ImageListSelection: cp.CopySpecificImages,
-		Instances:          nil,
-		RemoveSignatures:   opts.removeSignatures,
-		SignBy:             opts.signBy,
-		ManifestType:       manifestType,
-		AddCompression:     opts.addCompression,
+		Store:                  store,
+		SystemContext:          systemContext,
+		ImageListSelection:     cp.CopySpecificImages,
+		Instances:              nil,
+		RemoveSignatures:       opts.removeSignatures,
+		SignBy:                 opts.signBy,
+		ManifestType:           manifestType,
+		AddCompression:         opts.addCompression,
+		ForceCompressionFormat: opts.forceCompressionFormat,
 	}
 	if opts.all {
 		options.ImageListSelection = cp.CopyAllImages

@@ -25,28 +25,29 @@ import (
 )
 
 type pushOptions struct {
-	all                bool
-	authfile           string
-	blobCache          string
-	certDir            string
-	creds              string
-	digestfile         string
-	disableCompression bool
-	format             string
-	compressionFormat  string
-	compressionLevel   int
-	retry              int
-	retryDelay         string
-	rm                 bool
-	quiet              bool
-	removeSignatures   bool
-	signaturePolicy    string
-	signBy             string
-	tlsVerify          bool
-	encryptionKeys     []string
-	encryptLayers      []int
-	insecure           bool
-	addCompression     []string
+	all                    bool
+	authfile               string
+	blobCache              string
+	certDir                string
+	creds                  string
+	digestfile             string
+	disableCompression     bool
+	format                 string
+	compressionFormat      string
+	compressionLevel       int
+	forceCompressionFormat bool
+	retry                  int
+	retryDelay             string
+	rm                     bool
+	quiet                  bool
+	removeSignatures       bool
+	signaturePolicy        string
+	signBy                 string
+	tlsVerify              bool
+	encryptionKeys         []string
+	encryptLayers          []int
+	insecure               bool
+	addCompression         []string
 }
 
 func init() {
@@ -86,6 +87,7 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&opts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting image to the file")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
+	flags.BoolVarP(&opts.forceCompressionFormat, "force-compression", "", false, "use the specified compression algorithm if the destination contains a differently-compressed variant already")
 	flags.StringVarP(&opts.format, "format", "f", "", "manifest type (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)")
 	flags.StringVar(&opts.compressionFormat, "compression-format", "", "compression format to use")
 	flags.IntVar(&opts.compressionLevel, "compression-level", 0, "compression level to use")
@@ -199,18 +201,19 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	}
 
 	options := buildah.PushOptions{
-		Compression:         compress,
-		ManifestType:        manifestType,
-		SignaturePolicyPath: iopts.signaturePolicy,
-		Store:               store,
-		SystemContext:       systemContext,
-		BlobDirectory:       iopts.blobCache,
-		RemoveSignatures:    iopts.removeSignatures,
-		SignBy:              iopts.signBy,
-		MaxRetries:          iopts.retry,
-		RetryDelay:          pullPushRetryDelay,
-		OciEncryptConfig:    encConfig,
-		OciEncryptLayers:    encLayers,
+		Compression:            compress,
+		ManifestType:           manifestType,
+		SignaturePolicyPath:    iopts.signaturePolicy,
+		Store:                  store,
+		SystemContext:          systemContext,
+		BlobDirectory:          iopts.blobCache,
+		RemoveSignatures:       iopts.removeSignatures,
+		SignBy:                 iopts.signBy,
+		MaxRetries:             iopts.retry,
+		RetryDelay:             pullPushRetryDelay,
+		OciEncryptConfig:       encConfig,
+		OciEncryptLayers:       encLayers,
+		ForceCompressionFormat: iopts.forceCompressionFormat,
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr

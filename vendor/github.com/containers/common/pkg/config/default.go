@@ -202,7 +202,6 @@ func DefaultConfig() (*Config, error) {
 			EnableLabeling:      selinuxEnabled(),
 			Env: []string{
 				"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-				"TERM=xterm",
 			},
 			EnvHost:    false,
 			HTTPProxy:  true,
@@ -235,6 +234,7 @@ func DefaultConfig() (*Config, error) {
 		Engine:  *defaultEngineConfig,
 		Secrets: defaultSecretConfig(),
 		Machine: defaultMachineConfig(),
+		Farms:   defaultFarmConfig(),
 	}, nil
 }
 
@@ -255,6 +255,14 @@ func defaultMachineConfig() MachineConfig {
 		Memory:   2048,
 		User:     getDefaultMachineUser(),
 		Volumes:  getDefaultMachineVolumes(),
+	}
+}
+
+// defaultFarmConfig returns the default farms configuration.
+func defaultFarmConfig() FarmConfig {
+	emptyList := make(map[string][]string)
+	return FarmConfig{
+		List: emptyList,
 	}
 }
 
