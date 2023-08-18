@@ -5064,6 +5064,27 @@ _EOF
   run_buildah build -t testbud $WITH_POLICY_JSON --build-arg NEWSECRET="VerySecret" --file ${mytmpdir}/Containerfile .
   assert "$output" !~ '--build-arg SECRET=<VALUE>'
   assert "$output" !~ '--build-arg NEWSECRET=<VALUE>'
+
+# case should similarly honor globally declated args
+  cat > $mytmpdir/Containerfile << _EOF
+ARG SECRET="Itismysecret"
+FROM alpine
+ARG SECRET
+ARG NEWSECRET
+RUN echo $SECRET
+RUN touch hello
+FROM alpine
+COPY --from=0 hello .
+RUN echo "$SECRET"
+_EOF
+
+  run_buildah build -t testbud $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
+  assert "$output" !~ '--build-arg SECRET=<VALUE>'
+  expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
+
+  run_buildah build -t testbud $WITH_POLICY_JSON --build-arg NEWSECRET="VerySecret" --file ${mytmpdir}/Containerfile .
+  assert "$output" !~ '--build-arg SECRET=<VALUE>'
+  assert "$output" !~ '--build-arg NEWSECRET=<VALUE>'
 }
 
 @test "bud with arg in from statement" {
