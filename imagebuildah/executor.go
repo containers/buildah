@@ -116,6 +116,7 @@ type Executor struct {
 	groupAdd                []string
 	ignoreFile              string
 	args                    map[string]string
+	globalArgs              map[string]string
 	unusedArgs              map[string]struct{}
 	capabilities            []string
 	devices                 define.ContainerDevices
@@ -315,6 +316,11 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 			exec.unusedArgs[arg] = struct{}{}
 		}
 	}
+	// Use this flag to collect all args declared before
+	// first stage and treat them as global args which is
+	// accessible to all stages.
+	foundFirstStage := false
+	globalArgs := make(map[string]string)
 	for _, line := range mainNode.Children {
 		node := line
 		for node != nil { // tokens on this line, though we only care about the first
@@ -326,12 +332,20 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 					// and value, or just an argument, since they can be
 					// separated by either "=" or whitespace.
 					list := strings.SplitN(arg.Value, "=", 2)
+					if !foundFirstStage {
+						if len(list) > 1 {
+							globalArgs[list[0]] = list[1]
+						}
+					}
 					delete(exec.unusedArgs, list[0])
 				}
+			case "FROM":
+				foundFirstStage = true
 			}
 			break
 		}
 	}
+	exec.globalArgs = globalArgs
 	return &exec, nil
 }
 
@@ -623,6 +637,9 @@ func (b *Executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMa
 							}
 						}
 						if _, isBuiltIn := builtinAllowedBuildArgs[argName]; isBuiltIn {
+							shouldWarn = false
+						}
+						if _, isGlobalArg := b.globalArgs[argName]; isGlobalArg {
 							shouldWarn = false
 						}
 						if shouldWarn {
