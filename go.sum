@@ -58,8 +58,8 @@ github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYgle
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/ocicrypt v1.1.8 h1:saSBF0/8DyPUjzcxMVzL2OBUWCkvRvqIm75pu0ADSZk=
 github.com/containers/ocicrypt v1.1.8/go.mod h1:jM362hyBtbwLMWzXQZTlkjKGAQf/BN/LFMtH0FIRt34=
-github.com/containers/storage v1.48.1-0.20230728131509-c3da76fa3f63 h1:oHER814v4p86QDV9EKZRSaMmEeC8yWD2wXlFAige1kc=
-github.com/containers/storage v1.48.1-0.20230728131509-c3da76fa3f63/go.mod h1:m9LC8fEm9FcuJ4wOJHYmCqdQUb0f66850wXyen+hh78=
+github.com/containers/storage v1.49.0 h1:7Vqj8OKlwlcWZ4U61+eS2bNwyIG/qXQo/UZVW5kXn74=
+github.com/containers/storage v1.49.0/go.mod h1:fCvGMWQ0BOvlReQf9DqRAcl73ofTfRXE8l6ifnI4a3g=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
