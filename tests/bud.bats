@@ -2354,16 +2354,16 @@ function validate_instance_compression {
 }
 
 @test "bud-github-context-with-branch-subdir-commit" {
+  subdir=tests/bud/from-scratch
   target=github-image
-  gitrepo=https://github.com/containers/podman.git#main:contrib/hello
+  gitrepo=https://github.com/containers/buildah.git#main:$subdir
   run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
   # check syntax only for subdirectory
-  gitrepo=https://github.com/containers/podman.git#:contrib/hello
+  gitrepo=https://github.com/containers/buildah.git#:$subdir
   run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
   # Try pulling repo with specific commit
-  # `contrib/helloimage` is only present on or before `40ba9f10e5fbdd3c9d36389107b8bf1caec6cef0`
-  # hence following test verifies if we are fetching the right commit.
-  gitrepo=https://github.com/containers/podman.git#40ba9f10e5fbdd3c9d36389107b8bf1caec6cef0:contrib/helloimage
+  # This commit is the initial commit, which used Dockerfile rather then Containerfile
+  gitrepo=https://github.com/containers/buildah.git#761597056c8dc2bb1efd67e937a196ddff1fa7a6:$subdir
   run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
 }
 
