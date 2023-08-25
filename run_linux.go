@@ -22,6 +22,7 @@ import (
 	internalParse "github.com/containers/buildah/internal/parse"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
+	butil "github.com/containers/buildah/pkg/util"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/pasta"
 	"github.com/containers/common/libnetwork/resolvconf"
@@ -873,7 +874,7 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 
 	ulimit = append(defaultUlimits, ulimit...)
 	for _, u := range ulimit {
-		if ul, err = units.ParseUlimit(u); err != nil {
+		if ul, err = butil.ParseUlimit(u); err != nil {
 			return fmt.Errorf("ulimit option %q requires name=SOFT:HARD, failed to be parsed: %w", u, err)
 		}
 
