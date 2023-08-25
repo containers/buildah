@@ -15,5 +15,6 @@ jobs:
     uses: containers/podman/.github/workflows/discussion_lock.yml@main
     secrets: inherit
     permissions:
+      contents: read
       issues: write
       pull-requests: write
