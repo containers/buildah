@@ -397,9 +397,9 @@ Print usage statement
 
 **--hooks-dir** *path*
 
-Each `*.json` file in the path configures a hook for buildah build containers. For more details on the syntax of the JSON files and the semantics of hook injection. Buildah currently support both the 1.0.0 and 0.1.0 hook schemas, although the 0.1.0 schema is deprecated.
+Each `*.json` file in the path configures a hook for buildah build containers. For more details on the syntax of the JSON files and the semantics of hook injection, see oci-hooks(5). Buildah currently support both the 1.0.0 and 0.1.0 hook schemas, although the 0.1.0 schema is deprecated.
 
-This option may be set multiple times; paths from later options have higher precedence.
+This option may be set multiple times; paths from later options have higher precedence (oci-hooks(5) discusses directory precedence).
 
 For the annotation conditions, buildah uses any annotations set in the generated OCI configuration.
 
@@ -1244,7 +1244,7 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), cpp(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), crun(1), runc(8), containers.conf(5)
+buildah(1), cpp(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), crun(1), runc(8), containers.conf(5), oci-hooks(5)
 
 ## FOOTNOTES
 <a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.
