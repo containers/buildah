@@ -99,7 +99,8 @@ RUN sed -e 's|^#mount_program|mount_program|g' \
         -e 's|^graphroot|#graphroot|g' \
         -e 's|^runroot|#runroot|g' \
         /etc/containers/storage.conf \
-        > /home/build/.config/containers/storage.conf
+        > /home/build/.config/containers/storage.conf && \
+        chown build:build /home/build/.config/containers/storage.conf
 
 VOLUME /var/lib/containers
 VOLUME /home/build/.local/share/containers
