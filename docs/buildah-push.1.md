@@ -72,7 +72,8 @@ The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7
 
 **--force-compression**
 
-Use the specified compression algorithm even if the destination contains a differently-compressed variant already.
+If set, push uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to `true` if `--compression-format` is explicitly specified on the command-line, `false` otherwise.
 
 **--format**, **-f**
 

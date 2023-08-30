@@ -199,6 +199,13 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	if err != nil {
 		return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
 	}
+	if c.Flag("compression-format").Changed {
+		if !c.Flag("force-compression").Changed {
+			// If `compression-format` is set and no value for `--force-compression`
+			// is selected then defaults to `true`.
+			iopts.forceCompressionFormat = true
+		}
+	}
 
 	options := buildah.PushOptions{
 		Compression:            compress,

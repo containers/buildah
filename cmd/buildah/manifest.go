@@ -878,6 +878,13 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 	if c.Flag("compression-level").Changed {
 		systemContext.CompressionLevel = &opts.compressionLevel
 	}
+	if c.Flag("compression-format").Changed {
+		if !c.Flag("force-compression").Changed {
+			// If `compression-format` is set and no value for `--force-compression`
+			// is selected then defaults to `true`.
+			opts.forceCompressionFormat = true
+		}
+	}
 
 	return manifestPush(systemContext, store, listImageSpec, destSpec, opts)
 }

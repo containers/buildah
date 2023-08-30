@@ -64,7 +64,8 @@ After copying the image, write the digest of the resulting image to the file.
 
 **--force-compression**
 
-Use the specified compression algorithm even if the destination contains a differently-compressed variant already.
+If set, push uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to `true` if `--compression-format` is explicitly specified on the command-line, `false` otherwise.
 
 **--format**, **-f**
 
