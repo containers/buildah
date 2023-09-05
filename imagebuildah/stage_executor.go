@@ -412,6 +412,16 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 						} else {
 							contextDir = additionalBuildContext.DownloadedCache
 						}
+					} else {
+						// This points to a path on the filesystem
+						// Check to see if there's a .containerignore
+						// file, update excludes for this stage before
+						// proceeding
+						buildContextExcludes, _, err := parse.ContainerIgnoreFile(additionalBuildContext.Value, "", nil)
+						if err != nil {
+							return err
+						}
+						excludes = append(excludes, buildContextExcludes...)
 					}
 				} else {
 					copy.From = additionalBuildContext.Value
