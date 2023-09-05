@@ -1334,6 +1334,29 @@ _EOF
   expect_output --substring "crun.c"
 }
 
+@test "build-with-additional-build-context and COPY, ensure .containerignore is being respected" {
+  local additionalcontextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $additionalcontextdir
+  touch $additionalcontextdir/hello
+  cat > $additionalcontextdir/.containerignore << _EOF
+hello
+_EOF
+
+  cat > $additionalcontextdir/Containerfile << _EOF
+FROM alpine
+RUN echo world
+
+# hello should not be available since
+# it's excluded as per the additional
+# build context's .containerignore file
+COPY --from=project hello .
+RUN cat hello
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON --build-context project=$additionalcontextdir -t test -f $additionalcontextdir/Containerfile
+  expect_output --substring "COPY --from=project hello .\": no items matching glob"
+}
+
 @test "bud with --layers and --no-cache flags" {
   local contextdir=${TEST_SCRATCH_DIR}/use-layers
   cp -a $BUDFILES/use-layers $contextdir
