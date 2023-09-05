@@ -376,15 +376,11 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	if imageRef, err := alltransports.ParseImageName(output); err == nil {
 		return imageRef, nil
 	}
-	runtime, err := libimage.RuntimeFromStore(b.store, &libimage.RuntimeOptions{SystemContext: b.systemContext})
+	resolved, err := libimage.NormalizeName(output)
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := runtime.ResolveName(output)
-	if err != nil {
-		return nil, err
-	}
-	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, resolved)
+	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, resolved.String())
 	if err == nil {
 		return imageRef, nil
 	}
