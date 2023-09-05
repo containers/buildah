@@ -1153,7 +1153,7 @@ buildah build -o - . > out.tar
 
   This will clone the specified GitHub repository from the URL and use it as context. The Containerfile or Dockerfile at the root of the repository is used as the context of the build. This only works if the GitHub repository is a dedicated repository.
 
-  buildah build https://github.com/scollier/purpletest
+  buildah build https://github.com/containers/PodmanHello.git
 
   Note: Github does not support using `git://` for performing `clone` operation due to recent changes in their security guidance (https://github.blog/2021-09-01-improving-git-protocol-security-github/). Use an `https://` URL if the source repository is hosted on Github.
 
