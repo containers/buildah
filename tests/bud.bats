@@ -6359,3 +6359,12 @@ _EOF
     false
   fi
 }
+
+@test "build with name path changes" {
+  _prefetch busybox
+  run_buildah build --no-cache --quiet --pull=false $WITH_POLICY_JSON -t foo/bar $BUDFILES/commit/name-path-changes/
+  run_buildah build --no-cache --quiet --pull=false $WITH_POLICY_JSON -t bar $BUDFILES/commit/name-path-changes/
+  run_buildah images
+  expect_output --substring "localhost/foo/bar"
+  expect_output --substring "localhost/bar"
+}
