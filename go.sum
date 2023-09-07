@@ -52,10 +52,10 @@ github.com/containernetworking/cni v1.1.2 h1:wtRGZVv7olUHMOqouPpn3cXJWpJgM6+EUl3
 github.com/containernetworking/cni v1.1.2/go.mod h1:sDpYKmGVENF3s6uvMvGgldDWeG8dMxakj/u+i9ht9vw=
 github.com/containernetworking/plugins v1.3.0 h1:QVNXMT6XloyMUoO2wUOqWTC1hWFV62Q6mVDp5H1HnjM=
 github.com/containernetworking/plugins v1.3.0/go.mod h1:Pc2wcedTQQCVuROOOaLBPPxrEXqqXBFt3cZ+/yVg6l0=
-github.com/containers/common v0.55.1-0.20230830075933-12405381ff45 h1:hwUrFFjPuaQLKDjaXTc3hDfZp2X89IWKx4rBQX0bUwc=
-github.com/containers/common v0.55.1-0.20230830075933-12405381ff45/go.mod h1:Xcw3UosoUax8jn+MZoxL7LbEbfxKqhUNMZyhdd5s/vk=
-github.com/containers/image/v5 v5.26.1-0.20230807184415-3fb422379cfa h1:wDfVQtc6ik2MvsUmu/YRSyBAE5YUxdjcEDtuT1q2KDo=
-github.com/containers/image/v5 v5.26.1-0.20230807184415-3fb422379cfa/go.mod h1:apL4qwq31NV0gsSZQJPxYyTH0yzWavmMCjT8vsQaXSk=
+github.com/containers/common v0.55.4 h1:7IxB/G5qtDU+rp1YiVWkDpd+ZC4ZlCQ7k2jZJYkB/R8=
+github.com/containers/common v0.55.4/go.mod h1:5mVCpfMBWyO+zaD7Fw+DBHFa42YFKROwle1qpEKcX3U=
+github.com/containers/image/v5 v5.26.2 h1:JX44e1qkdHiL60eooZZcIgKMBp/Ue2AIdKeBG71CYEg=
+github.com/containers/image/v5 v5.26.2/go.mod h1:CTS9VmzgKk8HTSPfPDkthBvRh/2GnFL8K8WBedn3L7I=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/luksy v0.0.0-20230808154129-d2d74a56682f h1:/HjLNYkVoUJNT4mm2dzGl63x7nD6YHxxI/k1kR0TkzA=
@@ -305,7 +305,7 @@ github.com/onsi/ginkgo v1.16.4/go.mod h1:dX+/inL/fNMqNlz0e9LfyB9TswhZpCVdJM/Z6Vv
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
 github.com/onsi/ginkgo v1.16.5/go.mod h1:+E8gABHa3K6zRBolWtd+ROzc/U5bkGt0FwiG042wbpU=
 github.com/onsi/ginkgo/v2 v2.1.3/go.mod h1:vw5CSIxN1JObi/U8gcbwft7ZxR2dgaR70JSE3/PpL4c=
-github.com/onsi/ginkgo/v2 v2.12.0 h1:UIVDowFPwpg6yMUpPjGkYvf06K3RAiJXUhCxEwQVHRI=
+github.com/onsi/ginkgo/v2 v2.11.0 h1:WgqUCUt/lT6yXoQ8Wef0fsNn5cAuMK7+KT9UFRz2tcU=
 github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7JYyY=
 github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1ybHNo=
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=

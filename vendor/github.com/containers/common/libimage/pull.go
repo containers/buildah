@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -230,18 +229,8 @@ func (r *Runtime) copyFromDefault(ctx context.Context, ref types.ImageReference,
 
 	case ociTransport.Transport.Name():
 		split := strings.SplitN(ref.StringWithinTransport(), ":", 2)
-		if len(split) == 1 || split[1] == "" {
-			// Same trick as for the dir transport: we cannot use
-			// the path to a directory as the name.
-			storageName, err = getImageID(ctx, ref, nil)
-			if err != nil {
-				return nil, err
-			}
-			imageName = "sha256:" + storageName[1:]
-		} else { // If the OCI-reference includes an image reference, use it
-			storageName = split[1]
-			imageName = storageName
-		}
+		storageName = toLocalImageName(split[0])
+		imageName = storageName
 
 	case ociArchiveTransport.Transport.Name():
 		manifestDescriptor, err := ociArchiveTransport.LoadManifestDescriptorWithContext(r.SystemContext(), ref)
@@ -603,9 +592,6 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 		return nil
 	}
 
-	if socketPath, ok := os.LookupEnv("NOTIFY_SOCKET"); ok {
-		options.extendTimeoutSocket = socketPath
-	}
 	c, err := r.newCopier(&options.CopyOptions)
 	if err != nil {
 		return nil, err
