@@ -19,6 +19,7 @@ import (
 	internalParse "github.com/containers/buildah/internal/parse"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/sshagent"
+	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/parse"
 	"github.com/containers/image/v5/docker/reference"
@@ -449,9 +450,13 @@ func SystemContextFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name strin
 
 func getAuthFile(authfile string) string {
 	if authfile != "" {
-		return authfile
+		absAuthfile, err := filepath.Abs(authfile)
+		if err == nil {
+			return absAuthfile
+		}
+		logrus.Warnf("ignoring passed-in auth file path, evaluating it: %v", err)
 	}
-	return os.Getenv("REGISTRY_AUTH_FILE")
+	return auth.GetDefaultAuthFile()
 }
 
 // PlatformFromOptions parses the operating system (os) and architecture (arch)
