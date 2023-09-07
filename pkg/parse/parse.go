@@ -21,7 +21,7 @@ import (
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/parse"
-	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/unshare"
@@ -53,15 +53,16 @@ const (
 )
 
 // RepoNamesToNamedReferences parse the raw string to Named reference
-func RepoNamesToNamedReferences(destList []string) ([]reference.Named, error) {
-	var result []reference.Named
+func RepoNamesToNamedReferences(destList []string) ([]types.ImageReference, error) {
+	var result []types.ImageReference
 	for _, dest := range destList {
-		named, err := reference.ParseNormalizedNamed(dest)
+		if t := alltransports.TransportFromImageName(dest); t == nil {
+			// assume no default transport provided in such case append docker
+			dest = "docker://" + dest
+		}
+		named, err := alltransports.ParseImageName(dest)
 		if err != nil {
 			return nil, fmt.Errorf("invalid repo %q: must contain registry and repository: %w", dest, err)
-		}
-		if !reference.IsNameOnly(named) {
-			return nil, fmt.Errorf("repository must contain neither a tag nor digest: %v", named)
 		}
 		result = append(result, named)
 	}

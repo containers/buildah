@@ -17,7 +17,6 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/util"
 	"github.com/containers/common/pkg/auth"
-	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -296,8 +295,8 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 			iopts.Quiet = true
 		}
 	}
-	var cacheTo []reference.Named
-	var cacheFrom []reference.Named
+	var cacheTo []types.ImageReference
+	var cacheFrom []types.ImageReference
 	cacheTo = nil
 	cacheFrom = nil
 	if c.Flag("cache-to").Changed {
