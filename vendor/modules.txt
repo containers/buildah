@@ -51,6 +51,9 @@ github.com/VividCortex/ewma
 # github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 ## explicit
 github.com/acarl005/stripansi
+# github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6
+## explicit
+github.com/aead/serpent
 # github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 ## explicit; go 1.13
 github.com/asaskevich/govalidator
@@ -201,6 +204,9 @@ github.com/containers/image/v5/version
 # github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01
 ## explicit
 github.com/containers/libtrust
+# github.com/containers/luksy v0.0.0-20230808154129-d2d74a56682f
+## explicit; go 1.20
+github.com/containers/luksy
 # github.com/containers/ocicrypt v1.1.8
 ## explicit; go 1.20
 github.com/containers/ocicrypt
@@ -689,7 +695,9 @@ go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
 # golang.org/x/crypto v0.13.0
 ## explicit; go 1.17
+golang.org/x/crypto/argon2
 golang.org/x/crypto/bcrypt
+golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cast5
 golang.org/x/crypto/chacha20
@@ -707,12 +715,15 @@ golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/pbkdf2
+golang.org/x/crypto/ripemd160
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/scrypt
 golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/agent
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
+golang.org/x/crypto/twofish
+golang.org/x/crypto/xts
 # golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
 ## explicit; go 1.20
 golang.org/x/exp/constraints

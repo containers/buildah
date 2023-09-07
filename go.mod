@@ -8,6 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.3.0
 	github.com/containers/common v0.55.1-0.20230830075933-12405381ff45
 	github.com/containers/image/v5 v5.26.1-0.20230807184415-3fb422379cfa
+	github.com/containers/luksy v0.0.0-20230808154129-d2d74a56682f
 	github.com/containers/ocicrypt v1.1.8
 	github.com/containers/storage v1.49.0
 	github.com/cyphar/filepath-securejoin v0.2.4
@@ -48,6 +49,7 @@ require (
 	github.com/Microsoft/hcsshim v0.10.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
+	github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/container-orchestrated-devices/container-device-interface v0.6.0 // indirect

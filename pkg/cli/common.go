@@ -107,6 +107,7 @@ type BudResults struct {
 	Envs                []string
 	OSFeatures          []string
 	OSVersion           string
+	CWOptions           string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -217,6 +218,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.Compress, "compress", false, "this is a legacy option, which has no effect on the image")
 	fs.StringArrayVar(&flags.CPPFlags, "cpp-flag", []string{}, "set additional flag to pass to C preprocessor (cpp)")
 	fs.StringVar(&flags.Creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	fs.StringVarP(&flags.CWOptions, "cw", "", "", "confidential workload `options`")
 	fs.BoolVarP(&flags.DisableCompression, "disable-compression", "D", true, "don't compress layers by default")
 	fs.BoolVar(&flags.DisableContentTrust, "disable-content-trust", false, "this is a Docker specific option and is a NOOP")
 	fs.StringArrayVar(&flags.Envs, "env", []string{}, "set environment variable for the image")
@@ -299,6 +301,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["cert-dir"] = commonComp.AutocompleteDefault
 	flagCompletion["cpp-flag"] = commonComp.AutocompleteNone
 	flagCompletion["creds"] = commonComp.AutocompleteNone
+	flagCompletion["cw"] = commonComp.AutocompleteNone
 	flagCompletion["env"] = commonComp.AutocompleteNone
 	flagCompletion["file"] = commonComp.AutocompleteDefault
 	flagCompletion["format"] = commonComp.AutocompleteNone

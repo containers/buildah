@@ -19,6 +19,8 @@ github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1o
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
+github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6 h1:5L8Mj9Co9sJVgW3TpYk2gxGJnDjsYuboNTcRmbtGKGs=
+github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6/go.mod h1:3HgLJ9d18kXMLQlJvIY3+FszZYMxCz8WfE2MQ7hDY0w=
 github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
@@ -56,6 +58,8 @@ github.com/containers/image/v5 v5.26.1-0.20230807184415-3fb422379cfa h1:wDfVQtc6
 github.com/containers/image/v5 v5.26.1-0.20230807184415-3fb422379cfa/go.mod h1:apL4qwq31NV0gsSZQJPxYyTH0yzWavmMCjT8vsQaXSk=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
+github.com/containers/luksy v0.0.0-20230808154129-d2d74a56682f h1:/HjLNYkVoUJNT4mm2dzGl63x7nD6YHxxI/k1kR0TkzA=
+github.com/containers/luksy v0.0.0-20230808154129-d2d74a56682f/go.mod h1:hEjwW0sePqkTahMzbzeDsQEXN2zdF2VAccqSj5vb1NY=
 github.com/containers/ocicrypt v1.1.8 h1:saSBF0/8DyPUjzcxMVzL2OBUWCkvRvqIm75pu0ADSZk=
 github.com/containers/ocicrypt v1.1.8/go.mod h1:jM362hyBtbwLMWzXQZTlkjKGAQf/BN/LFMtH0FIRt34=
 github.com/containers/storage v1.49.0 h1:7Vqj8OKlwlcWZ4U61+eS2bNwyIG/qXQo/UZVW5kXn74=
