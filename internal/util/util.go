@@ -15,6 +15,7 @@ import (
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/unshare"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // LookupImage returns *Image to corresponding imagename or id
@@ -53,7 +54,11 @@ func NormalizePlatform(platform v1.Platform) v1.Platform {
 // GetTempDir returns base for a temporary directory on host.
 func GetTempDir() string {
 	if tmpdir, ok := os.LookupEnv("TMPDIR"); ok {
-		return tmpdir
+		abs, err := filepath.Abs(tmpdir)
+		if err == nil {
+			return abs
+		}
+		logrus.Warnf("ignoring TMPDIR from environment, evaluating it: %v", err)
 	}
 	containerConfig, err := config.Default()
 	if err != nil {
