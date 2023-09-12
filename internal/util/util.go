@@ -8,14 +8,12 @@ import (
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/common/libimage"
-	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/unshare"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 // LookupImage returns *Image to corresponding imagename or id
@@ -49,25 +47,6 @@ func NormalizePlatform(platform v1.Platform) v1.Platform {
 		Architecture: arch,
 		Variant:      variant,
 	}
-}
-
-// GetTempDir returns base for a temporary directory on host.
-func GetTempDir() string {
-	if tmpdir, ok := os.LookupEnv("TMPDIR"); ok {
-		abs, err := filepath.Abs(tmpdir)
-		if err == nil {
-			return abs
-		}
-		logrus.Warnf("ignoring TMPDIR from environment, evaluating it: %v", err)
-	}
-	containerConfig, err := config.Default()
-	if err != nil {
-		tmpdir, err := containerConfig.ImageCopyTmpDir()
-		if err != nil {
-			return tmpdir
-		}
-	}
-	return "/var/tmp"
 }
 
 // ExportFromReader reads bytes from given reader and exports to external tar, directory or stdout.
