@@ -1113,7 +1113,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, disable
 	if err := idtools.MkdirAs(path.Join(workDirBase, "work"), 0o700, rootUID, rootGID); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAs(path.Join(dir, "merged"), 0o700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAs(path.Join(workDirBase, "merged"), 0o700, rootUID, rootGID); err != nil {
 		return err
 	}
 
@@ -1671,7 +1671,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		return "", err
 	}
 
-	mergedDir := path.Join(dir, "merged")
+	mergedDir := path.Join(workDirBase, "merged")
 	// Create the driver merged dir
 	if err := idtools.MkdirAs(mergedDir, 0o700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return "", err
@@ -2170,6 +2170,10 @@ func (d *Driver) getLowerDiffPaths(id string) ([]string, error) {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) (size int64, err error) {
+	if !d.isParent(id, parent) {
+		return d.naiveDiff.DiffSize(id, idMappings, parent, parentMappings, mountLabel)
+	}
+
 	p, err := d.getDiffPath(id)
 	if err != nil {
 		return 0, err
