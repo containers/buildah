@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	internalParse "github.com/containers/buildah/internal/parse"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/pkg/volumes"
 	"github.com/containers/common/libimage"
 	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
@@ -63,7 +63,7 @@ func pruneCmd(c *cobra.Command, args []string, iopts pruneOptions) error {
 		return err
 	}
 
-	err = internalParse.CleanCacheMount()
+	err = volumes.CleanCacheMount()
 	if err != nil {
 		return err
 	}

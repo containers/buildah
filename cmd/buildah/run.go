@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
-	internalParse "github.com/containers/buildah/internal/parse"
+	"github.com/containers/buildah/internal/volumes"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -169,11 +169,11 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
-	mounts, mountedImages, targetLocks, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir, iopts.workingDir)
+	mounts, mountedImages, targetLocks, err := volumes.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir, iopts.workingDir)
 	if err != nil {
 		return err
 	}
-	defer internalParse.UnlockLockArray(targetLocks)
+	defer volumes.UnlockLockArray(targetLocks)
 	options.Mounts = mounts
 	// Run() will automatically clean them up.
 	options.ExternalImageMounts = mountedImages

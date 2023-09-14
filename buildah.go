@@ -386,6 +386,11 @@ type ImportFromImageOptions struct {
 	SystemContext *types.SystemContext
 }
 
+// ConfidentialWorkloadOptions encapsulates options which control whether or not
+// we output an image whose rootfs contains a LUKS-compatibly-encrypted disk image
+// instead of the usual rootfs contents.
+type ConfidentialWorkloadOptions = define.ConfidentialWorkloadOptions
+
 // NewBuilder creates a new build container.
 func NewBuilder(ctx context.Context, store storage.Store, options BuilderOptions) (*Builder, error) {
 	if options.CommonBuildOpts == nil {

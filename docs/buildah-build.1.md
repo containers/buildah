@@ -288,6 +288,62 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--cw** *options*
+
+Produce an image suitable for use as a confidential workload running in a
+trusted execution environment (TEE) using krun (i.e., *crun* built with the
+libkrun feature enabled and invoked as *krun*).  Instead of the conventional
+contents, the root filesystem of the image will contain an encrypted disk image
+and configuration information for krun.
+
+The value for *options* is a comma-separated list of key=value pairs, supplying
+configuration information which is needed for producing the additional data
+which will be included in the container image.
+
+Recognized _keys_ are:
+
+*attestation_url*: The location of a key broker / attestation server.
+If a value is specified, the new image's workload ID, along with the passphrase
+used to encrypt the disk image, will be registered with the server, and the
+server's location will be stored in the container image.
+At run-time, krun is expected to contact the server to retrieve the passphrase
+using the workload ID, which is also stored in the container image.
+If no value is specified, a *passphrase* value *must* be specified.
+
+*cpus*: The number of virtual CPUs which the image expects to be run with at
+run-time.  If not specified, a default value will be supplied.
+
+*firmware_library*: The location of the libkrunfw-sev shared library.  If not
+specified, `buildah` checks for its presence in a number of hard-coded
+locations.
+
+*memory*: The amount of memory which the image expects to be run with at
+run-time, as a number of megabytes.  If not specified, a default value will be
+supplied.
+
+*passphrase*: The passphrase to use to encrypt the disk image which will be
+included in the container image.
+If no value is specified, but an *attestation_url* value is specified, a
+randomly-generated passphrase will be used.
+The authors recommend setting an *attestation_url* but not a *passphrase*.
+
+*slop*: Extra space to allocate for the disk image compared to the size of the
+container image's contents, expressed either as a percentage (..%) or a size
+value (bytes, or larger units if suffixes like KB or MB are present), or a sum
+of two or more such specifications.  If not specified, `buildah` guesses that
+25% more space than the contents will be enough, but this option is provided in
+case its guess is wrong.
+
+*type*: The type of trusted execution environment (TEE) which the image should
+be marked for use with.  Accepted values are "SEV" (AMD Secure Encrypted
+Virtualization - Encrypted State) and "SNP" (AMD Secure Encrypted
+Virtualization - Secure Nested Paging).  If not specified, defaults to "SNP".
+
+*workload_id*: A workload identifier which will be recorded in the container
+image, to be used at run-time for retrieving the passphrase which was used to
+encrypt the disk image.  If not specified, a semi-random value will be derived
+from the base image's image ID.
+
 **--decryption-key** *key[:passphrase]*
 
 The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
@@ -1153,7 +1209,7 @@ buildah build -o - . > out.tar
 
   This will clone the specified GitHub repository from the URL and use it as context. The Containerfile or Dockerfile at the root of the repository is used as the context of the build. This only works if the GitHub repository is a dedicated repository.
 
-  buildah build https://github.com/scollier/purpletest
+  buildah build https://github.com/containers/PodmanHello.git
 
   Note: Github does not support using `git://` for performing `clone` operation due to recent changes in their security guidance (https://github.blog/2021-09-01-improving-git-protocol-security-github/). Use an `https://` URL if the source repository is hosted on Github.
 

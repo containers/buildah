@@ -148,6 +148,7 @@ type Executor struct {
 	osVersion               string
 	osFeatures              []string
 	envs                    []string
+	confidentialWorkload    define.ConfidentialWorkloadOptions
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -303,6 +304,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		osVersion:                      options.OSVersion,
 		osFeatures:                     append([]string{}, options.OSFeatures...),
 		envs:                           append([]string{}, options.Envs...),
+		confidentialWorkload:           options.ConfidentialWorkload,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -376,15 +378,11 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	if imageRef, err := alltransports.ParseImageName(output); err == nil {
 		return imageRef, nil
 	}
-	runtime, err := libimage.RuntimeFromStore(b.store, &libimage.RuntimeOptions{SystemContext: b.systemContext})
+	resolved, err := libimage.NormalizeName(output)
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := runtime.ResolveName(output)
-	if err != nil {
-		return nil, err
-	}
-	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, resolved)
+	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, resolved.String())
 	if err == nil {
 		return imageRef, nil
 	}
