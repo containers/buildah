@@ -5080,7 +5080,7 @@ _EOF
   assert "$output" !~ '--build-arg SECRET=<VALUE>'
   assert "$output" !~ '--build-arg NEWSECRET=<VALUE>'
 
-# case should similarly honor globally declated args
+# case should similarly honor globally declared args
   cat > $mytmpdir/Containerfile << _EOF
 ARG SECRET="Itismysecret"
 FROM alpine
