@@ -18,7 +18,7 @@ import (
 	"github.com/containers/buildah/define"
 	mkcwtypes "github.com/containers/buildah/internal/mkcw/types"
 	internalParse "github.com/containers/buildah/internal/parse"
-	internalUtil "github.com/containers/buildah/internal/util"
+	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/config"
@@ -68,11 +68,6 @@ func RepoNamesToNamedReferences(destList []string) ([]reference.Named, error) {
 		result = append(result, named)
 	}
 	return result, nil
-}
-
-// CleanCacheMount gets the cache parent created by `--mount=type=cache` and removes it.
-func CleanCacheMount() error {
-	return internalParse.CleanCacheMount()
 }
 
 // CommonBuildOptions parses the build options from the bud cli
@@ -1073,7 +1068,7 @@ func isValidDeviceMode(mode string) bool {
 }
 
 func GetTempDir() string {
-	return internalUtil.GetTempDir()
+	return tmpdir.GetTempDir()
 }
 
 // Secrets parses the --secret flag
