@@ -89,6 +89,15 @@ _EOF
   validate_instance_compression "3" "$list" "arm64" "zstd"
 }
 
+@test "no layer should be created on scratch" {
+  run_buildah build --layers --label "label1=value1" -t test -f $BUDFILES/from-scratch/Containerfile
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' test
+  expect_output "0" "layer should not exist"
+  run_buildah build --layers -t test -f $BUDFILES/from-scratch/Containerfile
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' test
+  expect_output "0" "layer should not exist"
+}
+
 @test "bud: build push with --force-compression" {
   skip_if_no_podman
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
