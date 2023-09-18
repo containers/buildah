@@ -494,3 +494,46 @@ stuff/mystuff"
   expect_line_count 1
   assert "$output" = "test_file" "only contents of copied directory"
 }
+
+@test "copy-file-relative-context-dir" {
+  image=busybox
+  _prefetch $image
+  mkdir -p ${TEST_SCRATCH_DIR}/context
+  createrandom ${TEST_SCRATCH_DIR}/context/test_file
+  run_buildah from --quiet $WITH_POLICY_JSON $image
+  ctr="$output"
+  run_buildah copy --contextdir ${TEST_SCRATCH_DIR}/context $ctr test_file /opt/
+  run_buildah run $ctr ls -1 /opt/
+  expect_line_count 1
+  assert "$output" = "test_file" "only the one file"
+}
+
+@test "copy-file-absolute-context-dir" {
+  image=busybox
+  _prefetch $image
+  mkdir -p ${TEST_SCRATCH_DIR}/context/subdir
+  createrandom ${TEST_SCRATCH_DIR}/context/subdir/test_file
+  run_buildah from --quiet $WITH_POLICY_JSON $image
+  ctr="$output"
+  run_buildah copy --contextdir ${TEST_SCRATCH_DIR}/context $ctr /subdir/test_file /opt/
+  run_buildah run $ctr ls -1 /opt/
+  expect_line_count 1
+  assert "$output" = "test_file" "only the one file"
+}
+
+@test "copy-file-relative-no-context-dir" {
+  image=busybox
+  _prefetch $image
+  mkdir -p ${TEST_SCRATCH_DIR}/context
+  createrandom ${TEST_SCRATCH_DIR}/context/test_file
+  run_buildah from --quiet $WITH_POLICY_JSON $image
+  ctr="$output"
+  # we're not in that directory currently
+  run_buildah 125 copy $ctr test_file /opt/
+  # now we are
+  cd ${TEST_SCRATCH_DIR}/context
+  run_buildah copy $ctr test_file /opt/
+  run_buildah run $ctr ls -1 /opt/
+  expect_line_count 1
+  assert "$output" = "test_file" "only the one file"
+}
