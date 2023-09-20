@@ -91,7 +91,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.3.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.56.0
+# github.com/containers/common v0.56.1-0.20230920110729-eb4ad859f309
 ## explicit; go 1.18
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
@@ -124,6 +124,7 @@ github.com/containers/common/pkg/hooks/exec
 github.com/containers/common/pkg/machine
 github.com/containers/common/pkg/manifests
 github.com/containers/common/pkg/parse
+github.com/containers/common/pkg/password
 github.com/containers/common/pkg/retry
 github.com/containers/common/pkg/rootlessport
 github.com/containers/common/pkg/seccomp
@@ -134,6 +135,7 @@ github.com/containers/common/pkg/supplemented
 github.com/containers/common/pkg/timetype
 github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
+github.com/containers/common/pkg/version
 github.com/containers/common/version
 # github.com/containers/image/v5 v5.28.0
 ## explicit; go 1.19
