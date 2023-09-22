@@ -2099,6 +2099,28 @@ _EOF
   done
 }
 
+@test "bud and test --unsetlabel" {
+  _prefetch registry.fedoraproject.org/fedora-minimal
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+  run_buildah build $WITH_POLICY_JSON -t exp -f $BUDFILES/base-with-labels/Containerfile
+
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "license"}}' exp
+  expect_output "MIT" "license must be MIT from fedora base image"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' exp
+  expect_output "fedora" "name must be fedora from base image"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "vendor"}}' exp
+  expect_output "Fedora Project" "vendor must be fedora from base image"
+
+  run_buildah build $WITH_POLICY_JSON --unsetlabel license --unsetlabel name --unsetlabel vendor --unsetlabel version --label hello=world -t exp -f $BUDFILES/base-with-labels/Containerfile
+  # no labels should be inherited from base image only the, buildah version label
+  # and `hello=world` which we just added using cli flag
+  want_output='map["hello":"world" "io.buildah.version":"'$buildah_version'"]'
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  expect_output "$want_output"
+}
+
 @test "build using intermediate images should not inherit label" {
   _prefetch alpine
 

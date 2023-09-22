@@ -910,6 +910,10 @@ include:
 
 Unset environment variables from the final image.
 
+**--unsetlabel** *label*
+
+Unset the image label, causing the label not to be inherited from the base image.
+
 **--userns** *how*
 
 Sets the configuration for user namespaces when handling `RUN` instructions.

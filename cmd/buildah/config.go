@@ -47,6 +47,7 @@ type configResults struct {
 	variant                string
 	volume                 []string
 	workingDir             string
+	unsetLabels            []string
 }
 
 func init() {
@@ -98,6 +99,7 @@ func init() {
 	flags.StringVar(&opts.variant, "variant", "", "set architecture `variant` of the target image")
 	flags.StringSliceVarP(&opts.volume, "volume", "v", []string{}, "add default `volume` path to be created for containers based on image (default [])")
 	flags.StringVar(&opts.workingDir, "workingdir", "", "set working `directory` for containers based on image")
+	flags.StringSliceVar(&opts.unsetLabels, "unsetlabel", nil, "remove image configuration label")
 
 	rootCmd.AddCommand(configCommand)
 
@@ -301,6 +303,10 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 			}
 		}
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.label, " "))
+	}
+	// unset labels if any
+	for _, key := range  iopts.unsetLabels {
+		builder.UnsetLabel(key)
 	}
 	if c.Flag("workingdir").Changed {
 		builder.SetWorkDir(iopts.workingDir)

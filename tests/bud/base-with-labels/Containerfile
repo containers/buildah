@@ -1,0 +1,2 @@
+FROM registry.fedoraproject.org/fedora-minimal
+RUN echo hello

@@ -142,6 +142,7 @@ type Executor struct {
 	sshsources              map[string]*sshagent.Source
 	logPrefix               string
 	unsetEnvs               []string
+	unsetLabels             []string
 	processLabel            string // Shares processLabel of first stage container with containers of other stages in same build
 	mountLabel              string // Shares mountLabel of first stage container with containers of other stages in same build
 	buildOutput             string // Specifies instructions for any custom build output
@@ -300,6 +301,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		sshsources:                     sshsources,
 		logPrefix:                      logPrefix,
 		unsetEnvs:                      append([]string{}, options.UnsetEnvs...),
+		unsetLabels:                    append([]string{}, options.UnsetLabels...),
 		buildOutput:                    options.BuildOutput,
 		osVersion:                      options.OSVersion,
 		osFeatures:                     append([]string{}, options.OSFeatures...),
