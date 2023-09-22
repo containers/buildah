@@ -484,6 +484,10 @@ Path to an alternative .containerignore (.dockerignore) file.
 Write the built image's ID to the file.  When `--platform` is specified more
 than once, attempting to use this option will trigger an error.
 
+**--inherit-labels** *bool-value*
+
+Allows users to specify if they want to inherit labels from base image or not. (Default is `true`).
+
 **--ipc** *how*
 
 Sets the configuration for IPC namespaces when handling `RUN` instructions.

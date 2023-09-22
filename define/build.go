@@ -228,6 +228,9 @@ type BuildOptions struct {
 	// ID mapping options to use if we're setting up our own user namespace
 	// when handling RUN instructions.
 	IDMappingOptions *IDMappingOptions
+	// InheritLabels allows users to specify if they want
+	// to inheritlabels from base image or not.
+	InheritLabels types.OptionalBool
 	// AddCapabilities is a list of capabilities to add to the default set when
 	// handling RUN instructions.
 	AddCapabilities []string

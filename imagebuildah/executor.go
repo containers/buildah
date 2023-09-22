@@ -81,6 +81,7 @@ type Executor struct {
 	additionalTags                 []string
 	log                            func(format string, args ...interface{}) // can be nil
 	in                             io.Reader
+	inheritLabels                  types.OptionalBool
 	out                            io.Writer
 	err                            io.Writer
 	signaturePolicyPath            string
@@ -235,6 +236,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		excludes:                       excludes,
 		groupAdd:                       options.GroupAdd,
 		ignoreFile:                     options.IgnoreFile,
+		inheritLabels:                  options.InheritLabels,
 		pullPolicy:                     options.PullPolicy,
 		registry:                       options.Registry,
 		ignoreUnrecognizedInstructions: options.IgnoreUnrecognizedInstructions,

@@ -71,6 +71,7 @@ type BudResults struct {
 	Format              string
 	From                string
 	Iidfile             string
+	InheritLabels       bool
 	Label               []string
 	LayerLabel          []string
 	Logfile             string
@@ -216,6 +217,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.CacheTTL, "cache-ttl", "", "only consider cache images under specified duration.")
 	fs.StringVar(&flags.CertDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	fs.BoolVar(&flags.Compress, "compress", false, "this is a legacy option, which has no effect on the image")
+	fs.BoolVar(&flags.InheritLabels, "inherit-labels", true, "inherit labels from base image")
 	fs.StringArrayVar(&flags.CPPFlags, "cpp-flag", []string{}, "set additional flag to pass to C preprocessor (cpp)")
 	fs.StringVar(&flags.Creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	fs.StringVarP(&flags.CWOptions, "cw", "", "", "confidential workload `options`")
@@ -312,6 +314,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["jobs"] = commonComp.AutocompleteNone
 	flagCompletion["label"] = commonComp.AutocompleteNone
 	flagCompletion["layer-label"] = commonComp.AutocompleteNone
+	flagCompletion["inherit-labels"] = commonComp.AutocompleteNone
 	flagCompletion["logfile"] = commonComp.AutocompleteDefault
 	flagCompletion["manifest"] = commonComp.AutocompleteDefault
 	flagCompletion["os"] = commonComp.AutocompleteNone

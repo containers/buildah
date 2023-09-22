@@ -830,6 +830,11 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			RootFS:          rootfs,
 		}
 		dImage.Config = &dImage.ContainerConfig
+		if s.executor.inheritLabels == types.OptionalBoolFalse {
+			// If user has selected `--inherit-labels=false` lets not
+			// inherit labels from base image.
+			dImage.Config.Labels = nil
+		}
 		err = ib.FromImage(&dImage, node)
 		if err != nil {
 			if err2 := builder.Delete(); err2 != nil {
