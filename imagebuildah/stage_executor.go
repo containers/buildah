@@ -1033,7 +1033,13 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// squash the contents of the base image.  Whichever is
 			// the case, we need to commit() to create a new image.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(nil, ""), false, s.output, s.executor.squash, lastStage); err != nil {
+			emptyLayer := false
+			if s.builder.FromImageID == "" {
+				// No base image means there's nothing to put in a
+				// layer, so don't create one.
+				emptyLayer = true
+			}
+			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(nil, ""), emptyLayer, s.output, s.executor.squash, lastStage); err != nil {
 				return "", nil, fmt.Errorf("committing base container: %w", err)
 			}
 			// Generate build output if needed.
