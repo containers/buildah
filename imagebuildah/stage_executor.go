@@ -349,11 +349,6 @@ func (s *StageExecutor) volumeCacheRestore() error {
 func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 	s.builder.ContentDigester.Restart()
 	for _, copy := range copies {
-		if copy.Download {
-			logrus.Debugf("ADD %#v, %#v", excludes, copy)
-		} else {
-			logrus.Debugf("COPY %#v, %#v", excludes, copy)
-		}
 		if err := s.volumeCacheInvalidate(copy.Dest); err != nil {
 			return err
 		}
@@ -413,6 +408,16 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 						} else {
 							contextDir = additionalBuildContext.DownloadedCache
 						}
+					} else {
+						// This points to a path on the filesystem
+						// Check to see if there's a .containerignore
+						// file, update excludes for this stage before
+						// proceeding
+						buildContextExcludes, _, err := parse.ContainerIgnoreFile(additionalBuildContext.Value, "", nil)
+						if err != nil {
+							return err
+						}
+						excludes = append(excludes, buildContextExcludes...)
 					}
 				} else {
 					copy.From = additionalBuildContext.Value
@@ -446,6 +451,11 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			copyExcludes = append(s.executor.excludes, excludes...)
 			stripSetuid = true // did this change between 18.06 and 19.03?
 			stripSetgid = true // did this change between 18.06 and 19.03?
+		}
+		if copy.Download {
+			logrus.Debugf("ADD %#v, %#v", excludes, copy)
+		} else {
+			logrus.Debugf("COPY %#v, %#v", excludes, copy)
 		}
 		for _, src := range copy.Src {
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
