@@ -6064,6 +6064,16 @@ _EOF
   run_buildah rmi -f testbud
 }
 
+@test "bud-with-multiple-mount-keeps-default-bind-mount" {
+  skip_if_no_runtime
+  skip_if_in_container
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount
+  cp -R $BUDFILES/buildkit-mount $contextdir
+  run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilemultiplemounts $contextdir/
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+}
+
 @test "bud with user in groups" {
   target=bud-group
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/group

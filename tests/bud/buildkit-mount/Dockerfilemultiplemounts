@@ -1,0 +1,8 @@
+FROM alpine
+RUN mkdir /test
+# use option z if selinux is enabled
+# Order here is important, 'type=Bind' is the default, we want to make sure
+# it stays at it
+RUN --mount=type=cache,target=/test/cache,z \
+    --mount=source=input_file,target=/test/input_file,z \
+    cat /test/input_file
