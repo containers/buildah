@@ -6,13 +6,13 @@ require (
 	github.com/containerd/containerd v1.7.6
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
-	github.com/containers/common v0.56.1-0.20230920110729-eb4ad859f309
+	github.com/containers/common v0.56.1-0.20231003103624-88925362c276
 	github.com/containers/image/v5 v5.28.0
 	github.com/containers/luksy v0.0.0-20230912175440-6df88cb7f0dd
 	github.com/containers/ocicrypt v1.1.8
 	github.com/containers/storage v1.50.2
 	github.com/cyphar/filepath-securejoin v0.2.4
-	github.com/docker/distribution v2.8.2+incompatible
+	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v24.0.6+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.9.7
@@ -24,7 +24,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/opencontainers/runc v1.1.9
 	github.com/opencontainers/runtime-spec v1.1.0
-	github.com/opencontainers/runtime-tools v0.9.1-0.20230317050512-e931285f4b69
+	github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc
 	github.com/opencontainers/selinux v1.11.0
 	github.com/openshift/imagebuilder v1.2.5
 	github.com/seccomp/libseccomp-golang v0.10.0
@@ -59,6 +59,7 @@ require (
 	github.com/cyberphone/json-canonicalization v0.0.0-20230710064741-aa7fe85c7dbd // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/disiqueira/gotree/v3 v3.0.2 // indirect
+	github.com/distribution/reference v0.5.0 // indirect
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go-connections v0.4.1-0.20210727194412-58542c764a11 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
