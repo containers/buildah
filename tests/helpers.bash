@@ -621,6 +621,22 @@ function skip_if_no_docker() {
   fi
 }
 
+function skip_if_no_unshare() {
+  run which ${UNSHARE_BINARY:-unshare}
+  if [[ $status -ne 0 ]]; then
+    skip "unshare is not installed"
+  fi
+  if ! unshare -Ur true ; then
+    skip "unshare was not able to create a user namespace"
+  fi
+  if ! unshare -Urm true ; then
+    skip "unshare was not able to create a mount namespace"
+  fi
+  if ! unshare -Urmpf true ; then
+    skip "unshare was not able to create a pid namespace"
+  fi
+}
+
 function start_git_daemon() {
   daemondir=${TEST_SCRATCH_DIR}/git-daemon
   mkdir -p ${daemondir}/repo
