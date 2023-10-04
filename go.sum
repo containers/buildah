@@ -52,8 +52,8 @@ github.com/containernetworking/cni v1.1.2 h1:wtRGZVv7olUHMOqouPpn3cXJWpJgM6+EUl3
 github.com/containernetworking/cni v1.1.2/go.mod h1:sDpYKmGVENF3s6uvMvGgldDWeG8dMxakj/u+i9ht9vw=
 github.com/containernetworking/plugins v1.3.0 h1:QVNXMT6XloyMUoO2wUOqWTC1hWFV62Q6mVDp5H1HnjM=
 github.com/containernetworking/plugins v1.3.0/go.mod h1:Pc2wcedTQQCVuROOOaLBPPxrEXqqXBFt3cZ+/yVg6l0=
-github.com/containers/common v0.56.1-0.20230920110729-eb4ad859f309 h1:ZuP6m9Ps9bBR/3TlR4AqzobAvtYstKkoYmKIg3R7O84=
-github.com/containers/common v0.56.1-0.20230920110729-eb4ad859f309/go.mod h1:ABFEglmyt48WWWQv80kGhitfbVfR1Br35wk3gBQdrIk=
+github.com/containers/common v0.56.1-0.20231003103624-88925362c276 h1:pdg8Sws/kWeZ2Ideb5i/fIxqZifMTE7wSLM80Bydvwg=
+github.com/containers/common v0.56.1-0.20231003103624-88925362c276/go.mod h1:8gifkvVxN1oOHJ9Yp/SHWcN6MlxdC0gZCF2+MaWjErc=
 github.com/containers/image/v5 v5.28.0 h1:H4cWbdI88UA/mDb6SxMo3IxpmS1BSs/Kifvhwt9g048=
 github.com/containers/image/v5 v5.28.0/go.mod h1:9aPnNkwHNHgGl9VlQxXEshvmOJRbdRAc1rNDD6sP2eU=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
@@ -76,8 +76,10 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/disiqueira/gotree/v3 v3.0.2 h1:ik5iuLQQoufZBNPY518dXhiO5056hyNBIK9lWhkNRq8=
 github.com/disiqueira/gotree/v3 v3.0.2/go.mod h1:ZuyjE4+mUQZlbpkI24AmruZKhg3VHEgPLDY8Qk+uUu8=
-github.com/docker/distribution v2.8.2+incompatible h1:T3de5rq0dB1j30rp0sA2rER+m322EBzniBPB6ZIzuh8=
-github.com/docker/distribution v2.8.2+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
+github.com/distribution/reference v0.5.0 h1:/FUIFXtfc/x2gpa5/VGfiGLuOIdYa1t65IKK2OFGvA0=
+github.com/distribution/reference v0.5.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
+github.com/docker/distribution v2.8.3+incompatible h1:AtKxIZ36LoNK51+Z6RpzLpddBirtxJnzDrHLEKxTAYk=
+github.com/docker/distribution v2.8.3+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v24.0.6+incompatible h1:hceabKCtUgDqPu+qm0NgsaXf28Ljf4/pWFL7xjWWDgE=
 github.com/docker/docker v24.0.6+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/docker-credential-helpers v0.8.0 h1:YQFtbBQb4VrpoPxhFuzEBPQ9E16qz5SpHLS+uswaCp8=
@@ -321,8 +323,8 @@ github.com/opencontainers/runc v1.1.9 h1:XR0VIHTGce5eWPkaPesqTBrhW2yAcaraWfsEalN
 github.com/opencontainers/runc v1.1.9/go.mod h1:CbUumNnWCuTGFukNXahoo/RFBZvDAgRh/smNYNOhA50=
 github.com/opencontainers/runtime-spec v1.1.0 h1:HHUyrt9mwHUjtasSbXSMvs4cyFxh+Bll4AjJ9odEGpg=
 github.com/opencontainers/runtime-spec v1.1.0/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
-github.com/opencontainers/runtime-tools v0.9.1-0.20230317050512-e931285f4b69 h1:NL4xDvl68WWqQ+8WPMM3l5PsZTxaT7Z4K3VSKDRuAGs=
-github.com/opencontainers/runtime-tools v0.9.1-0.20230317050512-e931285f4b69/go.mod h1:bNpfuSHA3DZRtD0TPWO8LzgtLpFPTVA/3jDkzD/OPyk=
+github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc h1:d2hUh5O6MRBvStV55MQ8we08t42zSTqBbscoQccWmMc=
+github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc/go.mod h1:8tx1helyqhUC65McMm3x7HmOex8lO2/v9zPuxmKHurs=
 github.com/opencontainers/selinux v1.11.0 h1:+5Zbo97w3Lbmb3PeqQtpmTkMwsW5nRI3YaLpt7tQ7oU=
 github.com/opencontainers/selinux v1.11.0/go.mod h1:E5dMC3VPuVvVHDYmi78qvhJp8+M586T4DlDRYpFkyec=
 github.com/openshift/imagebuilder v1.2.5 h1:dby0N3FTouXSBgWNf+gfTkj36fAb8g4iL/SRw1eNAoo=

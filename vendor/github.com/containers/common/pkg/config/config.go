@@ -561,24 +561,6 @@ type SetOptions struct {
 	// backwards compatibility with older versions of libpod for which we must
 	// query the database configuration. Not included in the on-disk config.
 	StorageConfigGraphDriverNameSet bool `toml:"-"`
-
-	// StaticDirSet indicates if the StaticDir has been explicitly set by the
-	// config or by the user. It's required to guarantee backwards compatibility
-	// with older versions of libpod for which we must query the database
-	// configuration. Not included in the on-disk config.
-	StaticDirSet bool `toml:"-"`
-
-	// VolumePathSet indicates if the VolumePath has been explicitly set by the
-	// config or by the user. It's required to guarantee backwards compatibility
-	// with older versions of libpod for which we must query the database
-	// configuration. Not included in the on-disk config.
-	VolumePathSet bool `toml:"-"`
-
-	// TmpDirSet indicates if the TmpDir has been explicitly set by the config
-	// or by the user. It's required to guarantee backwards compatibility with
-	// older versions of libpod for which we must query the database
-	// configuration. Not included in the on-disk config.
-	TmpDirSet bool `toml:"-"`
 }
 
 // NetworkConfig represents the "network" TOML config table
@@ -680,7 +662,7 @@ type MachineConfig struct {
 	Provider string `toml:"provider,omitempty"`
 }
 
-// FarmConfig represents the "farm" TOML config tabls
+// FarmConfig represents the "farm" TOML config tables
 type FarmConfig struct {
 	// Default is the default farm to be used when farming out builds
 	Default string `toml:"default,omitempty"`
@@ -1098,34 +1080,6 @@ func (c *Config) Write() error {
 // the cached containers.conf files.
 func Reload() (*Config, error) {
 	return New(&Options{SetDefault: true})
-}
-
-func (c *Config) ActiveDestination() (uri, identity string, machine bool, err error) {
-	if uri, found := os.LookupEnv("CONTAINER_HOST"); found {
-		if v, found := os.LookupEnv("CONTAINER_SSHKEY"); found {
-			identity = v
-		}
-		return uri, identity, false, nil
-	}
-	connEnv := os.Getenv("CONTAINER_CONNECTION")
-	switch {
-	case connEnv != "":
-		d, found := c.Engine.ServiceDestinations[connEnv]
-		if !found {
-			return "", "", false, fmt.Errorf("environment variable CONTAINER_CONNECTION=%q service destination not found", connEnv)
-		}
-		return d.URI, d.Identity, d.IsMachine, nil
-
-	case c.Engine.ActiveService != "":
-		d, found := c.Engine.ServiceDestinations[c.Engine.ActiveService]
-		if !found {
-			return "", "", false, fmt.Errorf("%q service destination not found", c.Engine.ActiveService)
-		}
-		return d.URI, d.Identity, d.IsMachine, nil
-	case c.Engine.RemoteURI != "":
-		return c.Engine.RemoteURI, c.Engine.RemoteIdentity, false, nil
-	}
-	return "", "", false, errors.New("no service destination configured")
 }
 
 var (
