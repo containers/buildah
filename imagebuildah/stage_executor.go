@@ -832,7 +832,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			}
 		}
 		dImage := docker.Image{
-			Parent:          builder.FromImage,
+			Parent:          builder.FromImageID,
 			ContainerConfig: dConfig,
 			Container:       builder.Container,
 			Author:          builder.Maintainer(),
