@@ -1,0 +1,3 @@
+FROM localhost/parent-one as p1
+FROM localhost/parent-two
+COPY --from=p1 parent-one .
