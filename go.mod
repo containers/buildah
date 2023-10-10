@@ -3,7 +3,7 @@ module github.com/containers/buildah
 go 1.18
 
 require (
-	github.com/containerd/containerd v1.7.6
+	github.com/containerd/containerd v1.7.7
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
 	github.com/containers/common v0.56.1-0.20231003103624-88925362c276
@@ -54,6 +54,7 @@ require (
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/container-orchestrated-devices/container-device-interface v0.6.1 // indirect
 	github.com/containerd/cgroups/v3 v3.0.2 // indirect
+	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20230710064741-aa7fe85c7dbd // indirect
