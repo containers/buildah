@@ -94,12 +94,13 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.3.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.56.1-0.20231003103624-88925362c276
+# github.com/containers/common v0.56.1-0.20231013064012-9f2f68b89872
 ## explicit; go 1.18
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
 github.com/containers/common/libimage/filter
 github.com/containers/common/libimage/manifests
+github.com/containers/common/libimage/platform
 github.com/containers/common/libnetwork/cni
 github.com/containers/common/libnetwork/etchosts
 github.com/containers/common/libnetwork/internal/util
