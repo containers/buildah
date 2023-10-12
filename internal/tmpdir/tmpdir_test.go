@@ -2,6 +2,7 @@ package tmpdir
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/containers/common/pkg/config"
@@ -23,6 +24,14 @@ func TestGetTempDir(t *testing.T) {
 	require.NoError(t, err)
 	tmpdir = GetTempDir()
 	assert.Equal(t, tmpdir, "/tmp/bogus")
+	err = os.Unsetenv("TMPDIR")
+	require.NoError(t, err)
+
+	// relative TMPDIR should be automatically converted to absolute
+	err = os.Setenv("TMPDIR", ".")
+	require.NoError(t, err)
+	tmpdir = GetTempDir()
+	assert.True(t, filepath.IsAbs(tmpdir), "path from GetTempDir should always be absolute")
 	err = os.Unsetenv("TMPDIR")
 	require.NoError(t, err)
 
