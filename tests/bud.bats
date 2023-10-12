@@ -89,6 +89,14 @@ _EOF
   validate_instance_compression "3" "$list" "arm64" "zstd"
 }
 
+@test "Multi-stage should not remove used base-image without --layers" {
+  run_buildah build -t parent-one -f $BUDFILES/multi-stage-only-base/Containerfile1
+  run_buildah build -t parent-two -f $BUDFILES/multi-stage-only-base/Containerfile2
+  run_buildah build -t multi-stage -f $BUDFILES/multi-stage-only-base/Containerfile3
+  run_buildah images -a
+  expect_output --substring "parent-one" "parent one must not be removed"
+}
+
 @test "no layer should be created on scratch" {
   run_buildah build --layers --label "label1=value1" -t test -f $BUDFILES/from-scratch/Containerfile
   run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' test
