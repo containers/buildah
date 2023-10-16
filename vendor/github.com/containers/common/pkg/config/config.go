@@ -30,24 +30,6 @@ const (
 	bindirPrefix = "$BINDIR"
 )
 
-// RuntimeStateStore is a constant indicating which state store implementation
-// should be used by engine
-type RuntimeStateStore int
-
-const (
-	// InvalidStateStore is an invalid state store
-	InvalidStateStore RuntimeStateStore = iota
-	// InMemoryStateStore is an in-memory state that will not persist data
-	// on containers and pods between engine instances or after system
-	// reboot
-	InMemoryStateStore RuntimeStateStore = iota
-	// SQLiteStateStore is a state backed by a SQLite database
-	// It is presently disabled
-	SQLiteStateStore RuntimeStateStore = iota
-	// BoltDBStateStore is a state backed by a BoltDB database
-	BoltDBStateStore RuntimeStateStore = iota
-)
-
 var validImageVolumeModes = []string{_typeBind, "tmpfs", "ignore"}
 
 // ProxyEnv is a list of Proxy Environment variables
@@ -212,6 +194,18 @@ type ContainersConfig struct {
 	// the container is started. Setting it to true may have negative
 	// performance implications.
 	PrepareVolumeOnCreate bool `toml:"prepare_volume_on_create,omitempty"`
+
+	// Give extended privileges to all containers. A privileged container
+	// turns off the security features that isolate the container from the
+	// host. Dropped Capabilities, limited devices, read-only mount points,
+	// Apparmor/SELinux separation, and Seccomp filters are all disabled.
+	// Due to the disabled security features the privileged field should
+	// almost never be set as containers can easily break out of
+	// confinment.
+	//
+	// Containers running in a user namespace (e.g., rootless containers)
+	// cannot have more privileges than the user that launched them.
+	Privileged bool `toml:"privileged,omitempty"`
 
 	// ReadOnly causes engine to run all containers with root file system mounted read-only
 	ReadOnly bool `toml:"read_only,omitempty"`
@@ -470,13 +464,6 @@ type EngineConfig struct {
 	// SDNotify tells container engine to allow containers to notify the host systemd of
 	// readiness using the SD_NOTIFY mechanism.
 	SDNotify bool `toml:"-"`
-
-	// StateType is the type of the backing state store. Avoid using multiple
-	// values for this with the same containers/storage configuration on the
-	// same system. Different state types do not interact, and each will see a
-	// separate set of containers, which may cause conflicts in
-	// containers/storage. As such this is not exposed via the config file.
-	StateType RuntimeStateStore `toml:"-"`
 
 	// ServiceTimeout is the number of seconds to wait without a connection
 	// before the `podman system service` times out and exits
