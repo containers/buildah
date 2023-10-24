@@ -645,9 +645,15 @@ Valid _mode_ values are:
 
 Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
 
+**--no-hostname**
+
+Do not create the _/etc/hostname_ file in the container for RUN instructions.
+
+By default, Buildah manages the _/etc/hostname_ file, adding the container's own hostname.  When the **--no-hostname** option is set, the image's _/etc/hostname_ will be preserved unmodified if it exists.
+
 **--no-hosts**
 
-Do not create _/etc/hosts_ for the container.
+Do not create the _/etc/hosts_ file in the container for RUN instructions.
 
 By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
 **--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified. Conflicts with the --add-host option.

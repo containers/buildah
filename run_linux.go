@@ -269,16 +269,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		bindFiles[config.DefaultHostsFile] = hostFile
 	}
 
-	// generate /etc/hostname if the user intentionally did not override
-	if !(contains(volumes, "/etc/hostname")) {
-		if _, ok := bindFiles["/etc/hostname"]; !ok {
-			hostFile, err := b.generateHostname(path, spec.Hostname, rootIDPair)
-			if err != nil {
-				return err
-			}
-			// Bind /etc/hostname
-			bindFiles["/etc/hostname"] = hostFile
+	if !options.NoHostname && !(contains(volumes, "/etc/hostname")) {
+		hostFile, err := b.generateHostname(path, spec.Hostname, rootIDPair)
+		if err != nil {
+			return err
 		}
+		// Bind /etc/hostname
+		bindFiles["/etc/hostname"] = hostFile
 	}
 
 	if !contains(volumes, resolvconf.DefaultResolvConf) && options.ConfigureNetwork != define.NetworkDisabled && !(len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none") {

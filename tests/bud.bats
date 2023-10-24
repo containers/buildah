@@ -5258,6 +5258,27 @@ _EOF
     assert "$output" =~ ".*accepts at most 1 arg\(s\), received 2" "Should fail when passed extra arg after context directory"
 }
 
+@test "bud with --no-hostname" {
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  run_buildah build --no-cache -t testbud \
+                  $WITH_POLICY_JSON $BUDFILES/no-hostname
+  assert "${lines[2]}" != "localhost" "Should be set to something other then localhost"
+
+  run_buildah build --no-hostname --no-cache -t testbud \
+                  $WITH_POLICY_JSON \
+		  $BUDFILES/no-hostname
+  assert "${lines[2]}" == "localhost" "Should be set to localhost"
+
+  run_buildah 1 build --network=none --no-hostname --no-cache -t testbud \
+                  $WITH_POLICY_JSON \
+		  -f $BUDFILES/no-hostname/Containerfile.noetc \
+		  $BUDFILES/no-hostname
+  assert "$output" =~ ".*ls: /etc: No such file or directory" "/etc/ directory should be gone"
+}
+
 @test "bud with --add-host" {
   skip_if_no_runtime
 
