@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.7.7
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
-	github.com/containers/common v0.56.1-0.20231013064012-9f2f68b89872
+	github.com/containers/common v0.56.1-0.20231024140609-79773286b53a
 	github.com/containers/image/v5 v5.28.0
 	github.com/containers/luksy v0.0.0-20230912175440-6df88cb7f0dd
 	github.com/containers/ocicrypt v1.1.8
@@ -63,7 +63,7 @@ require (
 	github.com/distribution/reference v0.5.0 // indirect
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go-connections v0.4.1-0.20210727194412-58542c764a11 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
 	github.com/go-openapi/errors v0.20.4 // indirect
