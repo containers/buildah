@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/containers/common/internal/attributedstring"
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/util"
@@ -71,7 +72,7 @@ type ContainersConfig struct {
 	Devices []string `toml:"devices,omitempty"`
 
 	// Volumes to add to all containers
-	Volumes []string `toml:"volumes,omitempty"`
+	Volumes attributedstring.Slice `toml:"volumes,omitempty"`
 
 	// ApparmorProfile is the apparmor profile name which is used as the
 	// default for the runtime.
@@ -133,7 +134,7 @@ type ContainersConfig struct {
 	EnableLabeledUsers bool `toml:"label_users,omitempty"`
 
 	// Env is the environment variable list for container process.
-	Env []string `toml:"env,omitempty"`
+	Env attributedstring.Slice `toml:"env,omitempty"`
 
 	// EnvHost Pass all host environment variables into the container.
 	EnvHost bool `toml:"env_host,omitempty"`
@@ -149,6 +150,8 @@ type ContainersConfig struct {
 	Init bool `toml:"init,omitempty"`
 
 	// InitPath is the path for init to run if the Init bool is enabled
+	//
+	// Deprecated: Do not use this field directly use conf.FindInitBinary() instead.
 	InitPath string `toml:"init_path,omitempty"`
 
 	// IPCNS way to create a ipc namespace for the container
@@ -169,7 +172,7 @@ type ContainersConfig struct {
 	LogTag string `toml:"log_tag,omitempty"`
 
 	// Mount to add to all containers
-	Mounts []string `toml:"mounts,omitempty"`
+	Mounts attributedstring.Slice `toml:"mounts,omitempty"`
 
 	// NetNS indicates how to create a network namespace for the container
 	NetNS string `toml:"netns,omitempty"`
@@ -351,6 +354,8 @@ type EngineConfig struct {
 	InfraImage string `toml:"infra_image,omitempty"`
 
 	// InitPath is the path to the container-init binary.
+	//
+	// Deprecated: Do not use this field directly use conf.FindInitBinary() instead.
 	InitPath string `toml:"init_path,omitempty"`
 
 	// KubeGenerateType sets the Kubernetes kind/specification to generate by default
@@ -903,7 +908,7 @@ func (c *Config) GetDefaultEnvEx(envHost, httpProxy bool) []string {
 			}
 		}
 	}
-	return append(env, c.Containers.Env...)
+	return append(env, c.Containers.Env.Get()...)
 }
 
 // Capabilities returns the capabilities parses the Add and Drop capability
@@ -1222,4 +1227,21 @@ func ValidateImageVolumeMode(mode string) error {
 	}
 
 	return fmt.Errorf("invalid image volume mode %q required value: %s", mode, strings.Join(validImageVolumeModes, ", "))
+}
+
+// FindInitBinary will return the path to the init binary (catatonit)
+func (c *Config) FindInitBinary() (string, error) {
+	// Sigh, for some reason we ended up with two InitPath field in containers.conf and
+	// both are used in podman so we have to keep supporting both to prevent regressions.
+	if c.Containers.InitPath != "" {
+		return c.Containers.InitPath, nil
+	}
+	if c.Engine.InitPath != "" {
+		return c.Engine.InitPath, nil
+	}
+	// keep old default working to guarantee backwards comapt
+	if _, err := os.Stat(DefaultInitPath); err == nil {
+		return DefaultInitPath, nil
+	}
+	return c.FindHelperBinary(defaultInitName, true)
 }
