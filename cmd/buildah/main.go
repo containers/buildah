@@ -164,7 +164,7 @@ func before(cmd *cobra.Command) error {
 		return err
 	}
 
-	for _, env := range defaultContainerConfig.Engine.Env {
+	for _, env := range defaultContainerConfig.Engine.Env.Get() {
 		splitEnv := strings.SplitN(env, "=", 2)
 		if len(splitEnv) != 2 {
 			return fmt.Errorf("invalid environment variable %q from containers.conf, valid configuration is KEY=value pair", env)
