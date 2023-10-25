@@ -295,6 +295,14 @@ function configure_and_check_user() {
 	hostname=$output
 	run_buildah run --hostname foobar $cid cat /etc/hostname
 	expect_output $hostname
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+	cid=$output
+	run_buildah inspect --format "{{ .ContainerID }}" $cid
+	id=$output
+	run_buildah run $cid cat /etc/hostname
+	expect_output "${id:0:12}"
+	run_buildah run --no-hostname $cid cat /etc/hostname
+	expect_output 'localhost'
 }
 
 @test "run --volume" {

@@ -423,15 +423,6 @@ func waitForSync(pipeR *os.File) error {
 	return err
 }
 
-func contains(volumes []string, v string) bool {
-	for _, i := range volumes {
-		if i == v {
-			return true
-		}
-	}
-	return false
-}
-
 func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string,
 	containerCreateW io.WriteCloser, containerStartR io.ReadCloser) (wstatus unix.WaitStatus, err error) {
 	if options.Logger == nil {

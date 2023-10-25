@@ -76,6 +76,7 @@ type BudResults struct {
 	Logfile             string
 	LogSplitByPlatform  bool
 	Manifest            string
+	NoHostname          bool
 	NoHosts             bool
 	NoCache             bool
 	Timestamp           int64
@@ -246,8 +247,9 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 		panic(fmt.Sprintf("error marking the rusage-logfile flag as hidden: %v", err))
 	}
 	fs.StringVar(&flags.Manifest, "manifest", "", "add the image to the specified manifest list. Creates manifest list if it does not exist")
-	fs.BoolVar(&flags.NoHosts, "no-hosts", false, "do not create new /etc/hosts files for RUN instructions, use the one from the base image.")
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
+	fs.BoolVar(&flags.NoHostname, "no-hostname", false, "do not create new /etc/hostname file for RUN instructions, use the one from the base image.")
+	fs.BoolVar(&flags.NoHosts, "no-hosts", false, "do not create new /etc/hosts file for RUN instructions, use the one from the base image.")
 	fs.String("os", runtime.GOOS, "set the OS to the provided value instead of the current operating system of the host")
 	fs.StringArrayVar(&flags.OSFeatures, "os-feature", []string{}, "set required OS `feature` for the target image in addition to values from the base image")
 	fs.StringVar(&flags.OSVersion, "os-version", "", "set required OS `version` for the target image instead of the value from the base image")
