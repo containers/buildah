@@ -180,7 +180,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 	}
 
 	devices := define.ContainerDevices{}
-	for _, device := range append(defaultContainerConfig.Containers.Devices, options.Devices...) {
+	for _, device := range append(defaultContainerConfig.Containers.Devices.Get(), options.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return nil, err
