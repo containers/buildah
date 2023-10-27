@@ -933,3 +933,22 @@ _EOF
 	run_buildah run --cap-add=ALL $cid grep ^CapInh: /proc/self/status
 	expect_output "CapInh:	0000000000000000"
 }
+
+@test "run masks" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+	cid=$output
+	for mask in /proc/acpi /proc/kcore /proc/keys /proc/latency_stats /proc/sched_debug /proc/scsi /proc/timer_list /proc/timer_stats /sys/dev/block /sys/devices/virtual/powercap /sys/firmware /sys/fs/selinux; do
+	        if test -d $mask; then
+		   run_buildah run $cid ls $mask
+		   expect_output "" "Directories should be empty"
+		fi
+		if test -f $mask; then
+		   run_buildah run $cid cat $mask
+		   expect_output "" "Directories should be empty"
+		fi
+	done
+}

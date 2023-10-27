@@ -1023,32 +1023,13 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 }
 
 func setupMaskedPaths(g *generate.Generator) {
-	for _, mp := range []string{
-		"/proc/acpi",
-		"/proc/kcore",
-		"/proc/keys",
-		"/proc/latency_stats",
-		"/proc/timer_list",
-		"/proc/timer_stats",
-		"/proc/sched_debug",
-		"/proc/scsi",
-		"/sys/firmware",
-		"/sys/fs/selinux",
-		"/sys/dev",
-	} {
+	for _, mp := range config.DefaultMaskedPaths {
 		g.AddLinuxMaskedPaths(mp)
 	}
 }
 
 func setupReadOnlyPaths(g *generate.Generator) {
-	for _, rp := range []string{
-		"/proc/asound",
-		"/proc/bus",
-		"/proc/fs",
-		"/proc/irq",
-		"/proc/sys",
-		"/proc/sysrq-trigger",
-	} {
+	for _, rp := range config.DefaultReadOnlyPaths {
 		g.AddLinuxReadonlyPaths(rp)
 	}
 }
