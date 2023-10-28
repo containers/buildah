@@ -267,6 +267,9 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			}
 			thisID, thisRef, err := buildDockerfilesOnce(ctx, store, loggerPerPlatform, logPrefix, platformOptions, paths, files)
 			if err != nil {
+				if errorContext := strings.TrimSpace(logPrefix); errorContext != "" {
+					return fmt.Errorf("%s: %w", errorContext, err)
+				}
 				return err
 			}
 			instancesLock.Lock()
