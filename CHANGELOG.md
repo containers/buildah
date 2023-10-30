@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.32.2 (2023-10-30)
+
+    Mask /sys/devices/virtual/powercap by default
+
 ## v1.32.1 (2023-10-23)
 
     chroot.setupChrootBindMounts: pay more attention to flags
