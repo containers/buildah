@@ -6,20 +6,20 @@ require (
 	github.com/containerd/containerd v1.7.8
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
-	github.com/containers/common v0.56.1-0.20231026130642-78e0a90c7c2f
+	github.com/containers/common v0.56.1-0.20231027162335-3c7f68ff6cc0
 	github.com/containers/image/v5 v5.28.0
 	github.com/containers/luksy v0.0.0-20230912175440-6df88cb7f0dd
 	github.com/containers/ocicrypt v1.1.8
 	github.com/containers/storage v1.50.2
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/docker/docker v24.0.6+incompatible
+	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.9.7
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.28.1
+	github.com/onsi/gomega v1.29.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/opencontainers/runc v1.1.9
