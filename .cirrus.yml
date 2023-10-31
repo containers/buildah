@@ -140,7 +140,7 @@ cross_build_task:
         $CIRRUS_CRON != 'multiarch'
 
     osx_instance:
-        image: 'big-sur-base'
+        image: ghcr.io/cirruslabs/macos-ventura-base:latest
 
     script:
         - brew update
@@ -191,7 +191,7 @@ conformance_task:
     gce_instance:
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
 
-    timeout_in: 25m
+    timeout_in: 45m
 
     matrix:
         - env:
