@@ -2,7 +2,16 @@
 
 # Changelog
 
+## v1.29.2 (2023-10-31)
+
+    Mask /sys/devices/virtual/powercap by default
+    remove registry.centos.org
+    Cirrus: Increase conformance-test timeout
+    Cirrus: Add CI self-destruct condition on EOL date
+    Bump to c/common v0.51.2
+
 ## v1.29.1 (2023-02-15)
+
     update to c/image 5.24.1
 
 ## v1.29.0 (2023-01-25)
