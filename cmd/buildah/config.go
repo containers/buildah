@@ -305,7 +305,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.label, " "))
 	}
 	// unset labels if any
-	for _, key := range  iopts.unsetLabels {
+	for _, key := range iopts.unsetLabels {
 		builder.UnsetLabel(key)
 	}
 	if c.Flag("workingdir").Changed {

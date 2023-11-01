@@ -16,6 +16,7 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
+	"github.com/containers/buildah/internal/config"
 	"github.com/containers/buildah/internal/mkcw"
 	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/image/v5/docker/reference"
@@ -79,6 +80,8 @@ type containerImageRef struct {
 	blobDirectory         string
 	preEmptyLayers        []v1.History
 	postEmptyLayers       []v1.History
+	overrideChanges       []string
+	overrideConfig        *manifest.Schema2Config
 }
 
 type blobLayerInfo struct {
@@ -296,6 +299,12 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	if i.confidentialWorkload.Convert || i.squash || i.omitHistory {
 		dimage.Parent = ""
 		dimage.History = []docker.V2S2History{}
+	}
+
+	// If we were supplied with a configuration, copy fields from it to
+	// matching fields in both formats.
+	if err := config.Override(dimage.Config, &oimage.Config, i.overrideChanges, i.overrideConfig); err != nil {
+		return v1.Image{}, v1.Manifest{}, docker.V2Image{}, docker.V2S2Manifest{}, fmt.Errorf("applying changes: %w", err)
 	}
 
 	// If we're producing a confidential workload, override the command and
@@ -924,6 +933,8 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		blobDirectory:         options.BlobDirectory,
 		preEmptyLayers:        b.PrependedEmptyLayers,
 		postEmptyLayers:       b.AppendedEmptyLayers,
+		overrideChanges:       options.OverrideChanges,
+		overrideConfig:        options.OverrideConfig,
 	}
 	return ref, nil
 }
