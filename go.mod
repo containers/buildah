@@ -8,7 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.3.0
 	github.com/containers/common v0.56.1-0.20231027162335-3c7f68ff6cc0
 	github.com/containers/image/v5 v5.28.0
-	github.com/containers/luksy v0.0.0-20230912175440-6df88cb7f0dd
+	github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b
 	github.com/containers/ocicrypt v1.1.8
 	github.com/containers/storage v1.50.2
 	github.com/cyphar/filepath-securejoin v0.2.4
@@ -81,7 +81,7 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-containerregistry v0.16.1 // indirect
 	github.com/google/go-intervals v0.0.2 // indirect
-	github.com/google/uuid v1.3.1 // indirect
+	github.com/google/uuid v1.4.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
