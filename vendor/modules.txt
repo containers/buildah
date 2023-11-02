@@ -60,9 +60,6 @@ github.com/asaskevich/govalidator
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/container-orchestrated-devices/container-device-interface v0.6.1
-## explicit; go 1.17
-github.com/container-orchestrated-devices/container-device-interface/pkg/parser
 # github.com/containerd/cgroups/v3 v3.0.2
 ## explicit; go 1.18
 github.com/containerd/cgroups/v3/cgroup1/stats
@@ -94,7 +91,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.3.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.56.1-0.20231027162335-3c7f68ff6cc0
+# github.com/containers/common v0.56.1-0.20231101154632-8354404a5688
 ## explicit; go 1.18
 github.com/containers/common/internal/attributedstring
 github.com/containers/common/libimage
@@ -215,7 +212,7 @@ github.com/containers/libtrust
 # github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b
 ## explicit; go 1.20
 github.com/containers/luksy
-# github.com/containers/ocicrypt v1.1.8
+# github.com/containers/ocicrypt v1.1.9
 ## explicit; go 1.20
 github.com/containers/ocicrypt
 github.com/containers/ocicrypt/blockcipher
@@ -924,3 +921,6 @@ k8s.io/klog
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
+# tags.cncf.io/container-device-interface v0.6.2
+## explicit; go 1.19
+tags.cncf.io/container-device-interface/pkg/parser
