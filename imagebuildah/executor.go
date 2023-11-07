@@ -762,7 +762,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							b.fromOverride = ""
 						}
 						base := child.Next.Value
-						if base != "scratch" {
+						if base != "" && base != buildah.BaseImageFakeName {
 							if replaceBuildContext, ok := b.additionalBuildContexts[child.Next.Value]; ok {
 								if replaceBuildContext.IsImage {
 									child.Next.Value = replaceBuildContext.Value

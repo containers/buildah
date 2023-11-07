@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
@@ -672,7 +673,7 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 							}
 						}
 						base := child.Next.Value
-						if base != "scratch" && !nicknames[base] {
+						if base != "" && base != buildah.BaseImageFakeName && !nicknames[base] {
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
 							// append heading args so if --build-arg key=value is not
