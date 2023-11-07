@@ -159,7 +159,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	ctx := context.TODO()
 
 	cwd, err := os.Getwd()
-	require.Nil(t, err, "error finding current directory")
+	require.NoError(t, err, "error finding current directory")
 
 	// create a temporary directory to hold our build context
 	tempdir := t.TempDir()
@@ -173,11 +173,11 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	if contextCanDoXattrs == nil {
 		testDir := filepath.Join(tempdir, "test")
 		if err := os.Mkdir(testDir, 0700); err != nil {
-			require.Nil(t, err, "error creating test directory to check if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error creating test directory to check if xattrs are testable: %v", err)
 		}
 		testFile := filepath.Join(testDir, "testfile")
 		if err := os.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
-			require.Nil(t, err, "error creating test file to check if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error creating test file to check if xattrs are testable: %v", err)
 		}
 		can := false
 		if err := copier.Lsetxattrs(testFile, map[string]string{"user.test": "test"}); err == nil {
@@ -211,8 +211,8 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		wg.Done()
 	}()
 	wg.Wait()
-	assert.Nil(t, getErr, "error reading build info from %q", filepath.Join("testdata", test.dockerfile))
-	assert.Nil(t, putErr, "error writing build info to %q", contextDir)
+	assert.NoErrorf(t, getErr, "error reading build info from %q", filepath.Join("testdata", test.dockerfile))
+	assert.NoErrorf(t, putErr, "error writing build info to %q", contextDir)
 	if t.Failed() {
 		t.FailNow()
 	}
@@ -235,7 +235,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	if len(dockerfileContents) == 0 {
 		// no inlined contents -> read them from the specified location
 		contents, err := os.ReadFile(dockerfileName)
-		require.Nil(t, err, "error reading Dockerfile %q", filepath.Join(tempdir, dockerfileName))
+		require.NoErrorf(t, err, "error reading Dockerfile %q", filepath.Join(tempdir, dockerfileName))
 		dockerfileContents = contents
 	}
 
@@ -247,11 +247,11 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		RootlessStoragePath: rootDir,
 	}
 	store, err := storage.GetStore(options)
-	require.Nil(t, err, "error creating buildah storage at %q", rootDir)
+	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
 	defer func() {
 		if store != nil {
 			_, err := store.Shutdown(true)
-			require.Nil(t, err, "error shutting down storage for buildah")
+			require.NoError(t, err, "error shutting down storage for buildah")
 		}
 	}()
 	storageDriver := store.GraphDriverName()
@@ -261,15 +261,15 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	if storageCanDoXattrs == nil {
 		layer, err := store.CreateLayer("", "", nil, "", true, nil)
 		if err != nil {
-			require.Nil(t, err, "error creating test layer to check if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error creating test layer to check if xattrs are testable: %v", err)
 		}
 		mountPoint, err := store.Mount(layer.ID, "")
 		if err != nil {
-			require.Nil(t, err, "error mounting test layer to check if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error mounting test layer to check if xattrs are testable: %v", err)
 		}
 		testFile := filepath.Join(mountPoint, "testfile")
 		if err := os.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
-			require.Nil(t, err, "error creating file in test layer to check if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error creating file in test layer to check if xattrs are testable: %v", err)
 		}
 		can := false
 		if err := copier.Lsetxattrs(testFile, map[string]string{"user.test": "test"}); err == nil {
@@ -278,13 +278,13 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		storageCanDoXattrs = &can
 		err = store.DeleteLayer(layer.ID)
 		if err != nil {
-			require.Nil(t, err, "error removing test layer after checking if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error removing test layer after checking if xattrs are testable: %v", err)
 		}
 	}
 
 	// connect to dockerd using the docker client library
 	dockerClient, err := dockerdockerclient.NewClientWithOpts(dockerdockerclient.FromEnv)
-	require.Nil(t, err, "unable to initialize docker.client")
+	require.NoError(t, err, "unable to initialize docker.client")
 	dockerClient.NegotiateAPIVersion(ctx)
 	if test.dockerUseBuildKit {
 		if err := dockerClient.NewVersionError("1.38", "buildkit"); err != nil {
@@ -294,7 +294,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 
 	// connect to dockerd using go-dockerclient
 	client, err := docker.NewClientFromEnv()
-	require.Nil(t, err, "unable to initialize docker client")
+	require.NoError(t, err, "unable to initialize docker client")
 	var dockerVersion []string
 	if version, err := client.Version(); err == nil {
 		if version != nil {
@@ -303,13 +303,13 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 			}
 		}
 	} else {
-		require.Nil(t, err, "unable to connect to docker daemon")
+		require.NoError(t, err, "unable to connect to docker daemon")
 	}
 
 	// make any last-minute tweaks to the build context directory that this test requires
 	if test.tweakContextDir != nil {
 		err = test.tweakContextDir(t, contextDir, storageDriver, storageRoot)
-		require.Nil(t, err, "error tweaking context directory using test-specific callback: %v", err)
+		require.NoErrorf(t, err, "error tweaking context directory using test-specific callback: %v", err)
 	}
 
 	// decide whether we're building just one image for this Dockerfile, or
@@ -344,11 +344,11 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	// original file, or inlined information, in which case the file didn't
 	// necessarily exist
 	err := os.WriteFile(dockerfileName, dockerfileContents, 0644)
-	require.Nil(t, err, "error writing Dockerfile at %q", dockerfileName)
+	require.NoErrorf(t, err, "error writing Dockerfile at %q", dockerfileName)
 	err = os.Chtimes(dockerfileName, testDate, testDate)
-	require.Nil(t, err, "error resetting timestamp on Dockerfile at %q", dockerfileName)
+	require.NoErrorf(t, err, "error resetting timestamp on Dockerfile at %q", dockerfileName)
 	err = os.Chtimes(contextDir, testDate, testDate)
-	require.Nil(t, err, "error resetting timestamp on context directory at %q", contextDir)
+	require.NoErrorf(t, err, "error resetting timestamp on context directory at %q", contextDir)
 
 	defer func() {
 		if t.Failed() {
@@ -564,7 +564,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, dockerClient *dockerdockerclient.Client, test testCase, dockerImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (dockerRef types.ImageReference, dockerLog []byte) {
 	// compute the path of the dockerfile relative to the build context
 	dockerfileRelativePath, err := filepath.Rel(contextDir, dockerfileName)
-	require.Nil(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
+	require.NoErrorf(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
 
 	// set up build options
 	output := &bytes.Buffer{}
@@ -637,7 +637,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 func buildUsingImagebuilder(t *testing.T, client *docker.Client, test testCase, imagebuilderImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (imagebuilderRef types.ImageReference, imagebuilderLog []byte) {
 	// compute the path of the dockerfile relative to the build context
 	dockerfileRelativePath, err := filepath.Rel(contextDir, dockerfileName)
-	require.Nil(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
+	require.NoErrorf(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
 	// set up build options
 	output := &bytes.Buffer{}
 	executor := dockerclient.NewClientExecutor(client)
@@ -798,17 +798,17 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	imageName := ""
 	// make sure the directory exists
 	err := os.MkdirAll(directory, 0755)
-	require.Nil(t, err, "error ensuring directory %q exists for storing a report")
+	require.NoErrorf(t, err, "error ensuring directory %q exists for storing a report", directory)
 	// save the Dockerfile that was used to generate the image
 	err = os.WriteFile(filepath.Join(directory, "Dockerfile"), dockerfileContents, 0644)
-	require.Nil(t, err, "error saving Dockerfile for image %q", imageName)
+	require.NoErrorf(t, err, "error saving Dockerfile for image %q", imageName)
 	// save the log generated while building the image
 	err = os.WriteFile(filepath.Join(directory, "build.log"), buildLog, 0644)
-	require.Nil(t, err, "error saving build log for image %q", imageName)
+	require.NoErrorf(t, err, "error saving build log for image %q", imageName)
 	// save the version information
 	if len(version) > 0 {
 		err = os.WriteFile(filepath.Join(directory, "version"), []byte(strings.Join(version, "\n")+"\n"), 0644)
-		require.Nil(t, err, "error saving builder version information for image %q", imageName)
+		require.NoErrorf(t, err, "error saving builder version information for image %q", imageName)
 	}
 	// open the image for reading
 	if ref == nil {
@@ -816,37 +816,37 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	}
 	imageName = transports.ImageName(ref)
 	src, err := ref.NewImageSource(ctx, nil)
-	require.Nil(t, err, "error opening image %q as source to read its configuration", imageName)
+	require.NoErrorf(t, err, "error opening image %q as source to read its configuration", imageName)
 	closer := io.Closer(src)
 	defer func() {
 		closer.Close()
 	}()
 	img, err := image.FromSource(ctx, nil, src)
-	require.Nil(t, err, "error opening image %q to read its configuration", imageName)
+	require.NoErrorf(t, err, "error opening image %q to read its configuration", imageName)
 	closer = img
 	// read the manifest in its original form
 	rawManifest, _, err := src.GetManifest(ctx, nil)
-	require.Nil(t, err, "error reading raw manifest from image %q", imageName)
+	require.NoErrorf(t, err, "error reading raw manifest from image %q", imageName)
 	// read the config blob in its original form
 	rawConfig, err := img.ConfigBlob(ctx)
-	require.Nil(t, err, "error reading configuration from image %q", imageName)
+	require.NoErrorf(t, err, "error reading configuration from image %q", imageName)
 	// read the config blob, converted to OCI format by the image library, and re-encode it
 	ociConfig, err := img.OCIConfig(ctx)
-	require.Nil(t, err, "error reading OCI-format configuration from image %q", imageName)
+	require.NoErrorf(t, err, "error reading OCI-format configuration from image %q", imageName)
 	encodedConfig, err := json.Marshal(ociConfig)
-	require.Nil(t, err, "error encoding OCI-format configuration from image %q for saving", imageName)
+	require.NoErrorf(t, err, "error encoding OCI-format configuration from image %q for saving", imageName)
 	// save the manifest in its original form
 	err = os.WriteFile(filepath.Join(directory, "manifest.json"), rawManifest, 0644)
-	require.Nil(t, err, "error saving original manifest from image %q", imageName)
+	require.NoErrorf(t, err, "error saving original manifest from image %q", imageName)
 	// save the config blob in the OCI format
 	err = os.WriteFile(filepath.Join(directory, "oci-config.json"), encodedConfig, 0644)
-	require.Nil(t, err, "error saving OCI-format configuration from image %q", imageName)
+	require.NoErrorf(t, err, "error saving OCI-format configuration from image %q", imageName)
 	// save the config blob in its original format
 	err = os.WriteFile(filepath.Join(directory, "config.json"), rawConfig, 0644)
-	require.Nil(t, err, "error saving original configuration from image %q", imageName)
+	require.NoErrorf(t, err, "error saving original configuration from image %q", imageName)
 	// start pulling layer information
 	layerBlobInfos, err := img.LayerInfosForCopy(ctx)
-	require.Nil(t, err, "error reading blob infos for image %q", imageName)
+	require.NoErrorf(t, err, "error reading blob infos for image %q", imageName)
 	if len(layerBlobInfos) == 0 {
 		layerBlobInfos = img.LayerInfos()
 	}
@@ -854,7 +854,7 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	// grab digest and header information from the layer blob
 	for _, layerBlobInfo := range layerBlobInfos {
 		rc, _, err := src.GetBlob(ctx, layerBlobInfo, nil)
-		require.Nil(t, err, "error reading blob %+v for image %q", layerBlobInfo, imageName)
+		require.NoErrorf(t, err, "error reading blob %+v for image %q", layerBlobInfo, imageName)
 		defer rc.Close()
 		layer := summarizeLayer(t, imageName, layerBlobInfo, rc)
 		fstree.Layers = append(fstree.Layers, layer)
@@ -885,16 +885,16 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	// contents individually, which would produce the same result, so
 	// there's no point in saving them for comparison later
 	encodedFSTree, err := json.Marshal(fstree.Tree)
-	require.Nil(t, err, "error encoding filesystem tree from image %q for saving", imageName)
+	require.NoErrorf(t, err, "error encoding filesystem tree from image %q for saving", imageName)
 	err = os.WriteFile(filepath.Join(directory, "fs.json"), encodedFSTree, 0644)
-	require.Nil(t, err, "error saving filesystem tree from image %q", imageName)
+	require.NoErrorf(t, err, "error saving filesystem tree from image %q", imageName)
 }
 
 // summarizeLayer reads a blob and returns a summary of the parts of its contents that we care about
 func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, reader io.Reader) (layer Layer) {
 	compressedDigest := digest.Canonical.Digester()
 	uncompressedBlob, _, err := compression.AutoDecompress(io.TeeReader(reader, compressedDigest.Hash()))
-	require.Nil(t, err, "error decompressing blob %+v for image %q", blobInfo, imageName)
+	require.NoErrorf(t, err, "error decompressing blob %+v for image %q", blobInfo, imageName)
 	defer uncompressedBlob.Close()
 	uncompressedDigest := digest.Canonical.Digester()
 	tr := tar.NewReader(io.TeeReader(uncompressedBlob, uncompressedDigest.Hash()))
@@ -904,7 +904,7 @@ func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, rea
 		if hdr.Size != 0 {
 			contentDigest := digest.Canonical.Digester()
 			n, err := io.Copy(contentDigest.Hash(), tr)
-			require.Nil(t, err, "error digesting contents of %q from layer %+v for image %q", hdr.Name, blobInfo, imageName)
+			require.NoErrorf(t, err, "error digesting contents of %q from layer %+v for image %q", hdr.Name, blobInfo, imageName)
 			require.Equal(t, hdr.Size, n, "error reading contents of %q from layer %+v for image %q: wrong size", hdr.Name, blobInfo, imageName)
 			header.Digest = contentDigest.Digest()
 		}
@@ -1019,40 +1019,40 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 func readReport(t *testing.T, directory string) (manifestType string, original, oci, fs map[string]interface{}) {
 	// read the manifest in the as-committed format, whatever that is
 	originalManifest, err := os.ReadFile(filepath.Join(directory, "manifest.json"))
-	require.Nil(t, err, "error reading manifest %q", filepath.Join(directory, "manifest.json"))
+	require.NoErrorf(t, err, "error reading manifest %q", filepath.Join(directory, "manifest.json"))
 	// dump it into a map
 	manifest := make(map[string]interface{})
 	err = json.Unmarshal(originalManifest, &manifest)
-	require.Nil(t, err, "error decoding manifest %q", filepath.Join(directory, "manifest.json"))
+	require.NoErrorf(t, err, "error decoding manifest %q", filepath.Join(directory, "manifest.json"))
 	if str, ok := manifest["mediaType"].(string); ok {
 		manifestType = str
 	}
 	// read the config in the as-committed (docker) format
 	originalConfig, err := os.ReadFile(filepath.Join(directory, "config.json"))
-	require.Nil(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
+	require.NoErrorf(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
 	// dump it into a map
 	original = make(map[string]interface{})
 	err = json.Unmarshal(originalConfig, &original)
-	require.Nil(t, err, "error decoding configuration from file %q", filepath.Join(directory, "config.json"))
+	require.NoErrorf(t, err, "error decoding configuration from file %q", filepath.Join(directory, "config.json"))
 	// read the config in converted-to-OCI format
 	ociConfig, err := os.ReadFile(filepath.Join(directory, "oci-config.json"))
-	require.Nil(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci-config.json"))
+	require.NoErrorf(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci-config.json"))
 	// dump it into a map
 	oci = make(map[string]interface{})
 	err = json.Unmarshal(ociConfig, &oci)
-	require.Nil(t, err, "error decoding OCI configuration from file %q", filepath.Join(directory, "oci.json"))
+	require.NoErrorf(t, err, "error decoding OCI configuration from file %q", filepath.Join(directory, "oci.json"))
 	// read the filesystem
 	fsInfo, err := os.ReadFile(filepath.Join(directory, "fs.json"))
-	require.Nil(t, err, "error reading filesystem summary file %q", filepath.Join(directory, "fs.json"))
+	require.NoErrorf(t, err, "error reading filesystem summary file %q", filepath.Join(directory, "fs.json"))
 	// dump it into a map for comparison
 	fs = make(map[string]interface{})
 	err = json.Unmarshal(fsInfo, &fs)
-	require.Nil(t, err, "error decoding filesystem summary from file %q", filepath.Join(directory, "fs.json"))
+	require.NoErrorf(t, err, "error decoding filesystem summary from file %q", filepath.Join(directory, "fs.json"))
 	// return both
 	return manifestType, original, oci, fs
 }
 
-// contains is used to check if item is exist in []string or not
+// contains is used to check if item exists in []string or not, ignoring case
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if strings.EqualFold(s, item) {
