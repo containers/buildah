@@ -34,6 +34,10 @@ environment variable. `export REGISTRY_AUTH_FILE=path`
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 The default certificates directory is _/etc/containers/certs.d_.
 
+**--compat-auth-file**=*path*
+
+Instead of updating the default credentials file, update the one at *path*, and use a Docker-compatible format.
+
 **--get-login**
 
 Return the logged-in user for the registry.  Return error if no login is found.
