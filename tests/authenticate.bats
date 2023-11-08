@@ -32,7 +32,7 @@ load helpers
   run_buildah 0 login --cert-dir $REGISTRY_DIR --username testuserfoo --password testpassword localhost:$REGISTRY_PORT
 
   run_buildah 125 logout --authfile /tmp/nonexistent localhost:$REGISTRY_PORT
-  expect_output "Error: checking authfile: stat /tmp/nonexistent: no such file or directory"
+  expect_output "Error: credential file is not accessible: stat /tmp/nonexistent: no such file or directory"
 
   run_buildah 0 logout localhost:$REGISTRY_PORT
 }
