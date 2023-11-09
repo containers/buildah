@@ -22,6 +22,7 @@ type addCopyResults struct {
 	addHistory       bool
 	chmod            string
 	chown            string
+	checksum         string
 	quiet            bool
 	ignoreFile       string
 	contextdir       string
@@ -67,6 +68,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	if err := flags.MarkHidden("cert-dir"); err != nil {
 		panic(fmt.Sprintf("error marking cert-dir as hidden: %v", err))
 	}
+	flags.StringVar(&opts.checksum, "checksum", "", "checksum the HTTP source content")
 	flags.StringVar(&opts.chown, "chown", "", "set the user and group ownership of the destination content")
 	flags.StringVar(&opts.chmod, "chmod", "", "set the access permissions of the destination content")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing registries when pulling images")
@@ -235,6 +237,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	options := buildah.AddAndCopyOptions{
 		Chmod:            iopts.chmod,
 		Chown:            iopts.chown,
+		Checksum:         iopts.checksum,
 		ContextDir:       contextdir,
 		IDMappingOptions: idMappingOptions,
 	}
