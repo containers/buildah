@@ -1752,7 +1752,7 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 	if err != nil {
 		return "", nil, fmt.Errorf("computing digest of manifest for image %q: %w", cacheID, err)
 	}
-	img, err := is.Transport.GetStoreImage(s.executor.store, dest)
+	_, img, err := is.ResolveReference(dest)
 	if err != nil {
 		return "", nil, fmt.Errorf("locating new copy of image %q (i.e., %q): %w", cacheID, transports.ImageName(dest), err)
 	}
