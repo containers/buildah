@@ -519,13 +519,9 @@ func DefaultPlatform() string {
 // Platform separates the platform string into os, arch and variant,
 // accepting any of $arch, $os/$arch, or $os/$arch/$variant.
 func Platform(platform string) (os, arch, variant string, err error) {
-	if platform == "local" || platform == "" || platform == "/" {
+	platform = strings.Trim(platform, "/")
+	if platform == "local" || platform == "" {
 		return Platform(DefaultPlatform())
-	}
-	if platform[len(platform)-1] == '/' || platform[0] == '/' {
-		// If --platform string has format as `some/plat/string/`
-		// or `/some/plat/string` make it `some/plat/string`
-		platform = strings.Trim(platform, "/")
 	}
 	platformSpec, err := platforms.Parse(platform)
 	if err != nil {
