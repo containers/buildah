@@ -773,20 +773,6 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 		if err := addSysctl([]string{"net"}); err != nil {
 			return false, "", false, err
 		}
-		for name, val := range define.DefaultNetworkSysctl {
-			// Check that the sysctl we are adding is actually supported
-			// by the kernel
-			p := filepath.Join("/proc/sys", strings.Replace(name, ".", "/", -1))
-			_, err := os.Stat(p)
-			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				return false, "", false, err
-			}
-			if err == nil {
-				g.AddLinuxSysctl(name, val)
-			} else {
-				logger.Warnf("ignoring sysctl %s since %s doesn't exist", name, p)
-			}
-		}
 	}
 	return configureNetwork, networkString, configureUTS, nil
 }
