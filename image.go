@@ -412,11 +412,6 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		if err != nil {
 			return nil, fmt.Errorf("unable to locate layer %q: %w", layerID, err)
 		}
-		// If we're up to the final layer, but we don't want to include
-		// a diff for it, we're done.
-		if i.emptyLayer && layerID == i.layerID {
-			continue
-		}
 		// If we already know the digest of the contents of parent
 		// layers, reuse their blobsums, diff IDs, and sizes.
 		if !i.confidentialWorkload.Convert && !i.squash && layerID != i.layerID && layer.UncompressedDigest != "" {
@@ -470,6 +465,11 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 				return nil, err
 			}
 		} else {
+			// If we're up to the final layer, but we don't want to
+			// include a diff for it, we're done.
+			if i.emptyLayer && layerID == i.layerID {
+				continue
+			}
 			// Extract this layer, one of possibly many.
 			rc, err = i.store.Diff("", layerID, diffOptions)
 			if err != nil {
@@ -918,7 +918,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		squash:                options.Squash,
 		confidentialWorkload:  options.ConfidentialWorkloadOptions,
 		omitHistory:           options.OmitHistory,
-		emptyLayer:            options.EmptyLayer && !options.Squash,
+		emptyLayer:            options.EmptyLayer && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
 		idMappingOptions:      &b.IDMappingOptions,
 		parent:                parent,
 		blobDirectory:         options.BlobDirectory,
