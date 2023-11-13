@@ -1,6 +1,6 @@
 module github.com/containers/buildah
 
-go 1.18
+go 1.21
 
 require (
 	github.com/containerd/containerd v1.7.8
