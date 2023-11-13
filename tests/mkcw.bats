@@ -49,7 +49,9 @@ function mkcw_check_image() {
   _prefetch busybox
 
   echo -n mkcw-convert > "$TEST_SCRATCH_DIR"/key
-  run_buildah mkcw --ignore-attestation-errors --passphrase=mkcw-convert busybox busybox-cw
+  run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert busybox busybox-cw
+  mkcw_check_image busybox-cw
+  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert busybox busybox-cw
   mkcw_check_image busybox-cw
 }
 
@@ -66,6 +68,8 @@ function mkcw_check_image() {
   ctrID="$output"
   run_buildah commit --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw commit" "$ctrID"
   mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
+  run_buildah commit --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=sev,ignore_attestation_errors,passphrase="mkcw commit" "$ctrID"
+  mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
 }
 
 @test "mkcw build" {
@@ -78,5 +82,7 @@ function mkcw_check_image() {
 
   echo -n "mkcw build" > "$TEST_SCRATCH_DIR"/key
   run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw build" -f bud/env/Dockerfile.check-env bud/env
+  mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
+  run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=sev,ignore_attestation_errors,passphrase="mkcw build" -f bud/env/Dockerfile.check-env bud/env
   mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
 }

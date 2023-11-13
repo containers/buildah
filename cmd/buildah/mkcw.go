@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +45,7 @@ func init() {
 		Short: "Convert a conventional image to a confidential workload image",
 		Long:  mkcwDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			options.TeeType = define.TeeType(teeType)
+			options.TeeType = parse.TeeType(teeType)
 			return mkcwCmd(cmd, args, options)
 		},
 		Example: `buildah mkcw localhost/repository:typical localhost/repository:cw`,

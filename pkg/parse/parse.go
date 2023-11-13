@@ -634,6 +634,11 @@ func GetBuildOutput(buildOutput string) (define.BuildOutputOption, error) {
 	return define.BuildOutputOption{Path: path, IsDir: isDir, IsStdout: isStdout}, nil
 }
 
+// TeeType parses a string value and returns a TeeType
+func TeeType(teeType string) define.TeeType {
+	return define.TeeType(strings.ToLower(teeType))
+}
+
 // GetConfidentialWorkloadOptions parses a confidential workload settings
 // argument, which controls both whether or not we produce an image that
 // expects to be run using krun, and how we handle things like encrypting
@@ -647,7 +652,7 @@ func GetConfidentialWorkloadOptions(arg string) (define.ConfidentialWorkloadOpti
 		var err error
 		switch {
 		case strings.HasPrefix(option, "type="):
-			options.TeeType = define.TeeType(strings.ToLower(strings.TrimPrefix(option, "type=")))
+			options.TeeType = TeeType(strings.TrimPrefix(option, "type="))
 			switch options.TeeType {
 			case define.SEV, define.SNP, mkcwtypes.SEV_NO_ES:
 			default:
