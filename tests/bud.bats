@@ -1788,6 +1788,14 @@ _EOF
   expect_output "[container=buildah date=tomorrow]" "No Path should be defined"
   run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' docker-${target}
   expect_output "[container=buildah date=tomorrow]" "No Path should be defined"
+  cat > $mytmpdir/Containerfile << _EOF
+FROM oci-${target}
+_EOF
+  run_buildah build --format docker --unsetenv PATH --unsetenv foo $WITH_POLICY_JSON -t docker-${target} -f $mytmpdir/Containerfile .
+  run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' docker-${target}
+  expect_output "[date=today container=buildah]" "No Path should be defined"
+  run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' docker-${target}
+  expect_output "[date=today container=buildah]" "No Path should be defined"
 }
 
 @test "bud with --env" {
