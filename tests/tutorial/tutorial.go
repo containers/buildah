@@ -21,7 +21,7 @@ func main() {
 	}
 	unshare.MaybeReexecUsingUserNamespace(false)
 
-	buildStoreOptions, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
+	buildStoreOptions, err := storage.DefaultStoreOptions()
 	if err != nil {
 		panic(err)
 	}

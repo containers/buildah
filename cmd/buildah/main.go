@@ -67,7 +67,7 @@ func init() {
 	var (
 		defaultStoreDriverOptions []string
 	)
-	storageOptions, err := storage.DefaultStoreOptions(false, 0)
+	storageOptions, err := storage.DefaultStoreOptions()
 	if err != nil {
 		logrus.Errorf(err.Error())
 		os.Exit(1)

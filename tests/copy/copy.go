@@ -39,7 +39,7 @@ func main() {
 
 	unshare.MaybeReexecUsingUserNamespace(false)
 
-	storeOptions, err := storage.DefaultStoreOptionsAutoDetectUID()
+	storeOptions, err := storage.DefaultStoreOptions()
 	if err != nil {
 		storeOptions = storage.StoreOptions{}
 	}
