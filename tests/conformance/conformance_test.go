@@ -36,7 +36,6 @@ import (
 	"github.com/containers/storage/pkg/reexec"
 	dockertypes "github.com/docker/docker/api/types"
 	dockerdockerclient "github.com/docker/docker/client"
-	dockerarchive "github.com/docker/docker/pkg/archive"
 	docker "github.com/fsouza/go-dockerclient"
 	digest "github.com/opencontainers/go-digest"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
@@ -561,57 +560,79 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	return buildahRef, []byte(outputString)
 }
 
+func pullImageIfMissing(t *testing.T, client *docker.Client, image string) {
+	if _, err := client.InspectImage(image); err != nil {
+		repository, tag := docker.ParseRepositoryTag(image)
+		if tag == "" {
+			tag = "latest"
+		}
+		pullOptions := docker.PullImageOptions{
+			Repository: repository,
+			Tag:        tag,
+		}
+		pullAuths := docker.AuthConfiguration{}
+		if err := client.PullImage(pullOptions, pullAuths); err != nil {
+			t.Fatalf("while pulling %q: %v", image, err)
+		}
+	}
+}
+
 func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, dockerClient *dockerdockerclient.Client, test testCase, dockerImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (dockerRef types.ImageReference, dockerLog []byte) {
 	// compute the path of the dockerfile relative to the build context
 	dockerfileRelativePath, err := filepath.Rel(contextDir, dockerfileName)
 	require.NoErrorf(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
 
-	// set up build options
-	output := &bytes.Buffer{}
-	if test.dockerUseBuildKit {
-		dockerOptions := dockertypes.ImageBuildOptions{
-			Dockerfile:  dockerfileRelativePath,
-			Tags:        []string{dockerImage},
-			NoCache:     true,
-			Remove:      true,
-			ForceRemove: true,
-			Version:     dockertypes.BuilderBuildKit,
+	// read the Dockerfile so that we can pull base images
+	dockerfileContent, err := os.ReadFile(dockerfileName)
+	require.NoErrorf(t, err, "reading dockerfile %q", dockerfileName)
+	for _, line := range strings.Split(string(dockerfileContent), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# syntax=") {
+			pullImageIfMissing(t, client, strings.TrimPrefix(line, "# syntax="))
 		}
-		var buildContextReader io.Reader
-		if contextDir != "" {
-			rc, err := dockerarchive.Tar(contextDir, dockerarchive.Uncompressed)
-			assert.Nil(t, err, "error archiving context directory %q", contextDir)
-			defer rc.Close()
-			buildContextReader = rc
+	}
+	parsed, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfileContent))
+	require.NoErrorf(t, err, "parsing dockerfile %q", dockerfileName)
+	dummyBuilder := imagebuilder.NewBuilder(nil)
+	stages, err := imagebuilder.NewStages(parsed, dummyBuilder)
+	require.NoErrorf(t, err, "breaking dockerfile %q up into stages", dockerfileName)
+	for i := range stages {
+		stageBase, err := dummyBuilder.From(stages[i].Node)
+		require.NoErrorf(t, err, "parsing base image for stage %d in %q", i, dockerfileName)
+		if stageBase == "" || stageBase == imagebuilder.NoBaseImageSpecifier {
+			continue
 		}
-		// build the image and gather output. log the output if the build part of the test failed
-		response, err := dockerClient.ImageBuild(ctx, buildContextReader, dockerOptions)
-		if err != nil {
-			output.WriteString("\n" + err.Error())
-		}
-		if response.Body != nil {
-			_, err = io.Copy(output, response.Body)
-			response.Body.Close()
-			if err != nil {
-				t.Logf("error while reading buildkit response: %v", err)
+		needToEnsureBase := true
+		for j := 0; j < i; j++ {
+			if stageBase == stages[j].Name {
+				needToEnsureBase = false
 			}
 		}
-	} else {
-		options := docker.BuildImageOptions{
-			Context:             ctx,
-			ContextDir:          contextDir,
-			Dockerfile:          dockerfileRelativePath,
-			OutputStream:        output,
-			Name:                dockerImage,
-			NoCache:             true,
-			RmTmpContainer:      true,
-			ForceRmTmpContainer: true,
+		if !needToEnsureBase {
+			continue
 		}
-		// build the image and gather output. log the output if the build part of the test failed
-		err = client.BuildImage(options)
-		if err != nil {
-			output.WriteString("\n" + err.Error())
-		}
+		pullImageIfMissing(t, client, stageBase)
+	}
+
+	// set up build options
+	output := &bytes.Buffer{}
+	options := docker.BuildImageOptions{
+		Context:             ctx,
+		ContextDir:          contextDir,
+		Dockerfile:          dockerfileRelativePath,
+		OutputStream:        output,
+		Name:                dockerImage,
+		NoCache:             true,
+		RmTmpContainer:      true,
+		ForceRmTmpContainer: true,
+	}
+	if test.dockerUseBuildKit {
+		options.Version = docker.BuilderBuildKit
+	}
+	// build the image and gather output. log the output if the build part of the test failed
+	err = client.BuildImage(options)
+	if err != nil {
+		output.WriteString("\n" + err.Error())
 	}
 	if _, err := dockerClient.BuildCachePrune(ctx, dockertypes.BuildCachePruneOptions{All: true}); err != nil {
 		t.Logf("docker build cache prune: %v", err)
@@ -3010,6 +3031,7 @@ var internalTestCases = []testCase{
 	{
 		name: "workdir-owner", // from issue #3620
 		dockerfileContents: strings.Join([]string{
+			`# syntax=docker/dockerfile:1.4`,
 			`FROM alpine`,
 			`USER daemon`,
 			`WORKDIR /created/directory`,
