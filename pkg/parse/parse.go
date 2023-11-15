@@ -1070,6 +1070,7 @@ func isValidDeviceMode(mode string) bool {
 	return true
 }
 
+// GetTempDir returns the path of the preferred temporary directory on the host.
 func GetTempDir() string {
 	return tmpdir.GetTempDir()
 }
