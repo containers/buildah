@@ -11,8 +11,8 @@ github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbi
 github.com/Microsoft/go-winio v0.4.14/go.mod h1:qXqCSQ3Xa7+6tgxaGTIe4Kpcdsi+P8jBhyzoq1bpyYA=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/Microsoft/hcsshim v0.12.0-rc.0 h1:wX/F5huJxH9APBkhKSEAqaiZsuBvbbDnyBROZAqsSaY=
-github.com/Microsoft/hcsshim v0.12.0-rc.0/go.mod h1:rvOnw3YlfoNnEp45wReUngvsXbwRW+AFQ10GVjG1kMU=
+github.com/Microsoft/hcsshim v0.12.0-rc.1 h1:Hy+xzYujv7urO5wrgcG58SPMOXNLrj4WCJbySs2XX/A=
+github.com/Microsoft/hcsshim v0.12.0-rc.1/go.mod h1:Y1a1S0QlYp1mBpyvGiuEdOfZqnao+0uX5AWHXQ5NhZU=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
 github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1ow=
@@ -62,8 +62,8 @@ github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b h1:8XvNAm+g7ivwPU
 github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b/go.mod h1:menB9p4o5HckgcLW6cO0+dl6+axkVmSqKlrNcratsh4=
 github.com/containers/ocicrypt v1.1.9 h1:2Csfba4jse85Raxk5HIyEk8OwZNjRvfkhEGijOjIdEM=
 github.com/containers/ocicrypt v1.1.9/go.mod h1:dTKx1918d8TDkxXvarscpNVY+lyPakPNFN4jwA9GBys=
-github.com/containers/storage v1.50.3-0.20231101112703-6e72f11598fb h1:g1IJUHmHZuHa1YPvIiYjWrhysb+qEiiImA8p8mENhiE=
-github.com/containers/storage v1.50.3-0.20231101112703-6e72f11598fb/go.mod h1:LpKczONfqahkVHFdZGPUg/xYZVjd/qqisRu0TkO4u8k=
+github.com/containers/storage v1.51.0 h1:AowbcpiWXzAjHosKz7MKvPEqpyX+ryZA/ZurytRrFNA=
+github.com/containers/storage v1.51.0/go.mod h1:ybl8a3j1PPtpyaEi/5A6TOFs+5TrEyObeKJzVtkUlfc=
 github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
@@ -284,8 +284,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/moby/patternmatcher v0.5.0 h1:YCZgJOeULcxLw1Q+sVR636pmS7sPEn1Qo2iAN6M7DBo=
 github.com/moby/patternmatcher v0.5.0/go.mod h1:hDPoyOpDY7OrrMDLaYoY3hf52gNCR/YOUYxkhApJIxc=
-github.com/moby/sys/mountinfo v0.6.2 h1:BzJjoreD5BMFNmD9Rus6gdd1pLuecOFPt8wC+Vygl78=
-github.com/moby/sys/mountinfo v0.6.2/go.mod h1:IJb6JQeOklcdMU9F5xQ8ZALD+CUr5VlGpwtX+VE0rpI=
+github.com/moby/sys/mountinfo v0.7.1 h1:/tTvQaSJRr2FshkhXiIpux6fQ2Zvc4j7tAhMTStAG2g=
+github.com/moby/sys/mountinfo v0.7.1/go.mod h1:IJb6JQeOklcdMU9F5xQ8ZALD+CUr5VlGpwtX+VE0rpI=
 github.com/moby/sys/sequential v0.5.0 h1:OPvI35Lzn9K04PBbCLW0g4LcFAJgHsvXsRyewg5lXtc=
 github.com/moby/sys/sequential v0.5.0/go.mod h1:tH2cOOs5V9MlPiXcQzRC+eEyab644PWKGRYaaV5ZZlo=
 github.com/moby/term v0.5.0 h1:xt8Q1nalod/v7BqbG21f8mQPqH+xAaC9C3N3wfWbVP0=
