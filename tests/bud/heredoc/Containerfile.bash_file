@@ -1,0 +1,15 @@
+FROM busybox
+RUN <<EOF
+#!/bin/sh
+echo "
+	this is the output of test9" > test9.txt
+EOF
+
+RUN <<-EOF
+#!/bin/sh
+echo "
+	this is the output of test10" > test10.txt
+EOF
+
+RUN cat test9.txt
+RUN cat test10.txt

@@ -267,6 +267,41 @@ _EOF
   run_buildah 1 run myctr ls -l subdir/
 }
 
+@test "bud build with heredoc content" {
+  run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile .
+  expect_output --substring "print first line from heredoc"
+  expect_output --substring "print second line from heredoc"
+  expect_output --substring "Heredoc writing first file"
+  expect_output --substring "some text of first file"
+  expect_output --substring "file2 from python"
+  expect_output --substring "(your index page goes here)"
+  expect_output --substring "(robots content)"
+  expect_output --substring "(humans content)"
+  expect_output --substring "this is the output of test6 part1"
+  expect_output --substring "this is the output of test6 part2"
+  expect_output --substring "this is the output of test7 part1"
+  expect_output --substring "this is the output of test7 part2"
+  expect_output --substring "this is the output of test7 part3"
+  expect_output --substring "this is the output of test8 part1"
+  expect_output --substring "this is the output of test8 part2"
+}
+
+@test "bud build with heredoc content which is a bash file" {
+  skip_if_in_container
+  _prefetch busybox
+  run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.bash_file .
+  expect_output --substring "this is the output of test9"
+  expect_output --substring "this is the output of test10"
+}
+
+@test "bud build with heredoc verify mount leak" {
+  skip_if_in_container
+  _prefetch alpine
+  run_buildah 1 build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.verify_mount_leak .
+  expect_output --substring "this is the output of test"
+  expect_output --substring "ls: /dev/pipes: No such file or directory"
+}
+
 @test "bud with .containerignore" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $BUDFILES/containerignore/Dockerfile $BUDFILES/containerignore

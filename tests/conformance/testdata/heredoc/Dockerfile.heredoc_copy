@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.3-labs
+FROM busybox as one
+RUN echo helloworld > image_file
+FROM busybox
+RUN echo hello
+# copy two heredoc and one from context
+COPY <<robots.txt <<humans.txt file /test/
+(robots content)
+Long file with random text
+Random line
+HelloWorld
+robots.txt
+(humans content)
+humans.txt
+# copy two heredoc and one from another stage
+COPY --from=one image_file <<robots.txt <<humans.txt /test2/
+(robots content)
+Long file with random text
+Random line
+HelloWorld
+robots.txt
+(humans content)
+humans.txt
