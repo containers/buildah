@@ -33,6 +33,8 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/reexec"
 	dockertypes "github.com/docker/docker/api/types"
 	dockerdockerclient "github.com/docker/docker/client"
@@ -614,12 +616,23 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 		pullImageIfMissing(t, client, stageBase)
 	}
 
+	excludes, err := imagebuilder.ParseDockerignore(contextDir)
+	require.NoErrorf(t, err, "parsing ignores file in %q", contextDir)
+	excludes = append(excludes, "!"+dockerfileRelativePath, "!.dockerignore")
+	tarOptions := &archive.TarOptions{
+		ExcludePatterns: excludes,
+		ChownOpts:       &idtools.IDPair{UID: 0, GID: 0},
+	}
+	input, err := archive.TarWithOptions(contextDir, tarOptions)
+	require.NoErrorf(t, err, "archiving context directory %q", contextDir)
+	defer input.Close()
+
 	// set up build options
 	output := &bytes.Buffer{}
 	options := docker.BuildImageOptions{
 		Context:             ctx,
-		ContextDir:          contextDir,
 		Dockerfile:          dockerfileRelativePath,
+		InputStream:         input,
 		OutputStream:        output,
 		Name:                dockerImage,
 		NoCache:             true,
