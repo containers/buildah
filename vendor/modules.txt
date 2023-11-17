@@ -18,7 +18,7 @@ github.com/Microsoft/go-winio/internal/socket
 github.com/Microsoft/go-winio/internal/stringbuffer
 github.com/Microsoft/go-winio/pkg/guid
 github.com/Microsoft/go-winio/vhd
-# github.com/Microsoft/hcsshim v0.12.0-rc.0
+# github.com/Microsoft/hcsshim v0.12.0-rc.1
 ## explicit; go 1.18
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/computestorage
@@ -91,7 +91,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.3.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.56.1-0.20231116145922-4857e16ba481
+# github.com/containers/common v0.57.0
 ## explicit; go 1.18
 github.com/containers/common/internal/attributedstring
 github.com/containers/common/libimage
@@ -139,7 +139,7 @@ github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
 github.com/containers/common/pkg/version
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.28.1-0.20231115174231-199d2562a0d1
+# github.com/containers/image/v5 v5.29.0
 ## explicit; go 1.19
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -230,7 +230,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.50.3-0.20231101112703-6e72f11598fb
+# github.com/containers/storage v1.51.0
 ## explicit; go 1.19
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -496,7 +496,7 @@ github.com/mitchellh/mapstructure
 # github.com/moby/patternmatcher v0.5.0
 ## explicit; go 1.19
 github.com/moby/patternmatcher
-# github.com/moby/sys/mountinfo v0.6.2
+# github.com/moby/sys/mountinfo v0.7.1
 ## explicit; go 1.16
 github.com/moby/sys/mountinfo
 # github.com/moby/sys/sequential v0.5.0
