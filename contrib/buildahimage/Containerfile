@@ -65,6 +65,9 @@ RUN dnf -y makecache && \
 
 ADD ./containers.conf /etc/containers/
 
+# Setup internal Buildah to pass secrets/subscriptions down from host to internal container
+RUN printf '/run/secrets/etc-pki-entitlement:/run/secrets/etc-pki-entitlement\n/run/secrets/rhsm:/run/secrets/rhsm\n' > /etc/containers/mounts.conf
+
 # Copy & modify the defaults to provide reference if runtime changes needed.
 # Changes here are required for running with fuse-overlay storage inside container.
 RUN sed -e 's|^#mount_program|mount_program|g' \
