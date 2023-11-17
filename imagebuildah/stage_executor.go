@@ -473,6 +473,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		options := buildah.AddAndCopyOptions{
 			Chmod:             copy.Chmod,
 			Chown:             copy.Chown,
+			Checksum:          copy.Checksum,
 			PreserveOwnership: preserveOwnership,
 			ContextDir:        contextDir,
 			Excludes:          copyExcludes,
@@ -1095,8 +1096,8 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if command == "COPY" && (flag == "--chmod" || flag == "--chown" || flag == "--from") {
 				return "", nil, false, fmt.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags")
 			}
-			if command == "ADD" && (flag == "--chmod" || flag == "--chown") {
-				return "", nil, false, fmt.Errorf("ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags")
+			if command == "ADD" && (flag == "--chmod" || flag == "--chown" || flag == "--checksum") {
+				return "", nil, false, fmt.Errorf("ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> flags")
 			}
 			if strings.Contains(flag, "--from") && command == "COPY" {
 				arr := strings.Split(flag, "=")

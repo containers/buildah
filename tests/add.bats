@@ -281,3 +281,28 @@ stuff/mystuff"
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd2
 }
+
+@test "add url with checksum flag" {
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah add --checksum=sha256:4fd3aed66b5488b45fe83dd11842c2324fadcc38e1217bb45fbd28d660afdd39 $cid https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md /
+  run_buildah run $cid ls /README.md
+}
+
+@test "add url with bad checksum" {
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah 125 add --checksum=sha256:0000000000000000000000000000000000000000000000000000000000000000 $cid https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md /
+  expect_output --substring "unexpected response digest for \"https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md\": sha256:4fd3aed66b5488b45fe83dd11842c2324fadcc38e1217bb45fbd28d660afdd39, want sha256:0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+@test "add path with checksum flag" {
+  _prefetch busybox
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah 125 add --checksum=sha256:0000000000000000000000000000000000000000000000000000000000000000 $cid ${TEST_SCRATCH_DIR}/randomfile /
+  expect_output --substring "checksum flag is not supported for local sources"
+}

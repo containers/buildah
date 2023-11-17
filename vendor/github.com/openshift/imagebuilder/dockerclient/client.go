@@ -348,7 +348,7 @@ func (e *ClientExecutor) Prepare(b *imagebuilder.Builder, node *parser.Node, fro
 				opts.Config.Entrypoint = nil
 			} else {
 				// TODO; replace me with a better default command
-				opts.Config.Cmd = []string{fmt.Sprintf("%s\nsleep 86400", "#(imagebuilder)")}
+				opts.Config.Cmd = []string{"# (imagebuilder)\n/bin/sleep 86400"}
 				opts.Config.Entrypoint = append([]string{}, defaultShell...)
 			}
 		}
@@ -876,6 +876,9 @@ func (e *ClientExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 func (e *ClientExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 	// copying content into a volume invalidates the archived state of any given directory
 	for _, copy := range copies {
+		if copy.Checksum != "" {
+			return fmt.Errorf("ADD --checksum not supported")
+		}
 		e.Volumes.Invalidate(copy.Dest)
 	}
 

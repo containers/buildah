@@ -23,6 +23,11 @@ Defaults to false.
 Note: You can also override the default value of --add-history by setting the
 BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 
+**--checksum** *checksum*
+
+Checksum the source content. The value of *checksum* must be a standard
+container digest string. Only supported for HTTP sources.
+
 **--chmod** *permissions*
 
 Sets the access permissions of the destination content. Accepts the numerical format.

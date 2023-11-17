@@ -1,0 +1,2 @@
+FROM alpine
+ADD --checksum https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md /

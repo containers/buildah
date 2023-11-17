@@ -3096,7 +3096,7 @@ _EOF
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/add-chown/Dockerfile.bad $BUDFILES/add-chown
-  expect_output --substring "ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags"
+  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> flags"
 }
 
 @test "bud with chmod add with bad chmod flag in Dockerfile with --layers" {
@@ -3104,7 +3104,30 @@ _EOF
   imgName=alpine-image
   ctrName=alpine-chmod
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/add-chmod/Dockerfile.bad $BUDFILES/add-chmod
-  expect_output --substring "ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags"
+  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> flags"
+}
+
+@test "bud with ADD with checksum flag" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah build $WITH_POLICY_JSON -t alpine-image -f $BUDFILES/add-checksum/Containerfile $BUDFILES/add-checksum
+  run_buildah from --quiet $WITH_POLICY_JSON --name alpine-ctr alpine-image
+  run_buildah run alpine-ctr -- ls -l /README.md
+  expect_output --substring "README.md"
+}
+
+@test "bud with ADD with bad checksum" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/add-checksum/Containerfile.bad-checksum $BUDFILES/add-checksum
+  expect_output --substring "unexpected response digest for \"https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md\": sha256:4fd3aed66b5488b45fe83dd11842c2324fadcc38e1217bb45fbd28d660afdd39, want sha256:0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+@test "bud with ADD with bad checksum flag" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/add-checksum/Containerfile.bad $BUDFILES/add-checksum
+  expect_output --substring "ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> flags"
 }
 
 @test "bud with ADD file construct" {
