@@ -33,6 +33,18 @@ environment variable. `export REGISTRY_AUTH_FILE=path`
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 The default certificates directory is _/etc/containers/certs.d_.
 
+**--change**, **-c** *"INSTRUCTION"*
+
+Apply the change to the committed image that would have been made if it had
+been built using a Containerfile which included the specified instruction.
+This option can be specified multiple times.
+
+**--config** *filename*
+
+Read a JSON-encoded version of an image configuration object from the specified
+file, and merge the values from it with the configuration of the image being
+committed.
+
 **--creds** *creds*
 
 The [username[:password]] to use to authenticate with the registry if required.

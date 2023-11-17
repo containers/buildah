@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/completion"
+	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/shortnames"
 	storageTransport "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -26,6 +28,8 @@ type commitInputOptions struct {
 	omitHistory        bool
 	blobCache          string
 	certDir            string
+	changes            []string
+	configFile         string
 	creds              string
 	cwOptions          string
 	disableCompression bool
@@ -84,8 +88,11 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	flags.IntSliceVar(&opts.encryptLayers, "encrypt-layer", nil, "layers to encrypt, 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified")
 	_ = cmd.RegisterFlagCompletionFunc("encryption-key", completion.AutocompleteNone)
 
+	flags.StringArrayVarP(&opts.changes, "change", "c", nil, "apply containerfile `instruction`s to the committed image")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	_ = cmd.RegisterFlagCompletionFunc("cert-dir", completion.AutocompleteDefault)
+	flags.StringVar(&opts.configFile, "config", "", "apply configuration JSON `file` to the committed image")
+	_ = cmd.RegisterFlagCompletionFunc("config", completion.AutocompleteDefault)
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	_ = cmd.RegisterFlagCompletionFunc("creds", completion.AutocompleteNone)
 	flags.StringVar(&opts.cwOptions, "cw", "", "confidential workload `options`")
@@ -204,6 +211,18 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
 
+	var overrideConfig *manifest.Schema2Config
+	if c.Flag("config").Changed {
+		configBytes, err := os.ReadFile(iopts.configFile)
+		if err != nil {
+			return fmt.Errorf("reading configuration blob from file: %w", err)
+		}
+		overrideConfig = &manifest.Schema2Config{}
+		if err := json.Unmarshal(configBytes, &overrideConfig); err != nil {
+			return fmt.Errorf("parsing configuration blob from %q: %w", iopts.configFile, err)
+		}
+	}
+
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Manifest:              iopts.manifest,
@@ -218,6 +237,8 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		OciEncryptConfig:      encConfig,
 		OciEncryptLayers:      encLayers,
 		UnsetEnvs:             iopts.unsetenvs,
+		OverrideChanges:       iopts.changes,
+		OverrideConfig:        overrideConfig,
 	}
 	exclusiveFlags := 0
 	if c.Flag("reference-time").Changed {

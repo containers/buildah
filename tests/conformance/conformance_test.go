@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -25,12 +26,15 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
+	"github.com/containers/buildah/internal/config"
 	"github.com/containers/image/v5/docker/daemon"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
+	is "github.com/containers/image/v5/storage"
 	istorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
+	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
@@ -119,34 +123,37 @@ func TestMain(m *testing.M) {
 	flag.StringVar(&imagebuilderDir, "imagebuilder-dir", imagebuilderDir, "location to save imagebuilder build results")
 	flag.StringVar(&buildahDir, "buildah-dir", buildahDir, "location to save buildah build results")
 	flag.Parse()
+	var tempdir string
+	if buildahDir == "" || dockerDir == "" || imagebuilderDir == "" {
+		if tempdir == "" {
+			if tempdir, err = os.MkdirTemp("", "conformance"); err != nil {
+				logrus.Fatalf("creating temporary directory: %v", err)
+				os.Exit(1)
+			}
+		}
+	}
+	if buildahDir == "" {
+		buildahDir = filepath.Join(tempdir, "buildah")
+	}
+	if dockerDir == "" {
+		dockerDir = filepath.Join(tempdir, "docker")
+	}
+	if imagebuilderDir == "" {
+		imagebuilderDir = filepath.Join(tempdir, "imagebuilder")
+	}
 	level, err := logrus.ParseLevel(logLevel)
 	if err != nil {
 		logrus.Fatalf("error parsing log level %q: %v", logLevel, err)
 	}
 	logrus.SetLevel(level)
-	os.Exit(m.Run())
+	result := m.Run()
+	if err = os.RemoveAll(tempdir); err != nil {
+		logrus.Errorf("removing temporary directory %q: %v", tempdir, err)
+	}
+	os.Exit(result)
 }
 
 func TestConformance(t *testing.T) {
-	var tempdir string
-	if buildahDir == "" {
-		if tempdir == "" {
-			tempdir = t.TempDir()
-		}
-		buildahDir = filepath.Join(tempdir, "buildah")
-	}
-	if dockerDir == "" {
-		if tempdir == "" {
-			tempdir = t.TempDir()
-		}
-		dockerDir = filepath.Join(tempdir, "docker")
-	}
-	if imagebuilderDir == "" {
-		if tempdir == "" {
-			tempdir = t.TempDir()
-		}
-		imagebuilderDir = filepath.Join(tempdir, "imagebuilder")
-	}
 	dateStamp := fmt.Sprintf("%d", time.Now().UnixNano())
 	for i := range internalTestCases {
 		t.Run(internalTestCases[i].name, func(t *testing.T) {
@@ -3074,4 +3081,507 @@ var internalTestCases = []testCase{
 		contextDir:        "env/precedence",
 		dockerUseBuildKit: true,
 	},
+}
+
+func TestCommit(t *testing.T) {
+	testCases := []struct {
+		description             string
+		baseImage               string
+		changes, derivedChanges []string
+		config, derivedConfig   *docker.Config
+	}{
+		{
+			description: "defaults",
+			baseImage:   "docker.io/library/busybox",
+		},
+		{
+			description: "empty change",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{""},
+		},
+		{
+			description: "empty config",
+			baseImage:   "docker.io/library/busybox",
+			config:      &docker.Config{},
+		},
+		{
+			description: "cmd just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"CMD /bin/imaginarySh"},
+		},
+		{
+			description: "cmd just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				Cmd: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "cmd conflict",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"CMD /bin/imaginarySh"},
+			config: &docker.Config{
+				Cmd: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "entrypoint just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"ENTRYPOINT /bin/imaginarySh"},
+		},
+		{
+			description: "entrypoint just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				Entrypoint: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "entrypoint conflict",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"ENTRYPOINT /bin/imaginarySh"},
+			config: &docker.Config{
+				Entrypoint: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "environment just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"ENV A=1", "ENV C=2"},
+		},
+		{
+			description: "environment just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				Env: []string{"A=B"},
+			},
+		},
+		{
+			description: "environment with conflict union",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"ENV A=1", "ENV C=2"},
+			config: &docker.Config{
+				Env: []string{"A=B"},
+			},
+		},
+		{
+			description: "expose just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"EXPOSE 12345"},
+		},
+		{
+			description: "expose just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				ExposedPorts: map[docker.Port]struct{}{"23456": struct{}{}},
+			},
+		},
+		{
+			description: "expose union",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"EXPOSE 12345"},
+			config: &docker.Config{
+				ExposedPorts: map[docker.Port]struct{}{"23456": struct{}{}},
+			},
+		},
+		{
+			description: "healthcheck just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{`HEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=1 CMD ["/bin/false"]`},
+		},
+		{
+			description: "healthcheck just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				Healthcheck: &docker.HealthConfig{
+					Test:        []string{"/bin/true"},
+					Interval:    2 * time.Second,
+					Timeout:     2 * time.Second,
+					StartPeriod: 2 * time.Second,
+					Retries:     2,
+				},
+			},
+		},
+		{
+			description: "healthcheck conflict",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{`HEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=1 CMD ["/bin/false"]`},
+			config: &docker.Config{
+				Healthcheck: &docker.HealthConfig{
+					Test:        []string{"/bin/true"},
+					Interval:    2 * time.Second,
+					Timeout:     2 * time.Second,
+					StartPeriod: 2 * time.Second,
+					Retries:     2,
+				},
+			},
+		},
+		{
+			description: "label just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"LABEL A=1 C=2"},
+		},
+		{
+			description: "label just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				Labels: map[string]string{"A": "B"},
+			},
+		},
+		{
+			description: "label with conflict union",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"LABEL A=1 C=2"},
+			config: &docker.Config{
+				Labels: map[string]string{"A": "B"},
+			},
+		},
+		// n.b. dockerd didn't like a MAINTAINER change, so no test for it, and it's not in a config blob
+		{
+			description:    "onbuild just changes",
+			baseImage:      "docker.io/library/busybox",
+			changes:        []string{"ONBUILD USER alice", "ONBUILD LABEL A=1"},
+			derivedChanges: []string{"LABEL C=3"},
+		},
+		{
+			description: "onbuild just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				OnBuild: []string{"USER bob", `CMD ["/bin/smash"]`, "LABEL B=2"},
+			},
+			derivedChanges: []string{"LABEL C=3"},
+		},
+		{
+			description: "onbuild conflict",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"ONBUILD USER alice", "ONBUILD LABEL A=1"},
+			config: &docker.Config{
+				OnBuild: []string{"USER bob", `CMD ["/bin/smash"]`, "LABEL B=2"},
+			},
+			derivedChanges: []string{"LABEL C=3"},
+		},
+		// n.b. dockerd didn't like a SHELL change, so no test for it or a conflict with a config blob
+		{
+			description: "shell just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				Shell: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "stop signal conflict",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"STOPSIGNAL SIGTERM"},
+			config: &docker.Config{
+				StopSignal: "SIGKILL",
+			},
+		},
+		{
+			description: "stop timeout=0",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				StopTimeout: 0,
+			},
+		},
+		{
+			description: "stop timeout=15",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				StopTimeout: 15,
+			},
+		},
+		{
+			description: "stop timeout=15, then 0",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				StopTimeout: 15,
+			},
+			derivedConfig: &docker.Config{
+				StopTimeout: 0,
+			},
+		},
+		{
+			description: "stop timeout=0, then 15",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				StopTimeout: 0,
+			},
+			derivedConfig: &docker.Config{
+				StopTimeout: 15,
+			},
+		},
+		{
+			description: "user just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"USER 1001:1001"},
+		},
+		{
+			description: "user just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				User: "1000:1000",
+			},
+		},
+		{
+			description: "user with conflict",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"USER 1001:1001"},
+			config: &docker.Config{
+				User: "1000:1000",
+			},
+		},
+		{
+			description: "volume just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"VOLUME /a-volume"},
+		},
+		{
+			description: "volume just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				Volumes: map[string]struct{}{"/b-volume": struct{}{}},
+			},
+		},
+		{
+			description: "volume union",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"VOLUME /a-volume"},
+			config: &docker.Config{
+				Volumes: map[string]struct{}{"/b-volume": struct{}{}},
+			},
+		},
+		{
+			description: "workdir just changes",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"WORKDIR /yeah"},
+		},
+		{
+			description: "workdir just config",
+			baseImage:   "docker.io/library/busybox",
+			config: &docker.Config{
+				WorkingDir: "/naw",
+			},
+		},
+		{
+			description: "workdir with conflict",
+			baseImage:   "docker.io/library/busybox",
+			changes:     []string{"WORKDIR /yeah"},
+			config: &docker.Config{
+				WorkingDir: "/naw",
+			},
+		},
+	}
+
+	var tempdir string
+	buildahDir := buildahDir
+	if buildahDir == "" {
+		if tempdir == "" {
+			tempdir = t.TempDir()
+		}
+		buildahDir = filepath.Join(tempdir, "buildah")
+	}
+	dockerDir := dockerDir
+	if dockerDir == "" {
+		if tempdir == "" {
+			tempdir = t.TempDir()
+		}
+		dockerDir = filepath.Join(tempdir, "docker")
+	}
+
+	ctx := context.TODO()
+
+	// connect to dockerd using go-dockerclient
+	client, err := docker.NewClientFromEnv()
+	require.NoErrorf(t, err, "unable to initialize docker client")
+	var dockerVersion []string
+	if version, err := client.Version(); err == nil {
+		if version != nil {
+			for _, s := range *version {
+				dockerVersion = append(dockerVersion, s)
+			}
+		}
+	} else {
+		require.NoErrorf(t, err, "unable to connect to docker daemon")
+	}
+
+	// find a new place to store buildah builds
+	tempdir = t.TempDir()
+
+	// create subdirectories to use for buildah storage
+	rootDir := filepath.Join(tempdir, "root")
+	runrootDir := filepath.Join(tempdir, "runroot")
+
+	// initialize storage for buildah
+	options := storage.StoreOptions{
+		GraphDriverName:     os.Getenv("STORAGE_DRIVER"),
+		GraphRoot:           rootDir,
+		RunRoot:             runrootDir,
+		RootlessStoragePath: rootDir,
+	}
+	store, err := storage.GetStore(options)
+	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
+	defer func() {
+		if store != nil {
+			_, err := store.Shutdown(true)
+			require.NoErrorf(t, err, "error shutting down storage for buildah")
+		}
+	}()
+
+	// walk through test cases
+	for testIndex, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			test := testCases[testIndex]
+
+			// create the test container, then commit it, using the docker client
+			baseImage := test.baseImage
+			repository, tag := docker.ParseRepositoryTag(baseImage)
+			if tag == "" {
+				tag = "latest"
+			}
+			baseImage = repository + ":" + tag
+			if _, err := client.InspectImage(test.baseImage); err != nil && errors.Is(err, docker.ErrNoSuchImage) {
+				// oh, we need to pull the base image
+				err = client.PullImage(docker.PullImageOptions{
+					Repository: repository,
+					Tag:        tag,
+				}, docker.AuthConfiguration{})
+				require.NoErrorf(t, err, "pulling base image")
+			}
+			container, err := client.CreateContainer(docker.CreateContainerOptions{
+				Context: ctx,
+				Config: &docker.Config{
+					Image: baseImage,
+				},
+			})
+			require.NoErrorf(t, err, "creating the working container with docker")
+			if err == nil {
+				defer func(containerName string) {
+					err := client.RemoveContainer(docker.RemoveContainerOptions{
+						ID:    containerName,
+						Force: true,
+					})
+					assert.Nil(t, err, "error deleting working docker container %q", containerName)
+				}(container.ID)
+			}
+			dockerImageName := "committed:" + strconv.Itoa(testIndex)
+			dockerImage, err := client.CommitContainer(docker.CommitContainerOptions{
+				Container:  container.ID,
+				Changes:    test.changes,
+				Run:        test.config,
+				Repository: dockerImageName,
+			})
+			assert.NoErrorf(t, err, "committing the working container with docker")
+			if err == nil {
+				defer func(dockerImageName string) {
+					err := client.RemoveImageExtended(dockerImageName, docker.RemoveImageOptions{
+						Context: ctx,
+						Force:   true,
+					})
+					assert.Nil(t, err, "error deleting newly-built docker image %q", dockerImage.ID)
+				}(dockerImageName)
+			}
+			dockerRef, err := alltransports.ParseImageName("docker-daemon:" + dockerImageName)
+			assert.NoErrorf(t, err, "parsing name of newly-committed docker image")
+
+			if len(test.derivedChanges) > 0 || test.derivedConfig != nil {
+				container, err := client.CreateContainer(docker.CreateContainerOptions{
+					Context: ctx,
+					Config: &docker.Config{
+						Image: dockerImage.ID,
+					},
+				})
+				require.NoErrorf(t, err, "creating the derived container with docker")
+				if err == nil {
+					defer func(containerName string) {
+						err := client.RemoveContainer(docker.RemoveContainerOptions{
+							ID:    containerName,
+							Force: true,
+						})
+						assert.Nil(t, err, "error deleting derived docker container %q", containerName)
+					}(container.ID)
+				}
+				derivedImageName := "derived:" + strconv.Itoa(testIndex)
+				derivedImage, err := client.CommitContainer(docker.CommitContainerOptions{
+					Container:  container.ID,
+					Changes:    test.derivedChanges,
+					Run:        test.derivedConfig,
+					Repository: derivedImageName,
+				})
+				assert.NoErrorf(t, err, "committing the derived container with docker")
+				defer func(derivedImageName string) {
+					err := client.RemoveImageExtended(derivedImageName, docker.RemoveImageOptions{
+						Context: ctx,
+						Force:   true,
+					})
+					assert.Nil(t, err, "error deleting newly-derived docker image %q", derivedImage.ID)
+				}(derivedImageName)
+				dockerRef, err = alltransports.ParseImageName("docker-daemon:" + derivedImageName)
+				assert.NoErrorf(t, err, "parsing name of newly-derived docker image")
+			}
+
+			// create the test container, then commit it, using the buildah API
+			builder, err := buildah.NewBuilder(ctx, store, buildah.BuilderOptions{
+				FromImage: baseImage,
+			})
+			require.NoErrorf(t, err, "creating the working container with buildah")
+			defer func(builder *buildah.Builder) {
+				err := builder.Delete()
+				assert.NoErrorf(t, err, "removing the working container")
+			}(builder)
+			var overrideConfig *manifest.Schema2Config
+			if test.config != nil {
+				overrideConfig = config.Schema2ConfigFromGoDockerclientConfig(test.config)
+			}
+			buildahID, _, _, err := builder.Commit(ctx, nil, buildah.CommitOptions{
+				PreferredManifestType: manifest.DockerV2Schema2MediaType,
+				OverrideChanges:       test.changes,
+				OverrideConfig:        overrideConfig,
+			})
+			assert.NoErrorf(t, err, "committing buildah image")
+			buildahRef, err := is.Transport.NewStoreReference(store, nil, buildahID)
+			assert.NoErrorf(t, err, "parsing name of newly-built buildah image")
+
+			if len(test.derivedChanges) > 0 || test.derivedConfig != nil {
+				derivedBuilder, err := buildah.NewBuilder(ctx, store, buildah.BuilderOptions{
+					FromImage: buildahID,
+				})
+				defer func(builder *buildah.Builder) {
+					err := builder.Delete()
+					assert.NoErrorf(t, err, "removing the derived container")
+				}(derivedBuilder)
+				require.NoErrorf(t, err, "creating the derived container with buildah")
+				var overrideConfig *manifest.Schema2Config
+				if test.derivedConfig != nil {
+					overrideConfig = config.Schema2ConfigFromGoDockerclientConfig(test.derivedConfig)
+				}
+				derivedID, _, _, err := builder.Commit(ctx, nil, buildah.CommitOptions{
+					PreferredManifestType: manifest.DockerV2Schema2MediaType,
+					OverrideChanges:       test.derivedChanges,
+					OverrideConfig:        overrideConfig,
+				})
+				assert.NoErrorf(t, err, "committing derived buildah image")
+				buildahRef, err = is.Transport.NewStoreReference(store, nil, derivedID)
+				assert.NoErrorf(t, err, "parsing name of newly-derived buildah image")
+			}
+
+			// scan the images
+			saveReport(ctx, t, dockerRef, filepath.Join(dockerDir, t.Name()), []byte{}, []byte{}, dockerVersion)
+			saveReport(ctx, t, buildahRef, filepath.Join(buildahDir, t.Name()), []byte{}, []byte{}, dockerVersion)
+			// compare the scans
+			_, originalDockerConfig, ociDockerConfig, fsDocker := readReport(t, filepath.Join(dockerDir, t.Name()))
+			_, originalBuildahConfig, ociBuildahConfig, fsBuildah := readReport(t, filepath.Join(buildahDir, t.Name()))
+			miss, left, diff, same := compareJSON(originalDockerConfig, originalBuildahConfig, originalSkip)
+			if !same {
+				assert.Failf(t, "Image configurations differ as committed in Docker format", configCompareResult(miss, left, diff, "buildah"))
+			}
+			miss, left, diff, same = compareJSON(ociDockerConfig, ociBuildahConfig, ociSkip)
+			if !same {
+				assert.Failf(t, "Image configurations differ when converted to OCI format", configCompareResult(miss, left, diff, "buildah"))
+			}
+			miss, left, diff, same = compareJSON(fsDocker, fsBuildah, fsSkip)
+			if !same {
+				assert.Failf(t, "Filesystem contents differ", fsCompareResult(miss, left, diff, "buildah"))
+			}
+		})
+	}
 }
