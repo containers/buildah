@@ -777,6 +777,9 @@ func (e *ClientExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error 
 // the user command into a shell and perform those operations before. Since RUN
 // requires /bin/sh, we can use both 'cd' and 'export'.
 func (e *ClientExecutor) Run(run imagebuilder.Run, config docker.Config) error {
+	if len(run.Files) > 0 {
+		return fmt.Errorf("Heredoc syntax is not supported")
+	}
 	if len(run.Mounts) > 0 {
 		return fmt.Errorf("RUN --mount not supported")
 	}
@@ -878,6 +881,9 @@ func (e *ClientExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) er
 	for _, copy := range copies {
 		if copy.Checksum != "" {
 			return fmt.Errorf("ADD --checksum not supported")
+		}
+		if len(copy.Files) > 0 {
+			return fmt.Errorf("Heredoc syntax is not supported")
 		}
 		e.Volumes.Invalidate(copy.Dest)
 	}

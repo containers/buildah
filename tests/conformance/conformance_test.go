@@ -3017,6 +3017,21 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name:              "heredoc-copy",
+		dockerfile:        "Dockerfile.heredoc_copy",
+		dockerUseBuildKit: true,
+		contextDir:        "heredoc",
+		fsSkip: []string{"(dir):test:mtime",
+			"(dir):test2:mtime",
+			"(dir):test:(dir):humans.txt:mtime",
+			"(dir):test:(dir):robots.txt:mtime",
+			"(dir):test2:(dir):humans.txt:mtime",
+			"(dir):test2:(dir):robots.txt:mtime",
+			"(dir):test2:(dir):image_file:mtime",
+			"(dir):etc:(dir):hostname" /* buildkit does not contains /etc/hostname like buildah */},
+	},
+
+	{
 		name:       "replace-symlink-with-directory",
 		contextDir: "replace/symlink-with-directory",
 	},
