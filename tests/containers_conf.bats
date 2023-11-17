@@ -115,7 +115,6 @@ EOF
     cat >${TEST_SCRATCH_DIR}/containers.conf << EOF
 [containers]
 default_sysctls = [
-  "net.ipv4.ping_group_range=0 0",
   "net.ipv4.tcp_timestamps=123"
 ]
 EOF
@@ -123,7 +122,19 @@ EOF
     cat >${TEST_SCRATCH_DIR}/Containerfile << _EOF
 FROM alpine
 RUN echo -n "timestamp="; cat /proc/sys/net/ipv4/tcp_timestamps
+RUN echo -n "ping_group_range="; cat /proc/sys/net/ipv4/ping_group_range
 _EOF
+
+    run_buildah build ${TEST_SCRATCH_DIR}
+    expect_output --substring "timestamp=1"
+    expect_output --substring "ping_group_range=0.*0"
+
     CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah build ${TEST_SCRATCH_DIR}
     expect_output --substring "timestamp=123"
+    if is_rootless ; then
+       expect_output --substring "ping_group_range=65534.*65534"
+    else
+       expect_output --substring "ping_group_range=1.*0"
+    fi
+
 }
