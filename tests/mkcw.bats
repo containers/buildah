@@ -7,9 +7,9 @@ function mkcw_check_image() {
   local expectedEnv="$2"
   # Mount the container and take a look at what it got from the image.
   run_buildah from "$imageID"
-  ctrID="$output"
+  local ctrID="$output"
   run_buildah mount "$ctrID"
-  mountpoint="$output"
+  local mountpoint="$output"
   # Should have a /disk.img file.
   test -s "$mountpoint"/disk.img
   # Should have a krun-sev.json file.
@@ -33,6 +33,8 @@ function mkcw_check_image() {
   fi
   # Should have a /tmp directory, at least.
   test -d "$TEST_SCRATCH_DIR"/mount/tmp
+  # Should have a /bin/sh file from the base image, at least.
+  test -s "$TEST_SCRATCH_DIR"/mount/bin/sh || test -L "$TEST_SCRATCH_DIR"/mount/bin/sh
 
   # Clean up.
   umount "$TEST_SCRATCH_DIR"/mount
@@ -83,6 +85,13 @@ function mkcw_check_image() {
   echo -n "mkcw build" > "$TEST_SCRATCH_DIR"/key
   run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw build" -f bud/env/Dockerfile.check-env bud/env
   mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
+
   run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=sev,ignore_attestation_errors,passphrase="mkcw build" -f bud/env/Dockerfile.check-env bud/env
+  mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
+
+  # the key thing about this next bit is mixing --layers with a final
+  # instruction in the Dockerfile that normally wouldn't produce a layer
+  echo -n "mkcw build --layers" > "$TEST_SCRATCH_DIR"/key
+  run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw build --layers" --layers -f bud/env/Dockerfile.check-env bud/env
   mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
 }
