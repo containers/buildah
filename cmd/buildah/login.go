@@ -63,6 +63,10 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
+	// parse.SystemContextFromOptions may point this field to an auth.json or to a .docker/config.json;
+	// that’s fair enough for reads, but incorrect for writes (the two files have incompatible formats),
+	// and it interferes with the auth.Login’s own argument parsing.
+	systemContext.AuthFilePath = ""
 	ctx := getContext()
 	iopts.loginOpts.GetLoginSet = c.Flag("get-login").Changed
 	return auth.Login(ctx, systemContext, &iopts.loginOpts, args)

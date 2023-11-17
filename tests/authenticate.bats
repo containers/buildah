@@ -32,9 +32,24 @@ load helpers
   run_buildah 0 login --cert-dir $REGISTRY_DIR --username testuserfoo --password testpassword localhost:$REGISTRY_PORT
 
   run_buildah 125 logout --authfile /tmp/nonexistent localhost:$REGISTRY_PORT
-  expect_output "Error: checking authfile: stat /tmp/nonexistent: no such file or directory"
+  expect_output "Error: credential file is not accessible: stat /tmp/nonexistent: no such file or directory"
+
+  run_buildah 125 logout --compat-auth-file /tmp/nonexistent localhost:$REGISTRY_PORT
+  expect_output "Error: credential file is not accessible: stat /tmp/nonexistent: no such file or directory"
 
   run_buildah 0 logout localhost:$REGISTRY_PORT
+}
+
+@test "authenticate: logout should fail with inconsistent authfiles" {
+  ambiguous_file=${TEST_SCRATCH_DIR}/ambiguous-auth.json
+  echo '{}' > $ambiguous_file # To make sure we are not hitting the “file not found” path
+
+  # We don’t start a real registry; login should never get that far.
+  run_buildah 125 login --authfile "$ambiguous_file" --compat-auth-file "$ambiguous_file" localhost:5000
+  expect_output "Error: options for paths to the credential file and to the Docker-compatible credential file can not be set simultaneously"
+
+  run_buildah 125 logout --authfile "$ambiguous_file" --compat-auth-file "$ambiguous_file" localhost:5000
+  expect_output "Error: options for paths to the credential file and to the Docker-compatible credential file can not be set simultaneously"
 }
 
 @test "authenticate: cert and credentials" {
