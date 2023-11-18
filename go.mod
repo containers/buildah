@@ -18,7 +18,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.9.7
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
-	github.com/moby/buildkit v0.10.6
+	github.com/moby/buildkit v0.11.4
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.30.0
 	github.com/opencontainers/go-digest v1.0.0
