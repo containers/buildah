@@ -1,4 +1,4 @@
-FROM docker.io/library/python:latest
+FROM fedora
 
 RUN <<EOF
 echo "print first line from heredoc"
