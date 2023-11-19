@@ -2,7 +2,7 @@
 
 # Changelog
 
-## v1.31.1 (2023-11-18)
+## v1.33.1 (2023-11-18)
 
     fix(deps): update module github.com/moby/buildkit to v0.11.4 [security]
     test,heredoc: use fedora instead of docker.io/library/python:latest
