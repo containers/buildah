@@ -21,7 +21,7 @@ import (
 	"github.com/containers/image/v5/types"
 	sstorage "github.com/containers/storage"
 	"github.com/containers/storage/pkg/reexec"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 )
@@ -115,7 +115,7 @@ func BuildahCreate(tempDir string) BuildAhTest {
 	}
 }
 
-//MakeOptions assembles all the buildah main options
+// MakeOptions assembles all the buildah main options
 func (p *BuildAhTest) MakeOptions() []string {
 	return strings.Split(fmt.Sprintf("--root %s --runroot %s --registries-conf %s",
 		p.Root, p.RunRoot, p.RegistriesConf), " ")
@@ -293,7 +293,7 @@ func (p *BuildAhTest) RestoreAllArtifacts() error {
 	return nil
 }
 
-//LineInOutputStartsWith returns true if a line in a
+// LineInOutputStartsWith returns true if a line in a
 // session output starts with the supplied string
 func (s *BuildAhSession) LineInOutputStartsWith(term string) bool {
 	for _, i := range s.OutputToStringArray() {
@@ -304,7 +304,7 @@ func (s *BuildAhSession) LineInOutputStartsWith(term string) bool {
 	return false
 }
 
-//LineInOutputContains returns true if a line in a
+// LineInOutputContains returns true if a line in a
 // session output starts with the supplied string
 func (s *BuildAhSession) LineInOutputContains(term string) bool {
 	for _, i := range s.OutputToStringArray() {
