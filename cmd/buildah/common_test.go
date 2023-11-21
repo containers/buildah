@@ -17,7 +17,7 @@ import (
 
 var (
 	signaturePolicyPath = ""
-	storeOptions, _     = storage.DefaultStoreOptions(false, 0)
+	storeOptions, _     = storage.DefaultStoreOptions()
 	testSystemContext   = types.SystemContext{}
 )
 

@@ -14,6 +14,7 @@ import (
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -28,7 +29,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 	if err := setXDGRuntimeDir(); err != nil {
 		return nil, err
 	}
-	options, err := storage.DefaultStoreOptions(unshare.GetRootlessUID() > 0, unshare.GetRootlessUID())
+	options, err := storage.DefaultStoreOptions()
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +107,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 // setXDGRuntimeDir sets XDG_RUNTIME_DIR when if it is unset under rootless
 func setXDGRuntimeDir() error {
 	if unshare.IsRootless() && os.Getenv("XDG_RUNTIME_DIR") == "" {
-		runtimeDir, err := storage.GetRootlessRuntimeDir(unshare.GetRootlessUID())
+		runtimeDir, err := homedir.GetRuntimeDir()
 		if err != nil {
 			return err
 		}
