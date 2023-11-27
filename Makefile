@@ -69,15 +69,14 @@ static:
 	mkdir -p ./bin
 	cp -rfp ./result/bin/* ./bin/
 
-bin/buildah: $(SOURCES) cmd/buildah/*.go internal/mkcw/embed/entrypoint.gz
+bin/buildah: $(SOURCES) cmd/buildah/*.go internal/mkcw/embed/entrypoint_amd64.gz
 	$(GO_BUILD) $(BUILDAH_LDFLAGS) $(GO_GCFLAGS) "$(GOGCFLAGS)" -o $@ $(BUILDFLAGS) ./cmd/buildah
 
 ifneq ($(shell as --version | grep x86_64),)
-internal/mkcw/embed/entrypoint.gz: internal/mkcw/embed/entrypoint
-	$(RM) $@
+internal/mkcw/embed/entrypoint_amd64.gz: internal/mkcw/embed/entrypoint_amd64
 	gzip -k9nf $^
 
-internal/mkcw/embed/entrypoint: internal/mkcw/embed/entrypoint.s
+internal/mkcw/embed/entrypoint_amd64: internal/mkcw/embed/entrypoint_amd64.s
 	$(AS) -o $(patsubst %.s,%.o,$^) $^
 	$(LD) -o $@ $(patsubst %.s,%.o,$^)
 	strip $@
