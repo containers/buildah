@@ -635,6 +635,9 @@ function skip_if_no_unshare() {
   if ! unshare -Urmpf true ; then
     skip "unshare was not able to create a pid namespace"
   fi
+  if ! unshare -U --map-users $(id -u),0,1 true ; then
+    skip "unshare does not support --map-users"
+  fi
 }
 
 function start_git_daemon() {
