@@ -75,7 +75,7 @@ bin/buildah: $(SOURCES) cmd/buildah/*.go internal/mkcw/embed/entrypoint.gz
 ifneq ($(shell as --version | grep x86_64),)
 internal/mkcw/embed/entrypoint.gz: internal/mkcw/embed/entrypoint
 	$(RM) $@
-	gzip -k $^
+	gzip -k9nf $^
 
 internal/mkcw/embed/entrypoint: internal/mkcw/embed/entrypoint.s
 	$(AS) -o $(patsubst %.s,%.o,$^) $^
