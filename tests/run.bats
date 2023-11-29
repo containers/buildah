@@ -371,7 +371,7 @@ function configure_and_check_user() {
 
   # Create the container.
   _prefetch alpine
-  run_buildah from $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   ctr="$output"
 
   # Test user can create file in the mounted volume.
@@ -387,7 +387,7 @@ function configure_and_check_user() {
 
   # Create the container.
   _prefetch alpine
-  run_buildah from $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   ctr="$output"
 
   # Run with uid:gid 1000:1000 and verify if gid is present in additional groups
