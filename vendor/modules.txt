@@ -212,7 +212,7 @@ github.com/containers/image/v5/version
 # github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01
 ## explicit
 github.com/containers/libtrust
-# github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b
+# github.com/containers/luksy v0.0.0-20231127213545-c2b9b9dbf004
 ## explicit; go 1.20
 github.com/containers/luksy
 # github.com/containers/ocicrypt v1.1.9
