@@ -21,7 +21,7 @@ The image ID of the image that was created.  On error, 1 is returned and errno i
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -131,8 +131,8 @@ Control the format for the image manifest and configuration data.  Recognized
 formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
 2, using schema format 2 for the manifest).
 
-Note: You can also override the default format by setting the BUILDAH\_FORMAT
-environment variable.  `export BUILDAH\_FORMAT=docker`
+Note: You can also override the default format by setting the BUILDAH_FORMAT
+environment variable.  `export BUILDAH_FORMAT=docker`
 
 **--identity-label** *bool-value*
 
