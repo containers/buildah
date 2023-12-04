@@ -706,7 +706,7 @@ Valid _type_ values are:
 - **tar**: write the resulting files as a single tarball (.tar).
 
 If no type is specified, the value defaults to **local**.
-Alternatively, instead of a comma-separated sequence, the value of **--output** can be just a destination (in the `**dest** format) (e.g. `--output some-path`, `--output -`) where `--output some-path` is treated as if **type=local** and `--output -` is treated as if **type=tar**.
+Alternatively, instead of a comma-separated sequence, the value of **--output** can be just a destination (in the `**dest**` format) (e.g. `--output some-path`, `--output -`) where `--output some-path` is treated as if **type=local** and `--output -` is treated as if **type=tar**.
 
 Note: The **--tag** option can also be used to change the file image format to supported `containers-transports(5)`.
 
@@ -742,26 +742,29 @@ The `buildah build` command allows building images for all Linux architectures, 
 
 **--pull**
 
-When the flag is enabled or set explicitly to `true` (with *--pull=true*), attempt to pull the latest image from the registries
-listed in registries.conf if a local image does not exist or the image is newer
-than the one in storage. Raise an error if the image is not in any listed
-registry and is not present locally.
+When the *--pull* flag is enabled or set explicitly to `true` (with
+*--pull=true*), attempt to pull the latest versions of base and SBOM scanner
+images from the registries listed in registries.conf if a local base or SBOM
+scanner image does not exist or the image in the registry is newer than the one
+in local storage. Raise an error if the base or SBOM scanner image is not in
+any listed registry and is not present locally.
 
-If the flag is disabled (with *--pull=false*), do not pull the image from the
-registry, use only the local version. Raise an error if the image is not
-present locally.
+If the flag is disabled (with *--pull=false*), do not pull base and SBOM
+scanner images from registries, use only local versions. Raise an error if a
+base or SBOM scanner image is not present locally.
 
-If the pull flag is set to `always` (with *--pull=always*),
-pull the image from the first registry it is found in as listed in registries.conf.
-Raise an error if not found in the registries, even if the image is present locally.
+If the pull flag is set to `always` (with *--pull=always*), pull base and SBOM
+scanner images from the registries listed in registries.conf.  Raise an error
+if a base or SBOM scanner image is not found in the registries, even if an
+image with the same name is present locally.
 
-If the pull flag is set to `missing` (with *--pull=missing*),
-pull the image only if it could not be found in the local containers storage.
-Raise an error if no image could be found and the pull fails.
+If the pull flag is set to `missing` (with *--pull=missing*), pull base and
+SBOM scanner images only if they could not be found in the local containers
+storage.  Raise an error if no image could be found and the pull fails.
 
-If the pull flag is set to `never` (with *--pull=never*),
-Do not pull the image from the registry, use only the local version.
-Raise an error if the image is not present locally.
+If the pull flag is set to `never` (with *--pull=never*), do not pull base and
+SBOM scanner images from registries, use only the local versions.  Raise an
+error if the image is not present locally.
 
 Defaults to *true*.
 
@@ -802,6 +805,97 @@ consult the manpages of the selected container runtime.
 
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah build, the option given would be `--runtime-flag log-format=json`.
+
+**--sbom** *preset*
+
+Generate SBOMs (Software Bills Of Materials) for the output image by scanning
+the working container and build contexts using the named combination of scanner
+image, scanner commands, and merge strategy.  Must be specified with one or
+more of **--sbom-image-output**, **--sbom-image-purl-output**, **--sbom-output**,
+and **--sbom-purl-output**.  Recognized presets, and the set of options which
+they equate to:
+
+ - "syft", "syft-cyclonedx":
+     --sbom-scanner-image=ghcr.io/anchore/syft
+     --sbom-scanner-command="/syft scan -q dir:{ROOTFS} --output cyclonedx-json={OUTPUT}"
+     --sbom-scanner-command="/syft scan -q dir:{CONTEXT} --output cyclonedx-json={OUTPUT}"
+     --sbom-merge-strategy=merge-cyclonedx-by-component-name-and-version
+ - "syft-spdx":
+     --sbom-scanner-image=ghcr.io/anchore/syft
+     --sbom-scanner-command="/syft scan -q dir:{ROOTFS} --output spdx-json={OUTPUT}"
+     --sbom-scanner-command="/syft scan -q dir:{CONTEXT} --output spdx-json={OUTPUT}"
+     --sbom-merge-strategy=merge-spdx-by-package-name-and-versioninfo
+ - "trivy", "trivy-cyclonedx":
+     --sbom-scanner-image=ghcr.io/aquasecurity/trivy
+     --sbom-scanner-command="trivy filesystem -q {ROOTFS} --format cyclonedx --output {OUTPUT}"
+     --sbom-scanner-command="trivy filesystem -q {CONTEXT} --format cyclonedx --output {OUTPUT}"
+     --sbom-merge-strategy=merge-cyclonedx-by-component-name-and-version
+ - "trivy-spdx":
+     --sbom-scanner-image=ghcr.io/aquasecurity/trivy
+     --sbom-scanner-command="trivy filesystem -q {ROOTFS} --format spdx-json --output {OUTPUT}"
+     --sbom-scanner-command="trivy filesystem -q {CONTEXT} --format spdx-json --output {OUTPUT}"
+     --sbom-merge-strategy=merge-spdx-by-package-name-and-versioninfo
+
+**--sbom-image-output** *path*
+
+When generating SBOMs, store the generated SBOM in the specified path in the
+output image.  There is no default.
+
+**--sbom-image-purl-output** *path*
+
+When generating SBOMs, scan them for PURL ([package
+URL](https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst))
+information, and save a list of found PURLs to the specified path in the output
+image.  There is no default.
+
+**--sbom-merge-strategy** *method*
+
+If more than one **--sbom-scanner-command** value is being used, use the
+specified method to merge the output from later commands with output from
+earlier commands.  Recognized values include:
+
+ - cat
+     Concatenate the files.
+ - merge-cyclonedx-by-component-name-and-version
+     Merge the "component" fields of JSON documents, ignoring values from
+     documents when the combination of their "name" and "version" values is
+     already present.  Documents are processed in the order in which they are
+     generated, which is the order in which the commands that generate them
+     were specified.
+ - merge-spdx-by-package-name-and-versioninfo
+     Merge the "package" fields of JSON documents, ignoring values from
+     documents when the combination of their "name" and "versionInfo" values is
+     already present.  Documents are processed in the order in which they are
+     generated, which is the order in which the commands that generate them
+     were specified.
+
+**--sbom-output** *file*
+
+When generating SBOMs, store the generated SBOM in the named file on the local
+filesystem.  There is no default.
+
+**--sbom-purl-output** *file*
+
+When generating SBOMs, scan them for PURL ([package
+URL](https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst))
+information, and save a list of found PURLs to the named file in the local
+filesystem.  There is no default.
+
+**--sbom-scanner-command** *image*
+
+Generate SBOMs by running the specified command from the scanner image.  If
+multiple commands are specified, they are run in the order in which they are
+specified.  These text substitutions are performed:
+  - {ROOTFS}
+      The root of the built image's filesystem, bind mounted.
+  - {CONTEXT}
+      The build context and additional build contexts, bind mounted.
+  - {OUTPUT}
+      The name of a temporary output file, to be read and merged with others or copied elsewhere.
+
+**--sbom-scanner-image** *image*
+
+Generate SBOMs using the specified scanner image.
 
 **--secret**=**id=id,src=path**
 
@@ -1275,7 +1369,7 @@ Users can specify a series of Unix shell globals in a
 .containerignore/.dockerignore file to identify files/directories to exclude.
 
 Buildah supports a special wildcard string `**` which matches any number of
-directories (including zero). For example, **/*.go will exclude all files that
+directories (including zero). For example, `**/*.go` will exclude all files that
 end with .go that are found in all directories.
 
 Example .containerignore file:

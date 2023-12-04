@@ -70,7 +70,7 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	flags.StringVar(&opts.name, "name", "", "`name` for the working container")
-	flags.StringVar(&opts.pull, "pull", "true", "pull the image from the registry if newer or not present in store, if false, only pull the image if not present, if always, pull the image even if the named image is present in store, if never, only use the image present in store if available")
+	flags.StringVar(&opts.pull, "pull", "true", "pull images from the registry if newer or not present in store, if false, only pull images if not present, if always, pull images even if the named images are present in store, if never, only use images present in store if available")
 	flags.Lookup("pull").NoOptDefVal = "true" //allow `--pull ` to be set to `true` as expected.
 
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
@@ -212,35 +212,10 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		logrus.Warnf("ignoring platforms other than %+v: %+v", platforms[0], platforms[1:])
 	}
 
-	pullFlagsCount := 0
-	if c.Flag("pull").Changed {
-		pullFlagsCount++
+	pullPolicy, err := parse.PullPolicyFromOptions(c)
+	if err != nil {
+		return err
 	}
-	if c.Flag("pull-always").Changed {
-		pullFlagsCount++
-	}
-	if c.Flag("pull-never").Changed {
-		pullFlagsCount++
-	}
-
-	if pullFlagsCount > 1 {
-		return errors.New("can only set one of 'pull' or 'pull-always' or 'pull-never'")
-	}
-
-	// Allow for --pull, --pull=true, --pull=false, --pull=never, --pull=always
-	// --pull-always and --pull-never.  The --pull-never and --pull-always options
-	// will not be documented.
-	pullPolicy := define.PullIfMissing
-	if strings.EqualFold(strings.TrimSpace(iopts.pull), "true") {
-		pullPolicy = define.PullIfNewer
-	}
-	if iopts.pullAlways || strings.EqualFold(strings.TrimSpace(iopts.pull), "always") {
-		pullPolicy = define.PullAlways
-	}
-	if iopts.pullNever || strings.EqualFold(strings.TrimSpace(iopts.pull), "never") {
-		pullPolicy = define.PullNever
-	}
-	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
 
 	signaturePolicy := iopts.signaturePolicy
 

@@ -152,6 +152,7 @@ type Executor struct {
 	osFeatures              []string
 	envs                    []string
 	confidentialWorkload    define.ConfidentialWorkloadOptions
+	sbomScanOptions         []define.SBOMScanOptions
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -310,6 +311,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		osFeatures:                     append([]string{}, options.OSFeatures...),
 		envs:                           append([]string{}, options.Envs...),
 		confidentialWorkload:           options.ConfidentialWorkload,
+		sbomScanOptions:                options.SBOMScanOptions,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

@@ -42,6 +42,17 @@ type commitInputOptions struct {
 	quiet              bool
 	referenceTime      string
 	rm                 bool
+	pull               string
+	pullAlways         bool
+	pullNever          bool
+	sbomImgOutput      string
+	sbomImgPurlOutput  string
+	sbomMergeStrategy  string
+	sbomOutput         string
+	sbomPreset         string
+	sbomPurlOutput     string
+	sbomScannerCommand []string
+	sbomScannerImage   string
 	signaturePolicy    string
 	signBy             string
 	squash             bool
@@ -112,6 +123,36 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
 	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
 	_ = cmd.RegisterFlagCompletionFunc("reference-time", completion.AutocompleteNone)
+
+	flags.StringVar(&opts.pull, "pull", "true", "pull SBOM scanner images from the registry if newer or not present in store, if false, only pull SBOM scanner images if not present, if always, pull SBOM scanner images even if the named images are present in store, if never, only use images present in store if available")
+	flags.Lookup("pull").NoOptDefVal = "true" //allow `--pull ` to be set to `true` as expected.
+
+	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
+	if err := flags.MarkHidden("pull-always"); err != nil {
+		panic(fmt.Sprintf("error marking the pull-always flag as hidden: %v", err))
+	}
+	flags.BoolVar(&opts.pullNever, "pull-never", false, "do not pull the image, use the image present in store if available")
+	if err := flags.MarkHidden("pull-never"); err != nil {
+		panic(fmt.Sprintf("error marking the pull-never flag as hidden: %v", err))
+	}
+
+	flags.StringVar(&opts.sbomPreset, "sbom", "", "scan working container using `preset` configuration")
+	_ = cmd.RegisterFlagCompletionFunc("sbom", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomScannerImage, "sbom-scanner-image", "", "scan working container using scanner command from `image`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-scanner-image", completion.AutocompleteNone)
+	flags.StringArrayVar(&opts.sbomScannerCommand, "sbom-scanner-command", nil, "scan working container using `command` in scanner image")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-scanner-command", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomMergeStrategy, "sbom-merge-strategy", "", "merge scan results using `strategy`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-merge-strategy", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomOutput, "sbom-output", "", "save scan results to `file`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-output", completion.AutocompleteDefault)
+	flags.StringVar(&opts.sbomImgOutput, "sbom-image-output", "", "add scan results to image as `path`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-image-output", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomPurlOutput, "sbom-purl-output", "", "save scan results to `file``")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-purl-output", completion.AutocompleteDefault)
+	flags.StringVar(&opts.sbomImgPurlOutput, "sbom-image-purl-output", "", "add scan results to image as `path`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-image-purl-output", completion.AutocompleteNone)
+
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	_ = cmd.RegisterFlagCompletionFunc("sign-by", completion.AutocompleteNone)
 	if err := flags.MarkHidden("omit-timestamp"); err != nil {
@@ -294,6 +335,22 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 			return fmt.Errorf("parsing --cw arguments: %w", err)
 		}
 		options.ConfidentialWorkloadOptions = confidentialWorkloadOptions
+	}
+
+	pullPolicy, err := parse.PullPolicyFromOptions(c)
+	if err != nil {
+		return err
+	}
+
+	if c.Flag("sbom").Changed || c.Flag("sbom-scanner-command").Changed || c.Flag("sbom-scanner-image").Changed || c.Flag("sbom-image-output").Changed || c.Flag("sbom-merge-strategy").Changed || c.Flag("sbom-output").Changed || c.Flag("sbom-image-output").Changed || c.Flag("sbom-purl-output").Changed || c.Flag("sbom-image-purl-output").Changed {
+		var sbomOptions []define.SBOMScanOptions
+		sbomOption, err := parse.SBOMScanOptions(c)
+		if err != nil {
+			return err
+		}
+		sbomOption.PullPolicy = pullPolicy
+		sbomOptions = append(sbomOptions, *sbomOption)
+		options.SBOMScanOptions = sbomOptions
 	}
 
 	if exclusiveFlags > 1 {
