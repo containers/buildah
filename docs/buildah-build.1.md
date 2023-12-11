@@ -1022,12 +1022,11 @@ Set the architecture variant of the image to be pulled.
 
 Mount a host directory into containers when executing *RUN* instructions during
 the build.  The `OPTIONS` are a comma delimited list and can be:
-<sup>[[1]](#Footnote1)</sup>
 
    * [rw|ro]
    * [U]
    * [z|Z|O]
-   * [`[r]shared`|`[r]slave`|`[r]private`]
+   * [`[r]shared`|`[r]slave`|`[r]private`] <sup>[[1]](#Footnote1)</sup>
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 must be an absolute path as well. Buildah bind-mounts the `HOST-DIR` to the
