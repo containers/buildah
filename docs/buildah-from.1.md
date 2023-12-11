@@ -587,12 +587,12 @@ Set the architecture variant of the image to be pulled.
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
    bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-   container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
+   container. The `OPTIONS` are a comma delimited list and can be:
 
    * [rw|ro]
    * [U]
    * [z|Z|O]
-   * [`[r]shared`|`[r]slave`|`[r]private`|`[r]unbindable`]
+   * [`[r]shared`|`[r]slave`|`[r]private`|`[r]unbindable`] <sup>[[1]](#Footnote1)</sup>
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 must be an absolute path as well. Buildah bind-mounts the `HOST-DIR` to the
