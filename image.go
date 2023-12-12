@@ -171,6 +171,22 @@ func (i *containerImageRef) extractConfidentialWorkloadFS(options ConfidentialWo
 	if err := json.Unmarshal(i.oconfig, &image); err != nil {
 		return nil, fmt.Errorf("recreating OCI configuration for %q: %w", i.containerID, err)
 	}
+	if options.TempDir == "" {
+		cdir, err := i.store.ContainerDirectory(i.containerID)
+		if err != nil {
+			return nil, fmt.Errorf("getting the per-container data directory for %q: %w", i.containerID, err)
+		}
+		tempdir, err := os.MkdirTemp(cdir, "buildah-rootfs")
+		if err != nil {
+			return nil, fmt.Errorf("creating a temporary data directory to hold a rootfs image for %q: %w", i.containerID, err)
+		}
+		defer func() {
+			if err := os.RemoveAll(tempdir); err != nil {
+				logrus.Warnf("removing temporary directory %q: %v", tempdir, err)
+			}
+		}()
+		options.TempDir = tempdir
+	}
 	mountPoint, err := i.store.Mount(i.containerID, i.mountLabel)
 	if err != nil {
 		return nil, fmt.Errorf("mounting container %q: %w", i.containerID, err)
@@ -186,6 +202,7 @@ func (i *containerImageRef) extractConfidentialWorkloadFS(options ConfidentialWo
 		DiskEncryptionPassphrase: options.DiskEncryptionPassphrase,
 		Slop:                     options.Slop,
 		FirmwareLibrary:          options.FirmwareLibrary,
+		GraphOptions:             i.store.GraphOptions(),
 	}
 	rc, _, err := mkcw.Archive(mountPoint, &image, archiveOptions)
 	if err != nil {

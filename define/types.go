@@ -121,7 +121,7 @@ type ConfidentialWorkloadOptions struct {
 	AttestationURL           string
 	CPUs                     int
 	Memory                   int
-	TempDir                  string
+	TempDir                  string // used for the temporary plaintext copy of the disk image
 	TeeType                  TeeType
 	IgnoreAttestationErrors  bool
 	WorkloadID               string

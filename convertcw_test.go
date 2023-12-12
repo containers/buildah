@@ -72,7 +72,7 @@ func TestCWConvertImage(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
 		for _, ignoreChainRetrievalErrors := range []bool{false, true} {
 			for _, ignoreAttestationErrors := range []bool{false, true} {
-				t.Run(fmt.Sprintf("status=%d,ignoreChainRetrievalErrors=%v,ignoreAttestationErrors=%v", status, ignoreChainRetrievalErrors, ignoreAttestationErrors), func(t *testing.T) {
+				t.Run(fmt.Sprintf("status~%d~ignoreChainRetrievalErrors~%v~ignoreAttestationErrors~%v", status, ignoreChainRetrievalErrors, ignoreAttestationErrors), func(t *testing.T) {
 					// create a per-test Store object
 					storeOptions := storage.StoreOptions{
 						GraphRoot:       t.TempDir(),
