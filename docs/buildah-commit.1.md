@@ -19,6 +19,14 @@ The image ID of the image that was created.  On error, 1 is returned and errno i
 
 ## OPTIONS
 
+**--add-file** *source[:destination]*
+
+Read the contents of the file `source` and add it to the committed image as a
+file at `destination`.  If `destination` is not specified, the path of `source`
+will be used.  The new file will be owned by UID 0, GID 0, have 0644
+permissions, and be given a current timestamp unless the **--timestamp** option
+is also specified.  This option can be specified multiple times.
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.

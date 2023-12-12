@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/containers/buildah"
@@ -49,6 +50,7 @@ type commitInputOptions struct {
 	encryptionKeys     []string
 	encryptLayers      []int
 	unsetenvs          []string
+	addFile            []string
 }
 
 func init() {
@@ -77,6 +79,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
 
+	flags.StringArrayVar(&opts.addFile, "add-file", nil, "add contents of a file to the image at a specified path (`source:destination`)")
 	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	_ = cmd.RegisterFlagCompletionFunc("authfile", completion.AutocompleteDefault)
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
@@ -223,6 +226,28 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		}
 	}
 
+	var addFiles map[string]string
+	if len(iopts.addFile) > 0 {
+		addFiles = make(map[string]string)
+		for _, spec := range iopts.addFile {
+			specSlice := strings.SplitN(spec, ":", 2)
+			if len(specSlice) == 1 {
+				specSlice = []string{specSlice[0], specSlice[0]}
+			}
+			if len(specSlice) != 2 {
+				return fmt.Errorf("parsing add-file argument %q: expected 1 or 2 parts, got %d", spec, len(strings.SplitN(spec, ":", 2)))
+			}
+			st, err := os.Stat(specSlice[0])
+			if err != nil {
+				return fmt.Errorf("parsing add-file argument %q: source %q: %w", spec, specSlice[0], err)
+			}
+			if st.IsDir() {
+				return fmt.Errorf("parsing add-file argument %q: source %q is not a regular file", spec, specSlice[0])
+			}
+			addFiles[specSlice[1]] = specSlice[0]
+		}
+	}
+
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Manifest:              iopts.manifest,
@@ -239,6 +264,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		UnsetEnvs:             iopts.unsetenvs,
 		OverrideChanges:       iopts.changes,
 		OverrideConfig:        overrideConfig,
+		ExtraImageContent:     addFiles,
 	}
 	exclusiveFlags := 0
 	if c.Flag("reference-time").Changed {
