@@ -171,6 +171,7 @@ func CWConvertImage(ctx context.Context, systemContext *types.SystemContext, sto
 		Slop:                     options.Slop,
 		FirmwareLibrary:          options.FirmwareLibrary,
 		Logger:                   logger,
+		GraphOptions:             store.GraphOptions(),
 	}
 	rc, workloadConfig, err := mkcw.Archive(sourceDir, &source.OCIv1, archiveOptions)
 	if err != nil {

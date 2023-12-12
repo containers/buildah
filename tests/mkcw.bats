@@ -49,12 +49,15 @@ function mkcw_check_image() {
     skip "cryptsetup not found"
   fi
   _prefetch busybox
+  _prefetch bash
 
   echo -n mkcw-convert > "$TEST_SCRATCH_DIR"/key
+  # image has one layer, check with all-lower-case TEE type name
   run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert busybox busybox-cw
   mkcw_check_image busybox-cw
-  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert busybox busybox-cw
-  mkcw_check_image busybox-cw
+  # image has multiple layers, check with all-upper-case TEE type name
+  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert bash bash-cw
+  mkcw_check_image bash-cw
 }
 
 @test "mkcw-commit" {
@@ -63,10 +66,10 @@ function mkcw_check_image() {
   if ! which cryptsetup > /dev/null 2> /dev/null ; then
     skip "cryptsetup not found"
   fi
-  _prefetch busybox
+  _prefetch bash
 
   echo -n "mkcw commit" > "$TEST_SCRATCH_DIR"/key
-  run_buildah from busybox
+  run_buildah from bash
   ctrID="$output"
   run_buildah commit --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw commit" "$ctrID"
   mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
