@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/parse"
@@ -38,6 +39,7 @@ func mkcwCmd(c *cobra.Command, args []string, options buildah.CWConvertImageOpti
 
 func init() {
 	var teeType string
+	var addFile []string
 	var options buildah.CWConvertImageOptions
 	mkcwDescription := `Convert a conventional image to a confidential workload image.`
 	mkcwCommand := &cobra.Command{
@@ -46,6 +48,23 @@ func init() {
 		Long:  mkcwDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			options.TeeType = parse.TeeType(teeType)
+			if len(addFile) > 0 {
+				options.ExtraImageContent = make(map[string]string)
+				for _, spec := range addFile {
+					source, dest, haveDest := strings.Cut(spec, ":")
+					if !haveDest {
+						dest = source
+					}
+					st, err := os.Stat(source)
+					if err != nil {
+						return fmt.Errorf("parsing add-file argument %q: source %q: %w", spec, source, err)
+					}
+					if st.IsDir() {
+						return fmt.Errorf("parsing add-file argument %q: source %q is not a regular file", spec, source)
+					}
+					options.ExtraImageContent[dest] = source
+				}
+			}
 			return mkcwCmd(cmd, args, options)
 		},
 		Example: `buildah mkcw localhost/repository:typical localhost/repository:cw`,
@@ -57,6 +76,7 @@ func init() {
 	flags.SetInterspersed(false)
 
 	flags.StringVarP(&teeType, "type", "t", "", "TEE (trusted execution environment) type: SEV,SNP (default: SNP)")
+	flags.StringArrayVar(&addFile, "add-file", nil, "add contents of a file to the image at a specified path (`source:destination`)")
 	flags.StringVarP(&options.AttestationURL, "attestation-url", "u", "", "attestation server URL")
 	flags.StringVarP(&options.BaseImage, "base-image", "b", "", "alternate base image (default: scratch)")
 	flags.StringVarP(&options.DiskEncryptionPassphrase, "passphrase", "p", "", "disk encryption passphrase")

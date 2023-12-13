@@ -35,6 +35,15 @@ function mkcw_check_image() {
   test -d "$TEST_SCRATCH_DIR"/mount/tmp
   # Should have a /bin/sh file from the base image, at least.
   test -s "$TEST_SCRATCH_DIR"/mount/bin/sh || test -L "$TEST_SCRATCH_DIR"/mount/bin/sh
+  if shift ; then
+    if shift ; then
+      for pair in "$@" ; do
+        inner=${pair##*:}
+        outer=${pair%%:*}
+        cmp ${outer} "$TEST_SCRATCH_DIR"/mount/${inner}
+      done
+    fi
+  fi
 
   # Clean up.
   umount "$TEST_SCRATCH_DIR"/mount
@@ -50,14 +59,16 @@ function mkcw_check_image() {
   fi
   _prefetch busybox
   _prefetch bash
+  createrandom randomfile1
+  createrandom randomfile2
 
   echo -n mkcw-convert > "$TEST_SCRATCH_DIR"/key
   # image has one layer, check with all-lower-case TEE type name
-  run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert busybox busybox-cw
-  mkcw_check_image busybox-cw
+  run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert --add-file randomfile1:/in-a-subdir/rnd1 busybox busybox-cw
+  mkcw_check_image busybox-cw "" randomfile1:in-a-subdir/rnd1
   # image has multiple layers, check with all-upper-case TEE type name
-  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert bash bash-cw
-  mkcw_check_image bash-cw
+  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert --add-file randomfile2:rnd2 bash bash-cw
+  mkcw_check_image bash-cw "" randomfile2:/rnd2
 }
 
 @test "mkcw-commit" {
