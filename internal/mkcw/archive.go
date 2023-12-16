@@ -17,7 +17,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/buildah/internal/tmpdir"
+	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/luksy"
+	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/pkg/mount"
+	"github.com/containers/storage/pkg/system"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
@@ -48,6 +53,7 @@ type ArchiveOptions struct {
 	DiskEncryptionPassphrase string
 	FirmwareLibrary          string
 	Logger                   *logrus.Logger
+	GraphOptions             []string // passed in from a storage Store, probably
 }
 
 type chainRetrievalError struct {
@@ -107,6 +113,9 @@ func Archive(path string, ociConfig *v1.Image, options ArchiveOptions) (io.ReadC
 		Memory:         memory,
 		AttestationURL: options.AttestationURL,
 	}
+	if options.TempDir == "" {
+		options.TempDir = tmpdir.GetTempDir()
+	}
 
 	// Do things which are specific to the type of TEE we're building for.
 	var chainBytes []byte
@@ -165,6 +174,77 @@ func Archive(path string, ociConfig *v1.Image, options ArchiveOptions) (io.ReadC
 		workloadConfig.TeeData = string(encodedTeeData)
 	}
 
+	// We're going to want to add some content to the rootfs, so set up an
+	// overlay that uses it as a lower layer so that we can write to it.
+	st, err := system.Stat(path)
+	if err != nil {
+		return nil, WorkloadConfig{}, fmt.Errorf("reading information about the container root filesystem: %w", err)
+	}
+	// Create a temporary directory to hold all of this.  Use tmpdir.GetTempDir()
+	// instead of the passed-in location, which a crafty caller might have put in an
+	// overlay filesystem in storage because there tends to be more room there than
+	// in, say, /var/tmp, and the plaintext disk image, which we put in the passed-in
+	// location, can get quite large.
+	rootfsParentDir, err := os.MkdirTemp(tmpdir.GetTempDir(), "buildah-rootfs")
+	if err != nil {
+		return nil, WorkloadConfig{}, fmt.Errorf("setting up parent for container root filesystem: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(rootfsParentDir); err != nil {
+			logger.Warnf("cleaning up parent for container root filesystem: %v", err)
+		}
+	}()
+	// Create a mountpoint for the new overlay, which we'll use as the rootfs.
+	rootfsDir := filepath.Join(rootfsParentDir, "rootfs")
+	if err := idtools.MkdirAndChown(rootfsDir, fs.FileMode(st.Mode()), idtools.IDPair{UID: int(st.UID()), GID: int(st.GID())}); err != nil {
+		return nil, WorkloadConfig{}, fmt.Errorf("creating mount target for container root filesystem: %w", err)
+	}
+	defer func() {
+		if err := os.Remove(rootfsDir); err != nil {
+			logger.Warnf("removing mount target for container root filesystem: %v", err)
+		}
+	}()
+	// Create a directory to hold all of the overlay package's working state.
+	tempDir := filepath.Join(rootfsParentDir, "tmp")
+	if err = os.Mkdir(tempDir, 0o700); err != nil {
+		return nil, WorkloadConfig{}, err
+	}
+	// Create some working state in there.
+	overlayTempDir, err := overlay.TempDir(tempDir, int(st.UID()), int(st.GID()))
+	if err != nil {
+		return nil, WorkloadConfig{}, fmt.Errorf("setting up mount of container root filesystem: %w", err)
+	}
+	defer func() {
+		if err := overlay.RemoveTemp(overlayTempDir); err != nil {
+			logger.Warnf("cleaning up mount of container root filesystem: %v", err)
+		}
+	}()
+	// Create a mount point using that working state.
+	rootfsMount, err := overlay.Mount(overlayTempDir, path, rootfsDir, 0, 0, options.GraphOptions)
+	if err != nil {
+		return nil, WorkloadConfig{}, fmt.Errorf("setting up support for overlay of container root filesystem: %w", err)
+	}
+	defer func() {
+		if err := overlay.Unmount(overlayTempDir); err != nil {
+			logger.Warnf("unmounting support for overlay of container root filesystem: %v", err)
+		}
+	}()
+	// Follow through on the overlay or bind mount, whatever the overlay package decided
+	// to leave to us to do.
+	rootfsMountOptions := strings.Join(rootfsMount.Options, ",")
+	logrus.Debugf("mounting %q to %q as %q with options %v", rootfsMount.Source, rootfsMount.Destination, rootfsMount.Type, rootfsMountOptions)
+	if err := mount.Mount(rootfsMount.Source, rootfsMount.Destination, rootfsMount.Type, rootfsMountOptions); err != nil {
+		return nil, WorkloadConfig{}, fmt.Errorf("mounting overlay of container root filesystem: %w", err)
+	}
+	defer func() {
+		logrus.Debugf("unmounting %q", rootfsMount.Destination)
+		if err := mount.Unmount(rootfsMount.Destination); err != nil {
+			logger.Warnf("unmounting overlay of container root filesystem: %v", err)
+		}
+	}()
+	// Pretend that we didn't have to do any of the preceding.
+	path = rootfsDir
+
 	// Write part of the config blob where the krun init process will be
 	// looking for it.  The oci2cw tool used `buildah inspect` output, but
 	// init is just looking for fields that have the right names in any
@@ -178,11 +258,6 @@ func Archive(path string, ociConfig *v1.Image, options ArchiveOptions) (io.ReadC
 	if err := ioutils.AtomicWriteFile(krunConfigPath, krunConfigBytes, 0o600); err != nil {
 		return nil, WorkloadConfig{}, fmt.Errorf("saving krun config: %w", err)
 	}
-	defer func() {
-		if err := os.Remove(krunConfigPath); err != nil {
-			logger.Warnf("removing krun configuration file: %v", err)
-		}
-	}()
 
 	// Encode the workload config, in case it fails for any reason.
 	cleanedUpWorkloadConfig := workloadConfig
