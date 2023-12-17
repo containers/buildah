@@ -708,6 +708,8 @@ Valid _type_ values are:
 If no type is specified, the value defaults to **local**.
 Alternatively, instead of a comma-separated sequence, the value of **--output** can be just a destination (in the `**dest** format) (e.g. `--output some-path`, `--output -`) where `--output some-path` is treated as if **type=local** and `--output -` is treated as if **type=tar**.
 
+Note: The **--tag** option can also be used to change the file image format to supported `containers-transports(5)`.
+
 **--pid** *how*
 
 Sets the configuration for PID namespaces when handling `RUN` instructions.
@@ -871,6 +873,13 @@ Use --stdin to be able to interact from the terminal during the build.
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
 If _imageName_ does not include a registry name component, the registry name *localhost* will be prepended to the image name.
+
+The **--tag** option supports all transports from `containers-transports(5)`.
+If no transport is specified, the `container-storage` (i.e., local storage) transport is used.
+
+  __buildah build --tag=oci-archive:./foo.ociarchive .__
+
+  __buildah build -t quay.io/username/foo  .__
 
 **--target** *stageName*
 
@@ -1310,7 +1319,7 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), cpp(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), crun(1), runc(8), containers.conf(5), oci-hooks(5)
+buildah(1), cpp(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), crun(1), runc(8), containers.conf(5), oci-hooks(5), containers-transports(5)
 
 ## FOOTNOTES
 <a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.

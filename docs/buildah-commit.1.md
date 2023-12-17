@@ -14,6 +14,8 @@ with a registry name component, `localhost` will be added to the name.  If
 name, the `buildah images` command will display `<none>` in the `REPOSITORY` and
 `TAG` columns.
 
+The *Image* value supports all transports from `containers-transports(5)`. If no transport is specified, the `container-storage` (i.e., local storage) transport is used.
+
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.
 
@@ -203,6 +205,9 @@ This example saves an image based on the container.
 This example saves an image named newImageName based on the container.
  `buildah commit --rm containerID newImageName`
 
+This example commits to an OCI Directory named /tmp/newImageName based on the container.
+ `buildah commit --rm containerID oci-archive:/tmp/newImageName`
+
 This example saves an image with no name, removes the working container, and creates a new container using the image's ID.
  `buildah from $(buildah commit --rm containerID)`
 
@@ -268,4 +273,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5)
+buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5), containers-transports(5)
