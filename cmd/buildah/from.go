@@ -13,7 +13,6 @@ import (
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
-	"github.com/containers/common/pkg/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -188,11 +187,6 @@ func onBuild(builder *buildah.Builder, quiet bool) error {
 }
 
 func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
-	defaultContainerConfig, err := config.Default()
-	if err != nil {
-		return fmt.Errorf("failed to get container config: %w", err)
-	}
-
 	if len(args) == 0 {
 		return errors.New("an image name (or \"scratch\") must be specified")
 	}

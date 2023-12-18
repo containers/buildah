@@ -12,11 +12,37 @@ load helpers
 }
 
 @test "bud: build manifest list and --add-compression zstd" {
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $BUDFILES/dockerfile/Dockerfile
+  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $BUDFILES/dockerfile/Dockerfile
+
+  run_buildah manifest create foo
+  run_buildah manifest add foo image1
+  run_buildah manifest add foo image2
+
+  run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
+
+  run_buildah manifest inspect --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false localhost:${REGISTRY_PORT}/list
+  list="$output"
+
+  validate_instance_compression "0" "$list" "amd64" "gzip"
+  validate_instance_compression "1" "$list" "arm64" "gzip"
+  validate_instance_compression "2" "$list" "amd64" "zstd"
+  validate_instance_compression "3" "$list" "arm64" "zstd"
+}
+
+@test "bud: build manifest list and --add-compression with containers.conf" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir
 
   cat > $contextdir/Dockerfile1 << _EOF
 FROM alpine
+_EOF
+
+  cat > $contextdir/containers.conf << _EOF
+[engine]
+add_compression = ["zstd"]
 _EOF
 
   start_registry
@@ -28,7 +54,7 @@ _EOF
   run_buildah manifest add foo image1
   run_buildah manifest add foo image2
 
-  run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
+  CONTAINERS_CONF=$contextdir/containers.conf run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
   run_buildah manifest inspect --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false localhost:${REGISTRY_PORT}/list
   list="$output"
