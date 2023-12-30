@@ -565,24 +565,23 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 	stageMountPoints := make(map[string]internal.StageMountDetails)
 	for _, flag := range mountList {
 		if strings.Contains(flag, "from") {
-			arr := strings.SplitN(flag, ",", 2)
-			if len(arr) < 2 {
+			tokens := strings.Split(flag, ",")
+			if len(tokens) < 2 {
 				return nil, fmt.Errorf("Invalid --mount command: %s", flag)
 			}
-			tokens := strings.Split(flag, ",")
-			for _, val := range tokens {
-				kv := strings.SplitN(val, "=", 2)
-				switch kv[0] {
+			for _, token := range tokens {
+				key, val, hasVal := strings.Cut(token, "=")
+				switch key {
 				case "from":
-					if len(kv) == 1 {
+					if !hasVal {
 						return nil, fmt.Errorf("unable to resolve argument for `from=`: bad argument")
 					}
-					if kv[1] == "" {
+					if val == "" {
 						return nil, fmt.Errorf("unable to resolve argument for `from=`: from points to an empty value")
 					}
-					from, fromErr := imagebuilder.ProcessWord(kv[1], s.stage.Builder.Arguments())
+					from, fromErr := imagebuilder.ProcessWord(val, s.stage.Builder.Arguments())
 					if fromErr != nil {
-						return nil, fmt.Errorf("unable to resolve argument %q: %w", kv[1], fromErr)
+						return nil, fmt.Errorf("unable to resolve argument %q: %w", val, fromErr)
 					}
 					// If additional buildContext contains this
 					// give priority to that and break if additional
@@ -1748,9 +1747,9 @@ func (s *StageExecutor) getBuildArgsResolvedForRun() string {
 	dockerConfig := s.stage.Builder.Config()
 
 	for _, env := range dockerConfig.Env {
-		splitv := strings.SplitN(env, "=", 2)
-		if len(splitv) == 2 {
-			configuredEnvs[splitv[0]] = splitv[1]
+		key, val, hasVal := strings.Cut(env, "=")
+		if hasVal {
+			configuredEnvs[key] = val
 		}
 	}
 
@@ -2102,8 +2101,8 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		s.builder.SetPort(string(p))
 	}
 	for _, envSpec := range config.Env {
-		spec := strings.SplitN(envSpec, "=", 2)
-		s.builder.SetEnv(spec[0], spec[1])
+		key, val, _ := strings.Cut(envSpec, "=")
+		s.builder.SetEnv(key, val)
 	}
 	for _, envSpec := range s.executor.unsetEnvs {
 		s.builder.UnsetEnv(envSpec)
@@ -2139,12 +2138,8 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		// an intermediate image, in such case we must
 		// honor layer labels if they are configured.
 		for _, labelString := range s.executor.layerLabels {
-			label := strings.SplitN(labelString, "=", 2)
-			if len(label) > 1 {
-				s.builder.SetLabel(label[0], label[1])
-			} else {
-				s.builder.SetLabel(label[0], "")
-			}
+			labelk, labelv, _ := strings.Cut(labelString, "=")
+			s.builder.SetLabel(labelk, labelv)
 		}
 	}
 	for k, v := range config.Labels {
@@ -2157,12 +2152,8 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		s.builder.UnsetLabel(key)
 	}
 	for _, annotationSpec := range s.executor.annotations {
-		annotation := strings.SplitN(annotationSpec, "=", 2)
-		if len(annotation) > 1 {
-			s.builder.SetAnnotation(annotation[0], annotation[1])
-		} else {
-			s.builder.SetAnnotation(annotation[0], "")
-		}
+		annotationk, annotationv, _ := strings.Cut(annotationSpec, "=")
+		s.builder.SetAnnotation(annotationk, annotationv)
 	}
 	if imageRef != nil {
 		logName := transports.ImageName(imageRef)

@@ -26,14 +26,14 @@ func (o *AddOptions) annotations() (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	for _, unparsed := range o.Annotations {
-		parsed := strings.SplitN(unparsed, "=", 2)
-		if len(parsed) != 2 {
+		key, value, hasValue := strings.Cut(unparsed, "=")
+		if !hasValue {
 			return nil, fmt.Errorf("invalid annotation %q (expected format is \"key=value\")", unparsed)
 		}
-		if _, exists := annotations[parsed[0]]; exists {
-			return nil, fmt.Errorf("annotation %q specified more than once", parsed[0])
+		if _, exists := annotations[key]; exists {
+			return nil, fmt.Errorf("annotation %q specified more than once", key)
 		}
-		annotations[parsed[0]] = parsed[1]
+		annotations[key] = value
 	}
 
 	return annotations, nil
