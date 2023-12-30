@@ -337,13 +337,13 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 					// We have to be careful here - it's either an argument
 					// and value, or just an argument, since they can be
 					// separated by either "=" or whitespace.
-					list := strings.SplitN(arg.Value, "=", 2)
+					argName, argValue, hasValue := strings.Cut(arg.Value, "=")
 					if !foundFirstStage {
-						if len(list) > 1 {
-							globalArgs[list[0]] = list[1]
+						if hasValue {
+							globalArgs[argName] = argValue
 						}
 					}
-					delete(exec.unusedArgs, list[0])
+					delete(exec.unusedArgs, argName)
 				}
 			case "FROM":
 				foundFirstStage = true
@@ -496,12 +496,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 			var labelLine string
 			labels := append([]string{}, b.labels...)
 			for _, labelSpec := range labels {
-				label := strings.SplitN(labelSpec, "=", 2)
-				key := label[0]
-				value := ""
-				if len(label) > 1 {
-					value = label[1]
-				}
+				key, value, _ := strings.Cut(labelSpec, "=")
 				// check only for an empty key since docker allows empty values
 				if key != "" {
 					labelLine += fmt.Sprintf(" %q=%q", key, value)
@@ -523,10 +518,8 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	if len(b.envs) > 0 {
 		var envLine string
 		for _, envSpec := range b.envs {
-			env := strings.SplitN(envSpec, "=", 2)
-			key := env[0]
-			if len(env) > 1 {
-				value := env[1]
+			key, value, hasValue := strings.Cut(envSpec, "=")
+			if hasValue {
 				envLine += fmt.Sprintf(" %q=%q", key, value)
 			} else {
 				return "", nil, false, fmt.Errorf("BUG: unresolved environment variable: %q", key)
@@ -844,24 +837,18 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							mountFlags := strings.TrimPrefix(flag, "--mount=")
 							fields := strings.Split(mountFlags, ",")
 							for _, field := range fields {
-								if strings.HasPrefix(field, "from=") {
-									fromField := strings.SplitN(field, "=", 2)
-									if len(fromField) > 1 {
-										mountFrom := fromField[1]
-										// Check if this base is a stage if yes
-										// add base to current stage's dependency tree
-										// but also confirm if this is not in additional context.
-										if _, ok := b.additionalBuildContexts[mountFrom]; !ok {
-											// Treat from as a rootfs we need to preserve
-											b.rootfsMap[mountFrom] = true
-											if _, ok := dependencyMap[mountFrom]; ok {
-												// update current stage's dependency info
-												currentStageInfo := dependencyMap[stage.Name]
-												currentStageInfo.Needs = append(currentStageInfo.Needs, mountFrom)
-											}
+								if mountFrom, hasFrom := strings.CutPrefix(field, "from="); hasFrom {
+									// Check if this base is a stage if yes
+									// add base to current stage's dependency tree
+									// but also confirm if this is not in additional context.
+									if _, ok := b.additionalBuildContexts[mountFrom]; !ok {
+										// Treat from as a rootfs we need to preserve
+										b.rootfsMap[mountFrom] = true
+										if _, ok := dependencyMap[mountFrom]; ok {
+											// update current stage's dependency info
+											currentStageInfo := dependencyMap[stage.Name]
+											currentStageInfo.Needs = append(currentStageInfo.Needs, mountFrom)
 										}
-									} else {
-										return "", nil, fmt.Errorf("invalid value for field `from=`: %q", fromField[1])
 									}
 								}
 							}
