@@ -118,7 +118,7 @@ func (s *storageImageSource) GetBlob(ctx context.Context, info types.BlobInfo, c
 
 	var layers []storage.Layer
 
-	// If the digest was overriden by LayerInfosForCopy, then we need to use the TOC digest
+	// If the digest was overridden by LayerInfosForCopy, then we need to use the TOC digest
 	// to retrieve it from the storage.
 	s.getBlobMutex.Lock()
 	layerID, found := s.getBlobMutexProtected.digestToLayerID[digest]
