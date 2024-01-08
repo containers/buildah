@@ -14,7 +14,7 @@ with a registry name component, `localhost` will be added to the name.  If
 name, the `buildah images` command will display `<none>` in the `REPOSITORY` and
 `TAG` columns.
 
-The *Image* value supports all transports from `containers-transports(5)`. If no transport is specified, the `container-storage` (i.e., local storage) transport is used.
+The *image* value supports all transports from `containers-transports(5)`. If no transport is specified, the `containers-storage` (i.e., local storage) transport is used.
 
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.
@@ -202,11 +202,11 @@ Unset environment variables from the final image.
 This example saves an image based on the container.
  `buildah commit containerID newImageName`
 
-This example saves an image named newImageName based on the container.
+This example saves an image named newImageName based on the container and removes the working container.
  `buildah commit --rm containerID newImageName`
 
-This example commits to an OCI Directory named /tmp/newImageName based on the container.
- `buildah commit --rm containerID oci-archive:/tmp/newImageName`
+This example commits to an OCI archive file named /tmp/newImageName based on the container.
+ `buildah commit containerID oci-archive:/tmp/newImageName`
 
 This example saves an image with no name, removes the working container, and creates a new container using the image's ID.
  `buildah from $(buildah commit --rm containerID)`

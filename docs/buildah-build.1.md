@@ -875,7 +875,7 @@ process completes successfully.
 If _imageName_ does not include a registry name component, the registry name *localhost* will be prepended to the image name.
 
 The **--tag** option supports all transports from `containers-transports(5)`.
-If no transport is specified, the `container-storage` (i.e., local storage) transport is used.
+If no transport is specified, the `containers-storage` (i.e., local storage) transport is used.
 
   __buildah build --tag=oci-archive:./foo.ociarchive .__
 
