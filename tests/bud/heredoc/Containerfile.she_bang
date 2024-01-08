@@ -1,0 +1,6 @@
+FROM python:3.11-slim-bullseye
+RUN <<EOF
+#!/usr/bin/env python
+print('this is the output of test11')
+print('this is the output of test12')
+EOF
