@@ -497,7 +497,7 @@ func TestMounts(t *testing.T) {
 					})
 				},
 				func(t *testing.T, report *types.TestReport) {
-					foundMounts := make(map[string]bool)
+					foundBindDestinationMount := false
 					for _, mount := range report.Spec.Mounts {
 						if mount.Destination == bind.destination {
 							allRequired := true
@@ -516,10 +516,12 @@ func TestMounts(t *testing.T) {
 									anyRejected = true
 								}
 							}
-							foundMounts[mount.Destination] = allRequired && !anyRejected
+							if allRequired && !anyRejected {
+								foundBindDestinationMount = true
+							}
 						}
 					}
-					if !foundMounts[bind.destination] {
+					if !foundBindDestinationMount {
 						t.Errorf("added mount for %s not found with the right flags (%v) in %+v", bind.destination, bind.options, report.Spec.Mounts)
 					}
 				},

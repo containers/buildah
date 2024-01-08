@@ -14,6 +14,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
@@ -41,19 +42,19 @@ import (
 // complain if we're given values for arguments which have no corresponding ARG
 // instruction in the Dockerfile, since that's usually an indication of a user
 // error, but for these values we make exceptions and ignore them.
-var builtinAllowedBuildArgs = map[string]bool{
-	"HTTP_PROXY":     true,
-	"http_proxy":     true,
-	"HTTPS_PROXY":    true,
-	"https_proxy":    true,
-	"FTP_PROXY":      true,
-	"ftp_proxy":      true,
-	"NO_PROXY":       true,
-	"no_proxy":       true,
-	"TARGETARCH":     true,
-	"TARGETOS":       true,
-	"TARGETPLATFORM": true,
-	"TARGETVARIANT":  true,
+var builtinAllowedBuildArgs = map[string]struct{}{
+	"HTTP_PROXY":     {},
+	"http_proxy":     {},
+	"HTTPS_PROXY":    {},
+	"https_proxy":    {},
+	"FTP_PROXY":      {},
+	"ftp_proxy":      {},
+	"NO_PROXY":       {},
+	"no_proxy":       {},
+	"TARGETARCH":     {},
+	"TARGETOS":       {},
+	"TARGETPLATFORM": {},
+	"TARGETVARIANT":  {},
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -110,8 +111,8 @@ type Executor struct {
 	forceRmIntermediateCtrs bool
 	imageMap                map[string]string           // Used to map images that we create to handle the AS construct.
 	containerMap            map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
-	baseMap                 map[string]bool             // Holds the names of every base image, as given.
-	rootfsMap               map[string]bool             // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
+	baseMap                 map[string]struct{}         // Holds the names of every base image, as given.
+	rootfsMap               map[string]struct{}         // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
 	blobDirectory           string
 	excludes                []string
 	groupAdd                []string
@@ -278,8 +279,8 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		forceRmIntermediateCtrs:        options.ForceRmIntermediateCtrs,
 		imageMap:                       make(map[string]string),
 		containerMap:                   make(map[string]*buildah.Builder),
-		baseMap:                        make(map[string]bool),
-		rootfsMap:                      make(map[string]bool),
+		baseMap:                        make(map[string]struct{}),
+		rootfsMap:                      make(map[string]struct{}),
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
 		capabilities:                   capabilities,
@@ -606,7 +607,7 @@ func markDependencyStagesForTarget(dependencyMap map[string]*stageDependencyInfo
 }
 
 func (b *Executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMap map[string]*stageDependencyInfo, args map[string]string) {
-	argFound := make(map[string]bool)
+	argFound := make(map[string]struct{})
 	for _, stage := range stages {
 		node := stage.Node // first line
 		for node != nil {  // each line
@@ -617,12 +618,12 @@ func (b *Executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMa
 					if strings.Contains(argName, "=") {
 						res := strings.Split(argName, "=")
 						if res[1] != "" {
-							argFound[res[0]] = true
+							argFound[res[0]] = struct{}{}
 						}
 					}
 					argHasValue := true
 					if !strings.Contains(argName, "=") {
-						argHasValue = argFound[argName]
+						argHasValue = internalUtil.SetHas(argFound, argName)
 					}
 					if _, ok := args[argName]; !argHasValue && !ok {
 						shouldWarn := true
@@ -772,7 +773,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
 							}
-							b.baseMap[baseWithArg] = true
+							b.baseMap[baseWithArg] = struct{}{}
 							logrus.Debugf("base for stage %d: %q", stageIndex, base)
 							// Check if selected base is not an additional
 							// build context and if base is a valid stage
@@ -794,7 +795,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// was named using argument values, we might
 							// not record the right value here.
 							rootfs := strings.TrimPrefix(flag, "--from=")
-							b.rootfsMap[rootfs] = true
+							b.rootfsMap[rootfs] = struct{}{}
 							logrus.Debugf("rootfs needed for COPY in stage %d: %q", stageIndex, rootfs)
 							// Populate dependency tree and check
 							// if following ADD or COPY needs any other
@@ -843,7 +844,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 									// but also confirm if this is not in additional context.
 									if _, ok := b.additionalBuildContexts[mountFrom]; !ok {
 										// Treat from as a rootfs we need to preserve
-										b.rootfsMap[mountFrom] = true
+										b.rootfsMap[mountFrom] = struct{}{}
 										if _, ok := dependencyMap[mountFrom]; ok {
 											// update current stage's dependency info
 											currentStageInfo := dependencyMap[stage.Name]

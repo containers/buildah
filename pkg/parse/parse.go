@@ -1053,19 +1053,19 @@ func Device(device string) (string, string, string, error) {
 // isValidDeviceMode checks if the mode for device is valid or not.
 // isValid mode is a composition of r (read), w (write), and m (mknod).
 func isValidDeviceMode(mode string) bool {
-	var legalDeviceMode = map[rune]bool{
-		'r': true,
-		'w': true,
-		'm': true,
+	var legalDeviceMode = map[rune]struct{}{
+		'r': {},
+		'w': {},
+		'm': {},
 	}
 	if mode == "" {
 		return false
 	}
 	for _, c := range mode {
-		if !legalDeviceMode[c] {
+		if _, has := legalDeviceMode[c]; !has {
 			return false
 		}
-		legalDeviceMode[c] = false
+		delete(legalDeviceMode, c)
 	}
 	return true
 }
