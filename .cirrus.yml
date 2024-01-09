@@ -140,6 +140,7 @@ cross_build_task:
         image: ghcr.io/cirruslabs/macos-ventura-base:latest
 
     script:
+        - brew upgrade
         - brew update
         - brew install go
         - brew install go-md2man
