@@ -1725,7 +1725,14 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		if buildArgs != "" {
 			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + node.Original[4:]
 		}
-		return "/bin/sh -c " + node.Original[4:]
+		result := "/bin/sh -c " + node.Original[4:]
+		if len(node.Heredocs) > 0 {
+			for _, doc := range node.Heredocs {
+				heredocContent := strings.TrimSpace(doc.Content)
+				result = result + "\n" + heredocContent
+			}
+		}
+		return result
 	case "ADD", "COPY":
 		destination := node
 		for destination.Next != nil {
