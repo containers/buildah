@@ -743,7 +743,7 @@ func fsHeaderForEntry(hdr *tar.Header) FSHeader {
 		Name:     hdr.Name,
 		Linkname: hdr.Linkname,
 		Size:     hdr.Size,
-		Mode:     hdr.Mode,
+		Mode:     (hdr.Mode & int64(os.ModePerm)),
 		UID:      hdr.Uid,
 		GID:      hdr.Gid,
 		ModTime:  hdr.ModTime,
