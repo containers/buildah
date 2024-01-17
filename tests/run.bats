@@ -510,7 +510,6 @@ function configure_and_check_user() {
 }
 
 @test "Check if containers run with correct open files/processes limits" {
-        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	# we need to not use the list of limits that are set in our default
@@ -521,21 +520,25 @@ function configure_and_check_user() {
 	export CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf
 
 	_prefetch alpine
-	maxpids=$(cat /proc/sys/kernel/pid_max)
+
+	run podman run --rm alpine sh -c "awk '/open files/{print \$4 \"/\" \$5}' /proc/self/limits"
+	podman_files=$output
+
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
-	expect_output 1024 "limits: open files (unlimited)"
-	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
-	expect_output ${maxpids} "limits: processes (unlimited)"
+	run_buildah run $cid awk '/open files/{print $4 "/" $5}' /proc/self/limits
+	expect_output "${podman_files}" "limits: podman and buildah should agree on open files"
+
+	run podman run --rm alpine sh -c "awk '/processes/{print \$3 \"/\" \$4}' /proc/self/limits"
+	podman_processes=$output
+	run_buildah run $cid awk '/processes/{print $3 "/" $4}' /proc/self/limits
+	expect_output ${podman_processes} "processes should match podman"
 	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nofile=300:400 --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "300" "limits: open files (w/file limit)"
-	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
-	expect_output ${maxpids} "limits: processes (w/file limit)"
 	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false $WITH_POLICY_JSON alpine
