@@ -204,9 +204,7 @@ func (i *containerImageRef) extractConfidentialWorkloadFS(options ConfidentialWo
 		Slop:                     options.Slop,
 		FirmwareLibrary:          options.FirmwareLibrary,
 		GraphOptions:             i.store.GraphOptions(),
-	}
-	if len(i.extraImageContent) > 0 {
-		logrus.Warnf("ignoring extra requested content %v, not implemented (yet)", i.extraImageContent)
+		ExtraImageContent:        i.extraImageContent,
 	}
 	rc, _, err := mkcw.Archive(mountPoint, &image, archiveOptions)
 	if err != nil {
