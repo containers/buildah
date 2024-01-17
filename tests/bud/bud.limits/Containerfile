@@ -1,0 +1,4 @@
+# Containerfile
+FROM alpine
+RUN echo -n "Files="; awk '/open files/{print $4 "/" $5}' /proc/self/limits
+RUN echo -n "Processes="; awk '/processes/{print $3 "/" $4}' /proc/self/limits
