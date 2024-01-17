@@ -4371,6 +4371,12 @@ EOM
   expect_output ""
 }
 
+@test "bud-implicit-no-history" {
+  _prefetch nixery.dev/shell
+  run_buildah build $WITH_POLICY_JSON --layers=false $BUDFILES/no-history
+  run_buildah build $WITH_POLICY_JSON --layers=true  $BUDFILES/no-history
+}
+
 @test "bud with encrypted FROM image" {
   _prefetch busybox
   local contextdir=${TEST_SCRATCH_DIR}/tmp
