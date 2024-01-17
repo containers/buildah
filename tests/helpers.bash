@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Directory in which tests live
+TESTDIR=${TESTDIR:-$(dirname ${BASH_SOURCE})}
+
 BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../bin/buildah}
 IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../bin/imgtype}
 COPY_BINARY=${COPY_BINARY:-$(dirname ${BASH_SOURCE})/../bin/copy}
@@ -11,6 +14,9 @@ OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc 
 
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
+
+# Shortcut for directory containing Containerfiles for bud.bats
+BUDFILES=${TESTDIR}/bud
 
 # We don't invoke gnupg directly in many places, but this avoids ENOTTY errors
 # when we invoke it directly in batch mode, and CI runs us without a terminal

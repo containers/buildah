@@ -52,6 +52,9 @@ const (
 	DOCKER = "docker"
 )
 
+// DefaultRlimitValue is the value set by default for nofile and nproc
+const RLimitDefaultValue = uint64(1048576)
+
 var (
 	// DefaultCapabilities is the list of capabilities which we grant by
 	// default to containers which are running under UID 0.
