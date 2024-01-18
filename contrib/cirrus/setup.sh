@@ -25,6 +25,23 @@ EOF
         then
             showrun setsebool -P container_manage_cgroup true
         fi
+
+        # At the end of 2023/beginning of 2024, golang needs to be 1.17
+        # in order to address GHSA-45x7-px36-x8w8 CVE-2023-48795
+        # Ref: https://github.com/containers/buildah/pull/5245
+        # This being on a release-branch, replacing the CI VMs is
+        # ill-advised, and risks giving false-positive testing results.
+        showrun dnf erase -y golang
+        cd /usr/local
+        showrun curl -Ssl -O https://dl.google.com/go/go1.17.13.linux-amd64.tar.gz
+        showrun tar -xf go1.17.13.linux-amd64.tar.gz
+        cd -
+        # This needs to be set in every test-execution context. Hack it in here
+        # since lib.sh always loads this before running any tests.
+        echo 'export PATH=$PATH:/usr/local/go/bin' | tee -a /etc/automation_environment
+        export PATH=$PATH:/usr/local/go/bin
+        showrun go version
+        showrun go env
         ;;
     ubuntu)
         if [[ "$1" == "conformance" ]]; then
