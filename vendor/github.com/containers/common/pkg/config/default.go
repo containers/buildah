@@ -13,6 +13,7 @@ import (
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/apparmor"
 	"github.com/containers/common/pkg/cgroupv2"
+	"github.com/containers/common/pkg/util"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/containers/storage/types"
@@ -195,9 +196,7 @@ func defaultConfig() (*Config, error) {
 	}
 
 	defaultEngineConfig.SignaturePolicyPath = DefaultSignaturePolicyPath
-	// NOTE: For now we want Windows to use system locations.
-	// GetRootlessUID == -1 on Windows, so exclude negative range
-	if unshare.GetRootlessUID() > 0 {
+	if useUserConfigLocations() {
 		configHome, err := homedir.GetConfigHome()
 		if err != nil {
 			return nil, err
@@ -253,7 +252,6 @@ func defaultConfig() (*Config, error) {
 			Volumes:             attributedstring.Slice{},
 		},
 		Network: NetworkConfig{
-			FirewallDriver:            "",
 			DefaultNetwork:            "podman",
 			DefaultSubnet:             DefaultSubnet,
 			DefaultSubnetPools:        DefaultSubnetPools,
@@ -322,7 +320,7 @@ func defaultEngineConfig() (*EngineConfig, error) {
 			return nil, err
 		}
 	}
-	storeOpts, err := types.DefaultStoreOptions()
+	storeOpts, err := types.DefaultStoreOptions(useUserConfigLocations(), unshare.GetRootlessUID())
 	if err != nil {
 		return nil, err
 	}
@@ -483,14 +481,11 @@ func defaultEngineConfig() (*EngineConfig, error) {
 }
 
 func defaultTmpDir() (string, error) {
-	// NOTE: For now we want Windows to use system locations.
-	// GetRootlessUID == -1 on Windows, so exclude negative range
-	rootless := unshare.GetRootlessUID() > 0
-	if !rootless {
+	if !useUserConfigLocations() {
 		return getLibpodTmpDir(), nil
 	}
 
-	runtimeDir, err := homedir.GetRuntimeDir()
+	runtimeDir, err := util.GetRuntimeDir()
 	if err != nil {
 		return "", err
 	}
@@ -673,6 +668,12 @@ func getDefaultSSHConfig() string {
 	}
 	dirname := homedir.Get()
 	return filepath.Join(dirname, ".ssh", "config")
+}
+
+func useUserConfigLocations() bool {
+	// NOTE: For now we want Windows to use system locations.
+	// GetRootlessUID == -1 on Windows, so exclude negative range
+	return unshare.GetRootlessUID() > 0
 }
 
 // getDefaultImage returns the default machine image stream
