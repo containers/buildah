@@ -21,6 +21,14 @@ A container image, stored locally or in a registry
 
 ## OPTIONS
 
+**--add-file** *source[:destination]*
+
+Read the contents of the file `source` and add it to the committed image as a
+file at `destination`.  If `destination` is not specified, the path of `source`
+will be used.  The new file will be owned by UID 0, GID 0, have 0644
+permissions, and be given a current timestamp.  This option can be specified
+multiple times.
+
 **--attestation-url**, **-u** *url*
 The location of a key broker / attestation server.
 If a value is specified, the new image's workload ID, along with the passphrase

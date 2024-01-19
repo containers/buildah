@@ -204,9 +204,7 @@ func (i *containerImageRef) extractConfidentialWorkloadFS(options ConfidentialWo
 		Slop:                     options.Slop,
 		FirmwareLibrary:          options.FirmwareLibrary,
 		GraphOptions:             i.store.GraphOptions(),
-	}
-	if len(i.extraImageContent) > 0 {
-		logrus.Warnf("ignoring extra requested content %v, not implemented (yet)", i.extraImageContent)
+		ExtraImageContent:        i.extraImageContent,
 	}
 	rc, _, err := mkcw.Archive(mountPoint, &image, archiveOptions)
 	if err != nil {
@@ -1050,10 +1048,20 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 	}
 
 	parent := ""
+	forceOmitHistory := false
 	if b.FromImageID != "" {
 		parentDigest := digest.NewDigestFromEncoded(digest.Canonical, b.FromImageID)
 		if parentDigest.Validate() == nil {
 			parent = parentDigest.String()
+		}
+		if !options.OmitHistory && len(b.OCIv1.History) == 0 && len(b.OCIv1.RootFS.DiffIDs) != 0 {
+			// Parent had layers, but no history.  We shouldn't confuse
+			// our own confidence checks by adding history for layers
+			// that we're adding, creating an image with multiple layers,
+			// only some of which have history entries, which would be
+			// broken in confusing ways.
+			b.Logger.Debugf("parent image %q had no history but had %d layers, assuming OmitHistory", b.FromImageID, len(b.OCIv1.RootFS.DiffIDs))
+			forceOmitHistory = true
 		}
 	}
 
@@ -1076,7 +1084,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		preferredManifestType: manifestType,
 		squash:                options.Squash,
 		confidentialWorkload:  options.ConfidentialWorkloadOptions,
-		omitHistory:           options.OmitHistory,
+		omitHistory:           options.OmitHistory || forceOmitHistory,
 		emptyLayer:            options.EmptyLayer && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
 		idMappingOptions:      &b.IDMappingOptions,
 		parent:                parent,
