@@ -26,12 +26,10 @@ env:
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
     FEDORA_NAME: "fedora-35"
-    PRIOR_FEDORA_NAME: "fedora-34"
     UBUNTU_NAME: "ubuntu-2110"
 
     IMAGE_SUFFIX: "c5814666029957120"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
-    PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}"
 
     IN_PODMAN_IMAGE: "quay.io/libpod/fedora_podman:${IMAGE_SUFFIX}"
@@ -72,7 +70,6 @@ meta_task:
         # Space-separated list of images used by this repository state
         IMGNAMES: |-
             ${FEDORA_CACHE_IMAGE_NAME}
-            ${PRIOR_FEDORA_CACHE_IMAGE_NAME}
             ${UBUNTU_CACHE_IMAGE_NAME}
         BUILDID: "${CIRRUS_BUILD_ID}"
         REPOREF: "${CIRRUS_CHANGE_IN_REPO}"
@@ -107,7 +104,7 @@ vendor_task:
 
     # Runs within Cirrus's "community cluster"
     container:
-        image: docker.io/library/golang:1.16
+        image: docker.io/library/golang:1.17
         cpu: 1
         memory: 1
 
@@ -200,10 +197,6 @@ integration_task:
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
         - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'vfs'
-        - env:
             DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
@@ -211,10 +204,6 @@ integration_task:
         - env:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'overlay'
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
         - env:
             DISTRO_NV: "${UBUNTU_NAME}"
