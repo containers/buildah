@@ -683,6 +683,15 @@ func (s *StageExecutor) createNeededHeredocMountsForRun(files []imagebuilder.Fil
 	return mountResult, nil
 }
 
+func parseSheBang(data string) string {
+	lines := strings.Split(data, "\n")
+	if len(lines) > 2 && strings.HasPrefix(lines[1], "#!") {
+		shebang := strings.TrimLeft(lines[1], "#!")
+		return shebang
+	}
+	return ""
+}
+
 // Run executes a RUN instruction using the stage's current working container
 // as a root directory.
 func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
@@ -693,12 +702,17 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		if heredoc := buildkitparser.MustParseHeredoc(args[0]); heredoc != nil {
 			if strings.HasPrefix(run.Files[0].Data, "#!") || strings.HasPrefix(run.Files[0].Data, "\n#!") {
 				// This is a single heredoc with a shebang, so create a file
-				// and run it.
+				// and run it with program specified in shebang.
 				heredocMount, err := s.createNeededHeredocMountsForRun(run.Files)
 				if err != nil {
 					return err
 				}
-				args = []string{heredocMount[0].Destination}
+				shebangArgs := parseSheBang(run.Files[0].Data)
+				if shebangArgs != "" {
+					args = []string{shebangArgs + " " + heredocMount[0].Destination}
+				} else {
+					args = []string{heredocMount[0].Destination}
+				}
 				heredocMounts = append(heredocMounts, heredocMount...)
 			} else {
 				args = []string{run.Files[0].Data}
