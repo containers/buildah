@@ -1,0 +1,44 @@
+prepare:
+    - name: Distro specific setup
+      how: shell
+      script: bash ./plans/prepare.sh
+    - name: Install dependencies
+      how: install
+      package:
+        - iptables
+        - git
+        - golang
+        - jq
+        - make
+
+#discover:
+#    how: shell
+#    keep-git-metadata: true
+#    tests:
+#        - name: /validate_test
+#          test: >
+#            make lint LINTFLAGS="--deadline=20m --color=always -j1"
+#            make validate
+#execute:
+#     how: tmt
+
+#/conformance_test:
+#    summary: Run conformance tests
+#    execute:
+#        how: tmt
+#        script: |
+#            # Install Docker
+#            systemctl enable --now docker
+#            make test-conformance
+
+#/unit_test:
+#    summary: Run unit tests
+#    execute:
+#        how: tmt
+#        script: make test-unit
+
+/integration_test:
+    summary: Run integration tests
+    execute:
+        how: tmt
+        script: BUILDAH_BINARY=/usr/bin/buildah make test-integration
