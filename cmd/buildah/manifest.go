@@ -30,21 +30,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type manifestCreateOpts = struct {
+type manifestCreateOpts struct {
 	os, arch                        string
 	all, tlsVerify, insecure, amend bool
 }
-type manifestAddOpts = struct {
+
+type manifestAddOpts struct {
 	authfile, certDir, creds, os, arch, variant, osVersion string
 	features, osFeatures, annotations                      []string
 	tlsVerify, insecure, all                               bool
 }
-type manifestRemoveOpts = struct{}
-type manifestAnnotateOpts = struct {
+
+type manifestRemoveOpts struct{}
+
+type manifestAnnotateOpts struct {
 	os, arch, variant, osVersion      string
 	features, osFeatures, annotations []string
 }
-type manifestInspectOpts = struct {
+
+type manifestInspectOpts struct {
 	authfile  string
 	tlsVerify bool
 }
