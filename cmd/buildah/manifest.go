@@ -350,6 +350,17 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 		}
 	}
 
+	locker, err := manifests.LockerForImage(store, manifestListID)
+	if err != nil {
+		return err
+	}
+	locker.Lock()
+	defer locker.Unlock()
+
+	if _, list, err = manifests.LoadFromImage(store, manifestListID); err != nil {
+		return err
+	}
+
 	for _, imageSpec := range imageSpecs {
 		ref, err := alltransports.ParseImageName(imageSpec)
 		if err != nil {
@@ -419,11 +430,18 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	if err != nil {
 		return err
 	}
+
+	locker, err := manifests.LockerForImage(store, manifestList.ID())
+	if err != nil {
+		return err
+	}
+	locker.Lock()
+	defer locker.Unlock()
+
 	_, list, err := manifests.LoadFromImage(store, manifestList.ID())
 	if err != nil {
 		return err
 	}
-
 	ref, err := alltransports.ParseImageName(imageSpec)
 	if err != nil {
 		if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
@@ -633,6 +651,13 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 	if err != nil {
 		return err
 	}
+
+	locker, err := manifests.LockerForImage(store, manifestList.ID())
+	if err != nil {
+		return err
+	}
+	locker.Lock()
+	defer locker.Unlock()
 
 	_, list, err := manifests.LoadFromImage(store, manifestList.ID())
 	if err != nil {
@@ -906,6 +931,13 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 	if err != nil {
 		return err
 	}
+
+	locker, err := manifests.LockerForImage(store, manifestList.ID())
+	if err != nil {
+		return err
+	}
+	locker.Lock()
+	defer locker.Unlock()
 
 	_, list, err := manifests.LoadFromImage(store, manifestList.ID())
 	if err != nil {
