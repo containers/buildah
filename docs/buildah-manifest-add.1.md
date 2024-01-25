@@ -38,7 +38,7 @@ retrieved from the image's configuration information.
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. See containers-auth.json(5) for more information. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -106,4 +106,4 @@ buildah manifest add --arch arm64 --variant v8 mylist:v1.11 docker://fedora@sha2
 ```
 
 ## SEE ALSO
-buildah(1), buildah-login(1), buildah-manifest(1), buildah-manifest-create(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-manifest-push(1), buildah-rmi(1), docker-login(1)
+buildah(1), buildah-login(1), buildah-manifest(1), buildah-manifest-create(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-manifest-push(1), buildah-rmi(1), docker-login(1), containers-auth.json(5)
