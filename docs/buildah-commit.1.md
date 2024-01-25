@@ -31,7 +31,7 @@ is also specified.  This option can be specified multiple times.
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. See containers-auth.json(5) for more information. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -273,4 +273,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5), containers-transports(5)
+buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5), containers-transports(5), containers-auth.json(5)
