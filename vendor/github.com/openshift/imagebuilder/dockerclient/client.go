@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	dockertypes "github.com/docker/docker/api/types"
+	dockerregistrytypes "github.com/docker/docker/api/types/registry"
 	docker "github.com/fsouza/go-dockerclient"
 	"k8s.io/klog"
 
@@ -105,7 +105,7 @@ type ClientExecutor struct {
 
 	// AuthFn will handle authenticating any docker pulls if Image
 	// is set to nil.
-	AuthFn func(name string) ([]dockertypes.AuthConfig, bool)
+	AuthFn func(name string) ([]dockerregistrytypes.AuthConfig, bool)
 	// HostConfig is used to start the container (if necessary).
 	HostConfig *docker.HostConfig
 	// LogFn is an optional command to log information to the end user
@@ -121,7 +121,7 @@ type ClientExecutor struct {
 }
 
 // NoAuthFn can be used for AuthFn when no authentication is required in Docker.
-func NoAuthFn(string) ([]dockertypes.AuthConfig, bool) {
+func NoAuthFn(string) ([]dockerregistrytypes.AuthConfig, bool) {
 	return nil, false
 }
 
@@ -618,7 +618,7 @@ func (e *ClientExecutor) LoadImageWithPlatform(from string, platform string) (*d
 	// TODO: we may want to abstract looping over multiple credentials
 	auth, _ := e.AuthFn(repository)
 	if len(auth) == 0 {
-		auth = append(auth, dockertypes.AuthConfig{})
+		auth = append(auth, dockerregistrytypes.AuthConfig{})
 	}
 
 	if e.LogFn != nil {

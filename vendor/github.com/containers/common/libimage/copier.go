@@ -1,5 +1,4 @@
 //go:build !remote
-// +build !remote
 
 package libimage
 
@@ -364,11 +363,13 @@ func (c *copier) copy(ctx context.Context, source, destination types.ImageRefere
 		defer cancel()
 		defer timer.Stop()
 
-		fmt.Fprintf(c.imageCopyOptions.ReportWriter,
-			"Pulling image %s inside systemd: setting pull timeout to %s\n",
-			source.StringWithinTransport(),
-			time.Duration(numExtensions)*extension,
-		)
+		if c.imageCopyOptions.ReportWriter != nil {
+			fmt.Fprintf(c.imageCopyOptions.ReportWriter,
+				"Pulling image %s inside systemd: setting pull timeout to %s\n",
+				source.StringWithinTransport(),
+				time.Duration(numExtensions)*extension,
+			)
+		}
 
 		// From `man systemd.service(5)`:
 		//
@@ -516,8 +517,8 @@ func checkRegistrySourcesAllows(dest types.ImageReference) (insecure *bool, err 
 		return nil, fmt.Errorf("registry %q denied by policy: not in allowed registries list (%s)", reference.Domain(dref), registrySources)
 	}
 
-	for _, inseureDomain := range sources.InsecureRegistries {
-		if inseureDomain == reference.Domain(dref) {
+	for _, insecureDomain := range sources.InsecureRegistries {
+		if insecureDomain == reference.Domain(dref) {
 			insecure := true
 			return &insecure, nil
 		}
