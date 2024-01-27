@@ -1,6 +1,7 @@
-FROM python:3.11-slim-bullseye
+FROM alpine
 RUN <<EOF
-#!/usr/bin/env python
-print('this is the output of test11')
-print('this is the output of test12')
+#!/usr/bin/env rev
+11tset fo tuptuo eht si siht
+21tset fo tuptuo eht si siht
+
 EOF
