@@ -969,7 +969,7 @@ FROM one
 RUN echo "target stage"
 _EOF
 
-  # with --skip-unused-stages=true no warning should be printed since ARG is decalred in stage which is not used
+  # with --skip-unused-stages=true no warning should be printed since ARG is declared in stage which is not used
   run_buildah build $WITH_POLICY_JSON --skip-unused-stages=true -t source -f $contextdir/Dockerfile
   expect_output --substring "needed stage"
   expect_output --substring "target stage"
@@ -1984,7 +1984,7 @@ _EOF
   # Reuse cached layers and check if --output still works as expected
   run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   ls $mytmpdir/rootfs
-  # exported rootfs must contain only 'target' from last/final stage and not contain file `rouge` from first stage
+  # exported rootfs must contain only 'target' from last/final stage and not contain file `rogue` from first stage
   expect_output --substring 'target'
   # must not contain rogue from first stage
   assert "$output" =~ "rogue"
@@ -2005,7 +2005,7 @@ _EOF
   # Reuse cached layers and check if --output still works as expected
   run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   ls $mytmpdir/rootfs
-  # exported rootfs must contain only 'rouge' even if build from cache.
+  # exported rootfs must contain only 'rogue' even if build from cache.
   expect_output --substring 'rogue'
 }
 
@@ -4615,7 +4615,7 @@ EOF
   # Build first in Docker format.  Whether we do OCI or Docker first shouldn't matter, so we picked one.
   run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-docker  --format docker --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
-  # Build in OCI format.  Cache should not re-use the same images, so we should get a different image ID.
+  # Build in OCI format.  Cache should not reuse the same images, so we should get a different image ID.
   run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-oci     --format oci    --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
   # Build in Docker format again.  Cache traversal should 100% hit the Docker image, so we should get its image ID.
