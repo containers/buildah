@@ -492,7 +492,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 		// to the Dockerfile that would provide the same result.
 		// Reason: Docker adds label modification as a last step which can be
 		// processed like regular steps, and if no modification is done to
-		// layers, its easier to re-use cached layers.
+		// layers, its easier to reuse cached layers.
 		if len(b.labels) > 0 {
 			var labelLine string
 			labels := append([]string{}, b.labels...)

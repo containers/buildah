@@ -1524,7 +1524,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 		}
 
-		// Note: If the build has squash, we must try to re-use as many layers as possible if cache is found.
+		// Note: If the build has squash, we must try to reuse as many layers as possible if cache is found.
 		// So only perform commit if it's the lastInstruction of lastStage.
 		if cacheID != "" {
 			logCacheHit(cacheID)

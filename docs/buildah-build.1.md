@@ -797,7 +797,7 @@ environment variable.  `export BUILDAH_RUNTIME=/usr/bin/crun`
 
 **--runtime-flag** *flag*
 
-Adds global flags for the container rutime. To list the supported flags, please
+Adds global flags for the container runtime. To list the supported flags, please
 consult the manpages of the selected container runtime.
 
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
