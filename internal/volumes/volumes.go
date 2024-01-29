@@ -54,6 +54,7 @@ func CacheParent() string {
 	return filepath.Join(tmpdir.GetTempDir(), buildahCacheDir+"-"+strconv.Itoa(unshare.GetRootlessUID()))
 }
 
+// FIXME: this code needs to be merged with pkg/parse/parse.go ValidateVolumeOpts
 // GetBindMount parses a single bind mount entry from the --mount flag.
 // Returns specifiedMount and a string which contains name of image that we mounted otherwise its empty.
 // Caller is expected to perform unmount of any mounted images
@@ -89,7 +90,10 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 			// Alias for "ro"
 			newMount.Options = append(newMount.Options, "ro")
 			mountReadability = true
-		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U":
+		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U", "no-dereference":
+			if hasArgValue {
+				return newMount, "", fmt.Errorf("%v: %w", val, errBadOptionArg)
+			}
 			newMount.Options = append(newMount.Options, argName)
 		case "from":
 			if !hasArgValue {
