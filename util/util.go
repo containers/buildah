@@ -15,7 +15,6 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/config"
-	"github.com/containers/common/pkg/util"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/pkg/shortnames"
 	"github.com/containers/image/v5/signature"
@@ -26,6 +25,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -45,9 +45,9 @@ var (
 	}
 )
 
-// StringInSlice is deprecated, use github.com/containers/common/pkg/util.StringInSlice
+// StringInSlice is deprecated, use golang.org/x/exp/slices.Contains
 func StringInSlice(s string, slice []string) bool {
-	return util.StringInSlice(s, slice)
+	return slices.Contains(slice, s)
 }
 
 // resolveName checks if name is a valid image name, and if that name doesn't

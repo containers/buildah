@@ -22,6 +22,7 @@ import (
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sys/unix"
 )
 
@@ -506,13 +507,13 @@ func TestMounts(t *testing.T) {
 								requiredFlags = bind.options
 							}
 							for _, required := range requiredFlags {
-								if !util.StringInSlice(required, mount.Options) {
+								if !slices.Contains(mount.Options, required) {
 									allRequired = false
 								}
 							}
 							anyRejected := false
 							for _, rejected := range bind.reject {
-								if util.StringInSlice(rejected, mount.Options) {
+								if slices.Contains(mount.Options, rejected) {
 									anyRejected = true
 								}
 							}
