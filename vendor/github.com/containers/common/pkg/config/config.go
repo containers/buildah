@@ -13,12 +13,12 @@ import (
 	"github.com/containers/common/internal/attributedstring"
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/capabilities"
-	"github.com/containers/common/pkg/util"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/unshare"
 	units "github.com/docker/go-units"
 	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 	bindirPrefix = "$BINDIR"
 )
 
-var validImageVolumeModes = []string{_typeBind, "tmpfs", "ignore"}
+var validImageVolumeModes = []string{"anonymous", "tmpfs", "ignore"}
 
 // ProxyEnv is a list of Proxy Environment variables
 var ProxyEnv = []string{
@@ -153,6 +153,13 @@ type ContainersConfig struct {
 	//
 	// Deprecated: Do not use this field directly use conf.FindInitBinary() instead.
 	InitPath string `toml:"init_path,omitempty"`
+
+	// InterfaceName tells container runtimes how to set interface names
+	// inside containers.
+	// The only valid value at the moment is "device" that indicates the
+	// interface name should be set as the network_interface name from
+	// the network config.
+	InterfaceName string `toml:"interface_name,omitempty"`
 
 	// IPCNS way to create a ipc namespace for the container
 	IPCNS string `toml:"ipcns,omitempty"`
@@ -814,6 +821,10 @@ func (c *ContainersConfig) Validate() error {
 		return err
 	}
 
+	if err := c.validateInterfaceName(); err != nil {
+		return err
+	}
+
 	if err := c.validateTZ(); err != nil {
 		return err
 	}
@@ -918,7 +929,7 @@ func (c *Config) GetDefaultEnvEx(envHost, httpProxy bool) []string {
 }
 
 // Capabilities returns the capabilities parses the Add and Drop capability
-// list from the default capabiltiies for the container
+// list from the default capabilities for the container
 func (c *Config) Capabilities(user string, addCapabilities, dropCapabilities []string) ([]string, error) {
 	userNotRoot := func(user string) bool {
 		if user == "" || user == "root" || user == "0" {
@@ -1228,7 +1239,7 @@ func ValidateImageVolumeMode(mode string) error {
 	if mode == "" {
 		return nil
 	}
-	if util.StringInSlice(mode, validImageVolumeModes) {
+	if slices.Contains(validImageVolumeModes, mode) {
 		return nil
 	}
 
@@ -1245,7 +1256,7 @@ func (c *Config) FindInitBinary() (string, error) {
 	if c.Engine.InitPath != "" {
 		return c.Engine.InitPath, nil
 	}
-	// keep old default working to guarantee backwards comapt
+	// keep old default working to guarantee backwards compat
 	if _, err := os.Stat(DefaultInitPath); err == nil {
 		return DefaultInitPath, nil
 	}
