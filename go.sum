@@ -60,8 +60,8 @@ github.com/containers/image/v5 v5.29.1-0.20231221164234-1b221d4a9c28 h1:dI4/9x4O
 github.com/containers/image/v5 v5.29.1-0.20231221164234-1b221d4a9c28/go.mod h1:LC9m+8ED9+Vuw2WSd/mgvrHbi/44WJj/XBDNdiZC0AY=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
-github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b h1:8XvNAm+g7ivwPUkyiHvBs7z356JWpK9a0FDaek86+sY=
-github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b/go.mod h1:menB9p4o5HckgcLW6cO0+dl6+axkVmSqKlrNcratsh4=
+github.com/containers/luksy v0.0.0-20240129181507-b62d551ce6d8 h1:0p58QJRICjkRVCDix1nsnyrtJ3Qj4CWcGd1bOEY9sVY=
+github.com/containers/luksy v0.0.0-20240129181507-b62d551ce6d8/go.mod h1:oMhW1fWXz1FGN97rhycbuAwrkXXV1z5c/Bjbn0CSlFY=
 github.com/containers/ocicrypt v1.1.9 h1:2Csfba4jse85Raxk5HIyEk8OwZNjRvfkhEGijOjIdEM=
 github.com/containers/ocicrypt v1.1.9/go.mod h1:dTKx1918d8TDkxXvarscpNVY+lyPakPNFN4jwA9GBys=
 github.com/containers/storage v1.51.1-0.20240102120156-ef81e9b09aad h1:N82/fTsdDj3C9rsCvY4E8EwpJa9YKi9aHTQBk/JoeJU=
@@ -223,8 +223,8 @@ github.com/google/pprof v0.0.0-20230323073829-e72429f035bd/go.mod h1:79YE0hCXdHa
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/uuid v1.2.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/google/uuid v1.5.0 h1:1p67kYwdtXjb0gL0BPiP1Av9wiZPo5A8z2cWkTZ+eyU=
-github.com/google/uuid v1.5.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
 github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
