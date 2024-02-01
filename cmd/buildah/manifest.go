@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
@@ -244,6 +245,8 @@ func init() {
 	}
 	flags.BoolVar(&manifestPushOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&manifestPushOpts.quiet, "quiet", "q", false, "don't output progress information when pushing lists")
+	flags.IntVar(&manifestPushOpts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing push")
+	flags.StringVar(&manifestPushOpts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of push failures")
 	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestPushCommand)
 
@@ -922,6 +925,12 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		}
 	}
 
+	retry := uint(opts.retry)
+	retryDelay, err := time.ParseDuration(opts.retryDelay)
+	if err != nil {
+		return fmt.Errorf("unable to parse retryDelay %q: %w", opts.retryDelay, err)
+	}
+
 	options := manifests.PushOptions{
 		Store:                  store,
 		SystemContext:          systemContext,
@@ -932,6 +941,8 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		ManifestType:           manifestType,
 		AddCompression:         opts.addCompression,
 		ForceCompressionFormat: opts.forceCompressionFormat,
+		MaxRetries:             &retry,
+		RetryDelay:             &retryDelay,
 	}
 	if opts.all {
 		options.ImageListSelection = cp.CopyAllImages
