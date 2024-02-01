@@ -952,3 +952,18 @@ _EOF
 		fi
 	done
 }
+
+@test "empty run statement doesn't crash" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	cd ${TEST_SCRATCH_DIR}
+
+	printf 'FROM alpine\nRUN \\\n echo && echo' > Dockerfile
+	run_buildah bud --pull=false --layers .
+
+	printf 'FROM alpine\nRUN\n echo && echo' > Dockerfile
+	run_buildah ? bud --pull=false --layers .
+        expect_output --substring -- "-c requires an argument"
+}
