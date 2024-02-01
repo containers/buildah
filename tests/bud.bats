@@ -344,6 +344,13 @@ _EOF
   expect_output --substring "this is the output of test7 part3"
   expect_output --substring "this is the output of test8 part1"
   expect_output --substring "this is the output of test8 part2"
+
+  # verify that build output contains summary of heredoc content
+  expect_output --substring 'RUN <<EOF \(echo "print first line from heredoc"...)'
+  expect_output --substring 'RUN <<EOF \(echo "Heredoc writing first file" >> /file1...)'
+  expect_output --substring 'RUN python3 <<EOF \(with open\("/file2", "w") as f:...)'
+  expect_output --substring 'ADD <<EOF /index.html \(\(your index page goes here))'
+  expect_output --substring 'COPY <<robots.txt <<humans.txt /test/ \(\(robots content)) \(\(humans content))'
 }
 
 @test "bud build with heredoc content which is a bash file" {
