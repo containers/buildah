@@ -1737,11 +1737,17 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		buildArgs := s.getBuildArgsKey()
 		return "/bin/sh -c #(nop) ARG " + buildArgs
 	case "RUN":
+		var cmd string
+		if len(node.Original) > 3 {
+			cmd = node.Original[4:]
+		}
+
+		return "/bin/sh -c " + cmd
 		buildArgs := s.getBuildArgsResolvedForRun()
 		if buildArgs != "" {
-			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + node.Original[4:]
+			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + cmd
 		}
-		result := "/bin/sh -c " + node.Original[4:]
+		result := "/bin/sh -c " + cmd
 		if len(node.Heredocs) > 0 {
 			for _, doc := range node.Heredocs {
 				heredocContent := strings.TrimSpace(doc.Content)
