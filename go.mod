@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.7.9
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.3.0
-	github.com/containers/common v0.57.3
+	github.com/containers/common v0.57.4
 	github.com/containers/image/v5 v5.29.2
 	github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b
 	github.com/containers/ocicrypt v1.1.9
@@ -18,7 +18,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.10.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
-	github.com/moby/buildkit v0.12.3
+	github.com/moby/buildkit v0.12.5
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.30.0
 	github.com/opencontainers/go-digest v1.0.0
