@@ -115,6 +115,24 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     assert "$status" -eq 0 "status code of grep for expected instance digest"
 }
 
+@test "manifest-push with retry" {
+    run_buildah manifest create foo
+    run_buildah manifest add --all foo ${IMAGE_LIST}
+    run_buildah manifest push --retry 4 --retry-delay 4s $WITH_POLICY_JSON foo dir:${TEST_SCRATCH_DIR}/pushed
+    case "$(go env GOARCH 2> /dev/null)" in
+	    amd64) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_AMD64_INSTANCE_DIGEST} ;;
+	    arm64) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_ARM64_INSTANCE_DIGEST} ;;
+	    arm) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_ARM_INSTANCE_DIGEST} ;;
+	    ppc64le) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_PPC64LE_INSTANCE_DIGEST} ;;
+	    s390x) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_S390X_INSTANCE_DIGEST} ;;
+	    *) skip "current arch \"$(go env GOARCH 2> /dev/null)\" not present in manifest list" ;;
+    esac
+
+    run grep ${IMAGE_LIST_EXPECTED_INSTANCE_DIGEST##sha256} ${TEST_SCRATCH_DIR}/pushed/manifest.json
+    assert "$status" -eq 0 "status code of grep for expected instance digest"
+}
+
+
 @test "manifest-push-all" {
     run_buildah manifest create foo
     run_buildah manifest add --all foo ${IMAGE_LIST}

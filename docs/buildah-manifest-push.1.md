@@ -79,6 +79,18 @@ Don't output progress information when pushing lists.
 
 Don't copy signatures when pushing images.
 
+**--retry** *attempts*
+
+Number of times to retry in case of failure when performing push of images to registry.
+
+Defaults to `3`.
+
+**--retry-delay** *duration*
+
+Duration of delay between retry attempts in case of failure when performing push of images to registry.
+
+Defaults to `2s`.
+
 **--rm**
 
 Delete the manifest list or image index from local storage if pushing succeeds.
