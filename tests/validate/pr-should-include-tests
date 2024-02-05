@@ -32,7 +32,7 @@ fi
 #    M    bar.c
 # We look for Added or Modified (not Deleted!) files under 'tests'.
 # --no-renames ensures that renamed tests show up as 'A'dded.
-if git diff --name-status --no-renames $base $head | egrep -q '^[AM]\s+(tests/|.*_test\.go)'; then
+if git diff --name-status --no-renames $base $head | grep -E -q '^[AM]\s+(tests/|.*_test\.go)'; then
     exit 0
 fi
 
@@ -49,13 +49,13 @@ filtered_changes=$(git diff --name-status $base $head |
                        fgrep -vx buildah.spec.rpkg    |
                        fgrep -vx .golangci.yml        |
                        fgrep -vx Makefile             |
-                       egrep -v  '^[^/]+\.md$'        |
-                       egrep -v  '^\.github/'         |
-                       egrep -v  '^contrib/'          |
-                       egrep -v  '^docs/'             |
-                       egrep -v  '^hack/'             |
-                       egrep -v  '^nix/'              |
-                       egrep -v  '^vendor/')
+                       grep -E -v  '^[^/]+\.md$'        |
+                       grep -E -v  '^\.github/'         |
+                       grep -E -v  '^contrib/'          |
+                       grep -E -v  '^docs/'             |
+                       grep -E -v  '^hack/'             |
+                       grep -E -v  '^nix/'              |
+                       grep -E -v  '^vendor/')
 if [[ -z "$filtered_changes" ]]; then
     exit 0
 fi
