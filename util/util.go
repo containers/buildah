@@ -244,7 +244,7 @@ func Runtime() string {
 
 	conf, err := config.Default()
 	if err != nil {
-		logrus.Warnf("Error loading container config when searching for local runtime: %v", err)
+		logrus.Warnf("Error loading default container config when searching for local runtime: %v", err)
 		return define.DefaultRuntime
 	}
 	return conf.Engine.OCIRuntime

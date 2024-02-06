@@ -367,7 +367,7 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs := pflag.FlagSet{}
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
-		return fs, fmt.Errorf("failed to get container config: %w", err)
+		return fs, fmt.Errorf("failed to get default container config: %w", err)
 	}
 
 	fs.StringSliceVar(&flags.AddHost, "add-host", []string{}, "add a custom host-to-IP mapping (`host:ip`) (default [])")
