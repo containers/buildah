@@ -1,4 +1,4 @@
-// +build !windows
+//go:build !windows
 
 package sockets
 
@@ -11,14 +11,11 @@ import (
 	"time"
 )
 
-const (
-	defaultTimeout        = 10 * time.Second
-	maxUnixSocketPathSize = len(syscall.RawSockaddrUnix{}.Path)
-)
+const maxUnixSocketPathSize = len(syscall.RawSockaddrUnix{}.Path)
 
 func configureUnixTransport(tr *http.Transport, proto, addr string) error {
 	if len(addr) > maxUnixSocketPathSize {
-		return fmt.Errorf("Unix socket path %q is too long", addr)
+		return fmt.Errorf("unix socket path %q is too long", addr)
 	}
 	// No need for compression in local communications.
 	tr.DisableCompression = true
