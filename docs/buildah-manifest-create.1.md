@@ -6,7 +6,7 @@ buildah\-manifest\-create - Create a manifest list or image index.
 
 ## SYNOPSIS
 
-**buildah manifest create** *listNameOrIndexName* [*imageName* ...]
+**buildah manifest create** [options...] *listNameOrIndexName* [*imageName* ...]
 
 ## DESCRIPTION
 
@@ -34,6 +34,10 @@ image from such a list will be added to the newly-created list or index.
 If a manifest list named *listNameOrIndexName* already exists, modify the
 preexisting list instead of exiting with an error.  The contents of
 *listNameOrIndexName* are not modified if no *imageName*s are given.
+
+**--annotation** *annotation=value*
+
+Set an annotation on the newly-created image index.
 
 **--tls-verify** *bool-value*
 

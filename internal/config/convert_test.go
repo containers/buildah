@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/containers/buildah/util"
 	"github.com/containers/image/v5/manifest"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 )
 
 // fillAllFields recursively fills in 1 or "1" for every field in the passed-in
@@ -105,7 +105,7 @@ func checkAllValueFields(t *testing.T, v reflect.Value, name string, allowedToBe
 		if name != "" {
 			fieldName = name + "." + field.Name
 		}
-		if util.StringInSlice(fieldName, allowedToBeZero) {
+		if slices.Contains(allowedToBeZero, fieldName) {
 			continue
 		}
 		f := v.FieldByName(field.Name)

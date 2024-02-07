@@ -56,10 +56,13 @@ load helpers
     fixupdir=$fixupdir/..
   done
   # start writing the script to run in the nested user namespace
+  cp -v ${TEST_SOURCES}/containers.conf ${TEST_SCRATCH_DIR}/containers.conf
+  chmod ugo+r ${TEST_SCRATCH_DIR}/containers.conf
   echo set -e > ${TEST_SCRATCH_DIR}/script.sh
   echo export XDG_RUNTIME_DIR=$xdgruntimedir >> ${TEST_SCRATCH_DIR}/script.sh
   echo export XDG_CONFIG_HOME=$xdgconfighome >> ${TEST_SCRATCH_DIR}/script.sh
   echo export XDG_DATA_HOME=$xdgdatahome >> ${TEST_SCRATCH_DIR}/script.sh
+  echo export CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf >> ${TEST_SCRATCH_DIR}/script.sh
   # give our would-be user ownership of that directory
   echo chown --recursive ${subid}:${subid} ${storagedir} >> ${TEST_SCRATCH_DIR}/script.sh
   # make newuidmap/newgidmap, invoked by unshare even for uid=0, happy
@@ -92,6 +95,7 @@ load helpers
   # unshare from util-linux 2.39 also accepts INNER:OUTER:SIZE for --map-users
   # and --map-groups, but fedora 37's is too old, so the older OUTER,INNER,SIZE
   # (using commas instead of colons as field separators) will have to do
+  echo "env | sort" >> ${TEST_SCRATCH_DIR}/script.sh
   echo "unshare -Umpf --mount-proc --setuid 0 --setgid 0 --map-users=${subid},0,${rangesize} --map-groups=${subid},0,${rangesize} ${COPY_BINARY} ${storageopts} dir:$_BUILDAH_IMAGE_CACHEDIR/$baseimagef containers-storage:$baseimage" >> ${TEST_SCRATCH_DIR}/script.sh
   # try to do a build with all of the volume mounts
   echo "unshare -Umpf --mount-proc --setuid 0 --setgid 0 --map-users=${subid},0,${rangesize} --map-groups=${subid},0,${rangesize} ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${storageopts} build --isolation chroot --pull=never $mounts $context" >> ${TEST_SCRATCH_DIR}/script.sh

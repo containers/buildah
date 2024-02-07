@@ -19,12 +19,12 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/util"
 	"github.com/containers/common/pkg/auth"
-	cutil "github.com/containers/common/pkg/util"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 )
 
 type BuildOptions struct {
@@ -340,7 +340,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		if err != nil {
 			return options, nil, nil, err
 		}
-		if !cutil.StringInSlice(contextDir, sbomScanOption.ContextDir) {
+		if !slices.Contains(sbomScanOption.ContextDir, contextDir) {
 			sbomScanOption.ContextDir = append(sbomScanOption.ContextDir, contextDir)
 		}
 		for _, abc := range additionalBuildContext {

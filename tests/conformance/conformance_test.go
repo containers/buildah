@@ -295,7 +295,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	require.NoError(t, err, "unable to initialize docker.client")
 	dockerClient.NegotiateAPIVersion(ctx)
 	if test.dockerUseBuildKit {
-		if err := dockerClient.NewVersionError("1.38", "buildkit"); err != nil {
+		if err := dockerClient.NewVersionError(ctx, "1.38", "buildkit"); err != nil {
 			t.Skipf("%v", err)
 		}
 	}

@@ -12,12 +12,20 @@ IMAGE_LIST_PPC64LE_INSTANCE_DIGEST=sha256:bcf9771c0b505e68c65440474179592ffdfa98
 IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca093af978217112c73803546d5e
 
 @test "manifest-create" {
+    _prefetch busybox
+    run_buildah inspect -f '{{ .FromImageDigest }}' busybox
+    imagedigest="$output"
     run_buildah manifest create foo
     listid="$output"
     run_buildah 125 manifest create foo
     assert "$output" =~ "that name is already in use"
     run_buildah manifest create --amend foo
     assert "$output" == "$listid"
+    run_buildah manifest create --amend --annotation red=blue foo busybox
+    assert "$output" == "$listid"
+    run_buildah manifest inspect foo
+    assert "$output" =~ '"red": "blue"'
+    assert "$output" =~ "${imagedigest}"
     # since manifest exists in local storage this should exit with `0`
     run_buildah manifest exists foo
     # since manifest does not exist in local storage this should exit with `1`
@@ -37,6 +45,33 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest exists foo
     # since manifest does not exist in local storage this should exit with `1`
     run_buildah 1 manifest exists foo2
+    run_buildah manifest rm foo
+}
+
+@test "manifest-add artifact" {
+    _prefetch busybox
+    createrandom $TEST_SCRATCH_DIR/randomfile2
+    createrandom $TEST_SCRATCH_DIR/randomfile
+    run sha256sum $TEST_SCRATCH_DIR/randomfile
+    blobencoded="${output%% *}"
+    run_buildah manifest create foo
+    run_buildah manifest add --artifact --artifact-type image/jpeg --artifact-layer-type image/not-validated --artifact-config-type text/x-not-really --artifact-subject busybox foo $TEST_SCRATCH_DIR/randomfile2
+    run_buildah manifest add --artifact --artifact-type image/png --artifact-layer-type image/not-validated --artifact-config-type text/x-not-really --artifact-subject busybox foo $TEST_SCRATCH_DIR/randomfile
+    digest="${output##* }"
+    alg="${digest%%:*}"
+    encoded="${digest##*:}"
+    run_buildah manifest annotate --annotation red=blue foo $TEST_SCRATCH_DIR/randomfile
+    run_buildah manifest inspect foo
+    assert "$output" =~ '"image/png"'
+    assert "$output" =~ '"red": "blue"'
+    run_buildah manifest push --all foo oci:$TEST_SCRATCH_DIR/pushed
+    run cmp $TEST_SCRATCH_DIR/randomfile $TEST_SCRATCH_DIR/pushed/blobs/sha256/$blobencoded
+    assert "$status" -eq 0 "pushed copy of random file did not match original"
+    run cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded
+    assert "$status" -eq 0 "artifact manifest not found in expected location"
+    assert "$output" =~ '"artifactType":"image/png"' "cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded"
+    assert "$output" =~ '"mediaType":"image/not-validated"' "cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded"
+    assert "$output" =~ '"mediaType":"text/x-not-really"' "cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded"
     run_buildah manifest rm foo
 }
 
@@ -68,6 +103,44 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST}
     expect_output --substring ${IMAGE_LIST_PPC64LE_INSTANCE_DIGEST}
     expect_output --substring ${IMAGE_LIST_S390X_INSTANCE_DIGEST}
+}
+
+@test "manifest-annotate global annotation" {
+    _prefetch busybox
+    run_buildah manifest create foo
+    run_buildah manifest add foo busybox
+    run_buildah manifest annotate --index --annotation red=blue foo
+    run_buildah manifest inspect foo
+    assert "$output" =~ '"red": "blue"'
+}
+
+@test "manifest-annotate instance annotation" {
+    _prefetch busybox
+    run_buildah manifest create foo
+    run_buildah manifest add foo busybox
+    instance="${output##* }"
+    run_buildah manifest annotate --annotation red=blue foo "${instance}"
+    run_buildah manifest annotate --os OperatingSystem foo "${instance}"
+    run_buildah manifest annotate --arch aRCHITECTURE foo "${instance}"
+    run_buildah manifest annotate --variant vARIANT foo "${instance}"
+    run_buildah manifest annotate --features FEATURE1 --features FEATURE2 foo "${instance}"
+    run_buildah manifest annotate --os-features OSFEATURE1 --os-features OSFEATURE2 foo "${instance}"
+    run_buildah manifest inspect foo
+    assert "$output" =~ '"red": "blue"'
+    assert "$output" =~ '"os": "OperatingSystem"'
+    assert "$output" =~ '"architecture": "aRCHITECTURE"'
+    assert "$output" =~ '"variant": "vARIANT"'
+}
+
+@test "manifest-annotate subject" {
+    _prefetch busybox "${IMAGE_LIST_INSTANCE##*://}"
+    run_buildah manifest create foo
+    run_buildah manifest add foo busybox
+    run_buildah manifest annotate --subject "${IMAGE_LIST_INSTANCE##*://}" foo
+    run_buildah inspect -f '{{ .FromImageDigest }}' "${IMAGE_LIST_INSTANCE##*://}"
+    imagedigest="$output"
+    run_buildah manifest inspect foo
+    assert "$output" =~ "$imagedigest"
 }
 
 @test "manifest-remove" {
