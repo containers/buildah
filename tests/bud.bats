@@ -301,18 +301,19 @@ _EOF
 FROM alpine
 RUN <<EOF
 echo "Cache burst" >> /hello
+echo "Cache burst second line" >> /hello
 EOF
 RUN cat hello
 _EOF
 
   # on first run since there is no cache so `Cache burst` must be printed
   run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile
-  expect_output --substring "Cache burst"
+  expect_output --substring "Cache burst second line"
 
   # on second run since there is cache so `Cache burst` should not be printed
   run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile
   # output should not contain cache burst
-  assert "$output" !~ "Cache burst"
+  assert "$output" !~ "Cache burst second line"
 
   cat > $contextdir/Dockerfile << _EOF
 FROM alpine
@@ -324,7 +325,7 @@ _EOF
 
   # on third run since we have changed heredoc so `Cache burst` must be printed.
   run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile
-  expect_output --substring "Cache burst"
+  expect_output --substring "Cache burst add diff"
 }
 
 @test "bud build with heredoc content" {
@@ -344,6 +345,13 @@ _EOF
   expect_output --substring "this is the output of test7 part3"
   expect_output --substring "this is the output of test8 part1"
   expect_output --substring "this is the output of test8 part2"
+
+  # verify that build output contains summary of heredoc content
+  expect_output --substring 'RUN <<EOF \(echo "print first line from heredoc"...)'
+  expect_output --substring 'RUN <<EOF \(echo "Heredoc writing first file" >> /file1...)'
+  expect_output --substring 'RUN python3 <<EOF \(with open\("/file2", "w") as f:...)'
+  expect_output --substring 'ADD <<EOF /index.html \(\(your index page goes here))'
+  expect_output --substring 'COPY <<robots.txt <<humans.txt /test/ \(\(robots content)) \(\(humans content))'
 }
 
 @test "bud build with heredoc content which is a bash file" {
