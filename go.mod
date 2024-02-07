@@ -6,11 +6,11 @@ require (
 	github.com/containerd/containerd v1.7.13
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.4.0
-	github.com/containers/common v0.57.1-0.20240207161546-330059fc2581
-	github.com/containers/image/v5 v5.29.2-0.20240130233108-e66a1ade2efc
+	github.com/containers/common v0.57.1-0.20240208111739-bed861a11acc
+	github.com/containers/image/v5 v5.29.3-0.20240207231441-93b4b55d865b
 	github.com/containers/luksy v0.0.0-20240129181507-b62d551ce6d8
 	github.com/containers/ocicrypt v1.1.9
-	github.com/containers/storage v1.52.1-0.20240130205044-62997abeaf2f
+	github.com/containers/storage v1.52.1-0.20240206205149-d1bf4f0cf1d6
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v25.0.3+incompatible
@@ -35,11 +35,11 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.8
-	golang.org/x/crypto v0.18.0
-	golang.org/x/exp v0.0.0-20231226003508-02704c960a9b
+	golang.org/x/crypto v0.19.0
+	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.16.0
-	golang.org/x/term v0.16.0
+	golang.org/x/sys v0.17.0
+	golang.org/x/term v0.17.0
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -48,7 +48,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/Microsoft/hcsshim v0.12.0-rc.2 // indirect
+	github.com/Microsoft/hcsshim v0.12.0-rc.3 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6 // indirect
@@ -56,6 +56,7 @@ require (
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cilium/ebpf v0.9.1 // indirect
 	github.com/containerd/cgroups/v3 v3.0.2 // indirect
+	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
@@ -98,13 +99,13 @@ require (
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.5 // indirect
+	github.com/klauspost/compress v1.17.6 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20230907030200-6d76a0f91e1e // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
-	github.com/mattn/go-sqlite3 v1.14.20 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/mistifyio/go-zfs/v3 v3.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
