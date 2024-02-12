@@ -1,4 +1,5 @@
 //go:build !linux
+// +build !linux
 
 // Signal handling for Linux only.
 package signal

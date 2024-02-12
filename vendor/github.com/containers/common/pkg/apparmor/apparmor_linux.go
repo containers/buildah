@@ -1,4 +1,5 @@
 //go:build linux && apparmor
+// +build linux,apparmor
 
 package apparmor
 

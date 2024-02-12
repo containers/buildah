@@ -1,4 +1,5 @@
 //go:build linux || freebsd
+// +build linux freebsd
 
 package netavark
 
@@ -9,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -76,18 +76,9 @@ func getRustLogEnv() string {
 // used to marshal the netavark output into it. This can be nil.
 // All errors return by this function should be of the type netavarkError
 // to provide a helpful error message.
-func (n *netavarkNetwork) execNetavark(args []string, needPlugin bool, stdin, result any) error {
+func (n *netavarkNetwork) execNetavark(args []string, needPlugin bool, stdin, result interface{}) error {
 	// set the netavark log level to the same as the podman
 	env := append(os.Environ(), getRustLogEnv())
-	// Netavark need access to iptables in $PATH. As it turns out debian doesn't put
-	// /usr/sbin in $PATH for rootless users. This will break rootless networking completely.
-	// We might break existing users and we cannot expect everyone to change their $PATH so
-	// let's add /usr/sbin to $PATH ourselves.
-	path := os.Getenv("PATH")
-	if !strings.Contains(path, "/usr/sbin") {
-		path += ":/usr/sbin"
-		env = append(env, "PATH="+path)
-	}
 	// if we run with debug log level lets also set RUST_BACKTRACE=1 so we can get the full stack trace in case of panics
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		env = append(env, "RUST_BACKTRACE=1")
@@ -95,17 +86,14 @@ func (n *netavarkNetwork) execNetavark(args []string, needPlugin bool, stdin, re
 	if n.dnsBindPort != 0 {
 		env = append(env, "NETAVARK_DNS_PORT="+strconv.Itoa(int(n.dnsBindPort)))
 	}
-	if n.firewallDriver != "" {
-		env = append(env, "NETAVARK_FW="+n.firewallDriver)
-	}
 	return n.execBinary(n.netavarkBinary, append(n.getCommonNetavarkOptions(needPlugin), args...), stdin, result, env)
 }
 
-func (n *netavarkNetwork) execPlugin(path string, args []string, stdin, result any) error {
+func (n *netavarkNetwork) execPlugin(path string, args []string, stdin, result interface{}) error {
 	return n.execBinary(path, args, stdin, result, nil)
 }
 
-func (n *netavarkNetwork) execBinary(path string, args []string, stdin, result any, env []string) error {
+func (n *netavarkNetwork) execBinary(path string, args []string, stdin, result interface{}, env []string) error {
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		return newNetavarkError("failed to create stdin pipe", err)

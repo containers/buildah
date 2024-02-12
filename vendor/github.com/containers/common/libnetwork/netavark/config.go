@@ -1,4 +1,5 @@
 //go:build linux || freebsd
+// +build linux freebsd
 
 package netavark
 
@@ -15,14 +16,14 @@ import (
 
 	internalutil "github.com/containers/common/libnetwork/internal/util"
 	"github.com/containers/common/libnetwork/types"
+	"github.com/containers/common/pkg/util"
 	"github.com/containers/storage/pkg/stringid"
-	"golang.org/x/exp/slices"
 )
 
 func sliceRemoveDuplicates(strList []string) []string {
 	list := make([]string, 0, len(strList))
 	for _, item := range strList {
-		if !slices.Contains(list, item) {
+		if !util.StringInSlice(item, list) {
 			list = append(list, item)
 		}
 	}
@@ -70,7 +71,7 @@ func (n *netavarkNetwork) NetworkUpdate(name string, options types.NetworkUpdate
 	networkDNSServersBefore := network.NetworkDNSServers
 	networkDNSServersAfter := []string{}
 	for _, server := range networkDNSServersBefore {
-		if slices.Contains(options.RemoveDNSServers, server) {
+		if util.StringInSlice(server, options.RemoveDNSServers) {
 			continue
 		}
 		networkDNSServersAfter = append(networkDNSServersAfter, server)
@@ -272,7 +273,7 @@ func createIpvlanOrMacvlan(network *types.Network) error {
 		if err != nil {
 			return err
 		}
-		if !slices.Contains(interfaceNames, network.NetworkInterface) {
+		if !util.StringInSlice(network.NetworkInterface, interfaceNames) {
 			return fmt.Errorf("parent interface %s does not exist", network.NetworkInterface)
 		}
 	}
@@ -318,11 +319,11 @@ func createIpvlanOrMacvlan(network *types.Network) error {
 		switch key {
 		case types.ModeOption:
 			if isMacVlan {
-				if !slices.Contains(types.ValidMacVLANModes, value) {
+				if !util.StringInSlice(value, types.ValidMacVLANModes) {
 					return fmt.Errorf("unknown macvlan mode %q", value)
 				}
 			} else {
-				if !slices.Contains(types.ValidIPVLANModes, value) {
+				if !util.StringInSlice(value, types.ValidIPVLANModes) {
 					return fmt.Errorf("unknown ipvlan mode %q", value)
 				}
 			}
@@ -472,7 +473,7 @@ func getAllPlugins(dirs []string) []string {
 		if err == nil {
 			for _, entry := range entries {
 				name := entry.Name()
-				if !slices.Contains(plugins, name) {
+				if !util.StringInSlice(name, plugins) {
 					plugins = append(plugins, name)
 				}
 			}

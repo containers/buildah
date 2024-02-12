@@ -142,7 +142,6 @@ func DefaultProfile() *Seccomp {
 				"fchdir",
 				"fchmod",
 				"fchmodat",
-				"fchmodat2",
 				"fchown",
 				"fchown32",
 				"fchownat",

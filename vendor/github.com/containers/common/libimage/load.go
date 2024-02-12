@@ -1,4 +1,5 @@
 //go:build !remote
+// +build !remote
 
 package libimage
 

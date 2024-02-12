@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/containers/common/pkg/config"
-	"golang.org/x/exp/slices"
+	"github.com/containers/common/pkg/util"
 )
 
 const (
@@ -220,7 +220,7 @@ func checkIfEntryExists(current HostEntry, entries HostEntries) bool {
 		if current.IP == rm.IP {
 			// it is enough if one of the names match, in this case we remove the full entry
 			for _, name := range current.Names {
-				if slices.Contains(rm.Names, name) {
+				if util.StringInSlice(name, rm.Names) {
 					return true
 				}
 			}

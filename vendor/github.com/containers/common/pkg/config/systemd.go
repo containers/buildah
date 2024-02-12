@@ -1,4 +1,5 @@
 //go:build systemd && cgo
+// +build systemd,cgo
 
 package config
 

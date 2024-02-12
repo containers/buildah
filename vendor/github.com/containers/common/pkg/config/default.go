@@ -13,6 +13,7 @@ import (
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/apparmor"
 	"github.com/containers/common/pkg/cgroupv2"
+	"github.com/containers/common/pkg/util"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/containers/storage/types"
@@ -29,7 +30,7 @@ const (
 	_defaultTransport = "docker://"
 
 	// _defaultImageVolumeMode is a mode to handle built-in image volumes.
-	_defaultImageVolumeMode = "anonymous"
+	_defaultImageVolumeMode = _typeBind
 
 	// defaultInitName is the default name of the init binary
 	defaultInitName = "catatonit"
@@ -195,9 +196,7 @@ func defaultConfig() (*Config, error) {
 	}
 
 	defaultEngineConfig.SignaturePolicyPath = DefaultSignaturePolicyPath
-	// NOTE: For now we want Windows to use system locations.
-	// GetRootlessUID == -1 on Windows, so exclude negative range
-	if unshare.GetRootlessUID() > 0 {
+	if useUserConfigLocations() {
 		configHome, err := homedir.GetConfigHome()
 		if err != nil {
 			return nil, err
@@ -253,7 +252,6 @@ func defaultConfig() (*Config, error) {
 			Volumes:             attributedstring.Slice{},
 		},
 		Network: NetworkConfig{
-			FirewallDriver:            "",
 			DefaultNetwork:            "podman",
 			DefaultSubnet:             DefaultSubnet,
 			DefaultSubnetPools:        DefaultSubnetPools,
@@ -295,8 +293,9 @@ func defaultMachineConfig() MachineConfig {
 
 // defaultFarmConfig returns the default farms configuration.
 func defaultFarmConfig() FarmConfig {
+	emptyList := make(map[string][]string)
 	return FarmConfig{
-		List: map[string][]string{},
+		List: emptyList,
 	}
 }
 
@@ -321,7 +320,7 @@ func defaultEngineConfig() (*EngineConfig, error) {
 			return nil, err
 		}
 	}
-	storeOpts, err := types.DefaultStoreOptions()
+	storeOpts, err := types.DefaultStoreOptions(useUserConfigLocations(), unshare.GetRootlessUID())
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +338,7 @@ func defaultEngineConfig() (*EngineConfig, error) {
 
 	c.HelperBinariesDir.Set(defaultHelperBinariesDir)
 	if additionalHelperBinariesDir != "" {
-		// Prioritize additionalHelperBinariesDir over defaults.
+		// Prioritize addtionalHelperBinariesDir over defaults.
 		c.HelperBinariesDir.Set(append([]string{additionalHelperBinariesDir}, c.HelperBinariesDir.Get()...))
 	}
 	c.HooksDir.Set(DefaultHooksDirs)
@@ -363,14 +362,6 @@ func defaultEngineConfig() (*EngineConfig, error) {
 			"/sbin/crun",
 			"/bin/crun",
 			"/run/current-system/sw/bin/crun",
-		},
-		"crun-vm": {
-			"/usr/bin/crun-vm",
-			"/usr/local/bin/crun-vm",
-			"/usr/local/sbin/crun-vm",
-			"/sbin/crun-vm",
-			"/bin/crun-vm",
-			"/run/current-system/sw/bin/crun-vm",
 		},
 		"crun-wasm": {
 			"/usr/bin/crun-wasm",
@@ -490,14 +481,11 @@ func defaultEngineConfig() (*EngineConfig, error) {
 }
 
 func defaultTmpDir() (string, error) {
-	// NOTE: For now we want Windows to use system locations.
-	// GetRootlessUID == -1 on Windows, so exclude negative range
-	rootless := unshare.GetRootlessUID() > 0
-	if !rootless {
+	if !useUserConfigLocations() {
 		return getLibpodTmpDir(), nil
 	}
 
-	runtimeDir, err := homedir.GetRuntimeDir()
+	runtimeDir, err := util.GetRuntimeDir()
 	if err != nil {
 		return "", err
 	}
@@ -563,7 +551,7 @@ func (c *Config) DNSServers() []string {
 	return c.Containers.DNSServers.Get()
 }
 
-// DNSSearches returns the default DNS searches to add to resolv.conf in containers.
+// DNSSerches returns the default DNS searches to add to resolv.conf in containers.
 func (c *Config) DNSSearches() []string {
 	return c.Containers.DNSSearches.Get()
 }
@@ -680,6 +668,12 @@ func getDefaultSSHConfig() string {
 	}
 	dirname := homedir.Get()
 	return filepath.Join(dirname, ".ssh", "config")
+}
+
+func useUserConfigLocations() bool {
+	// NOTE: For now we want Windows to use system locations.
+	// GetRootlessUID == -1 on Windows, so exclude negative range
+	return unshare.GetRootlessUID() > 0
 }
 
 // getDefaultImage returns the default machine image stream

@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.7.13
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.4.0
-	github.com/containers/common v0.57.1-0.20240208111739-bed861a11acc
+	github.com/containers/common v0.57.4
 	github.com/containers/image/v5 v5.29.3-0.20240207231441-93b4b55d865b
 	github.com/containers/luksy v0.0.0-20240129181507-b62d551ce6d8
 	github.com/containers/ocicrypt v1.1.9
@@ -54,7 +54,6 @@ require (
 	github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
-	github.com/cilium/ebpf v0.9.1 // indirect
 	github.com/containerd/cgroups/v3 v3.0.2 // indirect
 	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect

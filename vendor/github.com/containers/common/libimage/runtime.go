@@ -1,4 +1,5 @@
 //go:build !remote
+// +build !remote
 
 package libimage
 
@@ -161,7 +162,7 @@ func (r *Runtime) storageToImage(storageImage *storage.Image, ref types.ImageRef
 	}
 }
 
-// Exists returns true if the specified image exists in the local containers
+// Exists returns true if the specicifed image exists in the local containers
 // storage.  Note that it may return false if an image corrupted.
 func (r *Runtime) Exists(name string) (bool, error) {
 	image, _, err := r.LookupImage(name, nil)
@@ -171,7 +172,7 @@ func (r *Runtime) Exists(name string) (bool, error) {
 	if image == nil {
 		return false, nil
 	}
-	if err := image.isCorrupted(context.Background(), name); err != nil {
+	if err := image.isCorrupted(name); err != nil {
 		logrus.Error(err)
 		return false, nil
 	}
@@ -234,12 +235,8 @@ func (r *Runtime) LookupImage(name string, options *LookupImageOptions) (*Image,
 		if storageRef.Transport().Name() != storageTransport.Transport.Name() {
 			return nil, "", fmt.Errorf("unsupported transport %q for looking up local images", storageRef.Transport().Name())
 		}
-		_, img, err := storageTransport.ResolveReference(storageRef)
+		img, err := storageTransport.Transport.GetStoreImage(r.store, storageRef)
 		if err != nil {
-			if errors.Is(err, storageTransport.ErrNoSuchImage) {
-				// backward compatibility
-				return nil, "", storage.ErrImageUnknown
-			}
 			return nil, "", err
 		}
 		logrus.Debugf("Found image %q in local containers storage (%s)", name, storageRef.StringWithinTransport())
@@ -350,9 +347,9 @@ func (r *Runtime) lookupImageInLocalStorage(name, candidate string, namedCandida
 		if err != nil {
 			return nil, err
 		}
-		_, img, err = storageTransport.ResolveReference(ref)
+		img, err = storageTransport.Transport.GetStoreImage(r.store, ref)
 		if err != nil {
-			if errors.Is(err, storageTransport.ErrNoSuchImage) {
+			if errors.Is(err, storage.ErrImageUnknown) {
 				return nil, nil
 			}
 			return nil, err
@@ -608,7 +605,7 @@ func (r *Runtime) ListImages(ctx context.Context, names []string, options *ListI
 	// as the layer tree will computed once for all instead of once for
 	// each individual image (see containers/podman/issues/17828).
 
-	tree, err := r.layerTree(ctx, images)
+	tree, err := r.layerTree(images)
 	if err != nil {
 		return nil, err
 	}

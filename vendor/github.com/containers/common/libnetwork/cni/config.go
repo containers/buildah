@@ -1,4 +1,5 @@
-//go:build (linux || freebsd) && cni
+//go:build linux || freebsd
+// +build linux freebsd
 
 package cni
 
@@ -10,8 +11,8 @@ import (
 
 	internalutil "github.com/containers/common/libnetwork/internal/util"
 	"github.com/containers/common/libnetwork/types"
+	pkgutil "github.com/containers/common/pkg/util"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
 )
 
 func (n *cniNetwork) NetworkUpdate(_ string, _ types.NetworkUpdateOptions) error {
@@ -205,7 +206,7 @@ func createIPMACVLAN(network *types.Network) error {
 		if err != nil {
 			return err
 		}
-		if !slices.Contains(interfaceNames, network.NetworkInterface) {
+		if !pkgutil.StringInSlice(network.NetworkInterface, interfaceNames) {
 			return fmt.Errorf("parent interface %s does not exist", network.NetworkInterface)
 		}
 	}

@@ -1,4 +1,5 @@
 //go:build linux || freebsd
+// +build linux freebsd
 
 package netavark
 
@@ -10,8 +11,8 @@ import (
 
 	"github.com/containers/common/libnetwork/internal/util"
 	"github.com/containers/common/libnetwork/types"
+	pkgutil "github.com/containers/common/pkg/util"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
 )
 
 type netavarkOptions struct {
@@ -71,24 +72,12 @@ func (n *netavarkNetwork) Setup(namespacePath string, options types.SetupOptions
 	}
 
 	result := map[string]types.StatusBlock{}
-	setup := func() error {
-		err := n.execNetavark([]string{"setup", namespacePath}, needPlugin, netavarkOpts, &result)
-		if err != nil {
-			// lets dealloc ips to prevent leaking
-			if err := n.deallocIPs(&options.NetworkOptions); err != nil {
-				logrus.Error(err)
-			}
-			return err
-		}
-		return nil
-	}
-
-	if n.rootlessNetns != nil {
-		err = n.rootlessNetns.Setup(len(options.Networks), setup)
-	} else {
-		err = setup()
-	}
+	err = n.execNetavark([]string{"setup", namespacePath}, needPlugin, netavarkOpts, &result)
 	if err != nil {
+		// lets dealloc ips to prevent leaking
+		if err := n.deallocIPs(&options.NetworkOptions); err != nil {
+			logrus.Error(err)
+		}
 		return nil, err
 	}
 
@@ -123,16 +112,7 @@ func (n *netavarkNetwork) Teardown(namespacePath string, options types.TeardownO
 		return fmt.Errorf("failed to convert net opts: %w", err)
 	}
 
-	var retErr error
-	teardown := func() error {
-		return n.execNetavark([]string{"teardown", namespacePath}, needPlugin, netavarkOpts, nil)
-	}
-
-	if n.rootlessNetns != nil {
-		retErr = n.rootlessNetns.Teardown(len(options.Networks), teardown)
-	} else {
-		retErr = teardown()
-	}
+	retErr := n.execNetavark([]string{"teardown", namespacePath}, needPlugin, netavarkOpts, nil)
 
 	// when netavark returned an error we still free the used ips
 	// otherwise we could end up in a state where block the ips forever
@@ -174,16 +154,9 @@ func (n *netavarkNetwork) convertNetOpts(opts types.NetworkOptions) (*netavarkOp
 			return nil, false, err
 		}
 		netavarkOptions.Networks[network] = net
-		if !slices.Contains(builtinDrivers, net.Driver) {
+		if !pkgutil.StringInSlice(net.Driver, builtinDrivers) {
 			needsPlugin = true
 		}
 	}
 	return &netavarkOptions, needsPlugin, nil
-}
-
-func (n *netavarkNetwork) RunInRootlessNetns(toRun func() error) error {
-	if n.rootlessNetns == nil {
-		return types.ErrNotRootlessNetns
-	}
-	return n.rootlessNetns.Run(n.lock, toRun)
 }

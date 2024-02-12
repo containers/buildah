@@ -1,4 +1,5 @@
-//go:build (linux || freebsd) && cni
+//go:build linux || freebsd
+// +build linux freebsd
 
 package cni
 
@@ -17,8 +18,8 @@ import (
 	internalutil "github.com/containers/common/libnetwork/internal/util"
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/libnetwork/util"
+	pkgutil "github.com/containers/common/pkg/util"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
 	"golang.org/x/sys/unix"
 )
 
@@ -31,13 +32,13 @@ func createNetworkFromCNIConfigList(conf *libcni.NetworkConfigList, confPath str
 		IPAMOptions: map[string]string{},
 	}
 
-	cniJSON := make(map[string]any)
+	cniJSON := make(map[string]interface{})
 	err := json.Unmarshal(conf.Bytes, &cniJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal network config %s: %w", conf.Name, err)
 	}
 	if args, ok := cniJSON["args"]; ok {
-		if key, ok := args.(map[string]any); ok {
+		if key, ok := args.(map[string]interface{}); ok {
 			// read network labels and options from the conf file
 			network.Labels = getNetworkArgsFromConfList(key, podmanLabelKey)
 			network.Options = getNetworkArgsFromConfList(key, podmanOptionsKey)
@@ -214,9 +215,9 @@ func convertIPAMConfToNetwork(network *types.Network, ipam *ipamConfig, confPath
 }
 
 // getNetworkArgsFromConfList returns the map of args in a conflist, argType should be labels or options
-func getNetworkArgsFromConfList(args map[string]any, argType string) map[string]string {
+func getNetworkArgsFromConfList(args map[string]interface{}, argType string) map[string]string {
 	if args, ok := args[argType]; ok {
-		if labels, ok := args.(map[string]any); ok {
+		if labels, ok := args.(map[string]interface{}); ok {
 			result := make(map[string]string, len(labels))
 			for k, v := range labels {
 				if v, ok := v.(string); ok {
@@ -298,7 +299,7 @@ func (n *cniNetwork) createCNIConfigListFromNetwork(network *types.Network, writ
 	// the dnsname plugin also needs to be updated for 1.0.0
 	// TODO change to 1.0.0 when most distros support it
 	ncList := newNcList(network.Name, "0.4.0", network.Labels, network.Options)
-	var plugins []any
+	var plugins []interface{}
 
 	switch network.Driver {
 	case types.BridgeNetworkDriver:
@@ -358,7 +359,7 @@ func convertSpecgenPortsToCNIPorts(ports []types.PortMapping) ([]cniPortMapEntry
 		protocols := strings.Split(port.Protocol, ",")
 
 		for _, protocol := range protocols {
-			if !slices.Contains([]string{"tcp", "udp", "sctp"}, protocol) {
+			if !pkgutil.StringInSlice(protocol, []string{"tcp", "udp", "sctp"}) {
 				return nil, fmt.Errorf("unknown port protocol %s", protocol)
 			}
 			cniPort := cniPortMapEntry{
@@ -420,11 +421,11 @@ func parseOptions(networkOptions map[string]string, networkDriver string) (*opti
 		case types.ModeOption:
 			switch networkDriver {
 			case types.MacVLANNetworkDriver:
-				if !slices.Contains(types.ValidMacVLANModes, v) {
+				if !pkgutil.StringInSlice(v, types.ValidMacVLANModes) {
 					return nil, fmt.Errorf("unknown macvlan mode %q", v)
 				}
 			case types.IPVLANNetworkDriver:
-				if !slices.Contains(types.ValidIPVLANModes, v) {
+				if !pkgutil.StringInSlice(v, types.ValidIPVLANModes) {
 					return nil, fmt.Errorf("unknown ipvlan mode %q", v)
 				}
 			default:

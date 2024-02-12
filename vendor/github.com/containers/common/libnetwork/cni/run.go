@@ -1,4 +1,5 @@
-//go:build (linux || freebsd) && cni
+//go:build linux || freebsd
+// +build linux freebsd
 
 package cni
 
@@ -38,72 +39,61 @@ func (n *cniNetwork) Setup(namespacePath string, options types.SetupOptions) (ma
 		return nil, fmt.Errorf("failed to set the loopback adapter up: %w", err)
 	}
 
+	var retErr error
+	teardownOpts := options
+	teardownOpts.Networks = map[string]types.PerNetworkOptions{}
+	// make sure to teardown the already connected networks on error
+	defer func() {
+		if retErr != nil {
+			if len(teardownOpts.Networks) > 0 {
+				err := n.teardown(namespacePath, types.TeardownOptions(teardownOpts))
+				if err != nil {
+					logrus.Warn(err)
+				}
+			}
+		}
+	}()
+
+	ports, err := convertSpecgenPortsToCNIPorts(options.PortMappings)
+	if err != nil {
+		return nil, err
+	}
+
 	results := make(map[string]types.StatusBlock, len(options.Networks))
+	for name, netOpts := range options.Networks {
+		netOpts := netOpts
+		network := n.networks[name]
+		rt := getRuntimeConfig(namespacePath, options.ContainerName, options.ContainerID, name, ports, &netOpts)
 
-	setup := func() error {
-		var retErr error
-		teardownOpts := options
-		teardownOpts.Networks = map[string]types.PerNetworkOptions{}
-		// make sure to teardown the already connected networks on error
-		defer func() {
+		// If we have more than one static ip we need parse the ips via runtime config,
+		// make sure to add the ips capability to the first plugin otherwise it doesn't get the ips
+		if len(netOpts.StaticIPs) > 0 && !network.cniNet.Plugins[0].Network.Capabilities["ips"] {
+			caps := make(map[string]interface{})
+			caps["capabilities"] = map[string]bool{"ips": true}
+			network.cniNet.Plugins[0], retErr = libcni.InjectConf(network.cniNet.Plugins[0], caps)
 			if retErr != nil {
-				if len(teardownOpts.Networks) > 0 {
-					err := n.teardown(namespacePath, types.TeardownOptions(teardownOpts))
-					if err != nil {
-						logrus.Warn(err)
-					}
-				}
+				return nil, retErr
 			}
-		}()
-
-		ports, err := convertSpecgenPortsToCNIPorts(options.PortMappings)
-		if err != nil {
-			return err
 		}
 
-		for name, netOpts := range options.Networks {
-			netOpts := netOpts
-			network := n.networks[name]
-			rt := getRuntimeConfig(namespacePath, options.ContainerName, options.ContainerID, name, ports, &netOpts)
-
-			// If we have more than one static ip we need parse the ips via runtime config,
-			// make sure to add the ips capability to the first plugin otherwise it doesn't get the ips
-			if len(netOpts.StaticIPs) > 0 && !network.cniNet.Plugins[0].Network.Capabilities["ips"] {
-				caps := map[string]any{
-					"capabilities": map[string]bool{"ips": true},
-				}
-				network.cniNet.Plugins[0], retErr = libcni.InjectConf(network.cniNet.Plugins[0], caps)
-				if retErr != nil {
-					return retErr
-				}
-			}
-
-			var res cnitypes.Result
-			res, retErr = n.cniConf.AddNetworkList(context.Background(), network.cniNet, rt)
-			// Add this network to teardown opts since it is now connected.
-			// Also add this if an errors was returned since we want to call teardown on this regardless.
-			teardownOpts.Networks[name] = netOpts
-			if retErr != nil {
-				return retErr
-			}
-
-			logrus.Debugf("cni result for container %s network %s: %v", options.ContainerID, name, res)
-			var status types.StatusBlock
-			status, retErr = CNIResultToStatus(res)
-			if retErr != nil {
-				return retErr
-			}
-			results[name] = status
+		var res cnitypes.Result
+		res, retErr = n.cniConf.AddNetworkList(context.Background(), network.cniNet, rt)
+		// Add this network to teardown opts since it is now connected.
+		// Also add this if an errors was returned since we want to call teardown on this regardless.
+		teardownOpts.Networks[name] = netOpts
+		if retErr != nil {
+			return nil, retErr
 		}
-		return nil
-	}
 
-	if n.rootlessNetns != nil {
-		err = n.rootlessNetns.Setup(len(options.Networks), setup)
-	} else {
-		err = setup()
+		logrus.Debugf("cni result for container %s network %s: %v", options.ContainerID, name, res)
+		var status types.StatusBlock
+		status, retErr = CNIResultToStatus(res)
+		if retErr != nil {
+			return nil, retErr
+		}
+		results[name] = status
 	}
-	return results, err
+	return results, nil
 }
 
 // CNIResultToStatus convert the cni result to status block
@@ -174,7 +164,7 @@ func getRuntimeConfig(netns, conName, conID, networkName string, ports []cniPort
 			// Only K8S_POD_NAME is used by dnsname to get the container name.
 			{"K8S_POD_NAME", conName},
 		},
-		CapabilityArgs: map[string]any{},
+		CapabilityArgs: map[string]interface{}{},
 	}
 
 	// Propagate environment CNI_ARGS
@@ -235,39 +225,28 @@ func (n *cniNetwork) teardown(namespacePath string, options types.TeardownOption
 	}
 
 	var multiErr *multierror.Error
-	teardown := func() error {
-		for name, netOpts := range options.Networks {
-			netOpts := netOpts
-			rt := getRuntimeConfig(namespacePath, options.ContainerName, options.ContainerID, name, ports, &netOpts)
+	for name, netOpts := range options.Networks {
+		netOpts := netOpts
+		rt := getRuntimeConfig(namespacePath, options.ContainerName, options.ContainerID, name, ports, &netOpts)
 
-			cniConfList, newRt, err := getCachedNetworkConfig(n.cniConf, name, rt)
-			if err == nil {
-				rt = newRt
-			} else {
-				logrus.Warnf("Failed to load cached network config: %v, falling back to loading network %s from disk", err, name)
-				network := n.networks[name]
-				if network == nil {
-					multiErr = multierror.Append(multiErr, fmt.Errorf("network %s: %w", name, types.ErrNoSuchNetwork))
-					continue
-				}
-				cniConfList = network.cniNet
+		cniConfList, newRt, err := getCachedNetworkConfig(n.cniConf, name, rt)
+		if err == nil {
+			rt = newRt
+		} else {
+			logrus.Warnf("Failed to load cached network config: %v, falling back to loading network %s from disk", err, name)
+			network := n.networks[name]
+			if network == nil {
+				multiErr = multierror.Append(multiErr, fmt.Errorf("network %s: %w", name, types.ErrNoSuchNetwork))
+				continue
 			}
-
-			err = n.cniConf.DelNetworkList(context.Background(), cniConfList, rt)
-			if err != nil {
-				multiErr = multierror.Append(multiErr, err)
-			}
+			cniConfList = network.cniNet
 		}
-		return nil
-	}
 
-	if n.rootlessNetns != nil {
-		err = n.rootlessNetns.Teardown(len(options.Networks), teardown)
-	} else {
-		err = teardown()
+		err = n.cniConf.DelNetworkList(context.Background(), cniConfList, rt)
+		if err != nil {
+			multiErr = multierror.Append(multiErr, err)
+		}
 	}
-	multiErr = multierror.Append(multiErr, err)
-
 	return multiErr.ErrorOrNil()
 }
 
@@ -287,11 +266,4 @@ func getCachedNetworkConfig(cniConf *libcni.CNIConfig, name string, rt *libcni.R
 		return nil, nil, err
 	}
 	return cniConfList, rt, nil
-}
-
-func (n *cniNetwork) RunInRootlessNetns(toRun func() error) error {
-	if n.rootlessNetns == nil {
-		return types.ErrNotRootlessNetns
-	}
-	return n.rootlessNetns.Run(n.lock, toRun)
 }

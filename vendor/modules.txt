@@ -60,15 +60,6 @@ github.com/asaskevich/govalidator
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/cilium/ebpf v0.9.1
-## explicit; go 1.17
-github.com/cilium/ebpf
-github.com/cilium/ebpf/asm
-github.com/cilium/ebpf/btf
-github.com/cilium/ebpf/internal
-github.com/cilium/ebpf/internal/sys
-github.com/cilium/ebpf/internal/unix
-github.com/cilium/ebpf/link
 # github.com/containerd/cgroups/v3 v3.0.2
 ## explicit; go 1.18
 github.com/containerd/cgroups/v3/cgroup1/stats
@@ -106,9 +97,8 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.4.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.57.1-0.20240208111739-bed861a11acc
-## explicit; go 1.20
-github.com/containers/common/internal
+# github.com/containers/common v0.57.4
+## explicit; go 1.18
 github.com/containers/common/internal/attributedstring
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
@@ -117,7 +107,6 @@ github.com/containers/common/libimage/manifests
 github.com/containers/common/libimage/platform
 github.com/containers/common/libnetwork/cni
 github.com/containers/common/libnetwork/etchosts
-github.com/containers/common/libnetwork/internal/rootlessnetns
 github.com/containers/common/libnetwork/internal/util
 github.com/containers/common/libnetwork/netavark
 github.com/containers/common/libnetwork/network
@@ -130,7 +119,6 @@ github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/apparmor/internal/supported
 github.com/containers/common/pkg/auth
 github.com/containers/common/pkg/capabilities
-github.com/containers/common/pkg/cgroups
 github.com/containers/common/pkg/cgroupv2
 github.com/containers/common/pkg/chown
 github.com/containers/common/pkg/completion
@@ -143,7 +131,6 @@ github.com/containers/common/pkg/hooks/1.0.0
 github.com/containers/common/pkg/hooks/exec
 github.com/containers/common/pkg/machine
 github.com/containers/common/pkg/manifests
-github.com/containers/common/pkg/netns
 github.com/containers/common/pkg/parse
 github.com/containers/common/pkg/password
 github.com/containers/common/pkg/retry
@@ -153,7 +140,6 @@ github.com/containers/common/pkg/servicereaper
 github.com/containers/common/pkg/signal
 github.com/containers/common/pkg/subscriptions
 github.com/containers/common/pkg/supplemented
-github.com/containers/common/pkg/systemd
 github.com/containers/common/pkg/timetype
 github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
@@ -618,13 +604,6 @@ github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v1.1.12
 ## explicit; go 1.17
 github.com/opencontainers/runc/libcontainer/apparmor
-github.com/opencontainers/runc/libcontainer/cgroups
-github.com/opencontainers/runc/libcontainer/cgroups/devices
-github.com/opencontainers/runc/libcontainer/cgroups/ebpf
-github.com/opencontainers/runc/libcontainer/cgroups/ebpf/devicefilter
-github.com/opencontainers/runc/libcontainer/cgroups/fs
-github.com/opencontainers/runc/libcontainer/cgroups/fs2
-github.com/opencontainers/runc/libcontainer/cgroups/fscommon
 github.com/opencontainers/runc/libcontainer/configs
 github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/user

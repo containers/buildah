@@ -1,4 +1,5 @@
 //go:build !linux || !seccomp
+// +build !linux !seccomp
 
 // SPDX-License-Identifier: Apache-2.0
 
@@ -14,12 +15,12 @@ import (
 
 var errNotSupported = errors.New("seccomp not enabled in this build")
 
-// LoadProfile returns an error on unsupported systems
+// LoadProfile returns an error on unsuppored systems
 func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	return nil, errNotSupported
 }
 
-// GetDefaultProfile returns an error on unsupported systems
+// GetDefaultProfile returns an error on unsuppored systems
 func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	return nil, errNotSupported
 }

@@ -1,4 +1,5 @@
 //go:build seccomp
+// +build seccomp
 
 package seccomp
 

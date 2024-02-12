@@ -1,4 +1,5 @@
 //go:build !remote
+// +build !remote
 
 package libimage
 
@@ -25,7 +26,7 @@ func (i *Image) History(ctx context.Context) ([]ImageHistory, error) {
 		return nil, err
 	}
 
-	layerTree, err := i.runtime.layerTree(ctx, nil)
+	layerTree, err := i.runtime.layerTree(nil)
 	if err != nil {
 		return nil, err
 	}

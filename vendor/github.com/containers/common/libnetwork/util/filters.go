@@ -7,7 +7,6 @@ import (
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/filters"
 	"github.com/containers/common/pkg/util"
-	"golang.org/x/exp/slices"
 )
 
 func GenerateNetworkFilters(f map[string][]string) ([]types.FilterFunc, error) {
@@ -33,7 +32,7 @@ func createFilterFuncs(key string, filterValues []string) (types.FilterFunc, err
 	case types.Driver:
 		// matches network driver
 		return func(net types.Network) bool {
-			return slices.Contains(filterValues, net.Driver)
+			return util.StringInSlice(net.Driver, filterValues)
 		}, nil
 
 	case "id":

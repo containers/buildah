@@ -1,4 +1,5 @@
 //go:build !remote
+// +build !remote
 
 package libimage
 
@@ -36,7 +37,7 @@ func (r *Runtime) DiskUsage(ctx context.Context) ([]ImageDiskUsage, int64, error
 		return nil, -1, err
 	}
 
-	layerTree, err := r.layerTree(ctx, images)
+	layerTree, err := r.layerTree(images)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -79,7 +80,7 @@ func (r *Runtime) DiskUsage(ctx context.Context) ([]ImageDiskUsage, int64, error
 
 // diskUsageForImage returns the disk-usage baseistics for the specified image.
 func diskUsageForImage(ctx context.Context, image *Image, tree *layerTree) ([]ImageDiskUsage, error) {
-	if err := image.isCorrupted(ctx, ""); err != nil {
+	if err := image.isCorrupted(""); err != nil {
 		return nil, err
 	}
 
