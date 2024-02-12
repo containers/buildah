@@ -269,7 +269,9 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			thisID, thisRef, err := buildDockerfilesOnce(ctx, store, loggerPerPlatform, logPrefix, platformOptions, paths, files)
 			if err != nil {
 				if errorContext := strings.TrimSpace(logPrefix); errorContext != "" {
-					return fmt.Errorf("%s: %w", errorContext, err)
+					err = fmt.Errorf("%s: %w", errorContext, err)
+					logrus.Warnf("%v", err)
+					return err
 				}
 				return err
 			}
@@ -284,10 +286,8 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		})
 	}
 
-	if merr := builds.Wait(); merr != nil {
-		if merr.Len() == 1 {
-			return "", nil, merr.Errors[0]
-		}
+	if merr := builds.Wait(); merr != nil &&
+		merr.Len() == len(options.Platforms) {
 		return "", nil, merr.ErrorOrNil()
 	}
 

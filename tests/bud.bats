@@ -6625,3 +6625,9 @@ _EOF
   expect_output --substring "$podman_files"
   expect_output --substring "$podman_processes"
 }
+
+@test "bud --all-platforms" {
+  outputlist=localhost/testlist
+  run_buildah bud $WITH_POLICY_JSON --quiet --all-platforms --manifest $outputlist -f $BUDFILES/multiarch/Dockerfile.allplatforms $BUDFILES/multiarch
+  expect_output --substring "warn.*[unknown/unknown]"
+}
