@@ -1,6 +1,8 @@
 module github.com/containers/buildah
 
-go 1.20
+go 1.21
+
+toolchain go1.22.0
 
 require (
 	github.com/containerd/containerd v1.7.13
@@ -15,7 +17,7 @@ require (
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v25.0.3+incompatible
 	github.com/docker/go-units v0.5.0
-	github.com/fsouza/go-dockerclient v1.10.1
+	github.com/fsouza/go-dockerclient v1.10.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.12.5
