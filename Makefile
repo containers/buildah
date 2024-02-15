@@ -4,6 +4,10 @@ APPARMORTAG := $(shell hack/apparmor_tag.sh)
 STORAGETAGS := exclude_graphdriver_devicemapper $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./hack/libsubid_tag.sh)
 SECURITYTAGS ?= seccomp $(APPARMORTAG)
 TAGS ?= $(SECURITYTAGS) $(STORAGETAGS) $(shell ./hack/systemd_tag.sh)
+ifeq ($(shell uname -s),FreeBSD)
+# FreeBSD needs CNI until netavark is supported
+TAGS += cni
+endif
 BUILDTAGS += $(TAGS)
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
