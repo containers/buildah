@@ -92,8 +92,8 @@ func init() {
 	flags.StringVar(&opts.compressionFormat, "compression-format", "", "compression format to use")
 	flags.IntVar(&opts.compressionLevel, "compression-level", 0, "compression level to use")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
-	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing push/pull")
-	flags.StringVar(&opts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of push/pull failures")
+	flags.IntVar(&opts.retry, "retry", int(defaultContainerConfig.Engine.Retry), "number of times to retry in case of failure when performing push")
+	flags.StringVar(&opts.retryDelay, "retry-delay", defaultContainerConfig.Engine.RetryDelay, "delay between retries in case of push failures")
 	flags.BoolVar(&opts.rm, "rm", false, "remove the manifest list if push succeeds")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing image")
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
@@ -194,11 +194,6 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
 
-	var pullPushRetryDelay time.Duration
-	pullPushRetryDelay, err = time.ParseDuration(iopts.retryDelay)
-	if err != nil {
-		return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
-	}
 	if c.Flag("compression-format").Changed {
 		if !c.Flag("force-compression").Changed {
 			// If `compression-format` is set and no value for `--force-compression`
@@ -217,10 +212,15 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		RemoveSignatures:       iopts.removeSignatures,
 		SignBy:                 iopts.signBy,
 		MaxRetries:             iopts.retry,
-		RetryDelay:             pullPushRetryDelay,
 		OciEncryptConfig:       encConfig,
 		OciEncryptLayers:       encLayers,
 		ForceCompressionFormat: iopts.forceCompressionFormat,
+	}
+	if iopts.retryDelay != "" {
+		options.RetryDelay, err = time.ParseDuration(iopts.retryDelay)
+		if err != nil {
+			return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+		}
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr

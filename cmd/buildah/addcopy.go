@@ -171,19 +171,19 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 			if err2 != nil {
 				return fmt.Errorf("unable to obtain decrypt config: %w", err2)
 			}
-			var pullPushRetryDelay time.Duration
-			pullPushRetryDelay, err = time.ParseDuration(iopts.retryDelay)
-			if err != nil {
-				return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
-			}
 			options := buildah.BuilderOptions{
 				FromImage:           iopts.from,
 				BlobDirectory:       iopts.blobCache,
 				SignaturePolicyPath: iopts.signaturePolicy,
 				SystemContext:       systemContext,
 				MaxPullRetries:      iopts.retry,
-				PullRetryDelay:      pullPushRetryDelay,
 				OciDecryptConfig:    decryptConfig,
+			}
+			if iopts.retryDelay != "" {
+				options.PullRetryDelay, err = time.ParseDuration(iopts.retryDelay)
+				if err != nil {
+					return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+				}
 			}
 			if !iopts.quiet {
 				options.ReportWriter = os.Stderr
