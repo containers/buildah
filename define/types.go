@@ -54,6 +54,9 @@ const (
 	SNP TeeType = "snp"
 )
 
+// DefaultRlimitValue is the value set by default for nofile and nproc
+const RLimitDefaultValue = uint64(1048576)
+
 // TeeType is a supported trusted execution environment type.
 type TeeType string
 
@@ -121,7 +124,7 @@ type ConfidentialWorkloadOptions struct {
 	AttestationURL           string
 	CPUs                     int
 	Memory                   int
-	TempDir                  string
+	TempDir                  string // used for the temporary plaintext copy of the disk image
 	TeeType                  TeeType
 	IgnoreAttestationErrors  bool
 	WorkloadID               string

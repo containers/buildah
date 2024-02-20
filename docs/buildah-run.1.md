@@ -99,7 +99,7 @@ BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
 Attach a filesystem mount to the container
 
-Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Footnote1)</sup>
+Current supported mount TYPES are bind, cache, secret and tmpfs.
 
        e.g.
 
@@ -119,7 +119,7 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
        Options specific to bind:
 
-              · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2).
+              · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2). <sup>[[1]](#Footnote1)</sup>
 
               . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
 
@@ -290,12 +290,12 @@ process.
 
 Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
 bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
+container. The `OPTIONS` are a comma delimited list and can be:
 
    * [rw|ro]
    * [U]
    * [z|Z]
-   * [`[r]shared`|`[r]slave`|`[r]private`]
+   * [`[r]shared`|`[r]slave`|`[r]private`] <sup>[[1]](#Footnote1)</sup>
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 must be an absolute path as well. Buildah bind-mounts the `HOST-DIR` to the

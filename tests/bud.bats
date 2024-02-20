@@ -12,11 +12,37 @@ load helpers
 }
 
 @test "bud: build manifest list and --add-compression zstd" {
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $BUDFILES/dockerfile/Dockerfile
+  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $BUDFILES/dockerfile/Dockerfile
+
+  run_buildah manifest create foo
+  run_buildah manifest add foo image1
+  run_buildah manifest add foo image2
+
+  run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
+
+  run_buildah manifest inspect --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false localhost:${REGISTRY_PORT}/list
+  list="$output"
+
+  validate_instance_compression "0" "$list" "amd64" "gzip"
+  validate_instance_compression "1" "$list" "arm64" "gzip"
+  validate_instance_compression "2" "$list" "amd64" "zstd"
+  validate_instance_compression "3" "$list" "arm64" "zstd"
+}
+
+@test "bud: build manifest list and --add-compression with containers.conf" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir
 
   cat > $contextdir/Dockerfile1 << _EOF
 FROM alpine
+_EOF
+
+  cat > $contextdir/containers.conf << _EOF
+[engine]
+add_compression = ["zstd"]
 _EOF
 
   start_registry
@@ -28,7 +54,7 @@ _EOF
   run_buildah manifest add foo image1
   run_buildah manifest add foo image2
 
-  run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
+  CONTAINERS_CONF=$contextdir/containers.conf run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
   run_buildah manifest inspect --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false localhost:${REGISTRY_PORT}/list
   list="$output"
@@ -267,6 +293,41 @@ _EOF
   run_buildah 1 run myctr ls -l subdir/
 }
 
+@test "bud --layers should not hit cache if heredoc is changed" {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+RUN <<EOF
+echo "Cache burst" >> /hello
+echo "Cache burst second line" >> /hello
+EOF
+RUN cat hello
+_EOF
+
+  # on first run since there is no cache so `Cache burst` must be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile
+  expect_output --substring "Cache burst second line"
+
+  # on second run since there is cache so `Cache burst` should not be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile
+  # output should not contain cache burst
+  assert "$output" !~ "Cache burst second line"
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+RUN <<EOF
+echo "Cache burst add diff" >> /hello
+EOF
+RUN cat hello
+_EOF
+
+  # on third run since we have changed heredoc so `Cache burst` must be printed.
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile
+  expect_output --substring "Cache burst add diff"
+}
+
 @test "bud build with heredoc content" {
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile .
   expect_output --substring "print first line from heredoc"
@@ -284,6 +345,13 @@ _EOF
   expect_output --substring "this is the output of test7 part3"
   expect_output --substring "this is the output of test8 part1"
   expect_output --substring "this is the output of test8 part2"
+
+  # verify that build output contains summary of heredoc content
+  expect_output --substring 'RUN <<EOF \(echo "print first line from heredoc"...)'
+  expect_output --substring 'RUN <<EOF \(echo "Heredoc writing first file" >> /file1...)'
+  expect_output --substring 'RUN python3 <<EOF \(with open\("/file2", "w") as f:...)'
+  expect_output --substring 'ADD <<EOF /index.html \(\(your index page goes here))'
+  expect_output --substring 'COPY <<robots.txt <<humans.txt /test/ \(\(robots content)) \(\(humans content))'
 }
 
 @test "bud build with heredoc content which is a bash file" {
@@ -292,6 +360,15 @@ _EOF
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.bash_file .
   expect_output --substring "this is the output of test9"
   expect_output --substring "this is the output of test10"
+}
+
+@test "bud build with heredoc content with inline interpreter" {
+  skip_if_in_container
+  _prefetch busybox
+  run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.she_bang .
+  expect_output --substring "#
+this is the output of test11
+this is the output of test12"
 }
 
 @test "bud build with heredoc verify mount leak" {
@@ -900,7 +977,7 @@ FROM one
 RUN echo "target stage"
 _EOF
 
-  # with --skip-unused-stages=true no warning should be printed since ARG is decalred in stage which is not used
+  # with --skip-unused-stages=true no warning should be printed since ARG is declared in stage which is not used
   run_buildah build $WITH_POLICY_JSON --skip-unused-stages=true -t source -f $contextdir/Dockerfile
   expect_output --substring "needed stage"
   expect_output --substring "target stage"
@@ -1915,7 +1992,7 @@ _EOF
   # Reuse cached layers and check if --output still works as expected
   run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   ls $mytmpdir/rootfs
-  # exported rootfs must contain only 'target' from last/final stage and not contain file `rouge` from first stage
+  # exported rootfs must contain only 'target' from last/final stage and not contain file `rogue` from first stage
   expect_output --substring 'target'
   # must not contain rogue from first stage
   assert "$output" =~ "rogue"
@@ -1936,7 +2013,7 @@ _EOF
   # Reuse cached layers and check if --output still works as expected
   run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   ls $mytmpdir/rootfs
-  # exported rootfs must contain only 'rouge' even if build from cache.
+  # exported rootfs must contain only 'rogue' even if build from cache.
   expect_output --substring 'rogue'
 }
 
@@ -4311,6 +4388,12 @@ EOM
   expect_output ""
 }
 
+@test "bud-implicit-no-history" {
+  _prefetch nixery.dev/shell
+  run_buildah build $WITH_POLICY_JSON --layers=false $BUDFILES/no-history
+  run_buildah build $WITH_POLICY_JSON --layers=true  $BUDFILES/no-history
+}
+
 @test "bud with encrypted FROM image" {
   _prefetch busybox
   local contextdir=${TEST_SCRATCH_DIR}/tmp
@@ -4540,7 +4623,7 @@ EOF
   # Build first in Docker format.  Whether we do OCI or Docker first shouldn't matter, so we picked one.
   run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-docker  --format docker --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
-  # Build in OCI format.  Cache should not re-use the same images, so we should get a different image ID.
+  # Build in OCI format.  Cache should not reuse the same images, so we should get a different image ID.
   run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-oci     --format oci    --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
   # Build in Docker format again.  Cache traversal should 100% hit the Docker image, so we should get its image ID.
@@ -6526,4 +6609,19 @@ _EOF
   run_buildah images
   expect_output --substring "localhost/foo/bar"
   expect_output --substring "localhost/bar"
+}
+
+@test "build test default ulimits" {
+  skip_if_no_runtime
+  _prefetch alpine
+
+  run podman run --rm alpine sh -c "echo -n Files=; awk '/open files/{print \$4 \"/\" \$5}' /proc/self/limits"
+  podman_files=$output
+
+  run podman run --rm alpine sh -c "echo -n Processes=; awk '/processes/{print \$3 \"/\" \$4}' /proc/self/limits"
+  podman_processes=$output
+
+  CONTAINERS_CONF=/dev/null run_buildah build --no-cache --pull=false $WITH_POLICY_JSON -t foo/bar $BUDFILES/bud.limits
+  expect_output --substring "$podman_files"
+  expect_output --substring "$podman_processes"
 }

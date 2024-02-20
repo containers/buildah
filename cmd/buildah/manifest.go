@@ -231,7 +231,7 @@ func init() {
 	flags.StringVar(&manifestPushOpts.compressionFormat, "compression-format", "", "compression format to use")
 	flags.IntVar(&manifestPushOpts.compressionLevel, "compression-level", 0, "compression level to use")
 	flags.StringVarP(&manifestPushOpts.format, "format", "f", "", "manifest type (oci or v2s2) to attempt to use when pushing the manifest list (default is manifest type of source)")
-	flags.StringSliceVar(&manifestPushOpts.addCompression, "add-compression", nil, "add instances with selected compression while pushing")
+	flags.StringArrayVar(&manifestPushOpts.addCompression, "add-compression", defaultContainerConfig.Engine.AddCompression.Get(), "add instances with selected compression while pushing")
 	flags.BoolVarP(&manifestPushOpts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing images")
 	flags.StringVar(&manifestPushOpts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	flags.StringVar(&manifestPushOpts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")

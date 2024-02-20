@@ -118,6 +118,12 @@ type CommitOptions struct {
 	// to the configuration of the image that is being committed, after
 	// OverrideConfig is applied.
 	OverrideChanges []string
+	// ExtraImageContent is a map which describes additional content to add
+	// to the committed image.  The map's keys are filesystem paths in the
+	// image and the corresponding values are the paths of files whose
+	// contents will be used in their place.  The contents will be owned by
+	// 0:0 and have mode 0644.  Currently only accepts regular files.
+	ExtraImageContent map[string]string
 }
 
 var (

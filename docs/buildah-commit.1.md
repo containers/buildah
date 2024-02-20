@@ -14,14 +14,24 @@ with a registry name component, `localhost` will be added to the name.  If
 name, the `buildah images` command will display `<none>` in the `REPOSITORY` and
 `TAG` columns.
 
+The *image* value supports all transports from `containers-transports(5)`. If no transport is specified, the `containers-storage` (i.e., local storage) transport is used.
+
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.
 
 ## OPTIONS
 
+**--add-file** *source[:destination]*
+
+Read the contents of the file `source` and add it to the committed image as a
+file at `destination`.  If `destination` is not specified, the path of `source`
+will be used.  The new file will be owned by UID 0, GID 0, have 0644
+permissions, and be given a current timestamp unless the **--timestamp** option
+is also specified.  This option can be specified multiple times.
+
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. See containers-auth.json(5) for more information. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -192,8 +202,11 @@ Unset environment variables from the final image.
 This example saves an image based on the container.
  `buildah commit containerID newImageName`
 
-This example saves an image named newImageName based on the container.
+This example saves an image named newImageName based on the container and removes the working container.
  `buildah commit --rm containerID newImageName`
+
+This example commits to an OCI archive file named /tmp/newImageName based on the container.
+ `buildah commit containerID oci-archive:/tmp/newImageName`
 
 This example saves an image with no name, removes the working container, and creates a new container using the image's ID.
  `buildah from $(buildah commit --rm containerID)`
@@ -260,4 +273,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5)
+buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5), containers-transports(5), containers-auth.json(5)
