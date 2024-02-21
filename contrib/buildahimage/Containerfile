@@ -19,7 +19,7 @@
 # that runs safely with privileges within the container.
 #
 
-FROM registry.fedoraproject.org/fedora:latest
+FROM registry.fedoraproject.org/fedora-minimal:latest
 ARG FLAVOR=stable
 
 label "io.containers.capabilities"="CHOWN,DAC_OVERRIDE,FOWNER,FSETID,KILL,NET_BIND_SERVICE,SETFCAP,SETGID,SETPCAP,SETUID,CHOWN,DAC_OVERRIDE,FOWNER,FSETID,KILL,NET_BIND_SERVICE,SETFCAP,SETGID,SETPCAP,SETUID,SYS_CHROOT"
@@ -34,24 +34,18 @@ RUN echo -e "\n\n# Added during image build" >> /etc/dnf/dnf.conf && \
 # Don't include container-selinux and remove
 # directories used by dnf that are just taking
 # up space.
-# TODO: rpm --setcaps... needed due to Fedora (base) image builds
-#       being (maybe still?) affected by
-#       https://bugzilla.redhat.com/show_bug.cgi?id=1995337#c3
-RUN dnf -y makecache && \
-    dnf -y update && \
-    rpm --setcaps shadow-utils 2>/dev/null && \
-    case "${FLAVOR}" in \
+RUN case "${FLAVOR}" in \
       stable) \
-        dnf -y install buildah fuse-overlayfs cpp --exclude container-selinux \
+        dnf5 -y install buildah fuse-overlayfs cpp --exclude container-selinux \
       ;; \
       testing) \
-        dnf -y install --enablerepo=updates-testing buildah fuse-overlayfs cpp \
+        dnf5 -y install --enablerepo=updates-testing buildah fuse-overlayfs cpp \
             --exclude container-selinux \
       ;; \
       upstream) \
-        dnf -y install 'dnf-command(copr)' --enablerepo=updates-testing && \
-        dnf -y copr enable rhcontainerbot/podman-next && \
-        dnf -y install buildah fuse-overlayfs \
+        dnf5 -y install 'dnf5-command(copr)' --enablerepo=updates-testing && \
+        dnf5 -y copr enable rhcontainerbot/podman-next && \
+        dnf5 -y install buildah fuse-overlayfs \
             --exclude container-selinux \
             --enablerepo=updates-testing  \
       ;; \
@@ -60,7 +54,7 @@ RUN dnf -y makecache && \
         exit 1 \
       ;; \
     esac && \
-    dnf -y clean all && \
+    dnf5 -y clean all && \
     rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
 ADD ./containers.conf /etc/containers/
