@@ -491,7 +491,9 @@ func PullPolicyFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name string) 
 	if err != nil {
 		return 0, err
 	}
-	if pullNeverFlagValue || strings.EqualFold(pullFlagValue, "never") {
+	if pullNeverFlagValue ||
+		strings.EqualFold(pullFlagValue, "never") ||
+		strings.EqualFold(pullFlagValue, "false") {
 		pullPolicy = define.PullNever
 	}
 	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
