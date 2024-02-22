@@ -115,37 +115,40 @@ vendor_task:
         - './hack/tree_status.sh'
 
 
+# NOTE: Disabling because of brew install issues and the upcoming switch to TMT
+# Ref: https://cirrus-ci.com/build/6451305468657664
 # Confirm cross-compile ALL architectures on a Mac OS-X VM.
-cross_build_task:
-    name: "Cross Compile"
-    alias: cross_build
-    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
+#cross_build_task:
+#    name: "Cross Compile"
+#    alias: cross_build
+#    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
 
-    osx_instance:
-        image: ghcr.io/cirruslabs/macos-ventura-base:latest
-    env:
-        PATH: "/usr/local/opt/go@1.18/bin:/opt/homebrew/opt/go@1.18/bin:$PATH"
-    script:
-        - brew upgrade
-        - brew update
-        - brew install go@1.18
-        - brew install go-md2man
-        - brew install gpgme
-        - go version
-        - make cross CGO_ENABLED=0
+          #    osx_instance:
+          #image: ghcr.io/cirruslabs/macos-ventura-base:latest
+          #env:
+          #PATH: "/usr/local/opt/go@1.18/bin:/opt/homebrew/opt/go@1.18/bin:$PATH"
+          #script:
+          #- brew upgrade
+          #- brew update
+          #- brew install go@1.18
+          #- brew install go-md2man
+          #- brew install gpgme
+          #- go version
+          #- make cross CGO_ENABLED=0
 
-    binary_artifacts:
-        path: "./bin/*"
+          #binary_artifacts:
+          #path: "./bin/*"
 
 
 unit_task:
     name: 'Unit tests w/ $STORAGE_DRIVER'
     alias: unit
-    only_if: *not_docs
+    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
+#    only_if: *not_docs
     depends_on: &smoke_vendor_cross
       - smoke
       - vendor
-      - cross_build
+        #  - cross_build
 
     timeout_in: 1h
 
@@ -269,7 +272,7 @@ success_task:
       - unit
       - conformance
       - vendor
-      - cross_build
+        #- cross_build
       - integration
       - in_podman
 
