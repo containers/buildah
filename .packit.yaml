@@ -1,0 +1,47 @@
+---
+# See the documentation for more information:
+# https://packit.dev/docs/configuration/
+
+specfile_path: rpm/buildah.spec
+
+srpm_build_deps:
+  - make
+  - git-archive-all
+
+actions:
+  fix-spec-file:
+    - "bash .packit.sh"
+
+jobs:
+  - job: copr_build
+    trigger: pull_request
+    notifications:
+      failure_comment:
+        message: "Ephemeral COPR build failed. @containers/packit-build please check."
+    enable_net: true
+    targets: &test_targets
+      - epel-8-x86_64
+      - epel-8-aarch64
+
+  # All tests specified in the `/plans/` subdir
+  # Unit tests for CentOS Stream
+  #- job: tests
+  #  trigger: pull_request
+  #  # Needs to run only on one arch
+  #  targets: epel-8-x86_64
+  #  identifier: validate_test
+  #  skip_build: true
+  #  tmt_plan: "/plans/validate_test"
+
+        #- job: tests
+        #trigger: pull_request
+        #targets: *test_targets
+        #identifier: unit_test
+        #skip_build: true
+        #tmt_plan: "/plans/unit_test"
+
+  - job: tests
+    trigger: pull_request
+    targets: *test_targets
+    identifier: integration_test
+    tmt_plan: "/plans/integration_test"
