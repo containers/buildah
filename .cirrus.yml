@@ -323,6 +323,8 @@ in_podman_task:
 # set of tasks all passed, and allows confirming that based on the status
 # of this task.
 success_task:
+    # N/B: The prow merge-bot (tide) is sensitized to this exact name, DO NOT CHANGE IT.
+    # Ref: https://github.com/openshift/release/pull/48909
     name: "Total Success"
     alias: success
 
