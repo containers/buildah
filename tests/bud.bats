@@ -4188,6 +4188,9 @@ _EOF
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} --pull-never $BUDFILES/pull
   expect_output --substring "busybox: image not known"
 
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} --pull=false $BUDFILES/pull
+  expect_output --substring "busybox: image not known"
+
   run_buildah build $WITH_POLICY_JSON -t ${target} --pull $BUDFILES/pull
   expect_output --substring "COMMIT pull"
 
@@ -4197,8 +4200,8 @@ _EOF
 
 @test "bud pull false no local image" {
   target=pull
-  run_buildah build $WITH_POLICY_JSON -t ${target} --pull=false $BUDFILES/pull
-  expect_output --substring "COMMIT pull"
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} --pull=false $BUDFILES/pull
+  expect_output --substring "Error: creating build container: busybox: image not known"
 }
 
 @test "bud with Containerfile should fail with nonexistent authfile" {
@@ -4471,7 +4474,7 @@ EOM
 
   ${OCI} --version
   _prefetch alpine
-  _prefetch debian
+  _prefetch busybox
 
   run_buildah build --build-arg base=alpine --build-arg toolchainname=busybox --build-arg destinationpath=/tmp --pull=false $WITH_POLICY_JSON -f $BUDFILES/from-with-arg/Containerfile .
   expect_output --substring "FROM alpine"
@@ -4866,20 +4869,20 @@ _EOF
   expect_output --substring image-a
 }
 
-@test "bud --pull=false --arch test" {
+@test "bud --pull=ifmissing --arch test" {
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 cat > $mytmpdir/Containerfile << _EOF
 FROM $SAFEIMAGE
 _EOF
-  run_buildah build --pull=false -q --arch=amd64 -t image-amd $WITH_POLICY_JSON ${mytmpdir}
+  run_buildah build --pull=ifmissing -q --arch=amd64 -t image-amd $WITH_POLICY_JSON ${mytmpdir}
   run_buildah inspect --format '{{ .OCIv1.Architecture }}' image-amd
   expect_output amd64
 
   # Tag the image to localhost/safeimage to make sure that the image gets
   # pulled since the local one does not match the requested architecture.
   run_buildah tag image-amd localhost/${SAFEIMAGE_NAME}:${SAFEIMAGE_TAG}
-  run_buildah build --pull=false -q --arch=arm64 -t image-arm $WITH_POLICY_JSON ${mytmpdir}
+  run_buildah build --pull=ifmissing -q --arch=arm64 -t image-arm $WITH_POLICY_JSON ${mytmpdir}
   run_buildah inspect --format '{{ .OCIv1.Architecture }}' image-arm
   expect_output arm64
 

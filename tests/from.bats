@@ -371,7 +371,11 @@ load helpers
   echo "$output"
   expect_output --substring "busybox: image not known"
 
-  run_buildah from $WITH_POLICY_JSON --pull=false busybox
+  run_buildah 125 from $WITH_POLICY_JSON --pull=false busybox
+  echo "$output"
+  expect_output --substring "busybox: image not known"
+
+  run_buildah from $WITH_POLICY_JSON --pull=ifmissing busybox
   echo "$output"
   expect_output --substring "busybox-working-container"
 

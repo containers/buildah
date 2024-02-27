@@ -8,11 +8,11 @@ load helpers
     image2=$2
 
     # Create a container by specifying the image with one name.
-    run_buildah --retry from --quiet --pull=false $WITH_POLICY_JSON $image1
+    run_buildah --retry from --quiet --pull=ifmissing $WITH_POLICY_JSON $image1
     cid1=$output
 
     # Create a container by specifying the image with another name.
-    run_buildah --retry from --quiet --pull=false $WITH_POLICY_JSON $image2
+    run_buildah --retry from --quiet --pull=ifmissing $WITH_POLICY_JSON $image2
     cid2=$output
 
     # Get their image IDs.  They should be the same one.
