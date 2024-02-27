@@ -7,10 +7,10 @@ require (
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.4.0
 	github.com/containers/common v0.57.1-0.20240208111739-bed861a11acc
-	github.com/containers/image/v5 v5.29.3-0.20240207231441-93b4b55d865b
+	github.com/containers/image/v5 v5.29.3-0.20240215171532-36cc6a1a006f
 	github.com/containers/luksy v0.0.0-20240129181507-b62d551ce6d8
 	github.com/containers/ocicrypt v1.1.9
-	github.com/containers/storage v1.52.1-0.20240206205149-d1bf4f0cf1d6
+	github.com/containers/storage v1.52.1-0.20240215002116-8a099ece355e
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v25.0.3+incompatible
@@ -24,7 +24,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.1.12
-	github.com/opencontainers/runtime-spec v1.1.0
+	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc
 	github.com/opencontainers/selinux v1.11.0
 	github.com/openshift/imagebuilder v1.2.6
@@ -144,7 +144,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.22.0 // indirect
 	go.opentelemetry.io/otel/trace v1.22.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.20.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
@@ -155,3 +155,5 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	tags.cncf.io/container-device-interface v0.6.2 // indirect
 )
+
+replace github.com/containers/common => github.com/mheon/common v0.17.1-0.20240226143021-dd24d75e37f4
