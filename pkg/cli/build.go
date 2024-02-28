@@ -316,13 +316,6 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 			iopts.NoCache = true
 		}
 	}
-	var pullPushRetryDelay time.Duration
-	pullPushRetryDelay, err = time.ParseDuration(iopts.RetryDelay)
-	if err != nil {
-		return options, nil, nil, fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.RetryDelay, err)
-	}
-	// Following log line is used in integration test.
-	logrus.Debugf("Setting MaxPullPushRetries to %d and PullPushRetryDelay to %v", iopts.Retry, pullPushRetryDelay)
 
 	if c.Flag("network").Changed && c.Flag("isolation").Changed {
 		if isolation == define.IsolationChroot {
@@ -405,7 +398,6 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		OutputFormat:            format,
 		Platforms:               platforms,
 		PullPolicy:              pullPolicy,
-		PullPushRetryDelay:      pullPushRetryDelay,
 		Quiet:                   iopts.Quiet,
 		RemoveIntermediateCtrs:  iopts.Rm,
 		ReportWriter:            reporter,
@@ -424,6 +416,15 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		UnsetEnvs:               iopts.UnsetEnvs,
 		UnsetLabels:             iopts.UnsetLabels,
 	}
+	if iopts.RetryDelay != "" {
+		options.PullPushRetryDelay, err = time.ParseDuration(iopts.RetryDelay)
+		if err != nil {
+			return options, nil, nil, fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.RetryDelay, err)
+		}
+		// Following log line is used in integration test.
+		logrus.Debugf("Setting MaxPullPushRetries to %d and PullPushRetryDelay to %v", iopts.Retry, options.PullPushRetryDelay)
+	}
+
 	if iopts.Quiet {
 		options.ReportWriter = io.Discard
 	}

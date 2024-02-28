@@ -695,10 +695,15 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			requiredCompression = ic.compressionFormat
 		}
 
+		var tocDigest digest.Digest
+
 		// Check if we have a chunked layer in storage that's based on that blob.  These layers are stored by their TOC digest.
-		tocDigest, err := chunkedToc.GetTOCDigest(srcInfo.Annotations)
+		d, err := chunkedToc.GetTOCDigest(srcInfo.Annotations)
 		if err != nil {
 			return types.BlobInfo{}, "", err
+		}
+		if d != nil {
+			tocDigest = *d
 		}
 
 		reused, reusedBlob, err := ic.c.dest.TryReusingBlobWithOptions(ctx, srcInfo, private.TryReusingBlobOptions{
@@ -718,7 +723,11 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 		if reused {
 			logrus.Debugf("Skipping blob %s (already present):", srcInfo.Digest)
 			func() { // A scope for defer
-				bar := ic.c.createProgressBar(pool, false, types.BlobInfo{Digest: reusedBlob.Digest, Size: 0}, "blob", "skipped: already exists")
+				label := "skipped: already exists"
+				if reusedBlob.MatchedByTOCDigest {
+					label = "skipped: already exists (found by TOC)"
+				}
+				bar := ic.c.createProgressBar(pool, false, types.BlobInfo{Digest: reusedBlob.Digest, Size: 0}, "blob", label)
 				defer bar.Abort(false)
 				bar.mark100PercentComplete()
 			}()
@@ -751,7 +760,10 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 				wrapped: ic.c.rawSource,
 				bar:     bar,
 			}
-			uploadedBlob, err := ic.c.dest.PutBlobPartial(ctx, &proxy, srcInfo, ic.c.blobInfoCache)
+			uploadedBlob, err := ic.c.dest.PutBlobPartial(ctx, &proxy, srcInfo, private.PutBlobPartialOptions{
+				Cache:      ic.c.blobInfoCache,
+				LayerIndex: layerIndex,
+			})
 			if err == nil {
 				if srcInfo.Size != -1 {
 					refill := srcInfo.Size - bar.Current()

@@ -138,3 +138,32 @@ _EOF
     fi
 
 }
+
+
+@test "containers.conf retry" {
+    cat >${TEST_SCRATCH_DIR}/containers.conf << EOF
+[engine]
+retry=10
+retry_delay="5s"
+EOF
+    _prefetch alpine
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah build --help
+    expect_output --substring "retry.*\(default 10\)"
+    expect_output --substring "retry-delay.*\(default \"5s\"\)"
+
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah push --help
+    expect_output --substring "retry.*\(default 10\)"
+    expect_output --substring "retry-delay.*\(default \"5s\"\)"
+
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah pull --help
+    expect_output --substring "retry.*\(default 10\)"
+    expect_output --substring "retry-delay.*\(default \"5s\"\)"
+
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah from --help
+    expect_output --substring "retry.*\(default 10\)"
+    expect_output --substring "retry-delay.*\(default \"5s\"\)"
+
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah manifest push --help
+    expect_output --substring "retry.*\(default 10\)"
+    expect_output --substring "retry-delay.*\(default \"5s\"\)"
+}

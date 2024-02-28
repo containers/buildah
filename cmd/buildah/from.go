@@ -269,12 +269,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return fmt.Errorf("unable to obtain decrypt config: %w", err)
 	}
 
-	var pullPushRetryDelay time.Duration
-	pullPushRetryDelay, err = time.ParseDuration(iopts.RetryDelay)
-	if err != nil {
-		return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.RetryDelay, err)
-	}
-
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             iopts.name,
@@ -296,8 +290,14 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		BlobDirectory:         iopts.BlobCache,
 		Devices:               devices,
 		MaxPullRetries:        iopts.Retry,
-		PullRetryDelay:        pullPushRetryDelay,
 		OciDecryptConfig:      decConfig,
+	}
+
+	if iopts.RetryDelay != "" {
+		options.PullRetryDelay, err = time.ParseDuration(iopts.RetryDelay)
+		if err != nil {
+			return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.RetryDelay, err)
+		}
 	}
 
 	if !iopts.quiet {

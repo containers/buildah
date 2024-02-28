@@ -268,8 +268,8 @@ func init() {
 	}
 	flags.BoolVar(&manifestPushOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&manifestPushOpts.quiet, "quiet", "q", false, "don't output progress information when pushing lists")
-	flags.IntVar(&manifestPushOpts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing push")
-	flags.StringVar(&manifestPushOpts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of push failures")
+	flags.IntVar(&manifestPushOpts.retry, "retry", int(defaultContainerConfig.Engine.Retry), "number of times to retry in case of failure when performing push")
+	flags.StringVar(&manifestPushOpts.retryDelay, "retry-delay", defaultContainerConfig.Engine.RetryDelay, "delay between retries in case of push failures")
 	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestPushCommand)
 
@@ -1161,10 +1161,6 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 	}
 
 	retry := uint(opts.retry)
-	retryDelay, err := time.ParseDuration(opts.retryDelay)
-	if err != nil {
-		return fmt.Errorf("unable to parse retryDelay %q: %w", opts.retryDelay, err)
-	}
 
 	options := manifests.PushOptions{
 		Store:                  store,
@@ -1177,7 +1173,13 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		AddCompression:         opts.addCompression,
 		ForceCompressionFormat: opts.forceCompressionFormat,
 		MaxRetries:             &retry,
-		RetryDelay:             &retryDelay,
+	}
+	if opts.retryDelay != "" {
+		retryDelay, err := time.ParseDuration(opts.retryDelay)
+		if err != nil {
+			return fmt.Errorf("unable to parse retryDelay %q: %w", opts.retryDelay, err)
+		}
+		options.RetryDelay = &retryDelay
 	}
 	if opts.all {
 		options.ImageListSelection = cp.CopyAllImages

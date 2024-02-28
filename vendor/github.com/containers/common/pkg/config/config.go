@@ -421,6 +421,14 @@ type EngineConfig struct {
 	// Indicates whether the application should be running in Remote mode
 	Remote bool `toml:"remote,omitempty"`
 
+	// Number of times to retry pulling/pushing images in case of failure
+	Retry uint `toml:"retry,omitempty"`
+
+	// Delay between retries in case pulling/pushing image fails
+	// If set, container engines will retry at the set interval,
+	// otherwise they delay 2 seconds and then exponentially back off.
+	RetryDelay string `toml:"retry_delay,omitempty"`
+
 	// RemoteURI is deprecated, see ActiveService
 	// RemoteURI containers connection information used to connect to remote system.
 	RemoteURI string `toml:"remote_uri,omitempty"`

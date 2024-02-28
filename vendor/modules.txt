@@ -106,7 +106,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.4.0
 ## explicit; go 1.20
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.57.1-0.20240208111739-bed861a11acc
+# github.com/containers/common v0.57.1-0.20240220203037-6ee157e78afb
 ## explicit; go 1.20
 github.com/containers/common/internal
 github.com/containers/common/internal/attributedstring
@@ -159,7 +159,7 @@ github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
 github.com/containers/common/pkg/version
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.29.3-0.20240207231441-93b4b55d865b
+# github.com/containers/image/v5 v5.29.3-0.20240215171532-36cc6a1a006f
 ## explicit; go 1.19
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -250,7 +250,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.52.1-0.20240206205149-d1bf4f0cf1d6
+# github.com/containers/storage v1.52.1-0.20240215002116-8a099ece355e
 ## explicit; go 1.20
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -630,7 +630,7 @@ github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/user
 github.com/opencontainers/runc/libcontainer/userns
 github.com/opencontainers/runc/libcontainer/utils
-# github.com/opencontainers/runtime-spec v1.1.0
+# github.com/opencontainers/runtime-spec v1.2.0 => github.com/opencontainers/runtime-spec v1.1.0
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
 # github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc
@@ -1001,3 +1001,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # tags.cncf.io/container-device-interface v0.6.2
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/pkg/parser
+# github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.1.0
