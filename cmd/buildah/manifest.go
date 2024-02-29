@@ -533,6 +533,18 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 			return err
 		}
 	} else {
+		var changedArtifactFlags []string
+		for _, artifactOption := range []string{"artifact-type", "artifact-config", "artifact-config-type", "artifact-layer-type", "artifact-subject", "artifact-exclude-titles"} {
+			if c.Flags().Changed(artifactOption) {
+				changedArtifactFlags = append(changedArtifactFlags, "--"+artifactOption)
+			}
+		}
+		switch {
+		case len(changedArtifactFlags) == 1:
+			return fmt.Errorf("%s requires --artifact", changedArtifactFlags[0])
+		case len(changedArtifactFlags) > 1:
+			return fmt.Errorf("%s require --artifact", strings.Join(changedArtifactFlags, "/"))
+		}
 		var ref types.ImageReference
 		if ref, err = alltransports.ParseImageName(imageSpec); err != nil {
 			if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
