@@ -638,6 +638,9 @@ function skip_if_no_unshare() {
   if ! unshare -U --map-users $(id -u),0,1 true ; then
     skip "unshare does not support --map-users"
   fi
+  if ! unshare -Ur --setuid 0 true ; then
+    skip "unshare does not support --setuid"
+  fi
 }
 
 function start_git_daemon() {
