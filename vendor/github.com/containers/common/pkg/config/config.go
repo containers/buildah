@@ -370,11 +370,6 @@ type EngineConfig struct {
 	// LockType is the type of locking to use.
 	LockType string `toml:"lock_type,omitempty"`
 
-	// MachineEnabled indicates if Podman is running in a podman-machine VM
-	//
-	// This method is soft deprecated, use machine.IsPodmanMachine instead
-	MachineEnabled bool `toml:"machine_enabled,omitempty"`
-
 	// MultiImageArchive - if true, the container engine allows for storing
 	// archives (e.g., of the docker-archive transport) with multiple
 	// images.  By default, Podman creates single-image archives.
@@ -668,6 +663,8 @@ type MachineConfig struct {
 	Volumes attributedstring.Slice `toml:"volumes,omitempty"`
 	// Provider is the virtualization provider used to run podman-machine VM
 	Provider string `toml:"provider,omitempty"`
+	// Rosetta is the flag to enable Rosetta in the podman-machine VM on Apple Silicon
+	Rosetta bool `toml:"rosetta,omitempty"`
 }
 
 // FarmConfig represents the "farm" TOML config tables

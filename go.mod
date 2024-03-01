@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.7.13
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.4.0
-	github.com/containers/common v0.57.1-0.20240220203037-6ee157e78afb
+	github.com/containers/common v0.57.1-0.20240301113114-0b996b05cd16
 	github.com/containers/image/v5 v5.29.3-0.20240229213915-cdc68020a24f
 	github.com/containers/luksy v0.0.0-20240212203526-ceb12d4fd50c
 	github.com/containers/ocicrypt v1.1.9
