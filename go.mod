@@ -8,7 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.4.0
 	github.com/containers/common v0.57.1-0.20240220203037-6ee157e78afb
 	github.com/containers/image/v5 v5.29.3-0.20240229213915-cdc68020a24f
-	github.com/containers/luksy v0.0.0-20240129181507-b62d551ce6d8
+	github.com/containers/luksy v0.0.0-20240212203526-ceb12d4fd50c
 	github.com/containers/ocicrypt v1.1.9
 	github.com/containers/storage v1.52.1-0.20240227215008-a083950a778f
 	github.com/cyphar/filepath-securejoin v0.2.4
