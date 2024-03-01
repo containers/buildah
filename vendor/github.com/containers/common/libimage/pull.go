@@ -53,11 +53,35 @@ type PullOptions struct {
 // The error is storage.ErrImageUnknown iff the pull policy is set to "never"
 // and no local image has been found.  This allows for an easier integration
 // into some users of this package (e.g., Buildah).
-func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullPolicy, options *PullOptions) ([]*Image, error) {
+func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullPolicy, options *PullOptions) (_ []*Image, pullError error) {
 	logrus.Debugf("Pulling image %s (policy: %s)", name, pullPolicy)
-
+	if r.eventChannel != nil {
+		defer func() {
+			if pullError != nil {
+				// Note that we use the input name here to preserve the transport data.
+				r.writeEvent(&Event{Name: name, Time: time.Now(), Type: EventTypeImagePullError, Error: pullError})
+			}
+		}()
+	}
 	if options == nil {
 		options = &PullOptions{}
+	}
+
+	defaultConfig, err := config.Default()
+	if err != nil {
+		return nil, err
+	}
+	if options.MaxRetries == nil {
+		options.MaxRetries = &defaultConfig.Engine.Retry
+	}
+	if options.RetryDelay == nil {
+		if defaultConfig.Engine.RetryDelay != "" {
+			duration, err := time.ParseDuration(defaultConfig.Engine.RetryDelay)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse containers.conf retry_delay: %w", err)
+			}
+			options.RetryDelay = &duration
+		}
 	}
 
 	var possiblyUnqualifiedName string // used for short-name resolution
@@ -133,28 +157,25 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 		options.Variant = r.systemContext.VariantChoice
 	}
 
-	var (
-		pulledImages []string
-		pullError    error
-	)
+	var pulledImages []string
 
 	// Dispatch the copy operation.
 	switch ref.Transport().Name() {
 	// DOCKER REGISTRY
 	case registryTransport.Transport.Name():
-		pulledImages, pullError = r.copyFromRegistry(ctx, ref, possiblyUnqualifiedName, pullPolicy, options)
+		pulledImages, err = r.copyFromRegistry(ctx, ref, possiblyUnqualifiedName, pullPolicy, options)
 
 	// DOCKER ARCHIVE
 	case dockerArchiveTransport.Transport.Name():
-		pulledImages, pullError = r.copyFromDockerArchive(ctx, ref, &options.CopyOptions)
+		pulledImages, err = r.copyFromDockerArchive(ctx, ref, &options.CopyOptions)
 
 	// ALL OTHER TRANSPORTS
 	default:
-		pulledImages, pullError = r.copyFromDefault(ctx, ref, &options.CopyOptions)
+		pulledImages, err = r.copyFromDefault(ctx, ref, &options.CopyOptions)
 	}
 
-	if pullError != nil {
-		return nil, pullError
+	if err != nil {
+		return nil, err
 	}
 
 	localImages := []*Image{}
