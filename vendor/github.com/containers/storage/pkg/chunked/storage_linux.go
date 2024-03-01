@@ -241,6 +241,10 @@ func GetDiffer(ctx context.Context, store storage.Store, blobDigest digest.Diges
 		return nil, err
 	}
 
+	if !parseBooleanPullOption(&storeOpts, "enable_partial_images", true) {
+		return nil, errors.New("enable_partial_images not configured")
+	}
+
 	_, hasZstdChunkedTOC := annotations[internal.ManifestChecksumKey]
 	_, hasEstargzTOC := annotations[estargz.TOCJSONDigestAnnotation]
 
@@ -1701,10 +1705,6 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 		UncompressedDigest: uncompressedDigest,
 	}
 
-	if !parseBooleanPullOption(c.storeOpts, "enable_partial_images", false) {
-		return output, errors.New("enable_partial_images not configured")
-	}
-
 	// When the hard links deduplication is used, file attributes are ignored because setting them
 	// modifies the source file as well.
 	useHardLinks := parseBooleanPullOption(c.storeOpts, "use_hard_links", false)
@@ -1819,13 +1819,17 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 
 		mode := os.FileMode(r.Mode)
 
-		r.Name = filepath.Clean(r.Name)
-		r.Linkname = filepath.Clean(r.Linkname)
-
 		t, err := typeToTarType(r.Type)
 		if err != nil {
 			return output, err
 		}
+
+		r.Name = filepath.Clean(r.Name)
+		// do not modify the value of symlinks
+		if r.Linkname != "" && t != tar.TypeSymlink {
+			r.Linkname = filepath.Clean(r.Linkname)
+		}
+
 		if whiteoutConverter != nil {
 			hdr := archivetar.Header{
 				Typeflag: t,

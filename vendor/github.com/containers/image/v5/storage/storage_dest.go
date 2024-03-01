@@ -54,14 +54,15 @@ type storageImageDestination struct {
 	stubs.ImplementsPutBlobPartial
 	stubs.AlwaysSupportsSignatures
 
-	imageRef       storageReference
-	directory      string                   // Temporary directory where we store blobs until Commit() time
-	nextTempFileID atomic.Int32             // A counter that we use for computing filenames to assign to blobs
-	manifest       []byte                   // Manifest contents, temporary
-	manifestDigest digest.Digest            // Valid if len(manifest) != 0
-	signatures     []byte                   // Signature contents, temporary
-	signatureses   map[digest.Digest][]byte // Instance signature contents, temporary
-	metadata       storageImageMetadata     // Metadata contents being built
+	imageRef              storageReference
+	directory             string                   // Temporary directory where we store blobs until Commit() time
+	nextTempFileID        atomic.Int32             // A counter that we use for computing filenames to assign to blobs
+	manifest              []byte                   // Manifest contents, temporary
+	manifestDigest        digest.Digest            // Valid if len(manifest) != 0
+	untrustedDiffIDValues []digest.Digest          // From config’s RootFS.DiffIDs, valid if not nil
+	signatures            []byte                   // Signature contents, temporary
+	signatureses          map[digest.Digest][]byte // Instance signature contents, temporary
+	metadata              storageImageMetadata     // Metadata contents being built
 
 	// Mapping from layer (by index) to the associated ID in the storage.
 	// It's protected *implicitly* since `commitLayer()`, at any given
@@ -171,7 +172,7 @@ func (s *storageImageDestination) Close() error {
 	}
 	for _, v := range s.lockProtected.diffOutputs {
 		if v.Target != "" {
-			_ = s.imageRef.transport.store.CleanupStagingDirectory(v.Target)
+			_ = s.imageRef.transport.store.CleanupStagedLayer(v)
 		}
 	}
 	return os.RemoveAll(s.directory)
@@ -758,35 +759,15 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 	if ok {
 		var untrustedUncompressedDigest digest.Digest
 		if diffOutput.UncompressedDigest == "" {
-			if s.manifest == nil {
+			d, err := s.untrustedLayerDiffID(index)
+			if err != nil {
+				return nil, err
+			}
+			if d == "" {
 				logrus.Debugf("Skipping commit for layer %q, manifest not yet available", newLayerID)
 				return nil, nil
 			}
-
-			man, err := manifest.FromBlob(s.manifest, manifest.GuessMIMEType(s.manifest))
-			if err != nil {
-				return nil, fmt.Errorf("parsing manifest: %w", err)
-			}
-
-			cb, err := s.getConfigBlob(man.ConfigInfo())
-			if err != nil {
-				return nil, err
-			}
-
-			// retrieve the expected uncompressed digest from the config blob.
-			configOCI := &imgspecv1.Image{}
-			if err := json.Unmarshal(cb, configOCI); err != nil {
-				return nil, err
-			}
-			if index >= len(configOCI.RootFS.DiffIDs) {
-				return nil, fmt.Errorf("index %d out of range for configOCI.RootFS.DiffIDs", index)
-			}
-			untrustedUncompressedDigest = configOCI.RootFS.DiffIDs[index]
-		}
-
-		layer, err := s.imageRef.transport.store.CreateLayer(newLayerID, parentLayer, nil, "", false, nil)
-		if err != nil {
-			return nil, err
+			untrustedUncompressedDigest = d
 		}
 
 		flags := make(map[string]interface{})
@@ -794,12 +775,19 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 			flags[expectedLayerDiffIDFlag] = untrustedUncompressedDigest
 			logrus.Debugf("Setting uncompressed digest to %q for layer %q", untrustedUncompressedDigest, newLayerID)
 		}
-		options := &graphdriver.ApplyDiffWithDifferOpts{
-			Flags: flags,
+
+		args := storage.ApplyStagedLayerOptions{
+			ID:          newLayerID,
+			ParentLayer: parentLayer,
+
+			DiffOutput: diffOutput,
+			DiffOptions: &graphdriver.ApplyDiffWithDifferOpts{
+				Flags: flags,
+			},
 		}
-		if err := s.imageRef.transport.store.ApplyDiffFromStagingDirectory(layer.ID, diffOutput.Target, diffOutput, options); err != nil {
-			_ = s.imageRef.transport.store.Delete(layer.ID)
-			return nil, err
+		layer, err := s.imageRef.transport.store.ApplyStagedLayer(args)
+		if err != nil && !errors.Is(err, storage.ErrDuplicateID) {
+			return nil, fmt.Errorf("failed to put layer using a partial pull: %w", err)
 		}
 		return layer, nil
 	}
@@ -900,8 +888,6 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		// We can legitimately set storage.LayerOptions.OriginalDigest to "",
 		// but that would just result in PutLayer computing the digest of the input stream == optionalDiffID.
 		// So, instead, set .OriginalDigest to the value we know already, to avoid that digest computation.
-		// FIXME? If both trustedUncompressedDigest and trustedOriginalDigest are "", PutLayer currently digests the uncompressed layer
-		// twice. We could compute the digest here, but fixing that in c/storage would be more general.
 		trustedOriginalDigest = optionalDiffID
 
 		// Allow using the already-collected layer contents without extracting the layer again.
@@ -934,6 +920,55 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		return nil, fmt.Errorf("adding layer with blob %q: %w", layerDigest, err)
 	}
 	return layer, nil
+}
+
+// untrustedLayerDiffID returns a DiffID value for layerIndex from the image’s config.
+// If the value is not yet available (but it can be available after s.manifets is set), it returns ("", nil).
+// WARNING: We don’t validate the DiffID value against the layer contents; it must not be used for any deduplication.
+func (s *storageImageDestination) untrustedLayerDiffID(layerIndex int) (digest.Digest, error) {
+	// At this point, we are either inside the multi-threaded scope of HasThreadSafePutBlob, and
+	// nothing is writing to s.manifest yet, or PutManifest has been called and s.manifest != nil.
+	// Either way this function does not need the protection of s.lock.
+	if s.manifest == nil {
+		logrus.Debugf("Skipping commit for layer %d, manifest not yet available", layerIndex)
+		return "", nil
+	}
+
+	if s.untrustedDiffIDValues == nil {
+		mt := manifest.GuessMIMEType(s.manifest)
+		if mt != imgspecv1.MediaTypeImageManifest {
+			// We could, in principle, build an ImageSource, support arbitrary image formats using image.FromUnparsedImage,
+			// and then use types.Image.OCIConfig so that we can parse the image.
+			//
+			// In practice, this should, right now, only matter for pulls of OCI images (this code path implies that a layer has annotation),
+			// while converting to a non-OCI formats, using a manual (skopeo copy) or something similar, not (podman pull).
+			// So it is not implemented yet.
+			return "", fmt.Errorf("determining DiffID for manifest type %q is not yet supported", mt)
+		}
+		man, err := manifest.FromBlob(s.manifest, mt)
+		if err != nil {
+			return "", fmt.Errorf("parsing manifest: %w", err)
+		}
+
+		cb, err := s.getConfigBlob(man.ConfigInfo())
+		if err != nil {
+			return "", err
+		}
+
+		// retrieve the expected uncompressed digest from the config blob.
+		configOCI := &imgspecv1.Image{}
+		if err := json.Unmarshal(cb, configOCI); err != nil {
+			return "", err
+		}
+		s.untrustedDiffIDValues = slices.Clone(configOCI.RootFS.DiffIDs)
+		if s.untrustedDiffIDValues == nil { // Unlikely but possible in theory…
+			s.untrustedDiffIDValues = []digest.Digest{}
+		}
+	}
+	if layerIndex >= len(s.untrustedDiffIDValues) {
+		return "", fmt.Errorf("image config has only %d DiffID values, but a layer with index %d exists", len(s.untrustedDiffIDValues), layerIndex)
+	}
+	return s.untrustedDiffIDValues[layerIndex], nil
 }
 
 // Commit marks the process of storing the image as successful and asks for the image to be persisted.
