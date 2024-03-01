@@ -296,7 +296,7 @@ func isNetworkFileSystem(fsMagic graphdriver.FsMagic) bool {
 	// a bunch of network file systems...
 	case graphdriver.FsMagicNfsFs, graphdriver.FsMagicSmbFs, graphdriver.FsMagicAcfs,
 		graphdriver.FsMagicAfs, graphdriver.FsMagicCephFs, graphdriver.FsMagicCIFS,
-		graphdriver.FsMagicFHGFSFs, graphdriver.FsMagicGPFS, graphdriver.FsMagicIBRIX,
+		graphdriver.FsMagicGPFS, graphdriver.FsMagicIBRIX,
 		graphdriver.FsMagicKAFS, graphdriver.FsMagicLUSTRE, graphdriver.FsMagicNCP,
 		graphdriver.FsMagicNFSD, graphdriver.FsMagicOCFS2, graphdriver.FsMagicPANFS,
 		graphdriver.FsMagicPRLFS, graphdriver.FsMagicSMB2, graphdriver.FsMagicSNFS,
@@ -1696,14 +1696,16 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 	}
 
 	if err := idtools.MkdirAllAs(diffDir, perms, rootUID, rootGID); err != nil {
-		return "", err
+		if !inAdditionalStore {
+			return "", err
+		}
+		// if it is in an additional store, do not fail if the directory already exists
+		if _, err2 := os.Stat(diffDir); err2 != nil {
+			return "", err
+		}
 	}
 
 	mergedDir := path.Join(workDirBase, "merged")
-	// Create the driver merged dir
-	if err := idtools.MkdirAs(mergedDir, 0o700, rootUID, rootGID); err != nil && !os.IsExist(err) {
-		return "", err
-	}
 	if count := d.ctr.Increment(mergedDir); count > 1 {
 		return mergedDir, nil
 	}
@@ -1867,7 +1869,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
-	dir := d.dir(id)
+	dir, _, inAdditionalStore := d.dir2(id)
 	if _, err := os.Stat(dir); err != nil {
 		return err
 	}
@@ -1928,11 +1930,27 @@ func (d *Driver) Put(id string) error {
 		}
 	}
 
-	if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
-		logrus.Debugf("Failed to remove mountpoint %s overlay: %s - %v", id, mountpoint, err)
-		return fmt.Errorf("removing mount point %q: %w", mountpoint, err)
-	}
+	if !inAdditionalStore {
+		uid, gid := int(0), int(0)
+		fi, err := os.Stat(mountpoint)
+		if err != nil {
+			return err
+		}
+		if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
+			uid, gid = int(stat.Uid), int(stat.Gid)
+		}
 
+		tmpMountpoint := path.Join(dir, "merged.1")
+		if err := idtools.MkdirAs(tmpMountpoint, 0o700, uid, gid); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
+		// rename(2) can be used on an empty directory, as it is the mountpoint after umount, and it retains
+		// its atomic semantic.  In this way the "merged" directory is never removed.
+		if err := unix.Rename(tmpMountpoint, mountpoint); err != nil {
+			logrus.Debugf("Failed to replace mountpoint %s overlay: %s - %v", id, mountpoint, err)
+			return fmt.Errorf("replacing mount point %q: %w", mountpoint, err)
+		}
+	}
 	return nil
 }
 
@@ -2124,7 +2142,8 @@ func (d *Driver) ApplyDiffWithDiffer(id, parent string, options *graphdriver.App
 }
 
 // ApplyDiffFromStagingDirectory applies the changes using the specified staging directory.
-func (d *Driver) ApplyDiffFromStagingDirectory(id, parent, stagingDirectory string, diffOutput *graphdriver.DriverWithDifferOutput, options *graphdriver.ApplyDiffWithDifferOpts) error {
+func (d *Driver) ApplyDiffFromStagingDirectory(id, parent string, diffOutput *graphdriver.DriverWithDifferOutput, options *graphdriver.ApplyDiffWithDifferOpts) error {
+	stagingDirectory := diffOutput.Target
 	if filepath.Dir(stagingDirectory) != d.getStagingDir() {
 		return fmt.Errorf("%q is not a staging directory", stagingDirectory)
 	}

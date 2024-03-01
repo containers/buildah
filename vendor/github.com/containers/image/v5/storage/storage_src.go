@@ -122,8 +122,9 @@ func (s *storageImageSource) GetBlob(ctx context.Context, info types.BlobInfo, c
 
 	var layers []storage.Layer
 
-	// If the digest was overridden by LayerInfosForCopy, then we need to use the TOC digest
-	// to retrieve it from the storage.
+	// This lookup path is strictly necessary for layers identified by TOC digest
+	// (where LayersByUncompressedDigest might not find our layer);
+	// for other layers it is an optimization to avoid the cost of the LayersByUncompressedDigest call.
 	s.getBlobMutex.Lock()
 	layerID, found := s.getBlobMutexProtected.digestToLayerID[digest]
 	s.getBlobMutex.Unlock()
@@ -313,15 +314,16 @@ func (s *storageImageSource) LayerInfosForCopy(ctx context.Context, instanceDige
 			if layer.Flags == nil || layer.Flags[expectedLayerDiffIDFlag] == nil {
 				return nil, fmt.Errorf("TOC digest %q for layer %q is present but %q flag is not set", layer.TOCDigest, layerID, expectedLayerDiffIDFlag)
 			}
-			if expectedDigest, ok := layer.Flags[expectedLayerDiffIDFlag].(string); ok {
-				// if the layer is stored by its TOC, report the expected diffID as the layer Digest
-				// but store the TOC digest so we can later retrieve it from the storage.
-				blobDigest, err = digest.Parse(expectedDigest)
-				if err != nil {
-					return nil, fmt.Errorf("parsing expected diffID %q for layer %q: %w", expectedDigest, layerID, err)
-				}
-			} else {
+			expectedDigest, ok := layer.Flags[expectedLayerDiffIDFlag].(string)
+			if !ok {
 				return nil, fmt.Errorf("TOC digest %q for layer %q is present but %q flag is not a string", layer.TOCDigest, layerID, expectedLayerDiffIDFlag)
+			}
+			// If the layer is stored by its TOC, report the expected diffID as the layer Digest;
+			// the generic code is responsible for validating the digest.
+			// We can locate the layer without further c/storage help using s.getBlobMutexProtected.digestToLayerID.
+			blobDigest, err = digest.Parse(expectedDigest)
+			if err != nil {
+				return nil, fmt.Errorf("parsing expected diffID %q for layer %q: %w", expectedDigest, layerID, err)
 			}
 		}
 		s.getBlobMutex.Lock()
