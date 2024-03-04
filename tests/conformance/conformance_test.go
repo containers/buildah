@@ -3081,6 +3081,12 @@ var internalTestCases = []testCase{
 		contextDir:        "env/precedence",
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:              "multistage-copyback",
+		contextDir:        "multistage/copyback",
+		dockerUseBuildKit: true,
+	},
 }
 
 func TestCommit(t *testing.T) {
