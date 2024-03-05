@@ -6449,10 +6449,6 @@ _EOF
   skip_if_chroot
   skip_if_root_environment "pasta only works rootless"
 
-  # FIXME: unskip when we have a new pasta version with:
-  # https://archives.passt.top/passt-dev/20230623082531.25947-2-pholzing@redhat.com/
-  skip "pasta bug prevents this from working"
-
   _prefetch alpine
 
   # pasta by default copies the host ip
