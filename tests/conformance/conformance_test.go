@@ -33,6 +33,7 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
 	dockertypes "github.com/docker/docker/api/types"
 	dockerdockerclient "github.com/docker/docker/client"
@@ -893,11 +894,15 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 // summarizeLayer reads a blob and returns a summary of the parts of its contents that we care about
 func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, reader io.Reader) (layer Layer) {
 	compressedDigest := digest.Canonical.Digester()
-	uncompressedBlob, _, err := compression.AutoDecompress(io.TeeReader(reader, compressedDigest.Hash()))
-	require.Nil(t, err, "error decompressing blob %+v for image %q", blobInfo, imageName)
+	counter := ioutils.NewWriteCounter(compressedDigest.Hash())
+	compressionAlgorithm, _, reader, err := compression.DetectCompressionFormat(reader)
+	require.NoErrorf(t, err, "error checking if blob %+v for image %q is compressed", blobInfo, imageName)
+	uncompressedBlob, wasCompressed, err := compression.AutoDecompress(io.TeeReader(reader, counter))
+	require.NoErrorf(t, err, "error decompressing blob %+v for image %q", blobInfo, imageName)
 	defer uncompressedBlob.Close()
 	uncompressedDigest := digest.Canonical.Digester()
-	tr := tar.NewReader(io.TeeReader(uncompressedBlob, uncompressedDigest.Hash()))
+	tarToRead := io.TeeReader(uncompressedBlob, uncompressedDigest.Hash())
+	tr := tar.NewReader(tarToRead)
 	hdr, err := tr.Next()
 	for err == nil {
 		header := fsHeaderForEntry(hdr)
@@ -912,8 +917,18 @@ func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, rea
 		hdr, err = tr.Next()
 	}
 	require.Equal(t, io.EOF, err, "unexpected error reading layer contents %+v for image %q", blobInfo, imageName)
+	_, err = io.Copy(io.Discard, tarToRead)
+	require.NoError(t, err, "reading out any not-usually-present zero padding at the end")
 	layer.CompressedDigest = compressedDigest.Digest()
-	require.Equal(t, blobInfo.Digest, layer.CompressedDigest, "calculated digest of compressed blob didn't match expected digest")
+	blobFormatDescription := "uncompressed"
+	if wasCompressed {
+		if compressionAlgorithm.Name() != "" {
+			blobFormatDescription = "compressed with " + compressionAlgorithm.Name()
+		} else {
+			blobFormatDescription = "compressed (?)"
+		}
+	}
+	require.Equalf(t, blobInfo.Digest, layer.CompressedDigest, "calculated digest of %s blob didn't match expected digest (expected length %d, actual length %d)", blobFormatDescription, blobInfo.Size, counter.Count)
 	layer.UncompressedDigest = uncompressedDigest.Digest()
 	return layer
 }
