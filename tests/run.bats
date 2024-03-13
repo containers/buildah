@@ -727,11 +727,8 @@ function configure_and_check_user() {
 	skip_if_chroot
 	skip_if_root_environment "pasta only works rootless"
 
-	# FIXME: unskip when we have a new pasta version with:
-	# https://archives.passt.top/passt-dev/20230623082531.25947-2-pholzing@redhat.com/
-	skip "pasta bug prevents this from working"
-
-	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
+	_prefetch alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 
 	local hostname=h-$(random_string)
