@@ -89,7 +89,7 @@ buildah add containerID 'passwd' 'certs.d' /etc
 
 ## FILES
 
-### .containerignore
+### .containerignore/.dockerignore
 
 If a .containerignore or .dockerignore file exists in the context directory,
 `buildah add` reads its contents. If both exist, then .containerignore is used.
@@ -135,7 +135,7 @@ Exclude all doc files except Help.doc when copying content into the container.
 
 This functionality is compatible with the handling of .containerignore files described here:
 
-https://github.com/containers/buildah/blob/main/docs/containerignore.5.md
+https://github.com/containers/common/blob/main/docs/containerignore.5.md
 
 ## SEE ALSO
 buildah(1), containerignore(5)

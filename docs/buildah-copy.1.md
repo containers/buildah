@@ -133,7 +133,7 @@ Exclude all doc files except Help.doc when copying content into the container.
 
 This functionality is compatible with the handling of .containerignore files described here:
 
-https://github.com/containers/buildah/blob/main/docs/containerignore.5.md
+https://github.com/containers/common/blob/main/docs/containerignore.5.md
 
 ## SEE ALSO
 buildah(1), containerignore(5)
