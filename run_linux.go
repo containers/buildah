@@ -25,6 +25,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	butil "github.com/containers/buildah/pkg/util"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libnetwork/etchosts"
 	"github.com/containers/common/libnetwork/pasta"
 	"github.com/containers/common/libnetwork/resolvconf"
 	"github.com/containers/common/libnetwork/slirp4netns"
@@ -262,11 +263,40 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	hostsFile := ""
 	if !options.NoHosts && !slices.Contains(volumes, config.DefaultHostsFile) && options.ConfigureNetwork != define.NetworkDisabled {
-		hostsFile, err = b.generateHosts(path, rootIDPair, mountPoint, spec)
+		hostsFile, err = b.createHostsFile(path, rootIDPair)
 		if err != nil {
 			return err
 		}
 		bindFiles[config.DefaultHostsFile] = hostsFile
+
+		// Only add entries here if we do not have to do setup network,
+		// if we do we have to do it much later after the network setup.
+		if !configureNetwork {
+			var entries etchosts.HostEntries
+			isHost := true
+			if spec.Linux != nil {
+				for _, ns := range spec.Linux.Namespaces {
+					if ns.Type == specs.NetworkNamespace {
+						isHost = false
+						break
+					}
+				}
+			}
+			// add host entry for local ip when running in host network
+			if spec.Hostname != "" && isHost {
+				ip := netUtil.GetLocalIP()
+				if ip != "" {
+					entries = append(entries, etchosts.HostEntry{
+						Names: []string{spec.Hostname},
+						IP:    ip,
+					})
+				}
+			}
+			err = b.addHostsEntries(hostsFile, mountPoint, entries, nil)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if !options.NoHostname && !(slices.Contains(volumes, "/etc/hostname")) {
@@ -278,12 +308,22 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		bindFiles["/etc/hostname"] = hostnameFile
 	}
 
+	resolvFile := ""
 	if !slices.Contains(volumes, resolvconf.DefaultResolvConf) && options.ConfigureNetwork != define.NetworkDisabled && !(len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none") {
-		resolvFile, err := b.addResolvConf(path, rootIDPair, b.CommonBuildOpts.DNSServers, b.CommonBuildOpts.DNSSearch, b.CommonBuildOpts.DNSOptions, spec.Linux.Namespaces)
+		resolvFile, err = b.createResolvConf(path, rootIDPair)
 		if err != nil {
 			return err
 		}
 		bindFiles[resolvconf.DefaultResolvConf] = resolvFile
+
+		// Only add entries here if we do not have to do setup network,
+		// if we do we have to do it much later after the network setup.
+		if !configureNetwork {
+			err = b.addResolvConfEntries(resolvFile, nil, spec.Linux.Namespaces, false, true)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	// Empty file, so no need to recreate if it exists
 	if _, ok := bindFiles["/run/.containerenv"]; !ok {
@@ -362,7 +402,7 @@ rootless=%d
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec,
-			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostsFile)
+			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostsFile, resolvFile)
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	case IsolationOCIRootless:
@@ -371,7 +411,7 @@ rootless=%d
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec,
-			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostsFile)
+			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostsFile, resolvFile)
 	default:
 		err = errors.New("don't know how to run this command")
 	}
