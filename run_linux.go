@@ -260,22 +260,22 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
 
-	hostFile := ""
+	hostsFile := ""
 	if !options.NoHosts && !slices.Contains(volumes, config.DefaultHostsFile) && options.ConfigureNetwork != define.NetworkDisabled {
-		hostFile, err = b.generateHosts(path, rootIDPair, mountPoint, spec)
+		hostsFile, err = b.generateHosts(path, rootIDPair, mountPoint, spec)
 		if err != nil {
 			return err
 		}
-		bindFiles[config.DefaultHostsFile] = hostFile
+		bindFiles[config.DefaultHostsFile] = hostsFile
 	}
 
 	if !options.NoHostname && !(slices.Contains(volumes, "/etc/hostname")) {
-		hostFile, err := b.generateHostname(path, spec.Hostname, rootIDPair)
+		hostnameFile, err := b.generateHostname(path, spec.Hostname, rootIDPair)
 		if err != nil {
 			return err
 		}
 		// Bind /etc/hostname
-		bindFiles["/etc/hostname"] = hostFile
+		bindFiles["/etc/hostname"] = hostnameFile
 	}
 
 	if !slices.Contains(volumes, resolvconf.DefaultResolvConf) && options.ConfigureNetwork != define.NetworkDisabled && !(len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none") {
@@ -362,7 +362,7 @@ rootless=%d
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec,
-			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostFile)
+			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostsFile)
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	case IsolationOCIRootless:
@@ -371,7 +371,7 @@ rootless=%d
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec,
-			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostFile)
+			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostsFile)
 	default:
 		err = errors.New("don't know how to run this command")
 	}

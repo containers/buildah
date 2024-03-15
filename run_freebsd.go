@@ -202,13 +202,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
 
-	hostFile := ""
+	hostsFile := ""
 	if !options.NoHosts && !slices.Contains(volumes, config.DefaultHostsFile) && options.ConfigureNetwork != define.NetworkDisabled {
-		hostFile, err = b.generateHosts(path, rootIDPair, mountPoint, spec)
+		hostsFile, err = b.generateHosts(path, rootIDPair, mountPoint, spec)
 		if err != nil {
 			return err
 		}
-		bindFiles[config.DefaultHostsFile] = hostFile
+		bindFiles[config.DefaultHostsFile] = hostsFile
 	}
 
 	if !slices.Contains(volumes, resolvconf.DefaultResolvConf) && options.ConfigureNetwork != define.NetworkDisabled && !(len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none") {
@@ -290,7 +290,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		} else {
 			moreCreateArgs = nil
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec, mountPoint, path, containerName, b.Container, hostFile)
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec, mountPoint, path, containerName, b.Container, hostsFile)
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	default:
