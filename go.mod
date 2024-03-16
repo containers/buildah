@@ -13,7 +13,7 @@ require (
 	github.com/containers/storage v1.53.0
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/docker/docker v25.0.3+incompatible
+	github.com/docker/docker v25.0.4+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.10.1
 	github.com/hashicorp/go-multierror v1.1.1
