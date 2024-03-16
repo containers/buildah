@@ -837,7 +837,7 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
-func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBConfig, rebase, preserveBaseImageAnnotations bool, pullPolicy define.PullPolicy) (builder *buildah.Builder, err error) {
+func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBConfig, rebase, preserveBaseImageAnnotations bool, pullPolicy config.PullPolicy) (builder *buildah.Builder, err error) {
 	stage := s.stage
 	ib := stage.Builder
 	node := stage.Node
@@ -1076,7 +1076,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	var preserveBaseImageAnnotationsAtStageStart bool
 	if stageImage, isPreviousStage := s.executor.imageMap[base]; isPreviousStage {
 		base = stageImage
-		pullPolicy = define.PullNever
+		pullPolicy = config.PullPolicyNever
 		preserveBaseImageAnnotationsAtStageStart = true
 	}
 	s.executor.stagesLock.Unlock()
@@ -1655,7 +1655,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// Enforce pull "never" since we already have an image
 			// ID that we really should not be pulling anymore (see
 			// containers/podman/issues/10307).
-			if _, err := s.prepare(ctx, imgID, false, true, true, define.PullNever); err != nil {
+			if _, err := s.prepare(ctx, imgID, false, true, true, config.PullPolicyNever); err != nil {
 				return "", nil, false, fmt.Errorf("preparing container for next step: %w", err)
 			}
 		}
@@ -2010,7 +2010,7 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 			RetryDelay:          s.executor.retryPullPushDelay,
 			AllTags:             false,
 			ReportWriter:        nil,
-			PullPolicy:          define.PullIfNewer,
+			PullPolicy:          config.PullPolicyNewer,
 		}
 		id, err := buildah.Pull(ctx, src.DockerReference().String(), options)
 		if err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
 	nettypes "github.com/containers/common/libnetwork/types"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
@@ -38,29 +39,6 @@ const (
 	// per-container state.  If it isn't there, then the container isn't
 	// one of our build containers.
 	stateFile = Package + ".json"
-)
-
-// PullPolicy takes the value PullIfMissing, PullAlways, PullIfNewer, or PullNever.
-type PullPolicy = define.PullPolicy
-
-const (
-	// PullIfMissing is one of the values that BuilderOptions.PullPolicy
-	// can take, signalling that the source image should be pulled from a
-	// registry if a local copy of it is not already present.
-	PullIfMissing = define.PullIfMissing
-	// PullAlways is one of the values that BuilderOptions.PullPolicy can
-	// take, signalling that a fresh, possibly updated, copy of the image
-	// should be pulled from a registry before the build proceeds.
-	PullAlways = define.PullAlways
-	// PullIfNewer is one of the values that BuilderOptions.PullPolicy
-	// can take, signalling that the source image should only be pulled
-	// from a registry if a local copy is not already present or if a
-	// newer version the image is present on the repository.
-	PullIfNewer = define.PullIfNewer
-	// PullNever is one of the values that BuilderOptions.PullPolicy can
-	// take, signalling that the source image should not be pulled from a
-	// registry if a local copy of it is not already present.
-	PullNever = define.PullNever
 )
 
 // NetworkConfigurationPolicy takes the value NetworkDefault, NetworkDisabled,
@@ -273,7 +251,7 @@ type BuilderOptions struct {
 	// PullPolicy decides whether or not we should pull the image that
 	// we're using as a base image.  It should be PullIfMissing,
 	// PullAlways, or PullNever.
-	PullPolicy define.PullPolicy
+	PullPolicy config.PullPolicy
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.  No separator is implicitly added.

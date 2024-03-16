@@ -4191,6 +4191,9 @@ _EOF
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} --pull=false $BUDFILES/pull
   expect_output --substring "busybox: image not known"
 
+  run_buildah build $WITH_POLICY_JSON -t ${target} --pull=missing $BUDFILES/pull
+  expect_output --substring "COMMIT pull"
+
   run_buildah build $WITH_POLICY_JSON -t ${target} --pull $BUDFILES/pull
   expect_output --substring "COMMIT pull"
 

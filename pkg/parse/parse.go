@@ -449,13 +449,13 @@ func SystemContextFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name strin
 
 // PullPolicyFromOptions returns a PullPolicy that reflects the combination of
 // the specified "pull" and undocumented "pull-always" and "pull-never" flags.
-func PullPolicyFromOptions(c *cobra.Command) (define.PullPolicy, error) {
+func PullPolicyFromOptions(c *cobra.Command) (config.PullPolicy, error) {
 	return PullPolicyFromFlagSet(c.Flags(), c.Flag)
 }
 
 // PullPolicyFromFlagSet returns a PullPolicy that reflects the combination of
 // the specified "pull" and undocumented "pull-always" and "pull-never" flags.
-func PullPolicyFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name string) *pflag.Flag) (define.PullPolicy, error) {
+func PullPolicyFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name string) *pflag.Flag) (config.PullPolicy, error) {
 	pullFlagsCount := 0
 
 	if findFlagFunc("pull").Changed {
@@ -475,30 +475,28 @@ func PullPolicyFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name string) 
 	// Allow for --pull, --pull=true, --pull=false, --pull=never, --pull=always
 	// --pull-always and --pull-never.  The --pull-never and --pull-always options
 	// will not be documented.
-	pullPolicy := define.PullIfMissing
+
 	pullFlagValue := findFlagFunc("pull").Value.String()
-	if strings.EqualFold(pullFlagValue, "true") || strings.EqualFold(pullFlagValue, "ifnewer") {
-		pullPolicy = define.PullIfNewer
-	}
 	pullAlwaysFlagValue, err := flags.GetBool("pull-always")
 	if err != nil {
 		return 0, err
 	}
-	if pullAlwaysFlagValue || strings.EqualFold(pullFlagValue, "always") {
-		pullPolicy = define.PullAlways
+	if pullAlwaysFlagValue ||
+		strings.EqualFold(pullFlagValue, "true") {
+		return config.PullPolicyAlways, nil
 	}
+
 	pullNeverFlagValue, err := flags.GetBool("pull-never")
 	if err != nil {
 		return 0, err
 	}
-	if pullNeverFlagValue ||
-		strings.EqualFold(pullFlagValue, "never") ||
-		strings.EqualFold(pullFlagValue, "false") {
-		pullPolicy = define.PullNever
-	}
-	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
 
-	return pullPolicy, nil
+	if pullNeverFlagValue ||
+		strings.EqualFold(pullFlagValue, "false") {
+		return config.PullPolicyNever, nil
+	}
+
+	return config.ParsePullPolicy(pullFlagValue)
 }
 
 func getAuthFile(authfile string) string {

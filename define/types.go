@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
@@ -159,7 +160,7 @@ const (
 type SBOMScanOptions struct {
 	Type            []string          // a shorthand name for a defined group of these options
 	Image           string            // the scanner image to use
-	PullPolicy      PullPolicy        // how to get the scanner image
+	PullPolicy      config.PullPolicy // how to get the scanner image
 	Commands        []string          // one or more commands to invoke for the image rootfs or ContextDir locations
 	ContextDir      []string          // one or more "source" directory locations
 	SBOMOutput      string            // where to save SBOM scanner output outside of the image (i.e., the local filesystem)

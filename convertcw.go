@@ -8,6 +8,7 @@ import (
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal/mkcw"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
@@ -50,7 +51,7 @@ type CWConvertImageOptions struct {
 	// Passed through to BuilderOptions. Most settings won't make
 	// sense to be made available here because we don't launch a process.
 	ContainerSuffix     string
-	PullPolicy          PullPolicy
+	PullPolicy          config.PullPolicy
 	BlobDirectory       string
 	SignaturePolicyPath string
 	ReportWriter        io.Writer
