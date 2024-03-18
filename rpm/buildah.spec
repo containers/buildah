@@ -146,7 +146,7 @@ rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 %{!?_licensedir:%global license %doc}
 
 %files
-%license LICENSE
+%license LICENSE vendor/modules.txt
 %doc README.md
 %{_bindir}/%{name}
 %{_mandir}/man1/%{name}*
