@@ -89,7 +89,7 @@ buildah add containerID 'passwd' 'certs.d' /etc
 
 ## FILES
 
-### .containerignore/.dockerignore
+### .containerignore or .dockerignore
 
 If a .containerignore or .dockerignore file exists in the context directory,
 `buildah add` reads its contents. If both exist, then .containerignore is used.
