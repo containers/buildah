@@ -42,10 +42,6 @@
     "github>containers/automation//renovate/defaults.json5"
   ],
 
-  // Permit automatic rebasing when base-branch changes by more than
-  // one commit.
-  "rebaseWhen": "behind-base-branch",
-
   /*************************************************
    *** Repository-specific configuration options ***
    *************************************************/
