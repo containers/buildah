@@ -1401,7 +1401,7 @@ Exclude all doc files except Help.doc from the image.
 
 This functionality is compatible with the handling of .containerignore files described here:
 
-https://github.com/containers/buildah/blob/main/docs/containerignore.5.md
+https://github.com/containers/common/blob/main/docs/containerignore.5.md
 
 **registries.conf** (`/etc/containers/registries.conf`)
 
