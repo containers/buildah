@@ -12,7 +12,7 @@
 
         podman run -it \
             -v ./.github/renovate.json5:/usr/src/app/renovate.json5:z \
-            docker.io/renovate/renovate:latest \
+            ghcr.io/renovatebot/renovate:latest \
             renovate-config-validator
      3. Commit.
 
@@ -41,10 +41,6 @@
     // https://github.com/containers/automation/blob/main/renovate/defaults.json5
     "github>containers/automation//renovate/defaults.json5"
   ],
-
-  // Permit automatic rebasing when base-branch changes by more than
-  // one commit.
-  "rebaseWhen": "behind-base-branch",
 
   /*************************************************
    *** Repository-specific configuration options ***
