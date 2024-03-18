@@ -6634,7 +6634,7 @@ RUN ln -s / /rootdir
 
 FROM alpine
 
-RUN echo "With exploit show host root, not the container's root, and create /BIND_BREAKOUT in / on the host"
+# With exploit show host root, not the container's root, and create /BIND_BREAKOUT in / on the host
 RUN --mount=type=bind,from=base,source=/rootdir,destination=/exploit,rw ls -l /exploit; touch /exploit/BIND_BREAKOUT; ls -l /exploit
 
 _EOF
