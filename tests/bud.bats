@@ -6527,3 +6527,26 @@ _EOF
   expect_output --substring "localhost/foo/bar"
   expect_output --substring "localhost/bar"
 }
+
+@test "build no write file on host - CVE-2024-1753" {
+  _prefetch alpine
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine as base
+
+RUN ln -s / /rootdir
+
+FROM alpine
+
+RUN echo "With exploit show host root, not the container's root, and create /BIND_BREAKOUT in / on the host"
+RUN --mount=type=bind,from=base,source=/rootdir,destination=/exploit,rw ls -l /exploit; touch /exploit/BIND_BREAKOUT; ls -l /exploit
+
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "/BIND_BREAKOUT"
+
+  run ls /BIND_BREAKOUT
+  rm -f /BIND_BREAKOUT
+  assert "$status" -eq 2 "exit code from ls"
+  expect_output --substring "No such file or directory"
+}
