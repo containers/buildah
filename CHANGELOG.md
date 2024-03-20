@@ -2,6 +2,12 @@
 
 # Changelog
 
+## v1.34.2 (2024-03-19)
+
+    [release-1.34] CVE-2024-1753 container escape fix
+    tests: skip_if_no_unshare(): check for --setuid
+    [release-1.34] Bump to v1.34.2-dev
+
 ## v1.34.1 (2024-02-21)
 
     [release-1.34] Vendor bumps
