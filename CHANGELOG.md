@@ -2,6 +2,13 @@
 
 # Changelog
 
+## v1.34.3 (2024-03-20)
+
+    [release-1.34] CVE-2024-24786 protobuf to 1.33
+    [release-1.34] Bump to Buildah v1.34.3-dev
+    [release-1.34] Bump to Buildah v1.34.2
+    conformance tests: don't break on trailing zeroes in layer blobs
+
 ## v1.34.2 (2024-03-19)
 
     [release-1.34] CVE-2024-1753 container escape fix
