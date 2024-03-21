@@ -625,7 +625,7 @@ github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/user
 github.com/opencontainers/runc/libcontainer/userns
 github.com/opencontainers/runc/libcontainer/utils
-# github.com/opencontainers/runtime-spec v1.2.0 => github.com/opencontainers/runtime-spec v1.1.0
+# github.com/opencontainers/runtime-spec v1.2.0 => github.com/opencontainers/runtime-spec v1.2.0
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
 # github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc
@@ -1000,4 +1000,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # tags.cncf.io/container-device-interface v0.6.2
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/pkg/parser
-# github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.1.0
+# github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.2.0

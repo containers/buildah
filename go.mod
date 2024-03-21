@@ -156,4 +156,4 @@ require (
 	tags.cncf.io/container-device-interface v0.6.2 // indirect
 )
 
-replace github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.1.0
+replace github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.2.0
