@@ -46,6 +46,8 @@ EOF
         then
             showrun setsebool -P container_manage_cgroup true
         fi
+	sed -e 's/^pull_options.*=.*/pull_options = {enable_partial_images = \"true\", use_hard_links = \"false\", ostree_repos=""}/' \
+            /usr/share/containers/storage.conf > /etc/containers/storage.conf
         ;;
     debian)
         if [[ "$1" == "conformance" ]]; then
@@ -107,3 +109,10 @@ then
     showrun podman commit $IN_PODMAN_NAME $IN_PODMAN_NAME
     showrun podman rm -f $IN_PODMAN_NAME
 fi
+
+# Test turning on zstd:chunked compression
+mkdir -p /etc/containers/containers.conf.d
+cat > /etc/containers/containers.conf.d/override-default-compression.conf <<EOF
+[engine]
+compression_format = "zstd:chunked"
+EOF
