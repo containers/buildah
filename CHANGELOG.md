@@ -2,6 +2,14 @@
 
 # Changelog
 
+## v1.29.3 (2024-03-21)
+
+    [release-1.29] CVE-2024-1753 container escape fix
+    [release-1.29] conformance tests: don't break on trailing zeroes in layer blobs
+    [release-1.29] Bump google.golang.org/protobuf to v1.33.0
+    bump golang.org/x/crypto to v0.17.0
+    conformance test: ignore file type bits when comparing layers
+
 ## v1.29.2 (2023-10-31)
 
     Mask /sys/devices/virtual/powercap by default
