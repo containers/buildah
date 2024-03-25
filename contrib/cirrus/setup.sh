@@ -10,15 +10,13 @@ source $(dirname $0)/lib.sh
 
 req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
 
-_EOL=20230601
+_EOL=20260501
 if [[ $(date +%Y%m%d) -ge $_EOL ]]; then
     die "As of $_EOL this branch is probably
 no longer supported in RHEL 8.7/9.1, please
 confirm this with RHEL Program Management.  If so:
-It should be removed from Cirrus-Cron,
-the .cirrus.yml file removed, and
-the VM images (manually) unmarked
-'permanent=true'"
+It should be removed from Cirrus-Cron, and
+the .cirrus.yml file removed."
 fi
 
 msg "Disabling git repository owner-check system-wide."
