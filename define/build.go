@@ -5,6 +5,7 @@ import (
 	"time"
 
 	nettypes "github.com/containers/common/libnetwork/types"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
@@ -120,7 +121,7 @@ type BuildOptions struct {
 	ContextDirectory string
 	// PullPolicy controls whether or not we pull images.  It should be one
 	// of PullIfMissing, PullAlways, PullIfNewer, or PullNever.
-	PullPolicy PullPolicy
+	PullPolicy config.PullPolicy
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.  No separator is implicitly added.

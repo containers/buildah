@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/containerd/containerd v1.7.13
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.58.1-0.20240318131753-6f1c96f53a78
+	github.com/containers/common v0.58.1-0.20240322065526-06eb2ea8e243
 	github.com/containers/image/v5 v5.30.0
 	github.com/containers/luksy v0.0.0-20240212203526-ceb12d4fd50c
 	github.com/containers/ocicrypt v1.1.10
@@ -19,7 +19,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.12.5
 	github.com/onsi/ginkgo/v2 v2.17.0
-	github.com/onsi/gomega v1.31.1
+	github.com/onsi/gomega v1.32.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.1.12

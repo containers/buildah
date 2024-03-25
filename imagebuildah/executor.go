@@ -69,7 +69,7 @@ type Executor struct {
 	stages                         map[string]*StageExecutor
 	store                          storage.Store
 	contextDir                     string
-	pullPolicy                     define.PullPolicy
+	pullPolicy                     config.PullPolicy
 	registry                       string
 	ignoreUnrecognizedInstructions bool
 	quiet                          bool

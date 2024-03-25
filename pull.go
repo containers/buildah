@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/containers/buildah/define"
 	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
@@ -49,7 +48,7 @@ type PullOptions struct {
 	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
 	OciDecryptConfig *encconfig.DecryptConfig
 	// PullPolicy takes the value PullIfMissing, PullAlways, PullIfNewer, or PullNever.
-	PullPolicy define.PullPolicy
+	PullPolicy config.PullPolicy
 }
 
 // Pull copies the contents of the image from somewhere else to local storage.  Returns the

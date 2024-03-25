@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
+	"github.com/containers/common/pkg/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -119,9 +119,9 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		return fmt.Errorf("unable to obtain decryption config: %w", err)
 	}
 
-	policy, ok := define.PolicyMap[iopts.pullPolicy]
-	if !ok {
-		return fmt.Errorf("unsupported pull policy %q", iopts.pullPolicy)
+	policy, err := config.ParsePullPolicy(iopts.pullPolicy)
+	if err != nil {
+		return err
 	}
 	options := buildah.PullOptions{
 		SignaturePolicyPath: iopts.signaturePolicy,

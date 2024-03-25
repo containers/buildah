@@ -15,6 +15,10 @@ const (
 // Note: This function is copied from containers/podman libpod/util.go
 // Please see https://github.com/containers/common/pull/1460
 func queryPackageVersion(cmdArg ...string) string {
+	_, err := os.Stat(cmdArg[0])
+	if err != nil {
+		return ""
+	}
 	output := UnknownPackage
 	if 1 < len(cmdArg) {
 		cmd := exec.Command(cmdArg[0], cmdArg[1:]...)
@@ -53,22 +57,36 @@ func Package(program string) string { // program is full path
 	if err != nil {
 		return UnknownPackage
 	}
-	packagers := [][]string{
-		{"/usr/bin/rpm", "-q", "-f"},
-		{"/usr/bin/dlocate", "-F"},             // Debian, Ubuntu (quick)
-		{"/usr/bin/dpkg", "-S"},                // Debian, Ubuntu (slow)
-		{"/usr/bin/pacman", "-Qo"},             // Arch
-		{"/usr/bin/qfile", "-qv"},              // Gentoo (quick)
-		{"/usr/bin/equery", "b"},               // Gentoo (slow)
-		{"/sbin/apk", "info", "-W"},            // Alpine
-		{"/usr/local/sbin/pkg", "which", "-q"}, // FreeBSD
+
+	type Packager struct {
+		Format  string
+		Command []string
+	}
+	packagers := []Packager{
+		{"rpm", []string{"/usr/bin/rpm", "-q", "-f"}},
+		{"deb", []string{"/usr/bin/dlocate", "-F"}},             // Debian, Ubuntu (quick)
+		{"deb", []string{"/usr/bin/dpkg", "-S"}},                // Debian, Ubuntu (slow)
+		{"pacman", []string{"/usr/bin/pacman", "-Qo"}},          // Arch
+		{"gentoo", []string{"/usr/bin/qfile", "-qv"}},           // Gentoo (quick)
+		{"gentoo", []string{"/usr/bin/equery", "b"}},            // Gentoo (slow)
+		{"apk", []string{"/sbin/apk", "info", "-W"}},            // Alpine
+		{"pkg", []string{"/usr/local/sbin/pkg", "which", "-q"}}, // FreeBSD
 	}
 
-	for _, cmd := range packagers {
+	lastformat := ""
+	for _, packager := range packagers {
+		if packager.Format == lastformat {
+			continue
+		}
+		cmd := packager.Command
 		cmd = append(cmd, program)
 		if out := queryPackageVersion(cmd...); out != UnknownPackage {
+			if out == "" {
+				continue
+			}
 			return out
 		}
+		lastformat = packager.Format
 	}
 	return UnknownPackage
 }

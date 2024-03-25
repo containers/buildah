@@ -42,10 +42,10 @@ import (
 )
 
 const (
-	PullIfMissing = define.PullIfMissing
-	PullAlways    = define.PullAlways
-	PullIfNewer   = define.PullIfNewer
-	PullNever     = define.PullNever
+	PullAlways    = config.PullPolicyAlways
+	PullIfMissing = config.PullPolicyMissing
+	PullIfNewer   = config.PullPolicyNewer
+	PullNever     = config.PullPolicyNever
 
 	Gzip         = archive.Gzip
 	Bzip2        = archive.Bzip2
