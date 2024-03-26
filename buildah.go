@@ -186,6 +186,11 @@ type Builder struct {
 	ContentDigester CompositeDigester
 	// Devices are parsed additional devices to provide to Run() calls.
 	Devices define.ContainerDevices
+	// DeviceSpecs are unparsed additional devices to provide to Run() calls.
+	DeviceSpecs []string
+	// CDIConfigDir is the location of CDI configuration files, if the files in
+	// the default configuration locations shouldn't be used.
+	CDIConfigDir string
 }
 
 // BuilderInfo are used as objects to display container information
@@ -216,6 +221,8 @@ type BuilderInfo struct {
 	IDMappingOptions      define.IDMappingOptions
 	History               []v1.History
 	Devices               define.ContainerDevices
+	DeviceSpecs           []string
+	CDIConfigDir          string
 }
 
 // GetBuildInfo gets a pointer to a Builder object and returns a BuilderInfo object from it.
@@ -252,6 +259,8 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		Capabilities:          b.Capabilities,
 		History:               history,
 		Devices:               b.Devices,
+		DeviceSpecs:           b.DeviceSpecs,
+		CDIConfigDir:          b.CDIConfigDir,
 	}
 }
 
@@ -336,6 +345,8 @@ type BuilderOptions struct {
 	Format string
 	// Devices are additional parsed devices to provide for Run() calls.
 	Devices define.ContainerDevices
+	// DeviceSpecs are additional unparsed devices to provide for Run() calls.
+	DeviceSpecs []string
 	// DefaultEnv is deprecated and ignored.
 	DefaultEnv []string
 	// MaxPullRetries is the maximum number of attempts we'll make to pull
@@ -356,6 +367,9 @@ type BuilderOptions struct {
 	// itself. Useful as an internal implementation detail of multistage
 	// builds, and does not need to be set by most callers.
 	PreserveBaseImageAnns bool
+	// CDIConfigDir is the location of CDI configuration files, if the files in
+	// the default configuration locations shouldn't be used.
+	CDIConfigDir string
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

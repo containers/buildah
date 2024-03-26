@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
@@ -248,14 +247,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err != nil {
 		return err
 	}
-	devices := define.ContainerDevices{}
-	for _, device := range append(defaultContainerConfig.Containers.Devices.Get(), iopts.Devices...) {
-		dev, err := parse.DeviceFromPath(device)
-		if err != nil {
-			return err
-		}
-		devices = append(devices, dev...)
-	}
 
 	capabilities, err := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
 	if err != nil {
@@ -288,9 +279,10 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
-		Devices:               devices,
+		DeviceSpecs:           iopts.Devices,
 		MaxPullRetries:        iopts.Retry,
 		OciDecryptConfig:      decConfig,
+		CDIConfigDir:          iopts.CDIConfigDir,
 	}
 
 	if iopts.RetryDelay != "" {

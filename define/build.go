@@ -339,4 +339,7 @@ type BuildOptions struct {
 	// SBOMScanOptions encapsulates options which control whether or not we
 	// run scanners on the rootfs that we're about to commit, and how.
 	SBOMScanOptions []SBOMScanOptions
+	// CDIConfigDir is the location of CDI configuration files, if the files in
+	// the default configuration locations shouldn't be used.
+	CDIConfigDir string
 }

@@ -149,6 +149,8 @@ type RunOptions struct {
 	DropCapabilities []string
 	// Devices are parsed additional devices to add
 	Devices define.ContainerDevices
+	// DeviceSpecs are unparsed additional devices to add
+	DeviceSpecs []string
 	// Secrets are the available secrets to use
 	Secrets map[string]define.Secret
 	// SSHSources is the available ssh agents to use
@@ -165,6 +167,9 @@ type RunOptions struct {
 	SystemContext *types.SystemContext
 	// CgroupManager to use for running OCI containers
 	CgroupManager string
+	// CDIConfigDir is the location of CDI configuration files, if the files in
+	// the default configuration locations shouldn't be used.
+	CDIConfigDir string
 }
 
 // RunMountArtifacts are the artifacts created when using a run mount.
