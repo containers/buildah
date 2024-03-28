@@ -350,14 +350,18 @@ The [key[:passphrase]] to be used for decryption of images. Key can point to key
 
 **--device**=*device*
 
-Add a host device to the container. Optional *permissions* parameter
-can be used to specify device permissions, it is combination of
+Add a host device, or devices under a directory, to the environment of any
+**RUN** instructions run during the build.  The optional *permissions*
+parameter can be used to specify device permissions, using any one or more of
 **r** for read, **w** for write, and **m** for **mknod**(2).
 
 Example: **--device=/dev/sdc:/dev/xvdc:rwm**.
 
-Note: if _host_device_ is a symbolic link then it will be resolved first.
+Note: if _host-device_ is a symbolic link then it will be resolved first.
 The container will only store the major and minor numbers of the host device.
+
+The device to share can also be specified using a Container Device Interface
+(CDI) specification (https://github.com/cncf-tags/container-device-interface).
 
 Note: if the user only has access rights via a group, accessing the device
 from inside a rootless container will fail. The **crun**(1) runtime offers a
@@ -913,18 +917,18 @@ Note: Changing the contents of secret files will not trigger a rebuild of layers
 
 Security Options
 
-  "apparmor=unconfined" : Turn off apparmor confinement for the container
+  "apparmor=unconfined"   : Turn off apparmor confinement for the container
   "apparmor=your-profile" : Set the apparmor confinement profile for the container
 
-  "label=user:USER"   : Set the label user for the container
-  "label=role:ROLE"   : Set the label role for the container
-  "label=type:TYPE"   : Set the label type for the container
-  "label=level:LEVEL" : Set the label level for the container
-  "label=disable"     : Turn off label confinement for the container
-  "no-new-privileges" : Disable container processes from gaining additional privileges
+  "label=user:USER"       : Set the label user for the container
+  "label=role:ROLE"       : Set the label role for the container
+  "label=type:TYPE"       : Set the label type for the container
+  "label=level:LEVEL"     : Set the label level for the container
+  "label=disable"         : Turn off label confinement for the container
+  "no-new-privileges"     : Disable container processes from gaining additional privileges
 
-  "seccomp=unconfined" : Turn off seccomp confinement for the container
-  "seccomp=profile.json :  White listed syscalls seccomp Json file to be used as a seccomp filter
+  "seccomp=unconfined"    : Turn off seccomp confinement for the container
+  "seccomp=profile.json   : JSON configuration for a seccomp filter
 
 **--shm-size**=""
 
