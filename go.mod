@@ -5,8 +5,7 @@ go 1.20
 require (
 	github.com/containerd/containerd v1.7.13
 	github.com/containernetworking/cni v1.1.2
-	github.com/containernetworking/plugins v1.4.0
-	github.com/containers/common v0.58.0
+	github.com/containers/common v0.58.1
 	github.com/containers/image/v5 v5.30.0
 	github.com/containers/luksy v0.0.0-20240212203526-ceb12d4fd50c
 	github.com/containers/ocicrypt v1.1.9
@@ -60,6 +59,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
+	github.com/containernetworking/plugins v1.4.0 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20231217050601-ba74d44ecf5f // indirect

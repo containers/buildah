@@ -722,7 +722,7 @@ function configure_and_check_user() {
 	run_buildah rm -a
 }
 
-@test "run check /etc/hosts with --network pasta" {
+@test "run check /etc/hosts and resolv.conf with --network pasta" {
 	skip_if_no_runtime
 	skip_if_chroot
 	skip_if_root_environment "pasta only works rootless"
@@ -743,6 +743,13 @@ function configure_and_check_user() {
 	echo -e "[network]\ndefault_rootless_network_cmd = \"pasta\"" > ${TEST_SCRATCH_DIR}/containers.conf
 	CONTAINERS_CONF_OVERRIDE=${TEST_SCRATCH_DIR}/containers.conf run_buildah run --hostname $hostname $cid cat /etc/hosts
 	assert "$output" =~ "$ip[[:blank:]]$hostname $cid" "default_rootless_network_cmd = \"pasta\" works"
+
+	# resolv.conf checks
+	run_buildah run --network pasta $cid grep nameserver /etc/resolv.conf
+	assert "${lines[0]}" == "nameserver 169.254.0.1" "first pasta nameserver should be stub forwarder"
+
+	run_buildah run --network pasta:--dns-forward,192.168.0.1 $cid grep nameserver /etc/resolv.conf
+	assert "${lines[0]}" == "nameserver 192.168.0.1" "pasta nameserver with --dns-forward"
 }
 
 @test "run check /etc/resolv.conf" {
