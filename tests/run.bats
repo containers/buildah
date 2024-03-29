@@ -554,6 +554,7 @@ function configure_and_check_user() {
 @test "run-builtin-volume-omitted" {
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
+	_prefetch quay.io/libpod/registry:volume_omitted
 	run_buildah from --quiet --pull=ifmissing $WITH_POLICY_JSON quay.io/libpod/registry:volume_omitted
 	cid=$output
 	run_buildah mount $cid
@@ -807,6 +808,7 @@ $output"
 @test "run --network=none and --isolation chroot must conflict" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=ifmissing $WITH_POLICY_JSON alpine
 	cid=$output
 	# should fail by default
@@ -817,6 +819,7 @@ $output"
 @test "run --network=private must mount a fresh /sys" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=ifmissing $WITH_POLICY_JSON alpine
 	cid=$output
         # verify there is no /sys/kernel/security in the container, that would mean /sys
@@ -827,6 +830,7 @@ $output"
 @test "run --network should override build --network" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --network=none --quiet --pull=ifmissing $WITH_POLICY_JSON alpine
 	cid=$output
 	# should fail by default

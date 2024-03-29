@@ -265,7 +265,7 @@ stuff/mystuff"
 }
 
 @test "add from image" {
-  _prefetch busybox
+  _prefetch busybox ubuntu
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah add --quiet $WITH_POLICY_JSON --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path

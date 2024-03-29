@@ -9,6 +9,7 @@ load helpers
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
+  _prefetch $image
   mkdir ${TEST_SCRATCH_DIR}/lower
   touch ${TEST_SCRATCH_DIR}/lower/foo
 
@@ -38,6 +39,7 @@ load helpers
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
+  _prefetch $image
   mkdir -m 770 ${TEST_SCRATCH_DIR}/lower
   chown 1:1 ${TEST_SCRATCH_DIR}/lower
   permission=$(stat -c "%a %u %g" ${TEST_SCRATCH_DIR}/lower)
@@ -68,6 +70,7 @@ load helpers
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
+  _prefetch $image
   mkdir ${TEST_SCRATCH_DIR}/a:lower
   touch ${TEST_SCRATCH_DIR}/a:lower/foo
 

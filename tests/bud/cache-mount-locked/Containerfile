@@ -1,4 +1,4 @@
-FROM quay.io/centos/centos:8
+FROM alpine
 
 ARG WIPE_CACHE
 
