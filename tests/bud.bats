@@ -5271,6 +5271,49 @@ _EOF
 
 }
 
+@test "build test run mounting stage cached from remote cache source" {
+  _prefetch alpine
+
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+
+  # ------ Test case ------ #
+  # prepare expected output beforehand
+  run printf "STEP 2/2: COPY / /\n--> Pushing cache"
+  step1_2=$output
+  run printf "COMMIT test\n--> Pushing cache"
+  step2_2=$output
+
+  # actually run build
+  run_buildah build $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --layers --cache-to localhost:${REGISTRY_PORT}/temp -t test -f $BUDFILES/cache-from-stage/Containerfile $BUDFILES/cache-from-stage
+  expect_output --substring "$step1_2"
+  #expect_output --substring "$step2_2"
+
+  # clean all cache and intermediate images
+  # to make sure that we are only using cache
+  # from remote repo and not the local storage.
+
+  # Important side-note: don't use `run_buildah rmi --all -f`
+  # since on podman-remote test this will remove prefetched alpine
+  # and it will try to pull alpine from docker.io with
+  # completely different digest (ruining our cache logic).
+  run_buildah rmi test
+
+  # ------ Test case ------ #
+  # expect cache to be pushed on remote stream
+  # now a build on clean slate must pull cache
+  # from remote instead of actually computing the
+  # run steps
+  run printf "STEP 2/2: COPY / /\n--> Using cache"
+  step1_2=$output
+  run printf "STEP 2/2: RUN --mount=type=bind,from=stage1,target=/mnt echo hi > test\n--> Cache pulled from remote"
+  step2_2=$output
+  run_buildah build $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --layers --cache-from localhost:${REGISTRY_PORT}/temp --cache-to localhost:${REGISTRY_PORT}/temp -t test -f $BUDFILES/cache-from-stage/Containerfile $BUDFILES/cache-from-stage
+  expect_output --substring "$step1_2"
+  expect_output --substring "$step2_2"
+
+}
+
 @test "bud with undefined build arg directory" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1

@@ -1,0 +1,5 @@
+FROM scratch AS stage1
+COPY / /
+
+FROM alpine
+RUN --mount=type=bind,from=stage1,target=/mnt echo hi > test
