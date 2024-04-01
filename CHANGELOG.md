@@ -2,6 +2,14 @@
 
 # Changelog
 
+## v1.26.7 (2024-04-01)
+
+    [release-1.26] conformance tests: don't break on trailing zeroes
+    [release-1.26] CVE-2024-1753 container escape fix
+    Mask /sys/devices/virtual/powercap by default
+    Use docker.io/library/centos instead of the one at registry.centos.org
+    Run the cross-compile test on M1 MacOS, not Intel
+
 ## v1.26.6 (2022-12-08)
 
     copier.Put(): clear up os/syscall mode bit confusion

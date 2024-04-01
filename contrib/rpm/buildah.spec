@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.26.6
+Version:        1.26.7
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Apr 1 2024 Tom Sweeney <tsweeney@redhat.com> 1.26.7-1
+- [release-1.26] conformance tests: don't break on trailing zeroes
+- [release-1.26] CVE-2024-1753 container escape fix
+- Mask /sys/devices/virtual/powercap by default
+- Use docker.io/library/centos instead of the one at registry.centos.org
+- Run the cross-compile test on M1 MacOS, not Intel
+
 * Thu Dec 8 2022 Nalin Dahyabhai <nalin@redhat.com> 1.26.6-1
 - copier.Put(): clear up os/syscall mode bit confusion
 
