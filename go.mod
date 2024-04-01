@@ -40,6 +40,7 @@ require (
 	golang.org/x/sys v0.18.0
 	golang.org/x/term v0.18.0
 	sigs.k8s.io/yaml v1.4.0
+	tags.cncf.io/container-device-interface v0.6.2
 )
 
 require (
@@ -153,7 +154,7 @@ require (
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog v1.0.0 // indirect
-	tags.cncf.io/container-device-interface v0.6.2 // indirect
+	tags.cncf.io/container-device-interface/specs-go v0.6.0 // indirect
 )
 
 replace github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.1.0

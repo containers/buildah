@@ -177,7 +177,23 @@ The [key[:passphrase]] to be used for decryption of images. Key can point to key
 
 **--device**=*device*
 
-Add a host device or devices under a directory to the container. The format is `<device-on-host>[:<device-on-container>][:<permissions>]` (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+Add a host device, or devices under a directory, to the environment of
+subsequent **buildah run** invocations for the new working container.  The
+optional *permissions* parameter can be used to specify device permissions,
+using any one or more of **r** for read, **w** for write, and **m** for
+**mknod**(2).
+
+Example: **--device=/dev/sdc:/dev/xvdc:rwm**.
+
+Note: if _host-device_ is a symbolic link then it will be resolved first.
+The container will only store the major and minor numbers of the host device.
+
+The device to share can also be specified using a Container Device Interface
+(CDI) specification (https://github.com/cncf-tags/container-device-interface).
+
+Note: if the user only has access rights via a group, accessing the device
+from inside a rootless container will fail. The **crun**(1) runtime offers a
+workaround for this by adding the option **--annotation run.oci.keep_original_groups=1**.
 
 **--dns**=[]
 

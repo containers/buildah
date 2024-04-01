@@ -17,22 +17,24 @@ import (
 )
 
 type runInputOptions struct {
-	addHistory  bool
-	capAdd      []string
-	capDrop     []string
-	contextDir  string
-	env         []string
-	hostname    string
-	isolation   string
-	mounts      []string
-	runtime     string
-	runtimeFlag []string
-	noHostname  bool
-	noHosts     bool
-	noPivot     bool
-	terminal    bool
-	volumes     []string
-	workingDir  string
+	addHistory   bool
+	capAdd       []string
+	capDrop      []string
+	cdiConfigDir string
+	contextDir   string
+	devices      []string
+	env          []string
+	hostname     string
+	isolation    string
+	mounts       []string
+	runtime      string
+	runtimeFlag  []string
+	noHostname   bool
+	noHosts      bool
+	noPivot      bool
+	terminal     bool
+	volumes      []string
+	workingDir   string
 	*buildahcli.NameSpaceResults
 }
 
@@ -64,7 +66,10 @@ func init() {
 	flags.BoolVar(&opts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
 	flags.StringSliceVar(&opts.capAdd, "cap-add", []string{}, "add the specified capability (default [])")
 	flags.StringSliceVar(&opts.capDrop, "cap-drop", []string{}, "drop the specified capability (default [])")
+	flags.StringVar(&opts.cdiConfigDir, "cdi-config-dir", "", "`directory` of CDI configuration files")
+	_ = flags.MarkHidden("cdi-config-dir")
 	flags.StringVar(&opts.contextDir, "contextdir", "", "context directory path")
+	flags.StringArrayVar(&opts.devices, "device", []string{}, "additional devices to provide")
 	flags.StringArrayVarP(&opts.env, "env", "e", []string{}, "add environment variable to be set temporarily when running command (default [])")
 	flags.StringVar(&opts.hostname, "hostname", "", "set the hostname inside of the container")
 	flags.StringVar(&opts.isolation, "isolation", "", "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
@@ -156,6 +161,8 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		AddCapabilities:  iopts.capAdd,
 		DropCapabilities: iopts.capDrop,
 		WorkingDir:       iopts.workingDir,
+		DeviceSpecs:      iopts.devices,
+		CDIConfigDir:     iopts.cdiConfigDir,
 	}
 
 	if c.Flag("terminal").Changed {

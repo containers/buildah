@@ -751,7 +751,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Env:              config.Env,
 		Hostname:         config.Hostname,
 		Logger:           s.executor.logger,
-		Mounts:           append([]Mount{}, s.executor.transientMounts...),
+		Mounts:           s.executor.transientMounts,
 		NamespaceOptions: namespaceOptions,
 		NoHostname:       s.executor.noHostname,
 		NoHosts:          s.executor.noHosts,
@@ -906,6 +906,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		Format:                s.executor.outputFormat,
 		Capabilities:          s.executor.capabilities,
 		Devices:               s.executor.devices,
+		DeviceSpecs:           s.executor.deviceSpecs,
 		MaxPullRetries:        s.executor.maxPullPushRetries,
 		PullRetryDelay:        s.executor.retryPullPushDelay,
 		OciDecryptConfig:      s.executor.ociDecryptConfig,
@@ -913,6 +914,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		ProcessLabel:          s.executor.processLabel,
 		MountLabel:            s.executor.mountLabel,
 		PreserveBaseImageAnns: preserveBaseImageAnnotations,
+		CDIConfigDir:          s.executor.cdiConfigDir,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
