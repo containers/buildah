@@ -122,6 +122,7 @@ func init() {
 	sourceCommand.AddCommand(sourcePushCommand)
 	sourcePushFlags := sourcePushCommand.Flags()
 	sourcePushFlags.StringVar(&sourcePushOptions.Credentials, "creds", "", "use `[username[:password]]` for accessing the registry")
+	sourcePushFlags.StringVar(&sourcePushOptions.DigestFile, "digestfile", "", "after copying the artifact, write the digest of the resulting image to the file")
 	sourcePushFlags.BoolVar(&sourcePushOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	sourcePushFlags.BoolVarP(&sourcePushOptions.Quiet, "quiet", "q", false, "don't output push progress information")
 }
