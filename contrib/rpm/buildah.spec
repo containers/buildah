@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.24.6
+Version:        1.24.7
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,21 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Apr 01 2024 Tom Sweeney <tsweeney@redhat.com> 1.24.7-1
+- [release-1.24] conformance tests: don't break on trailing zeroes
+- [release-1.24] CVE-2024-1753 container escape fix
+- [release-1.24] Cirrus: disable cross_build task
+- Hack: Replace golang with 1.17 for security update
+- bump golang.org/x/crypto to v0.17.0
+- conformance test: ignore file type bits when comparing layers
+- Mask /sys/devices/virtual/powercap by default
+- [release-1.24] Explicitly ref. quay images for CI
+- [release-1.24] remove registry.centos.org
+- [CI:BUILD] Cirrus: Migrate OSX task to M1
+- Define and use a safe, reliable test image
+- define.downloadToDirectory: fail early if bad HTTP response
+- add: fail on bad http response instead of writing to container
+
 * Tue Sep 20 2022 Nalin Dahyabhai <nalin@redhat.com> 1.24.6-1
 - run: add container gid to additional groups
 
