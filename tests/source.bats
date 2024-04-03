@@ -134,9 +134,11 @@ load helpers
   run_buildah source push --quiet --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
   expect_output ""
   # --quiet=false (implicit)
-  run_buildah source push --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
+  run_buildah source push --digestfile=${TEST_SCRATCH_DIR}/digest.txt --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
   expect_output --substring "Copying blob"
   expect_output --substring "Copying config"
+  cat ${TEST_SCRATCH_DIR}/digest.txt
+  test -s ${TEST_SCRATCH_DIR}/digest.txt
 
   pulldir=${TEST_SCRATCH_DIR}/pulledsource
   # --quiet=true
