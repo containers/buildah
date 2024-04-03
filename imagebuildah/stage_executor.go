@@ -543,6 +543,15 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			StripSetuidBit:    stripSetuid,
 			StripSetgidBit:    stripSetgid,
 		}
+		if len(copy.Files) > 0 {
+			// If we are copying heredoc files, we need to temporary place
+			// them in the context dir and then move to container via copier
+			// there are cases where .containerignore can have a patterns like
+			// '*' which can match our heredoc files so let's not set any excludes
+			// or IgnoreFile for this copy.
+			options.Excludes = nil
+			options.IgnoreFile = ""
+		}
 		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
 			return err
 		}
