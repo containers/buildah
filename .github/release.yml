@@ -1,0 +1,13 @@
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes#configuring-automatically-generated-release-notes
+
+changelog:
+  categories:
+    - title: Notable changes
+      labels:
+        - '*'
+      exclude:
+        labels:
+          - dependencies
+    - title: Dependency updates
+      labels:
+        - dependencies
