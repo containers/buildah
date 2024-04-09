@@ -3478,14 +3478,13 @@ _EOF
   target=leading-args
   run_buildah build $WITH_POLICY_JSON -t ${target} --build-arg=VERSION=musl -f $BUDFILES/leading-args/Dockerfile $BUDFILES/leading-args
 
-  #Verify https://github.com/containers/buildah/issues/4312
+  # Verify https://github.com/containers/buildah/issues/4312
   # stage `FROM stage_${my_env}` must be resolved with default arg value and build should be successful.
   run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/multi-stage-builds/Dockerfile.arg_in_stage
 
-  #Verify https://github.com/containers/buildah/issues/4573
+  # Verify https://github.com/containers/buildah/issues/4573
   # stage `COPY --from=stage_${my_env}` must be resolved with default arg value and build should be successful.
   run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/multi-stage-builds/Dockerfile.arg_in_copy
-
 }
 
 @test "bud-with-healthcheck" {
@@ -5244,7 +5243,6 @@ _EOF
   expect_output --substring "Pushing cache"
   # should not pull cache if its already in local storage
   assert "$output" !~ "Cache pulled"
-
 }
 
 @test "build test pushing and pulling from remote cache sources - after adding content summary" {
@@ -5318,7 +5316,6 @@ _EOF
   expect_output --substring "Pushing cache"
   # should not pull cache if its already in local storage
   assert "$output" !~ "Cache pulled"
-
 }
 
 @test "build test run mounting stage cached from remote cache source" {
@@ -5478,7 +5475,6 @@ _EOF
   if [ -z "${found_runtime}" ]; then
     die "Did not find 'runc' nor 'crun' in \$PATH - could not run this test!"
   fi
-
 }
 
 @test "bud - invalid runtime flags test" {
