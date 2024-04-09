@@ -1063,8 +1063,6 @@ _EOF
   wait
   # Number of output bytes must be always same, which confirms that there is no race.
   assert "$(cat ${TEST_SCRATCH_DIR}/id.* | wc -c)" = 1775 "Total chars in all id.* files"
-  # clean all images built for this test
-  run_buildah rmi --all -f
 }
 
 # Test skipping images with FROM but stage name also conflicts with additional build context
@@ -1835,7 +1833,6 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --build-arg=FOO=12 --layers -t args-cache -f $BUDFILES/with-arg/Dockerfile
   run_buildah inspect -f '{{.FromImageID}}' args-cache
   expect_output --substring ${idbefore}
-  run_buildah rmi args-cache
 }
 
 @test "bud with --layers and --build-args: use raw ARG and cache should not be used" {
@@ -1847,7 +1844,6 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --build-arg=FOO=12 --layers -t args-cache -f $BUDFILES/with-arg/Dockerfile2
   run_buildah inspect -f '{{.FromImageID}}' args-cache
   idafter="$output"
-  run_buildah rmi args-cache
 
   assert "$idbefore" != "$idafter" \
          ".Args changed so final image id should be different"
@@ -1904,7 +1900,6 @@ _EOF
 @test "bud-with-unlimited-memory-swap" {
   target=scratch-image
   run_buildah build $WITH_POLICY_JSON --memory-swap -1 -t ${target} $BUDFILES/from-scratch
-  run_buildah rmi -f ${target}
 }
 
 @test "build with --no-cache and --layer" {
@@ -2275,8 +2270,6 @@ _EOF
 }
 
 @test "build using --layer-label and test labels on intermediate images" {
-  # Remove all images so no intermediate images are present
-  run_buildah rmi --all -f
   _prefetch alpine
   label="l_$(random_string)"
   labelvalue="v_$(random_string)"
@@ -6114,8 +6107,6 @@ _EOF
   # Entire image must be picked from cache
   run_buildah inspect --format '{{ .FromImageID }}' ${target}
   expect_output "$firstImageID" "Image ID cached from first build"
-
-  run_buildah rmi -f ${target}
 }
 
 
@@ -6147,8 +6138,6 @@ _EOF
   # Label of second build must contain label1:value2
   run_buildah inspect --format '{{ .Docker.ContainerConfig.Labels }}' ${target}
   expect_output --substring "label1:value2"
-
-  run_buildah rmi -f ${target}
 }
 
 @test "bud with run should not leave mounts behind cleanup test" {
@@ -6208,7 +6197,6 @@ _EOF
   local contextdir=$BUDFILES/buildkit-mount
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfile $contextdir/
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-no-source-like-buildkit" {
@@ -6219,7 +6207,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount $contextdir
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfile2 $contextdir/
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-with-only-target-like-buildkit" {
@@ -6240,7 +6227,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount $contextdir
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfile $contextdir/subdir/
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-relative-path-like-buildkit" {
@@ -6251,7 +6237,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount $contextdir
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfile4 $contextdir/
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-with-rw-like-buildkit" {
@@ -6262,7 +6247,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount $contextdir
   run_buildah build --isolation chroot -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfile3 $contextdir/subdir/
   expect_output --substring "world"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-verify-if-we-dont-clean-prexisting-path" {
@@ -6288,7 +6272,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount $contextdir
   # tmpfs mount: target should be available on container without creating any special directory on container
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfiletmpfs
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-with-tmpfs-with-copyup-like-buildkit" {
@@ -6299,7 +6282,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount $contextdir
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfiletmpfscopyup
   expect_output --substring "certs"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-cache-like-buildkit" {
@@ -6313,8 +6295,6 @@ _EOF
   # try reading something from persistent cache in a different build
   run_buildah build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecacheread
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
-  run_buildah rmi -f testbud2
 }
 
 @test "bud-with-mount-cache-like-buildkit with buildah prune should clear the cache" {
@@ -6330,7 +6310,6 @@ _EOF
   # try reading something from persistent cache in a different build
   run_buildah 1 build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecacheread
   expect_output --substring "No such file or directory"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-cache-like-buildkit-verify-default-selinux-option" {
@@ -6357,7 +6336,6 @@ _EOF
   # try writing something to persistent cache
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewritesharing
   expect_output --substring "world"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-multiple-mount-keeps-default-bind-mount" {
@@ -6368,7 +6346,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount $contextdir
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilemultiplemounts $contextdir/
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
 }
 
 @test "bud with user in groups" {
@@ -6407,8 +6384,6 @@ _EOF
   # try reading something from another image in a different build
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilebindfrom
   expect_output --substring "hello"
-  run_buildah rmi -f buildkitbase
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-writeable-mount-bind-from-like-buildkit" {
@@ -6422,8 +6397,6 @@ _EOF
   # try reading something from another image in a different build
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilebindfromwriteable
   expect_output --substring "world"
-  run_buildah rmi -f buildkitbase
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-bind-from-without-source-like-buildkit" {
@@ -6437,8 +6410,6 @@ _EOF
   # try reading something from another image in a different build
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilebindfromwithoutsource
   expect_output --substring "hello"
-  run_buildah rmi -f buildkitbase
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-bind-from-with-empty-from-like-buildkit" {
@@ -6452,7 +6423,6 @@ _EOF
   # try reading something from image in a different build
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilebindfromwithemptyfrom
   expect_output --substring "points to an empty value"
-  run_buildah rmi -f buildkitbase
 }
 
 @test "bud-with-mount-cache-from-like-buildkit" {
@@ -6464,7 +6434,6 @@ _EOF
   # try reading something from persistent cache in a different build
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefrom $contextdir/
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
 }
 
 # following test must fail
@@ -6481,7 +6450,6 @@ _EOF
   # try reading something from persistent cache in a different build
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
   expect_output --substring "no stage found with name buildkitbase"
-  run_buildah rmi -f buildkitbase
 }
 
 @test "bud-with-mount-cache-multiple-from-like-buildkit" {
@@ -6494,7 +6462,6 @@ _EOF
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachemultiplefrom $contextdir/
   expect_output --substring "hello"
   expect_output --substring "hello2"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-bind-from-relative-like-buildkit" {
@@ -6508,8 +6475,6 @@ _EOF
   # try reading something from image in a different build
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilebindfromrelative
   expect_output --substring "hello"
-  run_buildah rmi -f buildkitbaserelative
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-bind-from-multistage-relative-like-buildkit" {
@@ -6521,7 +6486,6 @@ _EOF
   # build base image which we will use as our `from`
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilemultistagefrom $contextdir/
   expect_output --substring "hello"
-  run_buildah rmi -f testbud
 }
 
 @test "bud-with-mount-bind-from-cache-multistage-relative-like-buildkit" {
@@ -6534,7 +6498,6 @@ _EOF
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilemultistagefromcache $contextdir/
   expect_output --substring "hello"
   expect_output --substring "hello2"
-  run_buildah rmi -f testbud
 }
 
 @test "bud with network names" {
