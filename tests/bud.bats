@@ -354,6 +354,12 @@ _EOF
   expect_output --substring 'COPY <<robots.txt <<humans.txt /test/ \(\(robots content)) \(\(humans content))'
 }
 
+@test "bud build with heredoc with COPY instructionw with .containerignore set" {
+  run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc-ignore/Containerfile --ignorefile $BUDFILES/heredoc-ignore/.containerignore .
+  expect_output --substring "This is a file"
+  expect_output --substring "This is a line from file"
+}
+
 @test "bud build with heredoc content which is a bash file" {
   skip_if_in_container
   _prefetch busybox

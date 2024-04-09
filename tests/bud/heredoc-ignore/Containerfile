@@ -1,0 +1,7 @@
+# Containerfile
+FROM docker.io/alpine:latest
+COPY <<EOF /data.txt
+This is a file
+This is a line from file
+EOF
+RUN cat /data.txt
