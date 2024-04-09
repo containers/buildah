@@ -3455,18 +3455,6 @@ _EOF
   expect_output --substring "FROM alpine"
 }
 
-@test "bud with dir for file but no Dockerfile in dir" {
-  target=alpine-image
-  run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/empty-dir $BUDFILES/empty-dir
-  expect_output --substring "no such file or directory"
-}
-
-@test "bud with bad dir Dockerfile" {
-  target=alpine-image
-  run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f ${TEST_SOURCES}/baddirname ${TEST_SOURCES}/baddirname
-  expect_output --substring "no such file or directory"
-}
-
 @test "bud with ARG before FROM default value" {
   _prefetch busybox
   target=leading-args-default
@@ -3511,7 +3499,6 @@ _EOF
 
 @test "bud with copy-from and cache" {
   _prefetch busybox
-  target=busybox-image
   run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid1 -f $BUDFILES/copy-from/Dockerfile2 $BUDFILES/copy-from
   cat ${TEST_SCRATCH_DIR}/iid1
   test -s ${TEST_SCRATCH_DIR}/iid1
@@ -3970,17 +3957,18 @@ _EOF
 }
 
 @test "bud with specified context should fail if directory contains no Dockerfile" {
-  run_buildah 125 build $WITH_POLICY_JSON "$TEST_SCRATCH_DIR"
+  mkdir -p $TEST_SCRATCH_DIR/empty-dir
+  run_buildah 125 build $WITH_POLICY_JSON "$TEST_SCRATCH_DIR"/empty-dir
   expect_output --substring "no such file or directory"
 }
 
-@test "bud with specified context should fail if assumed Dockerfile is a directory" {
+@test "bud with specified context should fail if Dockerfile in context directory is actually a file" {
   mkdir -p "$TEST_SCRATCH_DIR"/Dockerfile
   run_buildah 125 build $WITH_POLICY_JSON "$TEST_SCRATCH_DIR"
   expect_output --substring "is not a file"
 }
 
-@test "bud with specified context should fail if context contains not-existing Dockerfile" {
+@test "bud with specified context should fail if context directory does not exist" {
   run_buildah 125 build $WITH_POLICY_JSON "$TEST_SCRATCH_DIR"/Dockerfile
   expect_output --substring "no such file or directory"
 }
