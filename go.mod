@@ -8,7 +8,7 @@ require (
 	github.com/containers/common v0.58.1
 	github.com/containers/image/v5 v5.30.0
 	github.com/containers/luksy v0.0.0-20240212203526-ceb12d4fd50c
-	github.com/containers/ocicrypt v1.1.9
+	github.com/containers/ocicrypt v1.1.10
 	github.com/containers/storage v1.53.0
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/docker/distribution v2.8.3+incompatible
@@ -70,7 +70,7 @@ require (
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.2 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
