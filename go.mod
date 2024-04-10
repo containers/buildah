@@ -9,7 +9,7 @@ require (
 	github.com/containers/common v0.57.4
 	github.com/containers/image/v5 v5.29.2
 	github.com/containers/luksy v0.0.0-20231030195837-b5a7f79da98b
-	github.com/containers/ocicrypt v1.1.9
+	github.com/containers/ocicrypt v1.1.10
 	github.com/containers/storage v1.51.0
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/docker/distribution v2.8.3+incompatible
@@ -35,10 +35,10 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.8
-	golang.org/x/crypto v0.17.0
+	golang.org/x/crypto v0.19.0
 	golang.org/x/sync v0.5.0
-	golang.org/x/sys v0.15.0
-	golang.org/x/term v0.15.0
+	golang.org/x/sys v0.17.0
+	golang.org/x/term v0.17.0
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -65,7 +65,7 @@ require (
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go-connections v0.4.1-0.20210727194412-58542c764a11 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
 	github.com/go-openapi/errors v0.20.4 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
