@@ -12,6 +12,7 @@ import (
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage/pkg/fileutils"
 )
 
 // PullOptions includes data to alter certain knobs when pulling a source
@@ -27,7 +28,7 @@ type PullOptions struct {
 
 // Pull `imageInput` from a container registry to `sourcePath`.
 func Pull(ctx context.Context, imageInput string, sourcePath string, options PullOptions) error {
-	if _, err := os.Stat(sourcePath); err == nil {
+	if err := fileutils.Exists(sourcePath); err == nil {
 		return fmt.Errorf("%q already exists", sourcePath)
 	}
 
