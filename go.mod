@@ -5,11 +5,11 @@ go 1.20
 require (
 	github.com/containerd/containerd v1.7.13
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.58.1-0.20240318131753-6f1c96f53a78
+	github.com/containers/common v0.58.1-0.20240410144442-8db59bf2fcce
 	github.com/containers/image/v5 v5.30.0
 	github.com/containers/luksy v0.0.0-20240312134643-3d2cf0e19c84
 	github.com/containers/ocicrypt v1.1.10
-	github.com/containers/storage v1.53.0
+	github.com/containers/storage v1.53.1-0.20240411065836-1fd0dc1d20e5
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v25.0.5+incompatible
@@ -19,7 +19,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.12.5
 	github.com/onsi/ginkgo/v2 v2.17.1
-	github.com/onsi/gomega v1.31.1
+	github.com/onsi/gomega v1.32.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.1.12
@@ -34,13 +34,13 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.9
-	golang.org/x/crypto v0.21.0
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.18.0
-	golang.org/x/term v0.18.0
+	golang.org/x/crypto v0.22.0
+	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8
+	golang.org/x/sync v0.7.0
+	golang.org/x/sys v0.19.0
+	golang.org/x/term v0.19.0
 	sigs.k8s.io/yaml v1.4.0
-	tags.cncf.io/container-device-interface v0.6.2
+	tags.cncf.io/container-device-interface v0.7.1
 )
 
 require (
@@ -100,7 +100,7 @@ require (
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.7 // indirect
+	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20230907030200-6d76a0f91e1e // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -132,7 +132,7 @@ require (
 	github.com/sylabs/sif/v2 v2.15.1 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
-	github.com/ulikunitz/xz v0.5.11 // indirect
+	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/vbatts/tar-split v0.11.5 // indirect
 	github.com/vbauerster/mpb/v8 v8.7.2 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
@@ -144,17 +144,17 @@ require (
 	go.opentelemetry.io/otel v1.22.0 // indirect
 	go.opentelemetry.io/otel/metric v1.22.0 // indirect
 	go.opentelemetry.io/otel/trace v1.22.0 // indirect
-	golang.org/x/mod v0.15.0 // indirect
+	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/tools v0.18.0 // indirect
+	golang.org/x/tools v0.19.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/grpc v1.62.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog v1.0.0 // indirect
-	tags.cncf.io/container-device-interface/specs-go v0.6.0 // indirect
+	tags.cncf.io/container-device-interface/specs-go v0.7.0 // indirect
 )
 
 replace github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.1.0

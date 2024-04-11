@@ -394,7 +394,7 @@ load helpers
 
 @test "from with nonexistent authfile: fails" {
   run_buildah 125 from --authfile /no/such/file --pull $WITH_POLICY_JSON alpine
-  expect_output "Error: credential file is not accessible: stat /no/such/file: no such file or directory"
+  assert "$output" =~ "Error: credential file is not accessible: (faccessat|stat) /no/such/file: no such file or directory"
 }
 
 @test "from --pull-always: emits 'Getting' even if image is cached" {

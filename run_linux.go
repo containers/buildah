@@ -69,7 +69,10 @@ func setChildProcess() error {
 
 func (b *Builder) cdiSetupDevicesInSpec(deviceSpecs []string, configDir string, spec *specs.Spec) ([]string, error) {
 	leftoverDevices := deviceSpecs
-	registry := cdi.GetRegistry()
+	registry, err := cdi.NewCache()
+	if err != nil {
+		return nil, fmt.Errorf("creating CDI registry: %w", err)
+	}
 	var configDirs []string
 	if b.CDIConfigDir != "" {
 		configDirs = append(configDirs, b.CDIConfigDir)

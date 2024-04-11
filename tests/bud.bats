@@ -4213,7 +4213,7 @@ _EOF
 @test "bud with Containerfile should fail with nonexistent authfile" {
   target=alpine-image
   run_buildah 125 build --authfile /tmp/nonexistent $WITH_POLICY_JSON -t ${target} $BUDFILES/containerfile
-  expect_output "Error: credential file is not accessible: stat /tmp/nonexistent: no such file or directory"
+  assert "$output" =~ "Error: credential file is not accessible: (faccessat|stat) /tmp/nonexistent: no such file or directory"
 }
 
 
