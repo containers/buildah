@@ -34,6 +34,7 @@ import (
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/hooks"
 	hooksExec "github.com/containers/common/pkg/hooks/exec"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/lockfile"
@@ -1331,7 +1332,7 @@ func setupSpecialMountSpecChanges(spec *specs.Spec, shmSize string) ([]specs.Mou
 	// if userns and host ipc bind mount shm
 	if isUserns && !isIpcns {
 		// bind mount /dev/shm when it exists
-		if _, err := os.Stat("/dev/shm"); err == nil {
+		if err := fileutils.Exists("/dev/shm"); err == nil {
 			shmMount := specs.Mount{
 				Source:      "/dev/shm",
 				Type:        "bind",
