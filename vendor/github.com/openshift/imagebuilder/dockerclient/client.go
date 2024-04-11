@@ -1058,7 +1058,7 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			}
 			chmod = func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
 				mode := h.Mode &^ 0o777
-				mode |= parsed & 0o777
+				mode |= parsed & 0o7777
 				h.Mode = mode
 				return nil, false, false, nil
 			}

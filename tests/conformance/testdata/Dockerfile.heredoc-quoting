@@ -1,0 +1,215 @@
+FROM busybox
+ARG argA=argvA
+ENV varA=valueA
+
+# An argument, an environment variable, and one set in the heredoc
+RUN <<EOF
+varB=valueB
+touch /run-argA=$argA.unquoted1.txt
+touch /run-varA=$varA.unquoted1.txt
+touch /run-varB=$varB.unquoted1.txt
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+RUN <<EOF
+varB=valueB
+touch /run-argA="$argA".unquoted2.txt
+touch /run-varA="$varA".unquoted2.txt
+touch /run-varB="$varB".unquoted2.txt
+EOF
+
+# An argument, an environment variable overridden in the heredoc, and one set in the heredoc
+RUN <<EOF
+varA=valueA2
+varB=valueB
+touch /run-argA="$argA".unquoted3.txt
+touch /run-varA="$varA".unquoted3.txt
+touch /run-varB="$varB".unquoted3.txt
+EOF
+
+# An overridden argument, an environment variable overridden in the heredoc, and one set in the heredoc
+RUN <<EOF
+argA=argvA2
+varA=valueA2
+varB=valueB
+touch /run-argA="$argA".unquoted4.txt
+touch /run-varA="$varA".unquoted4.txt
+touch /run-varB="$varB".unquoted4.txt
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+RUN <<"EOF"
+varB=valueB
+touch /run-argA=$argA.quoted1.txt
+touch /run-varA=$varA.quoted1.txt
+touch /run-varB=$varB.quoted1.txt
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+RUN <<"EOF"
+varB=valueB
+touch /run-argA="$argA".quoted2.txt
+touch /run-varA="$varA".quoted2.txt
+touch /run-varB="$varB".quoted2.txt
+EOF
+
+# An argument, an environment variable overridden in the heredoc, and one set in the heredoc
+RUN <<"EOF"
+varA=valueA2
+varB=valueB
+touch /run-argA="$argA".quoted3.txt
+touch /run-varA="$varA".quoted3.txt
+touch /run-varB="$varB".quoted3.txt
+EOF
+
+# An overridden argument, an environment variable overridden in the heredoc, and one set in the heredoc
+RUN <<"EOF"
+argA=argvA2
+varA=valueA2
+varB=valueB
+touch /run-argA="$argA".quoted4.txt
+touch /run-varA="$varA".quoted4.txt
+touch /run-varB="$varB".quoted4.txt
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+COPY <<EOF /copy-unquoted1.txt
+varB=valueB
+touch /argA=$argA
+touch /varA=$varA
+touch /varB=$varB
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+COPY <<EOF /copy-unquoted2.txt
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An argument, an environment variable overridden in the heredoc, and one set in the heredoc
+COPY <<EOF /copy-unquoted3.txt
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An overridden argument, an environment variable overridden in the heredoc, and one set in the heredoc
+COPY <<EOF /copy-unquoted4.txt
+argA=argvA2
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+COPY <<"EOF" /copy-quoted1.txt
+varB=valueB
+argA=$argA
+varA=$varA
+varB=$varB
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+COPY <<"EOF" /copy-quoted2.txt
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An argument, an environment variable overridden in the heredoc, and one set in the heredoc
+COPY <<"EOF" /copy-quoted3.txt
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An overridden argument, an environment variable overridden in the heredoc, and one set in the heredoc
+COPY <<"EOF" /copy-quoted4.txt
+argA=argvA2
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+ADD <<EOF /add-unquoted1.txt
+varB=valueB
+touch /argA=$argA
+touch /varA=$varA
+touch /varB=$varB
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+ADD <<EOF /add-unquoted2.txt
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An argument, an environment variable overridden in the heredoc, and one set in the heredoc
+ADD <<EOF /add-unquoted3.txt
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An overridden argument, an environment variable overridden in the heredoc, and one set in the heredoc
+ADD <<EOF /add-unquoted4.txt
+argA=argvA2
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+ADD <<"EOF" /add-quoted1.txt
+varB=valueB
+argA=$argA
+varA=$varA
+varB=$varB
+EOF
+
+# An argument, an environment variable, and one set in the heredoc
+ADD <<"EOF" /add-quoted2.txt
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An argument, an environment variable overridden in the heredoc, and one set in the heredoc
+ADD <<"EOF" /add-quoted3.txt
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+# An overridden argument, an environment variable overridden in the heredoc, and one set in the heredoc
+ADD <<"EOF" /add-quoted4.txt
+argA=argvA2
+varA=valueA2
+varB=valueB
+argA="$argA"
+varA="$varA"
+varB="$varB"
+EOF
+
+RUN touch -r /etc/passwd /*.txt
