@@ -16,6 +16,7 @@ import (
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/netns"
 	"github.com/containers/common/pkg/systemd"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/lockfile"
 	"github.com/hashicorp/go-multierror"
@@ -100,18 +101,37 @@ func (n *Netns) getOrCreateNetns() (ns.NetNS, bool, error) {
 	nsPath := n.getPath(rootlessNetnsDir)
 	nsRef, err := ns.GetNS(nsPath)
 	if err == nil {
-		// TODO check if slirp4netns is alive
-		return nsRef, false, nil
-	}
-	logrus.Debugf("Creating rootless network namespace at %q", nsPath)
-	// We have to create the netns dir again here because it is possible
-	// that cleanup() removed it.
-	if err := os.MkdirAll(n.dir, 0o700); err != nil {
-		return nil, false, wrapError("", err)
-	}
-	netns, err := netns.NewNSAtPath(nsPath)
-	if err != nil {
-		return nil, false, wrapError("create netns", err)
+		pidPath := n.getPath(rootlessNetNsConnPidFile)
+		pid, err := readPidFile(pidPath)
+		if err == nil {
+			// quick check if pasta/slirp4netns are still running
+			err := unix.Kill(pid, 0)
+			if err == nil {
+				// All good, return the netns.
+				return nsRef, false, nil
+			}
+			// Print warnings in case things went wrong, we might be able to recover
+			// but maybe not so make sure to leave some hints so we can figure out what went wrong.
+			if errors.Is(err, unix.ESRCH) {
+				logrus.Warn("rootless netns program no longer running, trying to start it again")
+			} else {
+				logrus.Warnf("failed to check if rootless netns program is running: %v, trying to start it again", err)
+			}
+		} else {
+			logrus.Warnf("failed to read rootless netns program pid: %v", err)
+		}
+		// In case of errors continue and setup the network cmd again.
+	} else {
+		logrus.Debugf("Creating rootless network namespace at %q", nsPath)
+		// We have to create the netns dir again here because it is possible
+		// that cleanup() removed it.
+		if err := os.MkdirAll(n.dir, 0o700); err != nil {
+			return nil, false, wrapError("", err)
+		}
+		nsRef, err = netns.NewNSAtPath(nsPath)
+		if err != nil {
+			return nil, false, wrapError("create netns", err)
+		}
 	}
 	switch strings.ToLower(n.config.Network.DefaultRootlessNetworkCmd) {
 	case "", slirp4netns.BinaryName:
@@ -121,11 +141,21 @@ func (n *Netns) getOrCreateNetns() (ns.NetNS, bool, error) {
 	default:
 		err = fmt.Errorf("invalid rootless network command %q", n.config.Network.DefaultRootlessNetworkCmd)
 	}
-	return netns, true, err
+	// If pasta or slirp4netns fail here we need to get rid of the netns again to not leak it,
+	// otherwise the next command thinks the netns was successfully setup.
+	if err != nil {
+		if nerr := netns.UnmountNS(nsPath); nerr != nil {
+			logrus.Error(nerr)
+		}
+		_ = nsRef.Close()
+		return nil, false, err
+	}
+
+	return nsRef, true, nil
 }
 
 func (n *Netns) cleanup() error {
-	if _, err := os.Stat(n.dir); err != nil {
+	if err := fileutils.Exists(n.dir); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			// dir does not exists no need for cleanup
 			return nil
@@ -165,11 +195,7 @@ func (n *Netns) setupPasta(nsPath string) error {
 
 	if systemd.RunsOnSystemd() {
 		// Treat these as fatal - if pasta failed to write a PID file something is probably wrong.
-		pidfile, err := os.ReadFile(pidPath)
-		if err != nil {
-			return fmt.Errorf("unable to open pasta PID file: %w", err)
-		}
-		pid, err := strconv.Atoi(strings.TrimSpace(string(pidfile)))
+		pid, err := readPidFile(pidPath)
 		if err != nil {
 			return fmt.Errorf("unable to decode pasta PID: %w", err)
 		}
@@ -245,16 +271,12 @@ func (n *Netns) setupSlirp4netns(nsPath string) error {
 
 func (n *Netns) cleanupRootlessNetns() error {
 	pidFile := n.getPath(rootlessNetNsConnPidFile)
-	b, err := os.ReadFile(pidFile)
+	pid, err := readPidFile(pidFile)
 	if err == nil {
-		var i int
-		i, err = strconv.Atoi(strings.TrimSpace(string(b)))
-		if err == nil {
-			// kill the slirp process so we do not leak it
-			err = unix.Kill(i, unix.SIGTERM)
-			if err == unix.ESRCH {
-				err = nil
-			}
+		// kill the slirp/pasta process so we do not leak it
+		err = unix.Kill(pid, unix.SIGTERM)
+		if err == unix.ESRCH {
+			err = nil
 		}
 	}
 	return err
@@ -294,6 +316,13 @@ func (n *Netns) setupMounts() error {
 		return wrapError("create new mount namespace", err)
 	}
 
+	// Ensure we mount private in our mountns to prevent accidentally
+	// overwriting the host mounts in case the default propagation is shared.
+	err = unix.Mount("", "/", "", unix.MS_PRIVATE|unix.MS_REC, "")
+	if err != nil {
+		return wrapError("make tree private in new mount namespace", err)
+	}
+
 	xdgRuntimeDir, err := homedir.GetRuntimeDir()
 	if err != nil {
 		return fmt.Errorf("could not get runtime directory: %w", err)
@@ -301,7 +330,7 @@ func (n *Netns) setupMounts() error {
 	newXDGRuntimeDir := n.getPath(xdgRuntimeDir)
 	// 1. Mount the netns into the new run to keep them accessible.
 	// Otherwise cni setup will fail because it cannot access the netns files.
-	err = mountAndMkdirDest(xdgRuntimeDir, newXDGRuntimeDir, none, unix.MS_BIND|unix.MS_SHARED|unix.MS_REC)
+	err = mountAndMkdirDest(xdgRuntimeDir, newXDGRuntimeDir, none, unix.MS_BIND|unix.MS_REC)
 	if err != nil {
 		return err
 	}
@@ -309,7 +338,7 @@ func (n *Netns) setupMounts() error {
 	// 2. Also keep /run/systemd if it exists.
 	// Many files are symlinked into this dir, for example /dev/log.
 	runSystemd := "/run/systemd"
-	_, err = os.Stat(runSystemd)
+	err = fileutils.Exists(runSystemd)
 	if err == nil {
 		newRunSystemd := n.getPath(runSystemd)
 		err = mountAndMkdirDest(runSystemd, newRunSystemd, none, unix.MS_BIND|unix.MS_REC)
@@ -448,7 +477,7 @@ func (n *Netns) mountCNIVarDir() error {
 	// while we could always use /var there are cases where a user might store the cni
 	// configs under /var/custom and this would break
 	for {
-		if _, err := os.Stat(varTarget); err == nil {
+		if err := fileutils.Exists(varTarget); err == nil {
 			varDir = n.getPath(varTarget)
 			break
 		}
@@ -556,15 +585,12 @@ func (n *Netns) Run(lock *lockfile.LockFile, toRun func() error) error {
 		logrus.Errorf("Failed to decrement ref count: %v", err)
 		return inErr
 	}
-	if count == 0 {
+	// runInner() already cleans up the netns when it created a new one on errors
+	// so we only need to do that if there was no error.
+	if inErr == nil && count == 0 {
 		err = n.cleanup()
 		if err != nil {
-			err = wrapError("cleanup", err)
-			if inErr == nil {
-				return err
-			}
-			logrus.Errorf("Failed to cleanup rootless netns: %v", err)
-			return inErr
+			return wrapError("cleanup", err)
 		}
 	}
 
@@ -598,4 +624,12 @@ func refCount(dir string, inc int) (int, error) {
 	}
 
 	return currentCount, nil
+}
+
+func readPidFile(path string) (int, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(string(b)))
 }

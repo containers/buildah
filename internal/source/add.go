@@ -10,6 +10,7 @@ import (
 
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/fileutils"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -44,7 +45,7 @@ func (o *AddOptions) annotations() (map[string]string, error) {
 // tar ball.  Add attempts to auto-tar and auto-compress only if necessary.
 func Add(ctx context.Context, sourcePath string, artifactPath string, options AddOptions) error {
 	// Let's first make sure `sourcePath` exists and that we can access it.
-	if _, err := os.Stat(sourcePath); err != nil {
+	if err := fileutils.Exists(sourcePath); err != nil {
 		return err
 	}
 

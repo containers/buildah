@@ -13,6 +13,7 @@ import (
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/apparmor"
 	"github.com/containers/common/pkg/cgroupv2"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/containers/storage/types"
@@ -74,6 +75,8 @@ var (
 	ErrInvalidArg = errors.New("invalid argument")
 	// DefaultHooksDirs defines the default hooks directory.
 	DefaultHooksDirs = []string{"/usr/share/containers/oci/hooks.d"}
+	// DefaultCdiSpecDirs defines the default cdi spec directories.
+	DefaultCdiSpecDirs = []string{"/etc/cdi"}
 	// DefaultCapabilities is the default for the default_capabilities option in the containers.conf file.
 	DefaultCapabilities = []string{
 		"CAP_CHOWN",
@@ -204,8 +207,8 @@ func defaultConfig() (*Config, error) {
 		}
 		sigPath := filepath.Join(configHome, DefaultRootlessSignaturePolicyPath)
 		defaultEngineConfig.SignaturePolicyPath = sigPath
-		if _, err := os.Stat(sigPath); err != nil {
-			if _, err := os.Stat(DefaultSignaturePolicyPath); err == nil {
+		if err := fileutils.Exists(sigPath); err != nil {
+			if err := fileutils.Exists(DefaultSignaturePolicyPath); err == nil {
 				defaultEngineConfig.SignaturePolicyPath = DefaultSignaturePolicyPath
 			}
 		}
@@ -347,6 +350,7 @@ func defaultEngineConfig() (*EngineConfig, error) {
 		c.HelperBinariesDir.Set(append([]string{additionalHelperBinariesDir}, c.HelperBinariesDir.Get()...))
 	}
 	c.HooksDir.Set(DefaultHooksDirs)
+	c.CdiSpecDirs.Set(DefaultCdiSpecDirs)
 	c.ImageDefaultTransport = _defaultTransport
 	c.ImageVolumeMode = _defaultImageVolumeMode
 
