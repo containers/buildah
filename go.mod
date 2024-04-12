@@ -10,7 +10,7 @@ go 1.20 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 //         different distros and distro-versions build from
 //         this code, golang version consistency is
 //         desireable.  After manually updating to 1.21, a
-//         `toolchain` specificication should be added to pin
+//         `toolchain` specification should be added to pin
 //         the version and block auto-updates.  This does not
 //         block any future changes to the `go` value.
 //         Ref: Upstream discussion:
@@ -55,7 +55,7 @@ require (
 	golang.org/x/sys v0.19.0
 	golang.org/x/term v0.19.0
 	sigs.k8s.io/yaml v1.4.0
-	tags.cncf.io/container-device-interface v0.7.1
+	tags.cncf.io/container-device-interface v0.7.2
 )
 
 require (
