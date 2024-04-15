@@ -125,6 +125,7 @@ type Executor struct {
 	deviceSpecs             []string
 	signBy                  string
 	architecture            string
+	variant                 string
 	timestamp               *time.Time
 	os                      string
 	maxPullPushRetries      int
@@ -282,6 +283,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		deviceSpecs:                    options.Devices,
 		signBy:                         options.SignBy,
 		architecture:                   options.Architecture,
+		variant:                        options.Variant,
 		timestamp:                      options.Timestamp,
 		os:                             options.OS,
 		maxPullPushRetries:             options.MaxPullPushRetries,

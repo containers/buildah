@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -203,8 +204,9 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 
 	if len(options.Platforms) == 0 {
 		options.Platforms = append(options.Platforms, struct{ OS, Arch, Variant string }{
-			OS:   options.SystemContext.OSChoice,
-			Arch: options.SystemContext.ArchitectureChoice,
+			OS:      options.SystemContext.OSChoice,
+			Arch:    options.SystemContext.ArchitectureChoice,
+			Variant: options.SystemContext.VariantChoice,
 		})
 	}
 
@@ -235,10 +237,19 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			platformContext.ArchitectureChoice = platformSpec.Architecture
 			platformContext.VariantChoice = platformSpec.Variant
 		}
+		// Last ditch: we probably got a --arch or --os without the other,
+		// and we don't want to just ignore the one that was specified.
+		if platformContext.OSChoice == "" {
+			platformContext.OSChoice = runtime.GOOS
+		}
+		if platformContext.ArchitectureChoice == "" {
+			platformContext.ArchitectureChoice = runtime.GOARCH
+		}
 		platformOptions := options
 		platformOptions.SystemContext = &platformContext
 		platformOptions.OS = platformContext.OSChoice
 		platformOptions.Architecture = platformContext.ArchitectureChoice
+		platformOptions.Variant = platformContext.VariantChoice
 		logPrefix := ""
 		if len(options.Platforms) > 1 {
 			logPrefix = "[" + platforms.Format(platformSpec) + "] "

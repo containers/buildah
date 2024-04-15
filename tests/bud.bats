@@ -251,15 +251,17 @@ expect_output --substring "hello"
   assert "$output" !~ "missing .* build argument" \
          "With explicit --os + --arch + --variant, buildah should not warn"
 
-  # FIXME FIXME FIXME: #4319: with --os only, buildah should not warn about OS
-  if false; then
-      run_buildah build $WITH_POLICY_JSON --os linux \
-                  -t source -f $containerfile
-      assert "$output" !~ "missing.*TARGETOS" \
-             "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
-      # FIXME: add --arch test too, and maybe make this cleaner
-  fi
+  # Shouldn't warn about missing values with just --os
+  run_buildah build $WITH_POLICY_JSON --os linux \
+              -t source -f $containerfile
+  assert "$output" !~ "missing.*TARGET" \
+         "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
 
+  # Likewise with --arch
+  run_buildah build $WITH_POLICY_JSON --arch amd64 \
+              -t source -f $containerfile
+  assert "$output" !~ "missing.*TARGET" \
+         "With explicit --arch (but no os), buildah should not warn about TARGETARCH"
 }
 
 @test "build-conflicting-isolation-chroot-and-network" {

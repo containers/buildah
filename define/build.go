@@ -281,6 +281,8 @@ type BuildOptions struct {
 	SignBy string
 	// Architecture specifies the target architecture of the image to be built.
 	Architecture string
+	// Variant specifies the target architecture variant of the image to be built.
+	Variant string
 	// Timestamp sets the created timestamp to the specified time, allowing
 	// for deterministic, content-addressable builds.
 	Timestamp *time.Time

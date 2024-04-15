@@ -382,6 +382,9 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if systemContext.ArchitectureChoice != b.Architecture() {
 		systemContext.ArchitectureChoice = b.Architecture()
 	}
+	if systemContext.VariantChoice != b.Variant() {
+		systemContext.VariantChoice = b.Variant()
+	}
 	if systemContext.OSChoice != b.OS() {
 		systemContext.OSChoice = b.OS()
 	}

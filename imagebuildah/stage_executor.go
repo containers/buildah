@@ -2135,6 +2135,9 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	}
 	s.builder.SetHostname(config.Hostname)
 	s.builder.SetDomainname(config.Domainname)
+	if s.executor.architecture != "" || s.executor.variant != "" {
+		s.builder.SetVariant(s.executor.variant)
+	}
 	if s.executor.architecture != "" {
 		s.builder.SetArchitecture(s.executor.architecture)
 	}
