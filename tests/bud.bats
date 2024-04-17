@@ -4398,9 +4398,8 @@ EOM
 }
 
 @test "bud-implicit-no-history" {
-  _prefetch nixery.dev/shell
-  run_buildah build $WITH_POLICY_JSON --layers=false $BUDFILES/no-history
-  run_buildah build $WITH_POLICY_JSON --layers=true  $BUDFILES/no-history
+  run_buildah build $WITH_POLICY_JSON --layers=false --build-arg SAFEIMAGE=$SAFEIMAGE $BUDFILES/no-history
+  run_buildah build $WITH_POLICY_JSON --layers=true  --build-arg SAFEIMAGE=$SAFEIMAGE $BUDFILES/no-history
 }
 
 @test "bud with encrypted FROM image" {
