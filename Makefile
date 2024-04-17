@@ -1,4 +1,5 @@
 export GOPROXY=https://proxy.golang.org
+export GOTOOLCHAIN=local
 
 APPARMORTAG := $(shell hack/apparmor_tag.sh)
 STORAGETAGS := exclude_graphdriver_devicemapper $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./hack/libsubid_tag.sh)
@@ -22,14 +23,8 @@ STRIP ?= strip
 GO := go
 GO_LDFLAGS := $(shell if $(GO) version|grep -q gccgo; then echo "-gccgoflags"; else echo "-ldflags"; fi)
 GO_GCFLAGS := $(shell if $(GO) version|grep -q gccgo; then echo "-gccgoflags"; else echo "-gcflags"; fi)
-# test for go module support
-ifeq ($(shell $(GO) help mod >/dev/null 2>&1 && echo true), true)
-export GO_BUILD=GO111MODULE=on $(GO) build -mod=vendor
-export GO_TEST=GO111MODULE=on $(GO) test -mod=vendor
-else
 export GO_BUILD=$(GO) build
 export GO_TEST=$(GO) test
-endif
 RACEFLAGS := $(shell $(GO_TEST) -race ./pkg/dummy > /dev/null 2>&1 && echo -race)
 
 COMMIT_NO ?= $(shell git rev-parse HEAD 2> /dev/null || true)
@@ -209,9 +204,10 @@ vendor-in-container:
 
 .PHONY: vendor
 vendor:
-	GO111MODULE=on $(GO) mod tidy
-	GO111MODULE=on $(GO) mod vendor
-	GO111MODULE=on $(GO) mod verify
+	$(GO) mod tidy
+	$(GO) mod vendor
+	$(GO) mod verify
+	if test -n "$(strip $(shell go env GOTOOLCHAIN))"; then go mod edit -toolchain none ; fi
 
 .PHONY: lint
 lint: install.tools
