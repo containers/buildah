@@ -3566,11 +3566,11 @@ func TestCommit(t *testing.T) {
 				derivedBuilder, err := buildah.NewBuilder(ctx, store, buildah.BuilderOptions{
 					FromImage: buildahID,
 				})
+				require.NoErrorf(t, err, "creating the derived container with buildah")
 				defer func(builder *buildah.Builder) {
 					err := builder.Delete()
 					assert.NoErrorf(t, err, "removing the derived container")
 				}(derivedBuilder)
-				require.NoErrorf(t, err, "creating the derived container with buildah")
 				var overrideConfig *manifest.Schema2Config
 				if test.derivedConfig != nil {
 					overrideConfig = config.Schema2ConfigFromGoDockerclientConfig(test.derivedConfig)

@@ -243,26 +243,48 @@ _EOF
   assert "${checkvars[*]}" != "" \
          "INTERNAL ERROR! No 'ARG xxx' lines in $containerfile!"
 
+  ARCH=$(go env GOARCH)
   # With explicit and full --platform, buildah should not warn.
   run_buildah build $WITH_POLICY_JSON --platform linux/amd64/v2 \
               -t source -f $containerfile
-  assert "$output" !~ "missing .* build argument" \
-         "With explicit --platform, buildah should not warn"
+  assert "$output" =~ "image platform \(linux/amd64\) does not match the expected platform" \
+         "With explicit --platform, buildah should warn about pulling difference in platform"
+  assert "$output" =~ "TARGETOS=linux" " --platform TARGETOS set correctly"
+  assert "$output" =~ "TARGETARCH=amd64" " --platform TARGETARCH set correctly"
+  assert "$output" =~ "TARGETVARIANT=" " --platform TARGETVARIANT set correctly"
+  assert "$output" =~ "TARGETPLATFORM=linux/amd64/v2" " --platform TARGETPLATFORM set correctly"
 
   # Likewise with individual args
   run_buildah build $WITH_POLICY_JSON --os linux --arch amd64 --variant v2 \
               -t source -f $containerfile
-  assert "$output" !~ "missing .* build argument" \
-         "With explicit --os + --arch + --variant, buildah should not warn"
+  assert "$output" =~ "image platform \(linux/amd64\) does not match the expected platform" \
+         "With explicit --variant, buildah should warn about pulling difference in platform"
+  assert "$output" =~ "TARGETOS=linux" "--os --arch --variant TARGETOS set correctly"
+  assert "$output" =~ "TARGETARCH=amd64" "--os --arch --variant TARGETARCH set correctly"
+  assert "$output" =~ "TARGETVARIANT=" "--os --arch --variant TARGETVARIANT set correctly"
+  assert "$output" =~ "TARGETPLATFORM=linux/amd64" "--os --arch --variant TARGETPLATFORM set correctly"
 
-  # FIXME FIXME FIXME: #4319: with --os only, buildah should not warn about OS
-  if false; then
-      run_buildah build $WITH_POLICY_JSON --os linux \
-                  -t source -f $containerfile
-      assert "$output" !~ "missing.*TARGETOS" \
-             "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
-      # FIXME: add --arch test too, and maybe make this cleaner
-  fi
+  run_buildah build $WITH_POLICY_JSON --os linux -t source -f $containerfile
+  assert "$output" !~ "WARNING" \
+         "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
+  assert "$output" =~ "TARGETOS=linux" "--os TARGETOS set correctly"
+  assert "$output" =~ "TARGETARCH=${ARCH}" "--os TARGETARCH set correctly"
+  assert "$output" =~ "TARGETVARIANT=" "--os TARGETVARIANT set correctly"
+  assert "$output" =~ "TARGETPLATFORM=linux/${ARCH}" "--os TARGETPLATFORM set correctly"
+
+  run_buildah build $WITH_POLICY_JSON --arch amd64 -t source -f $containerfile
+  assert "$output" !~ "WARNING" \
+         "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
+  assert "$output" =~ "TARGETOS=linux" "--arch TARGETOS set correctly"
+  assert "$output" =~ "TARGETARCH=amd64" "--arch TARGETARCH set correctly"
+  assert "$output" =~ "TARGETVARIANT=" "--arch TARGETVARIANT set correctly"
+  assert "$output" =~ "TARGETPLATFORM=linux/amd64" "--arch TARGETPLATFORM set correctly"
+
+  for option in "--arch=arm64" "--os=windows" "--variant=v2"; do
+    run_buildah 125 build $WITH_POLICY_JSON --platform linux/amd64 ${option} \
+                -t source -f $containerfile
+    assert "$output" =~ "Error: building system context: invalid --platform may not be used with --os, --arch, or --variant" "can't use --platform and one of --os, --arch or --variant together"
+  done
 }
 
 @test "build-conflicting-isolation-chroot-and-network" {
@@ -5729,9 +5751,9 @@ _EOF
 @test "bud with --pull-always" {
   _prefetch docker.io/library/alpine
   run_buildah build --pull-always $WITH_POLICY_JSON -t testpull $BUDFILES/containerfile
-  expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
+  expect_output --substring "Trying to pull docker.io/library/alpine:latest..."
   run_buildah build --pull=always $WITH_POLICY_JSON -t testpull $BUDFILES/containerfile
-  expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
+  expect_output --substring "Trying to pull docker.io/library/alpine:latest..."
 }
 
 @test "bud with --memory and --memory-swap" {
