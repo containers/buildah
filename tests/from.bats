@@ -20,7 +20,7 @@ load helpers
 }
 
 @test "from-with-digest" {
-  run_buildah pull alpine
+  _prefetch alpine
   run_buildah inspect --format "{{.FromImageID}}" alpine
   digest=$output
 

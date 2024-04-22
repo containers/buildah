@@ -69,6 +69,7 @@ EOF
     # Common options for all buildah and podman invocations
     ROOTDIR_OPTS="--root ${TEST_SCRATCH_DIR}/root --runroot ${TEST_SCRATCH_DIR}/runroot --storage-driver ${STORAGE_DRIVER}"
     BUILDAH_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf --registries-conf-dir ${TEST_SCRATCH_DIR}/registries.d --short-name-alias-conf ${TEST_SCRATCH_DIR}/cache/shortnames.conf"
+    COPY_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf --registries-conf-dir ${TEST_SCRATCH_DIR}/registries.d --short-name-alias-conf ${TEST_SCRATCH_DIR}/cache/shortnames.conf"
     PODMAN_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf"
 }
 
@@ -162,7 +163,7 @@ function _prefetch() {
             rm -fr $_BUILDAH_IMAGE_CACHEDIR/$fname
             echo "# [copy docker://$img dir:$_BUILDAH_IMAGE_CACHEDIR/$fname]" >&2
             for attempt in $(seq 3) ; do
-                if copy docker://"$img" dir:$_BUILDAH_IMAGE_CACHEDIR/$fname ; then
+                if copy $COPY_REGISTRY_OPTS docker://"$img" dir:$_BUILDAH_IMAGE_CACHEDIR/$fname ; then
                     break
                 fi
                 sleep 5

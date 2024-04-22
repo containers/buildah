@@ -1,4 +1,4 @@
-FROM quay.io/centos/centos:8
+FROM alpine
 
 ARG WIPE_CACHE
 
@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/cache1,sharing=locked \
     fi; \
     echo "foo" > /cache1/foo.txt; \
     ls -l /cache1; \
-    chmod --recursive g=u /cache1; \
+    chmod -R g=u /cache1; \
     : ;
 
 # Cache was wiped-out but lock should not hang here: https://github.com/containers/buildah/issues/4342
