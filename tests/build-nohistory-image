@@ -1,0 +1,260 @@
+#!/bin/bash
+#
+# build-no-history-image - craft a custom image used in bud-implicit-no-history test.
+#
+# This script does not run in CI, or automated tests, or gating. In fact
+# it is meant to be run once, only once, by a human, and then (with luck)
+# never again. The purpose is to create a custom test image with certain
+# very specific attributes. This image will be used in one specific test.
+# Maybe some day other tests. The image should be static and immutable.
+# This creation script is checked into the buildah source tree simply
+# as reference for how the image was created, and as a tool should there
+# ever be a need to update that test image in some way.
+#
+# See https://github.com/containers/buildah/pull/5473
+#
+set -e
+
+# Name of the resulting image. (Never pushed automatically).
+# If image build is successful, a human can push it to quay.
+IMAGE=quay.io/libpod/buildah-testimage-nohistory:$(date +%Y%m%d)
+podman rmi -f $IMAGE &>/dev/null
+
+# Arches for which we want to build images
+declare -a arches=(amd64 arm:v7 arm64:v8 ppc64le s390x)
+
+# Working directory; we'll be filling it up with layer files and
+# manifests and whatnot
+workdir=$(mktemp --tmpdir --directory $(basename $0).XXXXXXX)
+ocidir=oci/blobs/sha256
+mkdir -p $workdir/$ocidir
+
+# git-relative path to this script
+create_script=$(cd $(dirname $0) && git ls-files --full-name $(basename $0))
+if [ -z "$create_script" ]; then
+    create_script=$0
+fi
+git_version=$(git describe --tags)
+if [[ -n "$git_version" ]]; then
+    create_script+=" @ $git_version"
+fi
+
+# First layer is a copy of this script. Copy it before we cd.
+cp $0 $workdir/
+cd $workdir
+echo $workdir
+
+###############################################################################
+# BEGIN helper functions
+
+# Move a source file into blobs dir; return its digest
+# e.g., foo.json -> oci/blobs/sha256/deadbeef, returns deadbeef
+function move_and_get_digest() {
+    local sourcefile=$1
+    digest=$(sha256sum $sourcefile | awk '{print $1}')
+    mv $sourcefile $ocidir/$digest
+
+    echo $digest
+}
+
+# Returns size in bytes of a digest file
+function filesize() {
+    stat -c %s $ocidir/$1
+}
+
+# Join an array using a character string
+function join_with() {
+    local d="$1"
+    local f="$2"
+    shift 2
+    printf %s "$f" "${@/#/$d}"
+}
+
+# Create one layer. If called with an argument, use that as input file;
+# otherwise create random content. Returns layer digest.
+function create_layer() {
+    local inputfile
+    if [[ -n "$*" ]]; then
+        inputfile=$1
+        shift
+    else
+        inputfile=myfile
+        dd if=/dev/urandom bs=1 count=$((RANDOM+1024)) of=$inputfile status=none
+    fi
+
+    # Tar it. Once we tar it, we have no further need for the original
+    tarfile=mylayer.tar
+    tar -cf $tarfile $inputfile
+    rm -f $inputfile
+
+    move_and_get_digest $tarfile
+}
+
+# Create a config.json for a given arch and layerIDs.
+# Returns file digest.
+function create_config() {
+    local arch="$1"
+    shift
+
+    # Remaining args are layer digests
+    declare -a diff_ids
+    for layer in "$@";do
+        diff_ids+=("\"sha256:$layer\"")
+    done
+
+    config=config.json
+    cat >$config <<EOF
+{
+  "created": "$(date --utc +'%Y-%m-%dT%H:%M:%S.%NZ')",
+  "architecture": "$arch",
+  "os": "linux",
+  "config": {
+    "Cmd": ["/bin/sh"],
+    "Env": [ "PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin" ]
+  },
+  "rootfs": {
+    "type": "layers",
+    "diff_ids": [ $(join_with ',' "${diff_ids[@]}") ]
+  }
+}
+EOF
+
+    move_and_get_digest $config
+}
+
+# Create a manifest.json for a given config.json and layerIDs.
+# Returns file digest.
+function create_manifest() {
+    local confdigest="$1"
+    shift
+
+    # Remaining args are layer digests
+    declare -a layerlist
+    for layer in "$@"; do
+        layerlist+=("{\"mediaType\":\"application/vnd.oci.image.layer.v1.tar\",\"digest\":\"sha256:$layer\",\"size\":$(filesize $layer)}")
+    done
+
+    manifest=manifest.json
+    cat >$manifest <<EOF
+{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.manifest.v1+json",
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:$confdigest",
+    "size": $(filesize $confdigest)
+  },
+  "layers": [ $(join_with ',' "${layerlist[@]}") ],
+  "annotations": {"created_by": "${create_script}"}
+}
+EOF
+
+    move_and_get_digest $manifest
+}
+
+# END   helper functions
+###############################################################################
+# BEGIN crafting OCI layout files
+
+#
+# STEP 1: Create some layers (content)
+#
+declare -a layerid
+layerid+=($(create_layer $(basename $0)))
+for i in $(seq 3); do
+    # Content for the layer
+    layerid+=($(create_layer))
+done
+
+#
+# STEP 2: Create json config & manifest files for each desired arch
+#
+declare -a manifests
+for tuple in "${arches[@]}"; do
+    arch=$tuple
+    variant=
+    if [[ $arch =~ : ]]; then
+        variant=$(expr "$arch" : ".*:\(.*\)")
+        arch=${arch%%:*}
+    fi
+
+    confdigest=$(create_config "$arch" "${layerid[@]}")
+    manifestdigest=$(create_manifest "$confdigest" "${layerid[@]}")
+
+    # Used below when creating manifest list
+    manifests+=("{\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"digest\":\"sha256:${manifestdigest}\",\"size\":$(filesize $manifestdigest),\"platform\":{\"architecture\":\"${arch}\",\"os\":\"linux\",\"variant\":\"${variant}\"}}")
+done
+
+#
+# STEP 3: Create a manifest list including each of those arch manifests
+#
+cat >mlist.json <<EOF
+{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.index.v1+json",
+  "manifests": [ $(join_with ',' "${manifests[@]}") ]
+}
+EOF
+mlistdigest=$(move_and_get_digest mlist.json)
+
+#
+# STEP 4: index.json is the starting point for everything.
+#
+cat >oci/index.json <<EOF
+{
+  "schemaVersion": 2,
+  "manifests": [
+    {
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "digest": "sha256:${mlistdigest}",
+      "size": $(filesize $mlistdigest)
+    }
+  ]
+}
+EOF
+
+# Write the "this is an OCI layout directory" identifier.
+echo '{"imageLayoutVersion":"1.0.0"}' > oci/oci-layout
+
+# END   crafting OCI layout files
+####################################################################################
+# BEGIN transfering those to containers-storage
+
+# Import the image from the OCI layout into buildah's normal storage.
+# Complicated horrible loop because 'skopeo copy --all' barfs:
+#   containers-storage" does not support copying multiple images as a group
+podman manifest create $IMAGE
+for tuple in "${arches[@]}"; do
+    arch=$tuple
+    override_variant=
+    if [[ $arch =~ : ]]; then
+        variant=$(expr "$arch" : ".*:\(.*\)")
+        override_variant="--override-variant=$variant"
+        arch=${arch%%:*}
+    fi
+
+    tmpimage=localhost/intermediate:$arch$variant
+    podman rmi -f $tmpimage
+    skopeo copy --override-arch=$arch $override_variant oci:oci containers-storage:$tmpimage
+    podman manifest add $IMAGE containers-storage:$tmpimage
+done
+
+# END   transfering those to containers-storage
+###############################################################################
+
+# Double-check that the image has no history, which is what we wanted to get
+# out of all of this.
+inspect_history=$(buildah inspect --format '{{.History}}' $IMAGE)
+if [[ "$inspect_history" != '[]' ]]; then
+    echo "base image generated for test had history field that was not an empty slice:" >&2
+    echo "$inspect_history" >&2
+    exit 1
+fi
+
+# Worked. Clean up working directory
+cd /
+rm -rf $workdir
+
+echo
+echo "You may now run:"
+echo "   podman manifest push --all $IMAGE docker://$IMAGE"

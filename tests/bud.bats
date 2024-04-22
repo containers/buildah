@@ -4433,7 +4433,13 @@ EOM
 }
 
 @test "bud-implicit-no-history" {
-  _prefetch nixery.dev/shell
+  testimage=quay.io/libpod/buildah-testimage-nohistory:20240501
+  _prefetch $testimage busybox
+  run_buildah tag $testimage fakeregistry.podman.io/notreal
+
+  # Before #5276, running build with a no-history image barfed with:
+  #   initializing source containers-storage:xxx-working-container: \
+  #      internal error: history lists 2 non-empty layers, but we have 6 layers on disk
   run_buildah build $WITH_POLICY_JSON --layers=false $BUDFILES/no-history
   run_buildah build $WITH_POLICY_JSON --layers=true  $BUDFILES/no-history
 }
