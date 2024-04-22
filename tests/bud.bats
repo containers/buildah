@@ -6834,3 +6834,30 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --no-cache --isolation chroot --secret id=MYSECRET -t test -f $contextdir/Dockerfile
   expect_output --substring "SOMESECRETDATA"
 }
+
+@test "bud with ADD with git repository source" {
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/add-git
+  mkdir -p $contextdir
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+RUN apk add git
+
+ADD https://github.com/containers/podman.git#v5.0 /podman-branch
+ADD https://github.com/containers/podman.git#v5.0.0 /podman-tag
+_EOF
+
+  run_buildah build -f $contextdir/Dockerfile -t git-image $contextdir
+  run_buildah from --quiet $WITH_POLICY_JSON --name testctr git-image
+
+  run_buildah run testctr -- sh -c 'cd podman-branch && git rev-parse HEAD'
+  local_head_hash=$output
+  run_buildah run testctr -- sh -c 'cd podman-branch && git ls-remote origin v5.0 | cut -f1'
+  assert "$output" = "$local_head_hash"
+
+  run_buildah run testctr -- sh -c 'cd podman-tag && git rev-parse HEAD'
+  local_head_hash=$output
+  run_buildah run testctr -- sh -c 'cd podman-tag && git ls-remote --tags origin v5.0.0^{} | cut -f1'
+  assert "$output" = "$local_head_hash"
+}

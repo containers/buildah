@@ -22,6 +22,7 @@ import (
 	"github.com/containers/buildah/pkg/chrootuser"
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/pkg/regexp"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -75,14 +76,27 @@ type AddAndCopyOptions struct {
 	StripStickyBit bool
 }
 
+// gitURLFragmentSuffix matches fragments to use as Git reference and build
+// context from the Git repository e.g.
+//
+//	github.com/containers/buildah.git
+//	github.com/containers/buildah.git#main
+//	github.com/containers/buildah.git#v1.35.0
+var gitURLFragmentSuffix = regexp.Delayed(`\.git(?:#.+)?$`)
+
 // sourceIsGit returns true if "source" is a git location.
 func sourceIsGit(source string) bool {
-	return strings.HasPrefix(source, "git://") || strings.Contains(source, ".git")
+	return isURL(source) && gitURLFragmentSuffix.MatchString(source)
 }
 
-// sourceIsRemote returns true if "source" is a remote location.
+func isURL(url string) bool {
+	return strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")
+}
+
+// sourceIsRemote returns true if "source" is a remote location
+// and *not* a git repo. Certain github urls such as raw.github.* are allowed.
 func sourceIsRemote(source string) bool {
-	return (strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://")) && !strings.Contains(source, ".git")
+	return isURL(source) && !gitURLFragmentSuffix.MatchString(source)
 }
 
 // getURL writes a tar archive containing the named content
@@ -439,7 +453,6 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					var cloneDir string
 					cloneDir, _, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
 
-					renamedItems := 0
 					writer := io.WriteCloser(pipeWriter)
 					writer = newTarFilterer(writer, func(hdr *tar.Header) (bool, bool, io.Reader) {
 						return false, false, nil
@@ -459,9 +472,6 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					}
 					getErr = copier.Get(cloneDir, cloneDir, getOptions, []string{"."}, writer)
 					closeErr = writer.Close()
-					if renameTarget != "" && renamedItems > 1 {
-						renameErr = fmt.Errorf("internal error: renamed %d items when we expected to only rename 1", renamedItems)
-					}
 					wg.Done()
 				}()
 			} else {

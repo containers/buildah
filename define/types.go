@@ -254,11 +254,11 @@ func parseGitBuildContext(url string) (string, string, string) {
 	return gitBranchPart[0], gitSubdir, gitBranch
 }
 
-func isGitTag(remote, ref, dir string) (bool, error) {
+func isGitTag(remote, ref string) bool {
 	if _, err := exec.Command("git", "ls-remote", "--exit-code", remote, ref).Output(); err != nil {
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
 func cloneToDirectory(url, dir string) ([]byte, string, error) {
@@ -279,7 +279,7 @@ func cloneToDirectory(url, dir string) ([]byte, string, error) {
 	}
 
 	if gitRef != "" {
-		if ok, _ := isGitTag(url, gitRef, dir); ok {
+		if ok := isGitTag(url, gitRef); ok {
 			gitRef += ":refs/tags/" + gitRef
 		}
 	}
