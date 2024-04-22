@@ -27,6 +27,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/pkg/regexp"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
@@ -94,14 +95,27 @@ type AddAndCopyOptions struct {
 	RetryDelay time.Duration
 }
 
+// gitURLFragmentSuffix matches fragments to use as Git reference and build
+// context from the Git repository e.g.
+//
+//	github.com/containers/buildah.git
+//	github.com/containers/buildah.git#main
+//	github.com/containers/buildah.git#v1.35.0
+var gitURLFragmentSuffix = regexp.Delayed(`\.git(?:#.+)?$`)
+
 // sourceIsGit returns true if "source" is a git location.
 func sourceIsGit(source string) bool {
-	return strings.HasPrefix(source, "git://") || strings.Contains(source, ".git")
+	return isURL(source) && gitURLFragmentSuffix.MatchString(source)
 }
 
-// sourceIsRemote returns true if "source" is a remote location.
+func isURL(url string) bool {
+	return strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")
+}
+
+// sourceIsRemote returns true if "source" is a remote location
+// and *not* a git repo. Certain github urls such as raw.github.* are allowed.
 func sourceIsRemote(source string) bool {
-	return (strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://")) && !strings.Contains(source, ".git")
+	return isURL(source) && !gitURLFragmentSuffix.MatchString(source)
 }
 
 // getURL writes a tar archive containing the named content
@@ -478,28 +492,10 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			}
 
 			wg.Add(1)
-
-			go func() {
-				getErr = retry.IfNecessary(context.TODO(), func() error {
-					return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest, options.CertPath, options.InsecureSkipTLSVerify)
-				}, &retry.Options{
-					MaxRetry: options.MaxRetries,
-					Delay:    options.RetryDelay,
-				})
-				pipeWriter.Close()
-				wg.Done()
-			}()
-
 			if sourceIsGit(src) {
 				go func() {
 					var cloneDir string
 					cloneDir, _, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
-
-					renamedItems := 0
-					writer := io.WriteCloser(pipeWriter)
-					writer = newTarFilterer(writer, func(hdr *tar.Header) (bool, bool, io.Reader) {
-						return false, false, nil
-					})
 					getOptions := copier.GetOptions{
 						UIDMap:         srcUIDMap,
 						GIDMap:         srcGIDMap,
@@ -513,16 +509,19 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						StripSetgidBit: options.StripSetgidBit,
 						StripStickyBit: options.StripStickyBit,
 					}
+					writer := io.WriteCloser(pipeWriter)
 					getErr = copier.Get(cloneDir, cloneDir, getOptions, []string{"."}, writer)
-					closeErr = writer.Close()
-					if renameTarget != "" && renamedItems > 1 {
-						renameErr = fmt.Errorf("internal error: renamed %d items when we expected to only rename 1", renamedItems)
-					}
+					pipeWriter.Close()
 					wg.Done()
 				}()
 			} else {
 				go func() {
-					getErr = getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest)
+					getErr = retry.IfNecessary(context.TODO(), func() error {
+						return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest, options.CertPath, options.InsecureSkipTLSVerify)
+					}, &retry.Options{
+						MaxRetry: options.MaxRetries,
+						Delay:    options.RetryDelay,
+					})
 					pipeWriter.Close()
 					wg.Done()
 				}()
