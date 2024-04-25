@@ -333,7 +333,7 @@ _EOF
 }
 
 @test "bud build with heredoc content" {
-  _prefetch fedora
+  _prefetch quay.io/fedora/python-311
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile .
   expect_output --substring "print first line from heredoc"
   expect_output --substring "print second line from heredoc"
@@ -4486,17 +4486,17 @@ EOM
 }
 
 @test "bud arg and env var with same name" {
-  _prefetch centos:8
+  _prefetch busybox
   # Regression test for https://github.com/containers/buildah/issues/2345
   run_buildah build $WITH_POLICY_JSON -t testctr $BUDFILES/dupe-arg-env-name
   expect_output --substring "https://example.org/bar"
 }
 
 @test "bud copy chown with newuser" {
-  _prefetch ubuntu:latest
+  _prefetch quay.io/fedora/fedora
   # Regression test for https://github.com/containers/buildah/issues/2192
   run_buildah build $WITH_POLICY_JSON -t testctr -f $BUDFILES/copy-chown/Containerfile.chown_user $BUDFILES/copy-chown
-  expect_output --substring "myuser myuser"
+  expect_output --substring "myuser:myuser"
 }
 
 @test "bud-builder-identity" {
