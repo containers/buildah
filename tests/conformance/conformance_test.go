@@ -3102,6 +3102,11 @@ var internalTestCases = []testCase{
 		contextDir:        "multistage/copyback",
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:       "chown-volume",
+		contextDir: "chown-volume",
+	},
 }
 
 func TestCommit(t *testing.T) {
