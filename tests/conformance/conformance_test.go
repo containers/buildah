@@ -3178,6 +3178,11 @@ var internalTestCases = []testCase{
 			"WORKDIR /tmp",
 		}, "\n"),
 	},
+
+	{
+		name:       "chown-volume", // from podman #22530
+		contextDir: "chown-volume",
+	},
 }
 
 func TestCommit(t *testing.T) {
