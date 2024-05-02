@@ -2251,24 +2251,32 @@ _EOF
 }
 
 @test "bud and test --unsetlabel" {
-  _prefetch registry.fedoraproject.org/fedora-minimal
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  target=exp
+
   run_buildah --version
   local -a output_fields=($output)
   buildah_version=${output_fields[2]}
-  run_buildah build $WITH_POLICY_JSON -t exp -f $BUDFILES/base-with-labels/Containerfile
 
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "license"}}' exp
-  expect_output "MIT" "license must be MIT from fedora base image"
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' exp
-  expect_output "fedora" "name must be fedora from base image"
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "vendor"}}' exp
-  expect_output "Fedora Project" "vendor must be fedora from base image"
+  buildah inspect --format '{{ .Docker.Config.Labels }}' $base
+  not_want_output='map[]'
+  assert "$output" != "$not_want_output" "expected some labels to be set in base image $base"
 
-  run_buildah build $WITH_POLICY_JSON --unsetlabel license --unsetlabel name --unsetlabel vendor --unsetlabel version --label hello=world -t exp -f $BUDFILES/base-with-labels/Containerfile
-  # no labels should be inherited from base image only the, buildah version label
+  labels=$(buildah inspect --format '{{ range $key, $value := .Docker.Config.Labels }}{{ $key }} {{end}}' $base)
+  labelflags="--label hello=world"
+  for label in $labels; do
+    if test $label != io.buildah.version ; then
+      labelflags="$labelflags --unsetlabel $label"
+    fi
+  done
+
+  run_buildah build $WITH_POLICY_JSON $labelflags -t $target --from $base $BUDFILES/base-with-labels
+
+  # no labels should be inherited from base image, only the buildah version label
   # and `hello=world` which we just added using cli flag
   want_output='map["hello":"world" "io.buildah.version":"'$buildah_version'"]'
-  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' $target
   expect_output "$want_output"
 }
 

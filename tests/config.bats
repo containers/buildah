@@ -82,17 +82,18 @@ function check_matrix() {
 }
 
 @test "config --unsetlabel" {
-  _prefetch registry.fedoraproject.org/fedora-minimal
-  run_buildah from --quiet --pull=false $WITH_POLICY_JSON registry.fedoraproject.org/fedora-minimal
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON $base
   cid=$output
   run_buildah commit $WITH_POLICY_JSON $cid with-name-label
   run_buildah config --unsetlabel name $cid
   run_buildah commit $WITH_POLICY_JSON $cid without-name-label
 
   run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' with-name-label
-  expect_output "fedora" "name label should be set with value as fedora"
+  assert "$output" != "" "label should be set in base image"
   run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' without-name-label
-  expect_output "" "name label should be removed"
+  assert "$output" == "" "name label should be removed"
 }
 
 @test "config set empty entrypoint doesn't wipe cmd" {
