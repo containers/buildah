@@ -41,6 +41,7 @@ fi
 filtered_changes=$(git diff --name-status $base $head   |
                        awk '{print $2}'                 |
                        grep -F -vx .cirrus.yml          |
+                       grep -F -vx .packit.yaml         |
                        grep -F -vx .gitignore           |
                        grep -F -vx changelog.txt        |
                        grep -F -vx go.mod               |
