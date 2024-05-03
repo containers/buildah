@@ -1,4 +1,5 @@
-FROM fedora as builder 
+# "fedora" is replaced as the base image at test-time using the --from flag
+FROM fedora as builder
 FROM busybox
 COPY --from=builder /bin/df /tmp/df_tester
 
