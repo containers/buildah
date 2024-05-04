@@ -54,9 +54,5 @@
     "**/docs/**",
     "**/examples/**",
     "**/tests/**"
-  ],
-
-  "env": {
-    "GOTOOLCHAIN": "local"
-  }
+  ]
 }

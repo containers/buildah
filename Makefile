@@ -1,5 +1,4 @@
 export GOPROXY=https://proxy.golang.org
-export GOTOOLCHAIN=local
 
 APPARMORTAG := $(shell hack/apparmor_tag.sh)
 STORAGETAGS := exclude_graphdriver_devicemapper $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./hack/libsubid_tag.sh)
