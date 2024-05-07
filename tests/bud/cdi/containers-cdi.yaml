@@ -1,5 +1,5 @@
 ---
-cdiVersion: 0.5.0
+cdiVersion: 0.7.0
 devices:
   - name: all
     containerEdits:

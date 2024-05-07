@@ -12,7 +12,7 @@ load helpers
   echo === Begin CDI configuration in $cdidir/containers-cdi.yaml ===
   cat $cdidir/containers-cdi.yaml
   echo === End CDI configuration ===
-  run_buildah build $WITH_POLICY_JSON --cdi-config-dir=$cdidir --security-opt label=disable --device=containers.github.io/sample=all $BUDFILES/cdi
+  run_buildah build $WITH_POLICY_JSON --cdi-config-dir=$cdidir --security-opt label=disable --device=containers.github.io/sample=all --device=/dev/null:/dev/outsidenull:rwm $BUDFILES/cdi
 }
 
 @test "from with CDI" {
@@ -25,9 +25,9 @@ load helpers
   echo === Begin CDI configuration in $cdidir/containers-cdi.yaml ===
   cat $cdidir/containers-cdi.yaml
   echo === End CDI configuration ===
-  run_buildah from $WITH_POLICY_JSON --security-opt label=disable --cdi-config-dir=$cdidir --device=containers.github.io/sample=all busybox
+  run_buildah from $WITH_POLICY_JSON --security-opt label=disable --cdi-config-dir=$cdidir --device=containers.github.io/sample=all --device=/dev/null:/dev/outsidenull:rwm busybox
   cid="$output"
-  run_buildah run "$cid" cat /dev/containers-cdi.yaml
+  run_buildah run "$cid" cat /dev/containers-cdi.yaml /dev/outsidenull
 }
 
 @test "run with CDI" {
