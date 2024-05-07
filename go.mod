@@ -1,7 +1,9 @@
 module github.com/containers/buildah
 
 // Minimum required golang version
-go 1.20 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
+go 1.21 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
+
+toolchain go1.21.9
 
 //         Go versions 1.21 and later will AUTO-UPDATE based
 //         on currently running tools and the (new) `toolchain`
@@ -29,7 +31,7 @@ require (
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v25.0.5+incompatible
 	github.com/docker/go-units v0.5.0
-	github.com/fsouza/go-dockerclient v1.10.1
+	github.com/fsouza/go-dockerclient v1.11.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.12.5
