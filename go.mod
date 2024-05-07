@@ -172,4 +172,4 @@ require (
 	tags.cncf.io/container-device-interface/specs-go v0.7.0 // indirect
 )
 
-replace github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.1.0
+replace github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.2.0
