@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"encoding/json"
+	"slices"
 
 	compressiontypes "github.com/containers/image/v5/pkg/compression/types"
 	"github.com/containers/libtrust"
@@ -191,4 +192,40 @@ func MIMETypeSupportsCompressionAlgorithm(mimeType string, algo compressiontypes
 	default: // Includes Bzip2AlgorithmName and XzAlgorithmName, which are defined names but are not supported anywhere
 		return false
 	}
+}
+
+// ReuseConditions are an input to CandidateCompressionMatchesReuseConditions;
+// it is a struct to allow longer and better-documented field names.
+type ReuseConditions struct {
+	PossibleManifestFormats []string                    // If set, a set of possible manifest formats; at least one should support the reused layer
+	RequiredCompression     *compressiontypes.Algorithm // If set, only reuse layers with a matching algorithm
+}
+
+// CandidateCompressionMatchesReuseConditions returns true if a layer with candidateCompression
+// (which can be nil to represent uncompressed or unknown) matches reuseConditions.
+func CandidateCompressionMatchesReuseConditions(c ReuseConditions, candidateCompression *compressiontypes.Algorithm) bool {
+	if c.RequiredCompression != nil {
+		if c.RequiredCompression.Name() == compressiontypes.ZstdChunkedAlgorithmName {
+			// HACK: Never match when the caller asks for zstd:chunked, because we don’t record the annotations required to use the chunked blobs.
+			// The caller must re-compress to build those annotations.
+			return false
+		}
+		if candidateCompression == nil ||
+			(c.RequiredCompression.Name() != candidateCompression.Name() && c.RequiredCompression.Name() != candidateCompression.BaseVariantName()) {
+			return false
+		}
+	}
+
+	// For candidateCompression == nil, we can’t tell the difference between “uncompressed” and “unknown”;
+	// and “uncompressed” is acceptable in all known formats (well, it seems to work in practice for schema1),
+	// so don’t impose any restrictions if candidateCompression == nil
+	if c.PossibleManifestFormats != nil && candidateCompression != nil {
+		if !slices.ContainsFunc(c.PossibleManifestFormats, func(mt string) bool {
+			return MIMETypeSupportsCompressionAlgorithm(mt, *candidateCompression)
+		}) {
+			return false
+		}
+	}
+
+	return true
 }

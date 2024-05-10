@@ -2,6 +2,7 @@ package sysregistriesv2
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,12 +10,12 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/internal/multierr"
 	"github.com/containers/image/v5/internal/rootless"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/lockfile"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/maps"
 )
 
 // defaultShortNameMode is the default mode of registries.conf files if the
@@ -297,11 +298,7 @@ func newShortNameAliasCache(path string, conf *shortNameAliasConf) (*shortNameAl
 		}
 	}
 	if len(errs) > 0 {
-		err := errs[0]
-		for i := 1; i < len(errs); i++ {
-			err = fmt.Errorf("%v\n: %w", errs[i], err)
-		}
-		return nil, err
+		return nil, multierr.Format("", "\n", "", errs)
 	}
 	return &res, nil
 }
