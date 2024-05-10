@@ -115,7 +115,7 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 		// off and entirely ignored.  The digest is the sole source of truth.
 		normalizedName, _, normalizeError := normalizeTaggedDigestedString(name)
 		if normalizeError != nil {
-			return nil, fmt.Errorf(`parsing reference %q: %w`, name, normalizeError)
+			return nil, normalizeError
 		}
 		name = normalizedName
 
@@ -240,15 +240,6 @@ func (r *Runtime) copyFromDefault(ctx context.Context, ref types.ImageReference,
 	// Figure out a name for the storage destination.
 	var storageName, imageName string
 	switch ref.Transport().Name() {
-	case registryTransport.Transport.Name():
-		// Normalize to docker.io if needed (see containers/podman/issues/10998).
-		named, err := reference.ParseNormalizedNamed(strings.TrimLeft(ref.StringWithinTransport(), ":/"))
-		if err != nil {
-			return nil, err
-		}
-		imageName = named.String()
-		storageName = imageName
-
 	case dockerDaemonTransport.Transport.Name():
 		// Normalize to docker.io if needed (see containers/podman/issues/10998).
 		named, err := reference.ParseNormalizedNamed(ref.StringWithinTransport())
