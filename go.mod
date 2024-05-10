@@ -5,8 +5,8 @@ go 1.20
 require (
 	github.com/containerd/containerd v1.7.13
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.58.1
-	github.com/containers/image/v5 v5.30.0
+	github.com/containers/common v0.58.3
+	github.com/containers/image/v5 v5.30.1
 	github.com/containers/luksy v0.0.0-20240212203526-ceb12d4fd50c
 	github.com/containers/ocicrypt v1.1.10
 	github.com/containers/storage v1.53.0
