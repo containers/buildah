@@ -86,7 +86,9 @@ or
 Summary: Tests for %{name}
 
 Requires: %{name} = %{version}-%{release}
+%if %{defined fedora}
 Requires: bats
+%endif
 Requires: bzip2
 Requires: podman
 Requires: golang
