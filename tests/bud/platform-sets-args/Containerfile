@@ -4,3 +4,7 @@ ARG TARGETOS
 ARG TARGETPLATFORM
 ARG TARGETVARIANT
 ENV nothing="multiarch-safe statement that will result in a built image"
+run echo TARGETARCH=${TARGETARCH}
+run echo TARGETOS=${TARGETOS}
+run echo TARGETPLATFORM=${TARGETPLATFORM}
+run echo TARGETVARIANT=${TARGETVARANT}
