@@ -4,6 +4,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/containers/common/libimage"
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
@@ -342,4 +343,19 @@ type BuildOptions struct {
 	// CDIConfigDir is the location of CDI configuration files, if the files in
 	// the default configuration locations shouldn't be used.
 	CDIConfigDir string
+	// CachePullSourceLookupReferenceFunc is an optional LookupReferenceFunc
+	// used to look up source references for cache pulls.
+	CachePullSourceLookupReferenceFunc libimage.LookupReferenceFunc
+	// CachePullDestinationLookupReferenceFunc is an optional generator
+	// function which provides a LookupReferenceFunc used to look up
+	// destination references for cache pulls.
+	CachePullDestinationLookupReferenceFunc func(imageName string) libimage.LookupReferenceFunc
+	// CachePushSourceLookupReferenceFunc is an optional generator function
+	// which provides a LookupReferenceFunc used to look up source
+	// references for cache pushes.
+	CachePushSourceLookupReferenceFunc func(dest types.ImageReference) libimage.LookupReferenceFunc
+	// CachePushDestinationLookupReferenceFunc is an optional
+	// LookupReferenceFunc used to look up destination references for cache
+	// pushes
+	CachePushDestinationLookupReferenceFunc libimage.LookupReferenceFunc
 }

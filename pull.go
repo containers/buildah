@@ -50,6 +50,12 @@ type PullOptions struct {
 	OciDecryptConfig *encconfig.DecryptConfig
 	// PullPolicy takes the value PullIfMissing, PullAlways, PullIfNewer, or PullNever.
 	PullPolicy define.PullPolicy
+	// SourceLookupReference provides a function to look up source
+	// references.
+	SourceLookupReferenceFunc libimage.LookupReferenceFunc
+	// DestinationLookupReference provides a function to look up destination
+	// references.
+	DestinationLookupReferenceFunc libimage.LookupReferenceFunc
 }
 
 // Pull copies the contents of the image from somewhere else to local storage.  Returns the
@@ -62,7 +68,12 @@ func Pull(ctx context.Context, imageName string, options PullOptions) (imageID s
 	libimageOptions.OciDecryptConfig = options.OciDecryptConfig
 	libimageOptions.AllTags = options.AllTags
 	libimageOptions.RetryDelay = &options.RetryDelay
-	libimageOptions.DestinationLookupReferenceFunc = cacheLookupReferenceFunc(options.BlobDirectory, types.PreserveOriginal)
+	libimageOptions.SourceLookupReferenceFunc = options.SourceLookupReferenceFunc
+	if options.DestinationLookupReferenceFunc != nil {
+		libimageOptions.DestinationLookupReferenceFunc = options.DestinationLookupReferenceFunc
+	} else {
+		libimageOptions.DestinationLookupReferenceFunc = cacheLookupReferenceFunc(options.BlobDirectory, types.PreserveOriginal)
+	}
 
 	if options.MaxRetries > 0 {
 		retries := uint(options.MaxRetries)

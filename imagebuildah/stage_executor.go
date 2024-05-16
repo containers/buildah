@@ -1992,6 +1992,12 @@ func (s *StageExecutor) pushCache(ctx context.Context, src, cacheKey string) err
 			MaxRetries:          s.executor.maxPullPushRetries,
 			RetryDelay:          s.executor.retryPullPushDelay,
 		}
+		if s.executor.cachePushSourceLookupReferenceFunc != nil {
+			options.SourceLookupReferenceFunc = s.executor.cachePushSourceLookupReferenceFunc(dest)
+		}
+		if s.executor.cachePushDestinationLookupReferenceFunc != nil {
+			options.DestinationLookupReferenceFunc = s.executor.cachePushDestinationLookupReferenceFunc
+		}
 		ref, digest, err := buildah.Push(ctx, src, dest, options)
 		if err != nil {
 			return fmt.Errorf("failed pushing cache to %q: %w", dest, err)
@@ -2013,7 +2019,9 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 		return nil, "", err
 	}
 	for _, src := range srcList {
-		logrus.Debugf("trying to pull cache from remote repo: %+v", src.DockerReference())
+		srcDockerRef := src.DockerReference()
+		logrus.Debugf("trying to pull cache from remote repo: %+v", srcDockerRef)
+		imageName := srcDockerRef.String()
 		options := buildah.PullOptions{
 			SignaturePolicyPath: s.executor.signaturePolicyPath,
 			Store:               s.executor.store,
@@ -2025,7 +2033,14 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 			ReportWriter:        nil,
 			PullPolicy:          define.PullIfNewer,
 		}
-		id, err := buildah.Pull(ctx, src.DockerReference().String(), options)
+		if s.executor.cachePullSourceLookupReferenceFunc != nil {
+			options.SourceLookupReferenceFunc = s.executor.cachePullSourceLookupReferenceFunc
+		}
+		if s.executor.cachePullDestinationLookupReferenceFunc != nil {
+			options.DestinationLookupReferenceFunc = s.executor.cachePullDestinationLookupReferenceFunc(imageName)
+		}
+
+		id, err := buildah.Pull(ctx, imageName, options)
 		if err != nil {
 			logrus.Debugf("failed pulling cache from source %s: %v", src, err)
 			continue // failed pulling this one try next
