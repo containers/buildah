@@ -31,7 +31,7 @@ Cleanup intermediate images as well as build and mount cache.`
 			return pruneCmd(cmd, args, opts)
 		},
 		Example: `buildah prune
-  buildah prune`,
+  buildah prune --force`,
 	}
 	pruneCommand.SetUsageTemplate(UsageTemplate())
 
