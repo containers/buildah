@@ -3102,6 +3102,13 @@ var internalTestCases = []testCase{
 		contextDir:        "multistage/copyback",
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:              "heredoc-quoting",
+		dockerfile:        "Dockerfile.heredoc-quoting",
+		dockerUseBuildKit: true,
+		fsSkip:            []string{"(dir):etc:(dir):hostname"}, // buildkit does not create a phantom /etc/hostname
+	},
 }
 
 func TestCommit(t *testing.T) {
