@@ -4455,9 +4455,70 @@ EOM
 }
 
 @test "bud-implicit-no-history" {
-  _prefetch nixery.dev/shell
-  run_buildah build $WITH_POLICY_JSON --layers=false $BUDFILES/no-history
-  run_buildah build $WITH_POLICY_JSON --layers=true  $BUDFILES/no-history
+  _prefetch busybox
+  local ocidir=${TEST_SCRATCH_DIR}/oci
+  mkdir -p $ocidir/blobs/sha256
+  # Build an image config and image manifest in parallel
+  local configos=$(${BUILDAH_BINARY} info --format '{{.host.os}}')
+  local configarch=$(${BUILDAH_BINARY} info --format '{{.host.arch}}')
+  local configvariant=$(${BUILDAH_BINARY} info --format '{{.host.variant}}')
+  local configvariantkv=${configvariant:+'"variant": "'${configvariant}'", '}
+  echo '{"architecture": "'"${configarch}"'", "os": "'"${configos}"'", '"${configvariantkv}"'"rootfs": {"type": "layers", "diff_ids": [' > ${TEST_SCRATCH_DIR}/config.json
+  echo '{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json", "layers": [' > ${TEST_SCRATCH_DIR}/manifest.json
+  # Create some layers
+  for layer in $(seq 8) ; do
+    # Content for the layer
+    createrandom ${TEST_SCRATCH_DIR}/file$layer $((RANDOM+1024))
+    # Layer blob
+    tar -c -C ${TEST_SCRATCH_DIR} -f ${TEST_SCRATCH_DIR}/layer$layer.tar file$layer
+    # Get the layer blob's digest and size
+    local diffid=$(sha256sum ${TEST_SCRATCH_DIR}/layer$layer.tar)
+    local diffsize=$(wc -c ${TEST_SCRATCH_DIR}/layer$layer.tar)
+    # Link the blob into where an OCI layout would put it.
+    ln ${TEST_SCRATCH_DIR}/layer$layer.tar $ocidir/blobs/sha256/${diffid%% *}
+    # Try to keep the resulting files at least kind of readable.
+    if test $layer -gt 1 ; then
+      echo "," >> ${TEST_SCRATCH_DIR}/config.json
+      echo "," >> ${TEST_SCRATCH_DIR}/manifest.json
+    fi
+    # Add the layer to the config blob's list of diffIDs for its rootfs.
+    echo -n '  "sha256:'${diffid%% *}'"' >> ${TEST_SCRATCH_DIR}/config.json
+    # Add the layer blob to the manifest's list of blobs.
+    echo -n '  {"mediaType": "application/vnd.oci.image.layer.v1.tar", "digest": "sha256:'${diffid%% *}'", "size": '${diffsize%% *}'}' >> ${TEST_SCRATCH_DIR}/manifest.json
+  done
+  # Finish the diffID and layer blob lists.
+  echo >> ${TEST_SCRATCH_DIR}/config.json
+  echo >> ${TEST_SCRATCH_DIR}/manifest.json
+  # Finish the config blob with some boilerplate stuff.
+  echo ']}, "config": { "Cmd": ["/bin/sh"], "Env": [ "PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin" ]}}' >> ${TEST_SCRATCH_DIR}/config.json
+  # Compute the config blob's digest and size, so that we can list it in the manifest.
+  local configsize=$(wc -c ${TEST_SCRATCH_DIR}/config.json)
+  local configdigest=$(sha256sum ${TEST_SCRATCH_DIR}/config.json)
+  # Finish the manifest with information about the config blob.
+  echo '], "config": { "mediaType": "application/vnd.oci.image.config.v1+json", "digest": "sha256:'${configdigest%% *}'", "size": '${configsize%% *}'}}' >> ${TEST_SCRATCH_DIR}/manifest.json
+  # Compute the manifest's digest and size, so that we can list it in the OCI layout index.
+  local manifestsize=$(wc -c ${TEST_SCRATCH_DIR}/manifest.json)
+  local manifestdigest=$(sha256sum ${TEST_SCRATCH_DIR}/manifest.json)
+  # Link the config blob and manifest into where an OCI layout would put them.
+  ln ${TEST_SCRATCH_DIR}/config.json $ocidir/blobs/sha256/${configdigest%% *}
+  ln ${TEST_SCRATCH_DIR}/manifest.json $ocidir/blobs/sha256/${manifestdigest%% *}
+  # Write the layout index with just the one image manifest in it.
+  echo '{"schemaVersion": 2, "manifests": [ {"mediaType": "application/vnd.oci.image.manifest.v1+json", "digest": "sha256:'${manifestdigest%% *}'", "size": '${manifestsize%% *}' } ]}' > $ocidir/index.json
+  # Write the "this is an OCI layout directory" identifier.
+  echo '{"imageLayoutVersion":"1.0.0"}' > $ocidir/oci-layout
+  # Import the image from the OCI layout into buildah's normal storage.
+  run_buildah pull --log-level=debug $WITH_POLICY_JSON oci:$ocidir
+  # Tag the image (we know its ID is the config blob digest, since it's an OCI
+  # image) with the name the Dockerfile will specify as its base image.
+  run_buildah tag ${configdigest%% *} fakeregistry.podman.invalid/notreal
+  # Double-check that the image has no history, which is what we wanted to get
+  # out of all of this.
+  run_buildah inspect --format '{{.History}}' fakeregistry.podman.invalid/notreal
+  assert "${lines}" == '[]'  "base image generated for test had history field that was not an empty slice"
+  # Build images using our image-with-no-history as a base, to check that we
+  # don't trip over ourselves when doing so.
+  run_buildah build $WITH_POLICY_JSON --pull=never --layers=false $BUDFILES/no-history
+  run_buildah build $WITH_POLICY_JSON --pull=never --layers=true  $BUDFILES/no-history
 }
 
 @test "bud with encrypted FROM image" {
