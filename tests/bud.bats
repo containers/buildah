@@ -283,7 +283,7 @@ _EOF
   for option in "--arch=arm64" "--os=windows" "--variant=v2"; do
     run_buildah 125 build $WITH_POLICY_JSON --platform linux/amd64 ${option} \
                 -t source -f $containerfile
-    assert "$output" =~ "Error: building system context: invalid --platform may not be used with --os, --arch, or --variant" "can't use --platform and one of --os, --arch or --variant together"
+    assert "$output" =~ "invalid --platform may not be used with --os, --arch, or --variant" "can't use --platform and one of --os, --arch or --variant together"
   done
 }
 
@@ -2149,7 +2149,7 @@ RUN echo 'hello'> hello
 _EOF
   run_buildah 125 build --output type=tar, $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   expect_output --substring 'invalid'
-  run_buildah 125 build --output type=wrong,dest=hello --signature-policy ${TESTSDIR}/policy.json -t test-bud -f $mytmpdir/Containerfile .
+  run_buildah 125 build --output type=wrong,dest=hello $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   expect_output --substring 'invalid'
 }
 
