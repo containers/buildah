@@ -18,9 +18,9 @@ go 1.21 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 //         *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 
 require (
-	github.com/containerd/containerd v1.7.16
+	github.com/containerd/containerd v1.7.17
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.58.1-0.20240509172903-2c88a3f280bb
+	github.com/containers/common v0.59.0
 	github.com/containers/image/v5 v5.31.0
 	github.com/containers/luksy v0.0.0-20240506205542-84b50f50f3ee
 	github.com/containers/ocicrypt v1.1.10
@@ -75,7 +75,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
-	github.com/containernetworking/plugins v1.4.1 // indirect
+	github.com/containernetworking/plugins v1.5.0 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20231217050601-ba74d44ecf5f // indirect
@@ -144,7 +144,7 @@ require (
 	github.com/sigstore/fulcio v1.4.5 // indirect
 	github.com/sigstore/rekor v1.3.6 // indirect
 	github.com/sigstore/sigstore v1.8.3 // indirect
-	github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980 // indirect
+	github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 // indirect
 	github.com/sylabs/sif/v2 v2.16.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
