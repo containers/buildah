@@ -222,7 +222,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	systemContext := options.SystemContext
 	for _, platform := range options.Platforms {
 		platformContext := *systemContext
-		if platform.OS == "" {
+		if platform.OS == "" && platform.Arch != "" {
 			platform.OS = runtime.GOOS
 		}
 		platformSpec := internalUtil.NormalizePlatform(v1.Platform{

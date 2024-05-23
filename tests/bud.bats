@@ -6811,3 +6811,17 @@ _EOF
   assert "$status" -eq 2 "exit code from ls"
   expect_output --substring "No such file or directory"
 }
+
+@test "pull policy" {
+  echo FROM busybox > ${TEST_SCRATCH_DIR}/Containerfile
+  arch=amd64
+  if test $(arch) = x86_64 ; then
+    arch=arm64
+  fi
+  # specifying the arch should trigger "just pull it anyway" in containers/common
+  run_buildah build --pull=missing --arch $arch --iidfile ${TEST_SCRATCH_DIR}/image1.txt ${TEST_SCRATCH_DIR}
+  # not specifying the arch should trigger "yeah, fine, whatever we already have is fine" in containers/common
+  run_buildah build --pull=missing --iidfile ${TEST_SCRATCH_DIR}/image2.txt ${TEST_SCRATCH_DIR}
+  # both of these should have just been the base image's ID, which shouldn't have changed the second time around
+  cmp ${TEST_SCRATCH_DIR}/image1.txt ${TEST_SCRATCH_DIR}/image2.txt
+}
