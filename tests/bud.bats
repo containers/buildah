@@ -6825,3 +6825,12 @@ _EOF
   # both of these should have just been the base image's ID, which shouldn't have changed the second time around
   cmp ${TEST_SCRATCH_DIR}/image1.txt ${TEST_SCRATCH_DIR}/image2.txt
 }
+
+# Verify: https://github.com/containers/buildah/issues/5185
+@test "build-test --mount=type=secret test from env with chroot isolation" {
+  skip_if_root_environment "Need to not be root for this test to work"
+  local contextdir=$BUDFILES/secret-env
+  export MYSECRET=SOMESECRETDATA
+  run_buildah build $WITH_POLICY_JSON --no-cache --isolation chroot --secret id=MYSECRET -t test -f $contextdir/Dockerfile
+  expect_output --substring "SOMESECRETDATA"
+}
