@@ -130,7 +130,7 @@ type Executor struct {
 	maxPullPushRetries                      int
 	retryPullPushDelay                      time.Duration
 	cachePullSourceLookupReferenceFunc      libimage.LookupReferenceFunc
-	cachePullDestinationLookupReferenceFunc func(imageName string) libimage.LookupReferenceFunc
+	cachePullDestinationLookupReferenceFunc func(srcRef types.ImageReference) libimage.LookupReferenceFunc
 	cachePushSourceLookupReferenceFunc      func(dest types.ImageReference) libimage.LookupReferenceFunc
 	cachePushDestinationLookupReferenceFunc libimage.LookupReferenceFunc
 	ociDecryptConfig                        *encconfig.DecryptConfig

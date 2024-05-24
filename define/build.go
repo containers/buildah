@@ -349,7 +349,7 @@ type BuildOptions struct {
 	// CachePullDestinationLookupReferenceFunc is an optional generator
 	// function which provides a LookupReferenceFunc used to look up
 	// destination references for cache pulls.
-	CachePullDestinationLookupReferenceFunc func(imageName string) libimage.LookupReferenceFunc
+	CachePullDestinationLookupReferenceFunc func(srcRef types.ImageReference) libimage.LookupReferenceFunc
 	// CachePushSourceLookupReferenceFunc is an optional generator function
 	// which provides a LookupReferenceFunc used to look up source
 	// references for cache pushes.
