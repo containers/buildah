@@ -273,6 +273,10 @@ type BuildOptions struct {
 	// the build was unsuccessful.
 	ForceRmIntermediateCtrs bool
 	// BlobDirectory is a directory which we'll use for caching layer blobs.
+	//
+	// This option will be overridden for cache pulls if
+	// CachePullDestinationLookupReferenceFunc is set, and overridden for cache pushes if
+	// CachePushSourceLookupReferenceFunc is set.
 	BlobDirectory string
 	// Target the targeted FROM in the Dockerfile to build.
 	Target string
@@ -349,10 +353,14 @@ type BuildOptions struct {
 	// CachePullDestinationLookupReferenceFunc is an optional generator
 	// function which provides a LookupReferenceFunc used to look up
 	// destination references for cache pulls.
+	//
+	// BlobDirectory will be ignored for cache pulls if this option is set.
 	CachePullDestinationLookupReferenceFunc func(srcRef types.ImageReference) libimage.LookupReferenceFunc
 	// CachePushSourceLookupReferenceFunc is an optional generator function
 	// which provides a LookupReferenceFunc used to look up source
 	// references for cache pushes.
+	//
+	// BlobDirectory will be ignored for cache pushes if this option is set.
 	CachePushSourceLookupReferenceFunc func(dest types.ImageReference) libimage.LookupReferenceFunc
 	// CachePushDestinationLookupReferenceFunc is an optional
 	// LookupReferenceFunc used to look up destination references for cache

@@ -66,6 +66,8 @@ type PushOptions struct {
 	// prebuilt copies of layer blobs that we might otherwise need to
 	// regenerate from on-disk layers, substituting them in the list of
 	// blobs to copy whenever possible.
+	//
+	// Not applicable if SourceLookupReferenceFunc is set.
 	BlobDirectory string
 	// Quiet is a boolean value that determines if minimal output to
 	// the user will be displayed, this is best used for logging.
@@ -91,7 +93,7 @@ type PushOptions struct {
 	// indexing. i.e. 0 is the first layer, -1 is the last (top-most) layer.
 	OciEncryptLayers *[]int
 	// SourceLookupReference provides a function to look up source
-	// references.
+	// references. Overrides BlobDirectory, if set.
 	SourceLookupReferenceFunc libimage.LookupReferenceFunc
 	// DestinationLookupReference provides a function to look up destination
 	// references.

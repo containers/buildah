@@ -33,6 +33,8 @@ type PullOptions struct {
 	// BlobDirectory is the name of a directory in which we'll attempt to
 	// store copies of layer blobs that we pull down, if any.  It should
 	// already exist.
+	//
+	// Not applicable if DestinationLookupReferenceFunc is set.
 	BlobDirectory string
 	// AllTags is a boolean value that determines if all tagged images
 	// will be downloaded from the repository. The default is false.
@@ -54,7 +56,7 @@ type PullOptions struct {
 	// references.
 	SourceLookupReferenceFunc libimage.LookupReferenceFunc
 	// DestinationLookupReference provides a function to look up destination
-	// references.
+	// references. Overrides BlobDirectory, if set.
 	DestinationLookupReferenceFunc libimage.LookupReferenceFunc
 }
 
