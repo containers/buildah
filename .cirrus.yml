@@ -181,7 +181,7 @@ unit_task:
 
 
 conformance_task:
-    name: 'Build Conformance w/ $STORAGE_DRIVER'
+    name: 'Debian Conformance w/ $STORAGE_DRIVER'
     alias: conformance
     only_if: *not_build_docs
     depends_on: *smoke_vendor_cross
