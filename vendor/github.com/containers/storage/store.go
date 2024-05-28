@@ -1,7 +1,6 @@
 package storage
 
 import (
-	_ "embed"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	// register all of the built-in drivers
@@ -962,10 +960,6 @@ func (s *store) load() error {
 		} else {
 			ris, err = newROImageStore(gipath)
 			if err != nil {
-				if errors.Is(err, syscall.EROFS) {
-					logrus.Debugf("Ignoring creation of lockfiles on read-only file systems %q, %v", gipath, err)
-					continue
-				}
 				return err
 			}
 		}
@@ -2747,13 +2741,7 @@ func (s *store) Status() ([][2]string, error) {
 	return rlstore.Status()
 }
 
-//go:embed VERSION
-var storageVersion string
-
 func (s *store) Version() ([][2]string, error) {
-	if trimmedVersion := strings.TrimSpace(storageVersion); trimmedVersion != "" {
-		return [][2]string{{"Version", trimmedVersion}}, nil
-	}
 	return [][2]string{}, nil
 }
 
@@ -3557,8 +3545,8 @@ func SetDefaultConfigFilePath(path string) {
 }
 
 // DefaultConfigFile returns the path to the storage config file used
-func DefaultConfigFile() (string, error) {
-	return types.DefaultConfigFile()
+func DefaultConfigFile(rootless bool) (string, error) {
+	return types.DefaultConfigFile(rootless)
 }
 
 // ReloadConfigurationFile parses the specified configuration file and overrides
