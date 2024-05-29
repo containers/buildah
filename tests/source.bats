@@ -152,6 +152,4 @@ load helpers
   run diff -r $srcdir $pulldir
   # FIXME: if there's a nonzero chance of this failing, include actual diffs
   assert "$status" -eq 0 "status from diff of srcdir vs pulldir"
-
-  stop_registry
 }
