@@ -135,23 +135,36 @@ vendor_task:
 cross_build_task:
     name: "Cross Compile"
     alias: cross_build
-    only_if: >-
+    only_if: |
+        ($CIRRUS_BRANCH =~ "pull/.*" ||
+         $CIRRUS_BRANCH == $CIRRUS_DEFAULT_BRANCH) &&
         $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
-
-    osx_instance:
-        image: ghcr.io/cirruslabs/macos-ventura-base:latest
-
-    script:
-        - brew update
-        - brew install go
-        - brew install go-md2man
-        - brew install gpgme
+    persistent_worker: &mac_pw
+        labels:
+            os: darwin
+            arch: arm64
+            purpose: prod
+    env:
+        CIRRUS_WORKING_DIR: "$HOME/ci/task-${CIRRUS_TASK_ID}"
+        # Prevent cache-pollution fron one task to the next.
+        GOPATH: "$CIRRUS_WORKING_DIR/.go"
+        GOCACHE: "$CIRRUS_WORKING_DIR/.go/cache"
+        GOENV: "$CIRRUS_WORKING_DIR/.go/support"
+        GOSRC: "$HOME/ci/task-${CIRRUS_TASK_ID}"
+        TMPDIR: "/private/tmp/ci"
+    # This host is/was shared with potentially many other CI tasks.
+    # The previous task may have been canceled or aborted.
+    prep_script: &mac_cleanup "contrib/cirrus/mac_cleanup.sh"
+    build_script:
+        - mkdir -p "$TMPDIR"
         - go version
         - make cross CGO_ENABLED=0
-
     binary_artifacts:
         path: ./bin/*
-
+    # This host is/was shared with potentially many other CI tasks.
+    # Ensure nothing is left running while waiting for the next task.
+    always:
+        task_cleanup_script: *mac_cleanup
 
 unit_task:
     name: 'Unit tests w/ $STORAGE_DRIVER'
