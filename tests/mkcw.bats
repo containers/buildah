@@ -59,16 +59,16 @@ function mkcw_check_image() {
   fi
   _prefetch busybox
   _prefetch bash
-  createrandom randomfile1
-  createrandom randomfile2
+  createrandom ${TEST_SCRATCH_DIR}/randomfile1
+  createrandom ${TEST_SCRATCH_DIR}/randomfile2
 
   echo -n mkcw-convert > "$TEST_SCRATCH_DIR"/key
   # image has one layer, check with all-lower-case TEE type name
-  run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert --add-file randomfile1:/in-a-subdir/rnd1 busybox busybox-cw
-  mkcw_check_image busybox-cw "" randomfile1:in-a-subdir/rnd1
+  run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert --add-file ${TEST_SCRATCH_DIR}/randomfile1:/in-a-subdir/rnd1 busybox busybox-cw
+  mkcw_check_image busybox-cw "" ${TEST_SCRATCH_DIR}/randomfile1:in-a-subdir/rnd1
   # image has multiple layers, check with all-upper-case TEE type name
-  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert --add-file randomfile2:rnd2 bash bash-cw
-  mkcw_check_image bash-cw "" randomfile2:/rnd2
+  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert --add-file ${TEST_SCRATCH_DIR}/randomfile2:rnd2 bash bash-cw
+  mkcw_check_image bash-cw "" ${TEST_SCRATCH_DIR}/randomfile2:/rnd2
 }
 
 @test "mkcw-commit" {
