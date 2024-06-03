@@ -648,6 +648,12 @@ function start_git_daemon() {
   daemondir=${TEST_SCRATCH_DIR}/git-daemon
   mkdir -p ${daemondir}/repo
   gzip -dc < ${1:-${TEST_SOURCES}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
+
+  # git >=2.45 aborts with "dubious ownership" error if serving other user's files as root
+  if ! is_rootless; then
+      chown -R root:root ${daemondir}/repo
+  fi
+
   GITPORT=$(($RANDOM + 32768))
   git daemon --detach --pid-file=${TEST_SCRATCH_DIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
 }
