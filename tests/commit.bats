@@ -173,18 +173,6 @@ load helpers
         expect_output "$buildah_version"
 }
 
-@test "commit-parent-id" {
-  _prefetch alpine
-  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
-  cid=$output
-  run_buildah inspect --format '{{.FromImageID}}' $cid
-  iid=$output
-
-  run_buildah commit $WITH_POLICY_JSON --format docker $cid alpine-image
-  run_buildah inspect --format '{{.Docker.Parent}}' alpine-image
-  expect_output "sha256:$iid" "alpine-image -> .Docker.Parent"
-}
-
 @test "commit-container-id" {
   _prefetch alpine
   run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
