@@ -1493,12 +1493,11 @@ var internalTestCases = []testCase{
 		fsSkip:     []string{"(dir):usr:(dir):bin:mtime"},
 	},
 
-	// FIXME 2024-05-29 fails under vfs, see #5526
-//	{
-//		name:       "copy with --chown",
-//		contextDir: "copychown",
-//		fsSkip:     []string{"(dir):usr:(dir):bin:mtime", "(dir):usr:(dir):local:(dir):bin:mtime"},
-//	},
+	{
+		name:       "copy with --chown",
+		contextDir: "copychown",
+		fsSkip:     []string{"(dir):usr:(dir):bin:mtime", "(dir):usr:(dir):local:(dir):bin:mtime"},
+	},
 
 	{
 		name:       "directory with slash",
