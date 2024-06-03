@@ -3107,6 +3107,24 @@ var internalTestCases = []testCase{
 		dockerUseBuildKit: true,
 		fsSkip:            []string{"(dir):etc:(dir):hostname"}, // buildkit does not create a phantom /etc/hostname
 	},
+
+	{
+		name: "workdir with trailing separator",
+		dockerfileContents: strings.Join([]string{
+			"FROM busybox",
+			"USER daemon",
+			"WORKDIR /tmp/",
+		}, "\n"),
+	},
+
+	{
+		name: "workdir without trailing separator",
+		dockerfileContents: strings.Join([]string{
+			"FROM busybox",
+			"USER daemon",
+			"WORKDIR /tmp",
+		}, "\n"),
+	},
 }
 
 func TestCommit(t *testing.T) {
