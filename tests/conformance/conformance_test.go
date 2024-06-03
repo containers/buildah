@@ -1580,25 +1580,24 @@ var internalTestCases = []testCase{
 		},
 	},
 
-	// FIXME 2024-05-29 fails with latest buildah, see #5526
-//	{
-//		// from internal team chat
-//		name: "ci-pipeline-modified",
-//		dockerfileContents: strings.Join([]string{
-//			"FROM busybox",
-//			"WORKDIR /go/src/github.com/openshift/ocp-release-operator-sdk/",
-//			"ENV GOPATH=/go",
-//			"RUN env | grep -E -v '^(HOSTNAME|OLDPWD)=' | LANG=C sort | tee /env-contents.txt\n",
-//		}, "\n"),
-//		fsSkip: []string{
-//			"(dir):go:mtime",
-//			"(dir):go:(dir):src:mtime",
-//			"(dir):go:(dir):src:(dir):github.com:mtime",
-//			"(dir):go:(dir):src:(dir):github.com:(dir):openshift:mtime",
-//			"(dir):go:(dir):src:(dir):github.com:(dir):openshift:(dir):ocp-release-operator-sdk:mtime",
-//			"(dir):env-contents.txt:mtime",
-//		},
-//	},
+	{
+		// from internal team chat
+		name: "ci-pipeline-modified",
+		dockerfileContents: strings.Join([]string{
+			"FROM busybox",
+			"WORKDIR /go/src/github.com/openshift/ocp-release-operator-sdk/",
+			"ENV GOPATH=/go",
+			"RUN env | grep -E -v '^(HOSTNAME|OLDPWD)=' | LANG=C sort | tee /env-contents.txt\n",
+		}, "\n"),
+		fsSkip: []string{
+			"(dir):go:mtime",
+			"(dir):go:(dir):src:mtime",
+			"(dir):go:(dir):src:(dir):github.com:mtime",
+			"(dir):go:(dir):src:(dir):github.com:(dir):openshift:mtime",
+			"(dir):go:(dir):src:(dir):github.com:(dir):openshift:(dir):ocp-release-operator-sdk:mtime",
+			"(dir):env-contents.txt:mtime",
+		},
+	},
 
 	{
 		name:          "add-permissions",
