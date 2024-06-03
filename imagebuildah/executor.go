@@ -35,6 +35,7 @@ import (
 	"github.com/openshift/imagebuilder"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -267,9 +268,9 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		defaultMountsFilePath:                   options.DefaultMountsFilePath,
 		iidfile:                                 options.IIDFile,
 		squash:                                  options.Squash,
-		labels:                                  append([]string{}, options.Labels...),
-		layerLabels:                             append([]string{}, options.LayerLabels...),
-		annotations:                             append([]string{}, options.Annotations...),
+		labels:                                  slices.Clone(options.Labels),
+		layerLabels:                             slices.Clone(options.LayerLabels),
+		annotations:                             slices.Clone(options.Annotations),
 		layers:                                  options.Layers,
 		noHostname:                              options.CommonBuildOpts.NoHostname,
 		noHosts:                                 options.CommonBuildOpts.NoHosts,
@@ -306,12 +307,12 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		secrets:                                 secrets,
 		sshsources:                              sshsources,
 		logPrefix:                               logPrefix,
-		unsetEnvs:                               append([]string{}, options.UnsetEnvs...),
-		unsetLabels:                             append([]string{}, options.UnsetLabels...),
+		unsetEnvs:                               slices.Clone(options.UnsetEnvs),
+		unsetLabels:                             slices.Clone(options.UnsetLabels),
 		buildOutput:                             options.BuildOutput,
 		osVersion:                               options.OSVersion,
-		osFeatures:                              append([]string{}, options.OSFeatures...),
-		envs:                                    append([]string{}, options.Envs...),
+		osFeatures:                              slices.Clone(options.OSFeatures),
+		envs:                                    slices.Clone(options.Envs),
 		confidentialWorkload:                    options.ConfidentialWorkload,
 		sbomScanOptions:                         options.SBOMScanOptions,
 		cdiConfigDir:                            options.CDIConfigDir,
