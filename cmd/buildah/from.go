@@ -69,7 +69,12 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	flags.StringVar(&opts.name, "name", "", "`name` for the working container")
-	flags.StringVar(&opts.pull, "pull", "true", "pull images from the registry if newer or not present in store, if false, only pull images if not present, if always, pull images even if the named images are present in store, if never, only use images present in store if available")
+	flags.StringVar(&opts.pull, "pull", "missing", `pull images from the registry values:
+always: pull images even if the named images are present in store,
+missing: pull images if the named images are not present in store,
+never: only use images present in store if available,
+newer: only pull images when newer images exist on the registry than those in the store.`)
+
 	flags.Lookup("pull").NoOptDefVal = "true" //allow `--pull ` to be set to `true` as expected.
 
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")

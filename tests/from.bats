@@ -82,6 +82,10 @@ load helpers
   run_buildah from --pull=false $WITH_POLICY_JSON scratch3
   expect_output --substring "scratch3-working-container"
   run_buildah rm $output
+  # Set --pull=never to prevent looking for a newer scratch3 image.
+  run_buildah from --pull=never $WITH_POLICY_JSON scratch3
+  expect_output --substring "scratch3-working-container"
+  run_buildah rm $output
   run_buildah rmi scratch2 scratch3
 
   # GitHub https://github.com/containers/buildah/issues/396#issuecomment-360949396

@@ -388,24 +388,23 @@ the help of emulation provided by packages like `qemu-user-static`.
 
 **--pull**
 
-When the flag is enabled or set explicitly to `true` (with *--pull=true*), attempt to pull the latest image from the registries
-listed in registries.conf if a local image does not exist or the image is newer
-than the one in storage. Raise an error if the image is not in any listed
-registry and is not present locally.
+Pull image policy. The default is **missing**.
 
-If the flag is disabled (with *--pull=false*), do not pull the image from the
-registry, use only the local version. Raise an error if the image is not
-present locally.
+- **always**: Pull base and SBOM scanner images from the registries listed in
+registries.conf.  Raise an error if a base or SBOM scanner image is not found
+in the registries, even if an image with the same name is present locally.
 
-If the pull flag is set to `always` (with *--pull=always*),
-pull the image from the first registry it is found in as listed in registries.conf.
-Raise an error if not found in the registries, even if the image is present locally.
+- **missing**: SBOM scanner images only if they could not be found in the local
+containers storage.  Raise an error if no image could be found and the pull
+fails.
 
-If the pull flag is set to `never` (with *--pull=never*),
-Do not pull the image from the registry, use only the local version. Raise an error
-if the image is not present locally.
+- **never**: Do not pull base and SBOM scanner images from registries, use only
+the local versions.  Raise an error if the image is not present locally.
 
-Defaults to *true*.
+- **newer**: Pull base and SBOM scanner images from the registries listed in
+registries.conf if newer.  Raise an error if a base or SBOM scanner image is
+not found in the registries when image with the same name is not present
+locally.
 
 **--quiet**, **-q**
 
