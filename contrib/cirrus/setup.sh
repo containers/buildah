@@ -10,6 +10,9 @@ source $(dirname $0)/lib.sh
 
 req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE CIRRUS_CHANGE_TITLE
 
+msg "Running df."
+df -hT
+
 msg "Disabling git repository owner-check system-wide."
 # Newer versions of git bark if repo. files are unexpectedly owned.
 # This mainly affects rootless and containerized testing.  But
