@@ -51,6 +51,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -1239,11 +1240,7 @@ func compareJSON(a, b map[string]interface{}, skip []string) (missKeys, leftKeys
 		}
 	}
 
-	replace := func(slice []string) []string {
-		return append([]string{}, slice...)
-	}
-
-	return replace(missKeys), replace(leftKeys), replace(diffKeys), isSame
+	return slices.Clone(missKeys), slices.Clone(leftKeys), slices.Clone(diffKeys), isSame
 }
 
 // configCompareResult summarizes the output of compareJSON for display

@@ -53,6 +53,7 @@ import (
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
@@ -540,7 +541,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		}
 	}
 
-	runtimeArgs := options.Args[:]
+	runtimeArgs := slices.Clone(options.Args)
 	if options.CgroupManager == config.SystemdCgroupsManager {
 		runtimeArgs = append(runtimeArgs, "--systemd-cgroup")
 	}

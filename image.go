@@ -32,6 +32,7 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -1102,7 +1103,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		postEmptyLayers:       b.AppendedEmptyLayers,
 		overrideChanges:       options.OverrideChanges,
 		overrideConfig:        options.OverrideConfig,
-		extraImageContent:     copyStringStringMap(options.ExtraImageContent),
+		extraImageContent:     maps.Clone(options.ExtraImageContent),
 	}
 	return ref, nil
 }
