@@ -108,6 +108,10 @@ type CommitOptions struct {
 	// UnsetEnvs is a list of environments to not add to final image.
 	// Deprecated: use UnsetEnv() before committing instead.
 	UnsetEnvs []string
+	// CompatSetParent causes the "parent" field to be set when committing
+	// the image in Docker format.  Newer BuildKit-based builds don't set
+	// this field.
+	CompatSetParent types.OptionalBool
 }
 
 var (
