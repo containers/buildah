@@ -141,6 +141,7 @@ type Executor struct {
 	osVersion               string
 	osFeatures              []string
 	envs                    []string
+	compatSetParent         types.OptionalBool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -293,6 +294,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		osVersion:                      options.OSVersion,
 		osFeatures:                     append([]string{}, options.OSFeatures...),
 		envs:                           append([]string{}, options.Envs...),
+		compatSetParent:                options.CompatSetParent,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

@@ -2014,6 +2014,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		RetryDelay:            s.executor.retryPullPushDelay,
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
+		CompatSetParent:       s.executor.compatSetParent,
 	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {
