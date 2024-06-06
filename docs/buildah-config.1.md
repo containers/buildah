@@ -110,6 +110,12 @@ can fail before the container is considered to be unhealthy.
 
 Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
+**--healthcheck-start-interval** *interval*
+
+Specify the time between health checks during the start period.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
 **--healthcheck-start-period** *interval*
 
 Specify how much time can elapse after a container has started before a failure

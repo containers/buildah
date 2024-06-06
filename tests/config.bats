@@ -232,6 +232,7 @@ function check_matrix() {
    --hostname cleverhostname \
    --healthcheck "CMD /bin/true" \
    --healthcheck-start-period 5s \
+   --healthcheck-start-interval 30s \
    --healthcheck-interval 6s \
    --healthcheck-timeout 7s \
    --healthcheck-retries 8 \
@@ -290,6 +291,8 @@ function check_matrix() {
   expect_output "[CMD /bin/true]"
   run_buildah inspect               -f      '{{.Docker.Config.Healthcheck.StartPeriod}}' scratch-image-docker
   expect_output "5s"
+  run_buildah inspect               -f      '{{.Docker.Config.Healthcheck.StartInterval}}' scratch-image-docker
+  expect_output "30s"
   run_buildah inspect               -f      '{{.Docker.Config.Healthcheck.Interval}}'    scratch-image-docker
   expect_output "6s"
   run_buildah inspect               -f      '{{.Docker.Config.Healthcheck.Timeout}}'     scratch-image-docker
