@@ -67,6 +67,7 @@ type containerImageRef struct {
 	blobDirectory         string
 	preEmptyLayers        []v1.History
 	postEmptyLayers       []v1.History
+	compatSetParent       types.OptionalBool
 }
 
 type containerImageSource struct {
@@ -210,6 +211,11 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	if err := json.Unmarshal(i.dconfig, &dimage); err != nil {
 		return v1.Image{}, v1.Manifest{}, docker.V2Image{}, docker.V2S2Manifest{}, err
 	}
+	// Set the parent, but only if we want to be compatible with "classic" docker build.
+	if i.compatSetParent == types.OptionalBoolTrue {
+		dimage.Parent = docker.ID(i.parent)
+	}
+	// Set the container ID and containerConfig in the docker format.
 	dimage.Container = i.containerID
 	if dimage.Config != nil {
 		dimage.ContainerConfig = *dimage.Config
@@ -772,6 +778,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		blobDirectory:         options.BlobDirectory,
 		preEmptyLayers:        b.PrependedEmptyLayers,
 		postEmptyLayers:       b.AppendedEmptyLayers,
+		compatSetParent:       options.CompatSetParent,
 	}
 	return ref, nil
 }

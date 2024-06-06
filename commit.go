@@ -100,6 +100,10 @@ type CommitOptions struct {
 	// integers in the slice represent 0-indexed layer indices, with support for negative
 	// indexing. i.e. 0 is the first layer, -1 is the last (top-most) layer.
 	OciEncryptLayers *[]int
+	// CompatSetParent causes the "parent" field to be set when committing
+	// the image in Docker format.  Newer BuildKit-based builds don't set
+	// this field.
+	CompatSetParent types.OptionalBool
 }
 
 var (

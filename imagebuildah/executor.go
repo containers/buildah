@@ -120,6 +120,7 @@ type Executor struct {
 	fromOverride                   string
 	manifest                       string
 	secrets                        map[string]string
+	compatSetParent                types.OptionalBool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -244,6 +245,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 		fromOverride:                   options.From,
 		manifest:                       options.Manifest,
 		secrets:                        secrets,
+		compatSetParent:                options.CompatSetParent,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

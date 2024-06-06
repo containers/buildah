@@ -222,4 +222,8 @@ type BuildOptions struct {
 	// From is the image name to use to replace the value specified in the first
 	// FROM instruction in the Containerfile
 	From string
+	// CompatSetParent causes the "parent" field to be set in the image's
+	// configuration when committing in Docker format.  Newer
+	// BuildKit-based docker build doesn't set this field.
+	CompatSetParent types.OptionalBool
 }
