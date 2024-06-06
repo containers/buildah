@@ -160,6 +160,7 @@ type Executor struct {
 	confidentialWorkload                    define.ConfidentialWorkloadOptions
 	sbomScanOptions                         []define.SBOMScanOptions
 	cdiConfigDir                            string
+	compatSetParent                         types.OptionalBool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -316,6 +317,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		confidentialWorkload:                    options.ConfidentialWorkload,
 		sbomScanOptions:                         options.SBOMScanOptions,
 		cdiConfigDir:                            options.CDIConfigDir,
+		compatSetParent:                         options.CompatSetParent,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

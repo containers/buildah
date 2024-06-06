@@ -366,4 +366,8 @@ type BuildOptions struct {
 	// LookupReferenceFunc used to look up destination references for cache
 	// pushes
 	CachePushDestinationLookupReferenceFunc libimage.LookupReferenceFunc
+	// CompatSetParent causes the "parent" field to be set in the image's
+	// configuration when committing in Docker format.  Newer
+	// BuildKit-based docker build doesn't set this field.
+	CompatSetParent types.OptionalBool
 }
