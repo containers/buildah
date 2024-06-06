@@ -197,6 +197,14 @@ The configured value can be "" (the empty string) or "private" to indicate
 that a new cgroup namespace should be created, or it can be "host" to indicate
 that the cgroup namespace in which `buildah` itself is being run should be reused.
 
+**--compat-volumes**
+
+Handle directories marked using the VOLUME instruction (both in this build, and
+those inherited from base images) such that their contents can only be modified
+by ADD and COPY instructions. Any changes made in those locations by RUN
+instructions will be reverted. Before the introduction of this option, this
+behavior was the default, but it is now disabled by default.
+
 **--compress**
 
 This option is added to be aligned with other containers CLIs.

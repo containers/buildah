@@ -370,4 +370,8 @@ type BuildOptions struct {
 	// configuration when committing in Docker format.  Newer
 	// BuildKit-based docker build doesn't set this field.
 	CompatSetParent types.OptionalBool
+	// CompatVolumes causes the contents of locations marked as volumes in
+	// base images or by a VOLUME instruction to be preserved during RUN
+	// instructions.  Newer BuildKit-based docker build doesn't bother.
+	CompatVolumes types.OptionalBool
 }
