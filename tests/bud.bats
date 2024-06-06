@@ -2466,7 +2466,7 @@ _EOF
 
   _prefetch alpine
   target=volume-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/preserve-volumes
+  run_buildah build $WITH_POLICY_JSON -t ${target} --compat-volumes $BUDFILES/preserve-volumes
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -2699,7 +2699,7 @@ function validate_instance_compression {
 
   _prefetch alpine
   target=volume-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/volume-perms
+  run_buildah build $WITH_POLICY_JSON -t ${target} --compat-volumes=true $BUDFILES/volume-perms
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   cid=$output
   run_buildah mount ${cid}
