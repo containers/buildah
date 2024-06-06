@@ -18,7 +18,7 @@ go 1.21 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 //         *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 
 require (
-	github.com/containerd/containerd v1.7.17
+	github.com/containerd/containerd v1.7.18
 	github.com/containernetworking/cni v1.1.2
 	github.com/containers/common v0.59.0
 	github.com/containers/image/v5 v5.31.0
