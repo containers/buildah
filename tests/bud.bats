@@ -3509,12 +3509,13 @@ _EOF
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} --format docker $BUDFILES/healthcheck
-  run_buildah inspect -f '{{printf "%q" .Docker.Config.Healthcheck.Test}} {{printf "%d" .Docker.Config.Healthcheck.StartPeriod}} {{printf "%d" .Docker.Config.Healthcheck.Interval}} {{printf "%d" .Docker.Config.Healthcheck.Timeout}} {{printf "%d" .Docker.Config.Healthcheck.Retries}}' ${target}
+  run_buildah inspect -f '{{printf "%q" .Docker.Config.Healthcheck.Test}} {{printf "%d" .Docker.Config.Healthcheck.StartInterval}} {{printf "%d" .Docker.Config.Healthcheck.StartPeriod}} {{printf "%d" .Docker.Config.Healthcheck.Interval}} {{printf "%d" .Docker.Config.Healthcheck.Timeout}} {{printf "%d" .Docker.Config.Healthcheck.Retries}}' ${target}
   second=1000000000
   threeseconds=$(( 3 * $second ))
+  thirtyseconds=$(( 30 * $second ))
   fiveminutes=$(( 5 * 60 * $second ))
   tenminutes=$(( 10 * 60 * $second ))
-  expect_output '["CMD-SHELL" "curl -f http://localhost/ || exit 1"]'" $tenminutes $fiveminutes $threeseconds 4" "Healthcheck config"
+  expect_output '["CMD-SHELL" "curl -f http://localhost/ || exit 1"]'" $thirtyseconds $tenminutes $fiveminutes $threeseconds 4" "Healthcheck config"
 }
 
 @test "bud with unused build arg" {

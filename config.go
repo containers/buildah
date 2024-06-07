@@ -675,11 +675,12 @@ func (b *Builder) Healthcheck() *docker.HealthConfig {
 		return nil
 	}
 	return &docker.HealthConfig{
-		Test:        slices.Clone(b.Docker.Config.Healthcheck.Test),
-		Interval:    b.Docker.Config.Healthcheck.Interval,
-		Timeout:     b.Docker.Config.Healthcheck.Timeout,
-		StartPeriod: b.Docker.Config.Healthcheck.StartPeriod,
-		Retries:     b.Docker.Config.Healthcheck.Retries,
+		Test:          slices.Clone(b.Docker.Config.Healthcheck.Test),
+		Interval:      b.Docker.Config.Healthcheck.Interval,
+		Timeout:       b.Docker.Config.Healthcheck.Timeout,
+		StartPeriod:   b.Docker.Config.Healthcheck.StartPeriod,
+		StartInterval: b.Docker.Config.Healthcheck.StartInterval,
+		Retries:       b.Docker.Config.Healthcheck.Retries,
 	}
 }
 
@@ -696,11 +697,12 @@ func (b *Builder) SetHealthcheck(config *docker.HealthConfig) {
 			b.Logger.Warnf("HEALTHCHECK is not supported for OCI image format and will be ignored. Must use `docker` format")
 		}
 		b.Docker.Config.Healthcheck = &docker.HealthConfig{
-			Test:        slices.Clone(config.Test),
-			Interval:    config.Interval,
-			Timeout:     config.Timeout,
-			StartPeriod: config.StartPeriod,
-			Retries:     config.Retries,
+			Test:          slices.Clone(config.Test),
+			Interval:      config.Interval,
+			Timeout:       config.Timeout,
+			StartPeriod:   config.StartPeriod,
+			StartInterval: config.StartInterval,
+			Retries:       config.Retries,
 		}
 	}
 }
