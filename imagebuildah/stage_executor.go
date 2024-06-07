@@ -274,7 +274,7 @@ func (s *StageExecutor) volumeCacheRestoreVFS() (err error) {
 		if err := copier.Remove(s.mountPoint, archivedPath, copier.RemoveOptions{All: true}); err != nil {
 			return err
 		}
-		createdDirPerms := os.FileMode(0755)
+		createdDirPerms := os.FileMode(0o755)
 		if err := copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return err
 		}
@@ -1027,6 +1027,14 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		// Make this our "current" working container.
 		s.mountPoint = mountPoint
 		s.builder = builder
+		// Now that the rootfs is mounted, set up handling of volumes from the base image.
+		s.volumeCache = make(map[string]string)
+		s.volumeCacheInfo = make(map[string]os.FileInfo)
+		for _, v := range builder.Volumes() {
+			if err := s.Preserve(v); err != nil {
+				return nil, fmt.Errorf("marking base image volume %q for preservation: %w", v, err)
+			}
+		}
 	}
 	logrus.Debugln("Container ID:", builder.ContainerID)
 	return builder, nil
