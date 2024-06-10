@@ -721,18 +721,18 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			Created:    &created,
 			CreatedBy:  i.createdBy,
 			Author:     oimage.Author,
-			Comment:    comment,
 			EmptyLayer: i.emptyLayer,
 		}
 		oimage.History = append(oimage.History, onews)
+		oimage.History[baseImageHistoryLen].Comment = comment
 		dnews := docker.V2S2History{
 			Created:    created,
 			CreatedBy:  i.createdBy,
 			Author:     dimage.Author,
-			Comment:    comment,
 			EmptyLayer: i.emptyLayer,
 		}
 		dimage.History = append(dimage.History, dnews)
+		dimage.History[baseImageHistoryLen].Comment = comment
 		appendHistory(i.postEmptyLayers)
 
 		// Add a history entry for the extra image content if we added a layer for it.
