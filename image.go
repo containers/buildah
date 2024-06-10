@@ -322,7 +322,6 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	if err := json.Unmarshal(i.dconfig, &dimage); err != nil {
 		return v1.Image{}, v1.Manifest{}, docker.V2Image{}, docker.V2S2Manifest{}, err
 	}
-	dimage.Parent = docker.ID(i.parent)
 	dimage.Container = i.containerID
 	if dimage.Config != nil {
 		dimage.ContainerConfig = *dimage.Config

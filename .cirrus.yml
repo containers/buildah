@@ -188,6 +188,7 @@ conformance_task:
     matrix:
         - env:
             STORAGE_DRIVER: 'vfs'
+            TMPDIR: '/var/tmp'
         - env:
             STORAGE_DRIVER: 'overlay'
 
