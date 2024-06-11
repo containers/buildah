@@ -68,6 +68,10 @@ CIRRUS_BASE_SHA=${CIRRUS_BASE_SHA:-unknown$(date +%d)}  # difficult to reliably 
 CIRRUS_BUILD_ID=${CIRRUS_BUILD_ID:-unknown$(date +%s)}  # must be short and unique enough
 CIRRUS_TASK_ID=${CIRRUS_BUILD_ID:-unknown$(date +%d)}   # to prevent state thrashing when
                                                         # debugging with `hack/get_ci_vm.sh`
+
+# All CI jobs use a local registry
+export CI_USE_REGISTRY_CACHE=true
+
 # Regex defining all CI-related env. vars. necessary for all possible
 # testing operations on all platforms and versions.  This is necessary
 # to avoid needlessly passing through global/system values across
