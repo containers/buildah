@@ -2,7 +2,7 @@ FROM alpine as builder
 RUN mkdir subdir
 COPY hey .
 
-FROM debian
+FROM ubuntu
 RUN  --mount=type=bind,source=.,dst=/tmp,z \
      --mount=type=tmpfs,dst=/var/tmp \
     cat /tmp/hey

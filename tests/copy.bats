@@ -447,7 +447,7 @@ stuff/mystuff"
 @test "copy-preserving-extended-attributes" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   # if we need to change which image we use, any image that can provide a working setattr/setcap/getfattr will do
-  image="quay.io/libpod/fedora-minimal:34"
+  image="quay.io/libpod/systemd-image:20240124"
   if ! which setfattr > /dev/null 2> /dev/null; then
     skip "setfattr not available, unable to check if it'll work in filesystem at ${TEST_SCRATCH_DIR}"
   fi

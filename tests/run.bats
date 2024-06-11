@@ -657,11 +657,14 @@ function configure_and_check_user() {
 	skip_if_in_container
 
 	${OCI} --version
-	_prefetch debian
+        # We use ubuntu image because it has no /etc/hosts file. This
+        # allows the fake_host test below to be an equality check,
+        # not a substring check.
+	_prefetch ubuntu
 
 	local hostname=h-$(random_string)
 
-	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON ubuntu
 	cid=$output
 	run_buildah 125 run --network=bogus $cid cat /etc/hosts
 	expect_output --substring "unable to find network with name or ID bogus: network not found"
@@ -699,7 +702,7 @@ function configure_and_check_user() {
 	expect_output --substring ""
 	run_buildah rm -a
 
-	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON ubuntu
 	cid=$output
 	run_buildah run --network=host --hostname $hostname $cid cat /etc/hosts
 	assert "$output" =~ "$ip[[:blank:]]$hostname"
@@ -715,7 +718,7 @@ function configure_and_check_user() {
 	assert "$output" =~ "$ip[[:blank:]]$hostname"
 	run_buildah rm -a
 
-	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON ubuntu
 	cid=$output
 	run_buildah run --network=none $cid sh -c 'echo "110.110.110.0 fake_host" >> /etc/hosts; cat /etc/hosts'
 	expect_output "110.110.110.0 fake_host"

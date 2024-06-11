@@ -193,7 +193,7 @@ in_podman() {
     done <<<"$(passthrough_envars)"
 
     showrun podman run -i --name="$IN_PODMAN_NAME" \
-                   --net="container:registry" \
+                   --net=host \
                    --privileged \
                    --cgroupns=host \
                    "${envargs[@]}" \
