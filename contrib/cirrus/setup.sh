@@ -87,6 +87,18 @@ echo "Configuring /etc/containers/registries.conf"
 mkdir -p /etc/containers
 echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject.org', 'quay.io']" | tee /etc/containers/registries.conf
 
+# As of July 2024, CI VMs come built-in with a registry.
+LCR=/var/cache/local-registry/local-cache-registry
+if [[ -x $LCR ]]; then
+    # Images in cache registry are prepopulated at the time
+    # VMs are built. If any PR adds a dependency on new images,
+    # those must be fetched now, at VM start time. This should
+    # be rare, and must be fixed in next automation_images build.
+    while read new_image; do
+        $LCR cache $new_image
+    done < <(grep '^[^#]' tests/NEW-IMAGES || true)
+fi
+
 show_env_vars
 
 if [[ -z "$CONTAINER" ]]; then
