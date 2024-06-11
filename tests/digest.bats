@@ -30,11 +30,15 @@ fromreftest() {
 }
 
 @test "from-by-digest-s1" {
+  test -n "$CI_USE_REGISTRY_CACHE" && skip "Cannot test against local cache registry"
+
   skip_if_rootless_environment
   fromreftest quay.io/libpod/testdigest_v2s1@sha256:816563225d7baae4782653efc9410579341754fe32cbe20f7600b39fc37d8ec7
 }
 
 @test "from-by-digest-s1-a-discarded-layer" {
+  test -n "$CI_USE_REGISTRY_CACHE" && skip "Cannot test against local cache registry"
+
   skip_if_rootless_environment
   IMG=quay.io/libpod/testdigest_v2s1_with_dups@sha256:2c619fffbed29d8677e246798333e7d1b288333cb61c020575f6372c76fdbb52
 
@@ -54,6 +58,8 @@ fromreftest() {
 }
 
 @test "from-by-tag-s1" {
+  test -n "$CI_USE_REGISTRY_CACHE" && skip "Cannot test against local cache registry"
+
   skip_if_rootless_environment
   fromreftest quay.io/libpod/testdigest_v2s1:20200210
 }

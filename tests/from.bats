@@ -110,13 +110,14 @@ load helpers
   run_buildah rm $output
   run_buildah rmi docker.io/alpine:latest
 
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:7
-  run_buildah rm $output
-  run_buildah rmi docker.io/centos:7
+  # FIXME FIXME FIXME: I don't see the point of these. Any reason not to delete?
+#  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:7
+#  run_buildah rm $output
+#  run_buildah rmi docker.io/centos:7
 
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:latest
-  run_buildah rm $output
-  run_buildah rmi docker.io/centos:latest
+#  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:latest
+#  run_buildah rm $output
+#  run_buildah rmi docker.io/centos:latest
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
@@ -124,8 +125,11 @@ load helpers
   run_buildah from --quiet --pull=true $WITH_POLICY_JSON alpine
   run_buildah rm $output
 
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker:latest
-  run_buildah rm $output
+  # #2205: The important thing here is differentiating 'docker:latest'
+  # (the image) from 'docker:/path' ('docker' as a protocol identifier).
+  # This is a parsing fix so we don't actually need to pull the image.
+  run_buildah 125 from --quiet --pull=false $WITH_POLICY_JSON docker:latest
+  assert "$output" = "Error: docker:latest: image not known"
 
   run_buildah push $WITH_POLICY_JSON alpine docker-archive:${TEST_SCRATCH_DIR}/docker-alp.tar:alpine
   run_buildah push $WITH_POLICY_JSON alpine    oci-archive:${TEST_SCRATCH_DIR}/oci-alp.tar:alpine

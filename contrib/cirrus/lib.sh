@@ -96,8 +96,8 @@ PASSTHROUGH_ENV_RE="(^($PASSTHROUGH_ENV_EXACT)\$)|(^($PASSTHROUGH_ENV_ATSTART))|
 SECRET_ENV_RE='ACCOUNT|GC[EP]..|SSH|PASSWORD|SECRET|TOKEN'
 
 # FQINs needed for testing
-REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
-ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
+REGISTRY_FQIN=${REGISTRY_FQIN:-quay.io/libpod/registry:2.8.2}
+ALPINE_FQIN=${ALPINE_FQIN:-quay.io/libpod/alpine}
 
 # for in-container testing
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
@@ -193,7 +193,7 @@ in_podman() {
     done <<<"$(passthrough_envars)"
 
     showrun podman run -i --name="$IN_PODMAN_NAME" \
-                   --net="container:registry" \
+                   --net=host \
                    --privileged \
                    --cgroupns=host \
                    "${envargs[@]}" \
