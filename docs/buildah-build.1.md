@@ -746,31 +746,23 @@ The `buildah build` command allows building images for all Linux architectures, 
 
 **--pull**
 
-When the *--pull* flag is enabled or set explicitly to `true` (with
-*--pull=true*), attempt to pull the latest versions of base and SBOM scanner
-images from the registries listed in registries.conf if a local base or SBOM
-scanner image does not exist or the image in the registry is newer than the one
-in local storage. Raise an error if the base or SBOM scanner image is not in
-any listed registry and is not present locally.
+Pull image policy. The default is **missing**.
 
-If the flag is disabled (with *--pull=false*), do not pull base and SBOM
-scanner images from registries, use only local versions. Raise an error if a
-base or SBOM scanner image is not present locally.
+- **always**: Pull base and SBOM scanner images from the registries listed in
+registries.conf.  Raise an error if a base or SBOM scanner image is not found
+in the registries, even if an image with the same name is present locally.
 
-If the pull flag is set to `always` (with *--pull=always*), pull base and SBOM
-scanner images from the registries listed in registries.conf.  Raise an error
-if a base or SBOM scanner image is not found in the registries, even if an
-image with the same name is present locally.
+- **missing**: SBOM scanner images only if they could not be found in the local
+containers storage.  Raise an error if no image could be found and the pull
+fails.
 
-If the pull flag is set to `missing` (with *--pull=missing*), pull base and
-SBOM scanner images only if they could not be found in the local containers
-storage.  Raise an error if no image could be found and the pull fails.
+- **never**: Do not pull base and SBOM scanner images from registries, use only
+the local versions.  Raise an error if the image is not present locally.
 
-If the pull flag is set to `never` (with *--pull=never*), do not pull base and
-SBOM scanner images from registries, use only the local versions.  Raise an
-error if the image is not present locally.
-
-Defaults to *true*.
+- **newer**: Pull base and SBOM scanner images from the registries listed in
+registries.conf if newer.  Raise an error if a base or SBOM scanner image is
+not found in the registries when image with the same name is not present
+locally.
 
 **--quiet**, **-q**
 
