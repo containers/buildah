@@ -24,7 +24,7 @@ require (
 	github.com/containers/image/v5 v5.31.0
 	github.com/containers/luksy v0.0.0-20240506205542-84b50f50f3ee
 	github.com/containers/ocicrypt v1.1.10
-	github.com/containers/storage v1.54.0
+	github.com/containers/storage v1.54.1-0.20240611145743-c193a4503fd2
 	github.com/cyphar/filepath-securejoin v0.2.5
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v26.1.4+incompatible
@@ -61,9 +61,9 @@ require (
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
-	github.com/BurntSushi/toml v1.3.2 // indirect
+	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/Microsoft/hcsshim v0.12.3 // indirect
+	github.com/Microsoft/hcsshim v0.12.4 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6 // indirect
