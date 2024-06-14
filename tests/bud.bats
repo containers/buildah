@@ -6838,3 +6838,25 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --no-cache --isolation chroot --secret id=MYSECRET -t test -f $contextdir/Dockerfile
   expect_output --substring "SOMESECRETDATA"
 }
+
+@test "bud with --output=type=registry" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+_EOF
+
+  testuser="testuser$RANDOM"
+  testpassword="testpassword$RANDOM"
+  start_registry "$testuser" "$testpassword"
+
+  run_buildah build $WITH_POLICY_JSON \
+    --cert-dir $REGISTRY_DIR \
+    --creds="$testuser":"$testpassword" \
+    --tls-verify=false \
+    --output=type=registry \
+    -t localhost:${REGISTRY_PORT}/image1:latest \
+    -f $contextdir/Containerfile
+}
