@@ -1098,10 +1098,12 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
 	}
 	if !nofileSet {
+		// For nofile, podman sets both hard and soft limits to min(hard limit, RLimitDefaultValue)
+		// regardless of rootlessness (see cmd/podman/early_init_linux.go).
 		lim := define.RLimitDefaultValue
 		var rlimit unix.Rlimit
 		if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
-			if lim < rlimit.Max || unshare.IsRootless() {
+			if rlimit.Max < lim {
 				lim = rlimit.Max
 			}
 		} else {
@@ -1109,17 +1111,23 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 		}
 		g.AddProcessRlimits("RLIMIT_NOFILE", lim, lim)
 	}
-	if !nprocSet {
+	if !nprocSet && unshare.IsRootless() {
+		// For nproc, podman only sets limits for rootless containers (handling hard and soft limits
+		// independently). As before, these are set to min(soft/hard limit, RLimitDefaultValue).
+		current := define.RLimitDefaultValue
 		lim := define.RLimitDefaultValue
 		var rlimit unix.Rlimit
 		if err := unix.Getrlimit(unix.RLIMIT_NPROC, &rlimit); err == nil {
-			if lim < rlimit.Max || unshare.IsRootless() {
+			if rlimit.Max < lim {
 				lim = rlimit.Max
+			}
+			if rlimit.Cur < current {
+				current = rlimit.Cur
 			}
 		} else {
 			logrus.Warnf("Failed to return RLIMIT_NPROC ulimit %q", err)
 		}
-		g.AddProcessRlimits("RLIMIT_NPROC", lim, lim)
+		g.AddProcessRlimits("RLIMIT_NPROC", lim, current)
 	}
 
 	return nil
