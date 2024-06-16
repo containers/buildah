@@ -537,6 +537,11 @@ function configure_and_check_user() {
 
 	_prefetch alpine
 
+	# drop limits prior to tests - this tests the ability of non-rootless containers to increase
+	# file limits to match those of podman
+	ulimit -S -n 1024
+	ulimit -H -n 1024
+
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run podman run --rm alpine sh -c "awk '/open files/{print \$4 \"/\" \$5}' /proc/self/limits"
