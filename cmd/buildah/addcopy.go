@@ -160,6 +160,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		return errors.New("--ignorefile option requires that you specify a context dir using --contextdir")
 	}
 
+	var preserveOwnership bool
 	if iopts.from != "" {
 		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Is(err, storage.ErrContainerUnknown) {
 			systemContext, err2 := parse.SystemContextFromOptions(c)
@@ -221,6 +222,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 			}
 		}()
 		idMappingOptions = &from.IDMappingOptions
+		preserveOwnership = true
 		contextdir = filepath.Join(fromMountPoint, iopts.contextdir)
 		for i := range args {
 			args[i] = filepath.Join(fromMountPoint, args[i])
@@ -235,11 +237,12 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	builder.ContentDigester.Restart()
 
 	options := buildah.AddAndCopyOptions{
-		Chmod:            iopts.chmod,
-		Chown:            iopts.chown,
-		Checksum:         iopts.checksum,
-		ContextDir:       contextdir,
-		IDMappingOptions: idMappingOptions,
+		Chmod:             iopts.chmod,
+		Chown:             iopts.chown,
+		PreserveOwnership: preserveOwnership,
+		Checksum:          iopts.checksum,
+		ContextDir:        contextdir,
+		IDMappingOptions:  idMappingOptions,
 	}
 	if iopts.contextdir != "" {
 		var excludes []string
