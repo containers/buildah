@@ -57,7 +57,7 @@ load helpers
 }
 
 @test "push-by-id" {
-  for image in busybox k8s.gcr.io/pause ; do
+  for image in busybox registry.k8s.io/pause ; do
     echo pulling/pushing image $image
     _prefetch $image
 
