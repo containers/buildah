@@ -4,7 +4,6 @@ load helpers
 
 function mkcw_check_image() {
   local imageID="$1"
-  local expectedEnv="$2"
   # Mount the container and take a look at what it got from the image.
   run_buildah from "$imageID"
   local ctrID="$output"
@@ -28,9 +27,6 @@ function mkcw_check_image() {
   mount /dev/mapper/"$uuid" "$TEST_SCRATCH_DIR"/mount
   # Should have a not-empty config file with parts of an image's config.
   test -s "$TEST_SCRATCH_DIR"/mount/.krun_config.json
-  if test -n "$expectedEnv" ; then
-    grep -q "expectedEnv" "$TEST_SCRATCH_DIR"/mount/.krun_config.json
-  fi
   # Should have a /tmp directory, at least.
   test -d "$TEST_SCRATCH_DIR"/mount/tmp
   # Should have a /bin/sh file from the base image, at least.
@@ -65,10 +61,10 @@ function mkcw_check_image() {
   echo -n mkcw-convert > "$TEST_SCRATCH_DIR"/key
   # image has one layer, check with all-lower-case TEE type name
   run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert --add-file ${TEST_SCRATCH_DIR}/randomfile1:/in-a-subdir/rnd1 busybox busybox-cw
-  mkcw_check_image busybox-cw "" ${TEST_SCRATCH_DIR}/randomfile1:in-a-subdir/rnd1
+  mkcw_check_image busybox-cw ${TEST_SCRATCH_DIR}/randomfile1:in-a-subdir/rnd1
   # image has multiple layers, check with all-upper-case TEE type name
   run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert --add-file ${TEST_SCRATCH_DIR}/randomfile2:rnd2 bash bash-cw
-  mkcw_check_image bash-cw "" ${TEST_SCRATCH_DIR}/randomfile2:/rnd2
+  mkcw_check_image bash-cw ${TEST_SCRATCH_DIR}/randomfile2:/rnd2
 }
 
 @test "mkcw-commit" {
