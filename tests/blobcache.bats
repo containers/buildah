@@ -2,6 +2,12 @@
 
 load helpers
 
+# The 'rm cachefile' in the "blobs must be reused" test
+# causes flakes when parallelizing
+function setup_file() {
+    export BATS_NO_PARALLELIZE_WITHIN_FILE=true
+}
+
 @test "blobcache-pull" {
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
@@ -74,14 +80,14 @@ function _check_matches() {
 
 	# Clear local image and c/image's blob-info-cache
 	run_buildah rmi --all -f
+        cachedir=/var/lib
 	if is_rootless;
 	then
-		run rm $HOME/.local/share/containers/cache/blob-info-cache-v1.sqlite
-		assert "$status" -eq 0 "status of `run rm $HOME/.local/share/containers/cache/blob-info-cache-v1.sqlite` must be 0"
-	else
-		run rm /var/lib/containers/cache/blob-info-cache-v1.sqlite
-		assert "$status" -eq 0 "status of `run rm /var/lib/containers/cache/blob-info-cache-v1.sqlite` must be 0"
-	fi
+		cachedir=$HOME/.local/share
+        fi
+        cachefile=$cachedir/containers/cache/blob-info-cache-v1.sqlite
+        run rm $cachefile
+	assert "$status" -eq 0 "status of `run rm $cachefile` must be 0"
 
 	# In first push blob must be skipped after vendoring https://github.com/containers/image/pull/1645
 	run_buildah pull dir:${outputdir}
