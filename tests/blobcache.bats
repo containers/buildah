@@ -2,6 +2,12 @@
 
 load helpers
 
+# The 'rm cachefile' in the "blobs must be reused" test
+# causes flakes when parallelizing
+function setup_file() {
+    export BATS_NO_PARALLELIZE_WITHIN_FILE=true
+}
+
 @test "blobcache-pull" {
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
