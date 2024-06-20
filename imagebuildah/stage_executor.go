@@ -2252,6 +2252,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		RetryDelay:            s.executor.retryPullPushDelay,
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
+		CompatSetParent:       s.executor.compatSetParent,
 	}
 	if finalInstruction {
 		options.ConfidentialWorkloadOptions = s.executor.confidentialWorkload
