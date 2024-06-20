@@ -18,9 +18,11 @@ import (
 
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/pkg/chrootuser"
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/pkg/regexp"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -74,9 +76,27 @@ type AddAndCopyOptions struct {
 	StripStickyBit bool
 }
 
-// sourceIsRemote returns true if "source" is a remote location.
+// gitURLFragmentSuffix matches fragments to use as Git reference and build
+// context from the Git repository e.g.
+//
+//	github.com/containers/buildah.git
+//	github.com/containers/buildah.git#main
+//	github.com/containers/buildah.git#v1.35.0
+var gitURLFragmentSuffix = regexp.Delayed(`\.git(?:#.+)?$`)
+
+// sourceIsGit returns true if "source" is a git location.
+func sourceIsGit(source string) bool {
+	return isURL(source) && gitURLFragmentSuffix.MatchString(source)
+}
+
+func isURL(url string) bool {
+	return strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")
+}
+
+// sourceIsRemote returns true if "source" is a remote location
+// and *not* a git repo. Certain github urls such as raw.github.* are allowed.
 func sourceIsRemote(source string) bool {
-	return strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://")
+	return isURL(source) && !gitURLFragmentSuffix.MatchString(source)
 }
 
 // getURL writes a tar archive containing the named content
@@ -233,16 +253,26 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	}
 
 	// Figure out what sorts of sources we have.
-	var localSources, remoteSources []string
+	var localSources, remoteSources, gitSources []string
 	for i, src := range sources {
 		if sourceIsRemote(src) {
 			remoteSources = append(remoteSources, src)
+			continue
+		}
+		if sourceIsGit(src) {
+			gitSources = append(gitSources, src)
 			continue
 		}
 		if !filepath.IsAbs(src) && options.ContextDir == "" {
 			sources[i] = filepath.Join(currentDir, src)
 		}
 		localSources = append(localSources, sources[i])
+	}
+
+	// Treat git sources as a subset of remote sources
+	// differentiating only in how we fetch the two later on.
+	if len(gitSources) > 0 {
+		remoteSources = append(remoteSources, gitSources...)
 	}
 
 	// Check how many items our local source specs matched.  Each spec
@@ -276,7 +306,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		}
 		numLocalSourceItems += len(localSourceStat.Globbed)
 	}
-	if numLocalSourceItems+len(remoteSources) == 0 {
+	if numLocalSourceItems+len(remoteSources)+len(gitSources) == 0 {
 		return fmt.Errorf("no sources %v found: %w", sources, syscall.ENOENT)
 	}
 
@@ -332,6 +362,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			if item.IsRegular {
 				destCanBeFile = true
 			}
+		}
+		if len(gitSources) > 0 {
+			destMustBeDirectory = true
 		}
 	}
 
@@ -404,7 +437,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		var multiErr *multierror.Error
 		var getErr, closeErr, renameErr, putErr error
 		var wg sync.WaitGroup
-		if sourceIsRemote(src) {
+		if sourceIsRemote(src) || sourceIsGit(src) {
 			pipeReader, pipeWriter := io.Pipe()
 			var srcDigest digest.Digest
 			if options.Checksum != "" {
@@ -413,12 +446,42 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					return fmt.Errorf("invalid checksum flag: %w", err)
 				}
 			}
+
 			wg.Add(1)
-			go func() {
-				getErr = getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest)
-				pipeWriter.Close()
-				wg.Done()
-			}()
+			if sourceIsGit(src) {
+				go func() {
+					var cloneDir string
+					cloneDir, _, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
+
+					writer := io.WriteCloser(pipeWriter)
+					writer = newTarFilterer(writer, func(hdr *tar.Header) (bool, bool, io.Reader) {
+						return false, false, nil
+					})
+					getOptions := copier.GetOptions{
+						UIDMap:         srcUIDMap,
+						GIDMap:         srcGIDMap,
+						Excludes:       options.Excludes,
+						ExpandArchives: extract,
+						ChownDirs:      chownDirs,
+						ChmodDirs:      chmodDirsFiles,
+						ChownFiles:     chownFiles,
+						ChmodFiles:     chmodDirsFiles,
+						StripSetuidBit: options.StripSetuidBit,
+						StripSetgidBit: options.StripSetgidBit,
+						StripStickyBit: options.StripStickyBit,
+					}
+					getErr = copier.Get(cloneDir, cloneDir, getOptions, []string{"."}, writer)
+					closeErr = writer.Close()
+					wg.Done()
+				}()
+			} else {
+				go func() {
+					getErr = getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest)
+					pipeWriter.Close()
+					wg.Done()
+				}()
+			}
+
 			wg.Add(1)
 			go func() {
 				b.ContentDigester.Start("")
