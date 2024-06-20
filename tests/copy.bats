@@ -537,3 +537,44 @@ stuff/mystuff"
   expect_line_count 1
   assert "$output" = "test_file" "only the one file"
 }
+
+@test "copy-from-ownership" {
+  # Build both a container and an image that have contents owned by a
+  # non-default user.
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-1
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-2
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-3
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-4
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-5
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-6
+  run_buildah from scratch
+  sourcectr="$output"
+  run_buildah copy --chown 123:123 $sourcectr ${TEST_SCRATCH_DIR}/random-file-1
+  run_buildah copy --chown 123:123 $sourcectr ${TEST_SCRATCH_DIR}/random-file-2
+  run_buildah copy --chown 456:456 $sourcectr ${TEST_SCRATCH_DIR}/random-file-4
+  run_buildah copy --chown 456:456 $sourcectr ${TEST_SCRATCH_DIR}/random-file-5
+  sourceimg=testimage
+  run_buildah commit $sourcectr $sourceimg
+  _prefetch busybox
+  run_buildah from --pull=never $WITH_POLICY_JSON busybox
+  ctr="$output"
+  run_buildah copy $ctr ${TEST_SCRATCH_DIR}/random-file-3
+  run_buildah copy --from=$sourceimg $ctr /random-file-1 # should be preserved as 123:123
+  run_buildah copy --from=$sourceimg --chown=456:456 $ctr /random-file-2
+  run_buildah copy --from=$sourcectr $ctr /random-file-4 # should be preserved as 456:456
+  run_buildah copy --from=$sourcectr --chown=123:123 $ctr /random-file-5
+  run_buildah copy $ctr ${TEST_SCRATCH_DIR}/random-file-3
+  run_buildah copy --chown=789:789 $ctr ${TEST_SCRATCH_DIR}/random-file-6
+  run_buildah run $ctr stat -c %u:%g /random-file-1
+  assert 123:123
+  run_buildah run $ctr stat -c %u:%g /random-file-2
+  assert 456:456
+  run_buildah run $ctr stat -c %u:%g /random-file-3
+  assert 0:0
+  run_buildah run $ctr stat -c %u:%g /random-file-4
+  assert 456:456
+  run_buildah run $ctr stat -c %u:%g /random-file-5
+  assert 123:123
+  run_buildah run $ctr stat -c %u:%g /random-file-6
+  assert 789:789
+}

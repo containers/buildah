@@ -28,11 +28,13 @@ container digest string. Only supported for HTTP sources.
 
 **--chmod** *permissions*
 
-Sets the access permissions of the destination content. Accepts the numerical format.
+Sets the access permissions of the destination content.  Accepts the numerical
+format.  If `--from` is not used, defaults to `0755`.
 
 **--chown** *owner*:*group*
 
-Sets the user and group ownership of the destination content.
+Sets the user and group ownership of the destination content.  If `--from` is
+not used, defaults to `0:0`.
 
 **--contextdir** *directory*
 
@@ -45,7 +47,8 @@ by symbolic links outside of the chroot will fail.
 Use the root directory of the specified working container or image as the root
 directory when resolving absolute source paths and the path of the context
 directory.  If an image needs to be pulled, options recognized by `buildah pull`
-can be used.
+can be used.  If `--chown` or `--chmod` are not used, permissions and ownership
+is preserved.
 
 **--ignorefile** *file*
 
