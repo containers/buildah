@@ -860,12 +860,15 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		from = base
 	}
 	displayFrom := from
+	if ib.Platform != "" {
+		displayFrom = "--platform=" + ib.Platform + " " + displayFrom
+	}
 
 	// stage.Name will be a numeric string for all stages without an "AS" clause
 	asImageName := stage.Name
 	if asImageName != "" {
 		if _, err := strconv.Atoi(asImageName); err != nil {
-			displayFrom = from + " AS " + asImageName
+			displayFrom += " AS " + asImageName
 		}
 	}
 
