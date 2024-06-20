@@ -1604,6 +1604,15 @@ _EOF
   expect_line_count 18
 }
 
+@test "bud with no --layers comment" {
+  _prefetch alpine
+  run_buildah build --pull-never $WITH_POLICY_JSON --layers=false --no-cache -t test $BUDFILES/use-layers
+  run_buildah images -a
+  expect_line_count 3
+  run_buildah inspect --format "{{index .Docker.History 2}}" test
+  expect_output --substring "FROM docker.io/library/alpine:latest"
+}
+
 @test "bud with --layers and single and two line Dockerfiles" {
   _prefetch alpine
   run_buildah inspect --format "{{.FromImageDigest}}" alpine
