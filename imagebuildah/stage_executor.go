@@ -2306,9 +2306,11 @@ func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOp
 }
 
 func (s *StageExecutor) EnsureContainerPath(path string) error {
+	logrus.Debugf("EnsureContainerPath %q in %q", path, s.builder.ContainerID)
 	return s.builder.EnsureContainerPathAs(path, "", nil)
 }
 
 func (s *StageExecutor) EnsureContainerPathAs(path, user string, mode *os.FileMode) error {
+	logrus.Debugf("EnsureContainerPath %q (owner %q, mode %o) in %q", path, user, mode, s.builder.ContainerID)
 	return s.builder.EnsureContainerPathAs(path, user, mode)
 }
