@@ -6838,3 +6838,11 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --no-cache --isolation chroot --secret id=MYSECRET -t test -f $contextdir/Dockerfile
   expect_output --substring "SOMESECRETDATA"
 }
+
+@test "build-logs-from-platform" {
+  run_buildah info --format '{{.host.os}}/{{.host.arch}}{{if .host.variant}}/{{.host.variant}}{{ end }}'
+  local platform="$output"
+  echo FROM --platform=$platform busybox > ${TEST_SCRATCH_DIR}/Containerfile
+  run_buildah build ${TEST_SCRATCH_DIR}
+  expect_output --substring "\-\-platform=$platform"
+}
