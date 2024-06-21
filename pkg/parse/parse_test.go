@@ -10,6 +10,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCommonBuildOptionsFromFlagSet(t *testing.T) {
@@ -191,6 +192,32 @@ func TestParsePlatform(t *testing.T) {
 
 	_, _, _, err = Platform("a")
 	assert.Error(t, err)
+}
+
+func TestParsePullPolicy(t *testing.T) {
+	testCases := map[string]bool{
+		"missing":    true,
+		"ifmissing":  true,
+		"notpresent": true,
+		"always":     true,
+		"true":       true,
+		"ifnewer":    true,
+		"newer":      true,
+		"false":      true,
+		"never":      true,
+		"trye":       false,
+		"truth":      false,
+	}
+	for value, result := range testCases {
+		t.Run(value, func(t *testing.T) {
+			policy, err := pullPolicyWithFlags(value, false, false)
+			if result {
+				require.NoErrorf(t, err, "expected value %q to be recognized", value)
+			} else {
+				require.Errorf(t, err, "did not expect value %q to be recognized as %q", value, policy.String())
+			}
+		})
+	}
 }
 
 func TestSplitStringWithColonEscape(t *testing.T) {
