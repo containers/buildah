@@ -19,7 +19,7 @@ go 1.21 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 
 require (
 	github.com/containerd/containerd v1.7.18
-	github.com/containernetworking/cni v1.1.2
+	github.com/containernetworking/cni v1.2.0
 	github.com/containers/common v0.59.1
 	github.com/containers/image/v5 v5.31.0
 	github.com/containers/luksy v0.0.0-20240506205542-84b50f50f3ee
@@ -62,6 +62,7 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
+	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.12.3 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
