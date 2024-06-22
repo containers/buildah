@@ -385,8 +385,8 @@ load helpers
   mkdir -p $testdir
   mount -t tmpfs -o size=1M tmpfs $testdir
 
-  TMPDIR=$testdir run_buildah 125 pull --policy always $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
-  expect_output --substring "no space left on device"
+  TMPDIR=$testdir run_buildah 1 pull --policy always $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
+  expect_output --substring "incomplete"
 
   run_buildah pull --policy always $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
   umount $testdir
