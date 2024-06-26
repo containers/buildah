@@ -349,6 +349,26 @@ func (s *StageExecutor) volumeCacheRestore() error {
 // Copy copies data into the working tree.  The "Download" field is how
 // imagebuilder tells us the instruction was "ADD" and not "COPY".
 func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
+	for _, cp := range copies {
+		if cp.KeepGitDir {
+			if cp.Download {
+				return errors.New("ADD --keep-git-dir is not supported")
+			}
+			return errors.New("COPY --keep-git-dir is not supported")
+		}
+		if cp.Link {
+			return errors.New("COPY --link is not supported")
+		}
+		if cp.Parents {
+			return errors.New("COPY --parents is not supported")
+		}
+		if len(cp.Excludes) > 0 {
+			if cp.Download {
+				return errors.New("ADD --excludes is not supported")
+			}
+			return errors.New("COPY --excludes is not supported")
+		}
+	}
 	s.builder.ContentDigester.Restart()
 	return s.performCopy(excludes, copies...)
 }
