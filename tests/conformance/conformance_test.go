@@ -52,6 +52,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -490,21 +491,21 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	if t.Failed() {
 		t.FailNow()
 	}
-	deleteLabel := func(config map[string]interface{}, label string) {
+	deleteIdentityLabel := func(config map[string]interface{}) {
 		for _, configName := range []string{"config", "container_config"} {
 			if configStruct, ok := config[configName]; ok {
 				if configMap, ok := configStruct.(map[string]interface{}); ok {
 					if labels, ok := configMap["Labels"]; ok {
 						if labelMap, ok := labels.(map[string]interface{}); ok {
-							delete(labelMap, label)
+							delete(labelMap, buildah.BuilderIdentityAnnotation)
 						}
 					}
 				}
 			}
 		}
 	}
-	deleteLabel(originalBuildahConfig, buildah.BuilderIdentityAnnotation)
-	deleteLabel(ociBuildahConfig, buildah.BuilderIdentityAnnotation)
+	deleteIdentityLabel(originalBuildahConfig)
+	deleteIdentityLabel(ociBuildahConfig)
 
 	var originalDockerConfig, ociDockerConfig, fsDocker map[string]interface{}
 
@@ -516,6 +517,10 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 		if t.Failed() {
 			t.FailNow()
 		}
+
+		// Some of the base images for our tests were built with buildah, too
+		deleteIdentityLabel(originalDockerConfig)
+		deleteIdentityLabel(ociDockerConfig)
 
 		miss, left, diff, same := compareJSON(originalDockerConfig, originalBuildahConfig, originalSkip)
 		if !same {
@@ -606,6 +611,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 		ForceRmIntermediateCtrs: true,
 		CompatSetParent:         test.compatSetParent,
 		CompatVolumes:           test.compatVolumes,
+		Args:                    maps.Clone(test.buildArgs),
 	}
 	// build the image and gather output. log the output if the build part of the test failed
 	imageID, _, err := imagebuildah.BuildDockerfiles(ctx, store, options, dockerfileName)
@@ -695,6 +701,10 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 	require.NoErrorf(t, err, "archiving context directory %q", contextDir)
 	defer input.Close()
 
+	var buildArgs []docker.BuildArg
+	for k, v := range test.buildArgs {
+		buildArgs = append(buildArgs, docker.BuildArg{Name: k, Value: v})
+	}
 	// set up build options
 	output := &bytes.Buffer{}
 	options := docker.BuildImageOptions{
@@ -706,6 +716,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 		NoCache:             true,
 		RmTmpContainer:      true,
 		ForceRmTmpContainer: true,
+		BuildArgs:           buildArgs,
 	}
 	if test.dockerUseBuildKit || test.dockerBuilderVersion != "" {
 		if test.dockerBuilderVersion != "" {
@@ -781,7 +792,7 @@ func buildUsingImagebuilder(t *testing.T, client *docker.Client, test testCase, 
 		})
 	}
 	// build the image and gather output. log the output if the build part of the test failed
-	builder := imagebuilder.NewBuilder(nil)
+	builder := imagebuilder.NewBuilder(maps.Clone(test.buildArgs))
 	node, err := imagebuilder.ParseFile(filepath.Join(contextDir, dockerfileRelativePath))
 	if err != nil {
 		assert.Nil(t, err, "error parsing Dockerfile: %v", err)
@@ -1399,6 +1410,7 @@ type testCase struct {
 	compatVolumes        types.OptionalBool        // placeholder for a value to set for the buildah compatVolumes flag
 	transientMounts      []string                  // one possible buildah-specific feature
 	fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
+	buildArgs            map[string]string         // build args to supply, as if --build-arg was used
 }
 
 var internalTestCases = []testCase{
@@ -3211,6 +3223,19 @@ var internalTestCases = []testCase{
 		name:             "chown-volume", // from podman #22530
 		contextDir:       "chown-volume",
 		testUsingVolumes: true,
+	},
+
+	{
+		name:              "builtins",
+		contextDir:        "builtins",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "source", "BUSYBOX": "busybox", "ALPINE": "alpine", "OWNERID": "0", "       SECONDBASE": "localhost/no-such-image"},
+	},
+
+	{
+		name:              "header-builtin",
+		contextDir:        "header-builtin",
+		dockerUseBuildKit: true,
 	},
 }
 

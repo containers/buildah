@@ -532,12 +532,15 @@ symlink(subdir)"
 }
 
 @test "build with basename resolving default arg" {
+  run_buildah info --format '{{.host.os}}/{{.host.arch}}{{if .host.variant}}/{{.host.variant}}{{end}}'
+  myplatform="$output"
   run_buildah info --format '{{.host.arch}}'
   myarch="$output"
-  run_buildah info --format '{{.host.variant}}'
-  myvariant="$output"
 
-  run_buildah build --platform linux/$myarch/$myvariant $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
+  run_buildah build --platform ${myplatform} $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
+  expect_output --substring "This is built for $myarch"
+
+  run_buildah build                          $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
   expect_output --substring "This is built for $myarch"
 }
 
