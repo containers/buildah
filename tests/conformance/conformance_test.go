@@ -173,6 +173,19 @@ func TestConformance(t *testing.T) {
 						test.compatSetParent = types.OptionalBoolTrue
 					})
 				})
+			} else if internalTestCases[i].testUsingVolumes {
+				t.Run("new-volumes", func(t *testing.T) {
+					testConformanceInternal(t, dateStamp, i, func(test *testCase) {
+						test.dockerBuilderVersion = docker.BuilderBuildKit
+						test.compatVolumes = types.OptionalBoolFalse
+					})
+				})
+				t.Run("old-volumes", func(t *testing.T) {
+					testConformanceInternal(t, dateStamp, i, func(test *testCase) {
+						test.dockerBuilderVersion = docker.BuilderV1
+						test.compatVolumes = types.OptionalBoolTrue
+					})
+				})
 			} else {
 				testConformanceInternal(t, dateStamp, i, nil)
 			}
@@ -565,6 +578,16 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 		}
 		t.Logf("using buildah flag CompatSetParent = %s", compat)
 	}
+	if test.compatVolumes != types.OptionalBoolUndefined {
+		compat := "default"
+		switch test.compatVolumes {
+		case types.OptionalBoolFalse:
+			compat = "false"
+		case types.OptionalBoolTrue:
+			compat = "true"
+		}
+		t.Logf("using buildah flag CompatVolumes = %s", compat)
+	}
 	options := define.BuildOptions{
 		ContextDirectory: contextDir,
 		CommonBuildOpts:  &define.CommonBuildOptions{},
@@ -582,6 +605,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 		RemoveIntermediateCtrs:  true,
 		ForceRmIntermediateCtrs: true,
 		CompatSetParent:         test.compatSetParent,
+		CompatVolumes:           test.compatVolumes,
 	}
 	// build the image and gather output. log the output if the build part of the test failed
 	imageID, _, err := imagebuildah.BuildDockerfiles(ctx, store, options, dockerfileName)
@@ -1371,6 +1395,8 @@ type testCase struct {
 	dockerBuilderVersion docker.BuilderVersion     // if building with docker, request the specific builder
 	testUsingSetParent   bool                      // test both with old (gets set) and new (left blank) config.Parent behavior
 	compatSetParent      types.OptionalBool        // placeholder for a value to set for the buildah compatSetParent flag
+	testUsingVolumes     bool                      // test both with old (preserved) and new (just a config note) volume behavior
+	compatVolumes        types.OptionalBool        // placeholder for a value to set for the buildah compatVolumes flag
 	transientMounts      []string                  // one possible buildah-specific feature
 	fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
 }
@@ -1604,15 +1630,17 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "volume",
-		contextDir: "volume",
-		fsSkip:     []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		name:             "volume",
+		contextDir:       "volume",
+		fsSkip:           []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		testUsingVolumes: true,
 	},
 
 	{
-		name:       "volumerun",
-		contextDir: "volumerun",
-		fsSkip:     []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		name:             "volumerun",
+		contextDir:       "volumerun",
+		fsSkip:           []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		testUsingVolumes: true,
 	},
 
 	{
@@ -3177,6 +3205,12 @@ var internalTestCases = []testCase{
 			"USER daemon",
 			"WORKDIR /tmp",
 		}, "\n"),
+	},
+
+	{
+		name:             "chown-volume", // from podman #22530
+		contextDir:       "chown-volume",
+		testUsingVolumes: true,
 	},
 }
 
