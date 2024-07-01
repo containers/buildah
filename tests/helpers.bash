@@ -68,9 +68,17 @@ EOF
 
     # Common options for all buildah and podman invocations
     ROOTDIR_OPTS="--root ${TEST_SCRATCH_DIR}/root --runroot ${TEST_SCRATCH_DIR}/runroot --storage-driver ${STORAGE_DRIVER}"
-    BUILDAH_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf --registries-conf-dir ${TEST_SCRATCH_DIR}/registries.d --short-name-alias-conf ${TEST_SCRATCH_DIR}/cache/shortnames.conf"
-    COPY_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf --registries-conf-dir ${TEST_SCRATCH_DIR}/registries.d --short-name-alias-conf ${TEST_SCRATCH_DIR}/cache/shortnames.conf"
-    PODMAN_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf"
+
+    # When running in CI, use a local registry for all image pulls
+    local cached=
+    if [[ -n "$CI_USE_REGISTRY_CACHE" ]]; then
+        cached="-cached"
+    fi
+    regconfopt="--registries-conf ${TEST_SOURCES}/registries$cached.conf"
+    regconfdir="--registries-conf-dir ${TEST_SCRATCH_DIR}/registries.d"
+    BUILDAH_REGISTRY_OPTS="${regconfopt} ${regconfdir} --short-name-alias-conf ${TEST_SCRATCH_DIR}/cache/shortnames.conf"
+    COPY_REGISTRY_OPTS="${BUILDAH_REGISTRY_OPTS}"
+    PODMAN_REGISTRY_OPTS="${regconfopt}"
 }
 
 function starthttpd() {
@@ -676,7 +684,7 @@ function stop_git_daemon() {
 function start_registry() {
   local testuser="${1:-testuser}"
   local testpassword="${2:-testpassword}"
-  local REGISTRY_IMAGE=quay.io/libpod/registry:2.8
+  local REGISTRY_IMAGE=quay.io/libpod/registry:2.8.2
   local config='
 version: 0.1
 log:

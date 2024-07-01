@@ -1,7 +1,8 @@
-FROM quay.io/fedora/fedora
+ARG SAFEIMAGE
+FROM $SAFEIMAGE
 
 ENV MYUSER=myuser
-RUN useradd --create-home --home /"${MYUSER}" "${MYUSER}"
+RUN adduser -D -h /"${MYUSER}" "${MYUSER}"
 COPY --chown="${MYUSER}" ./copychown.txt /somewhere
 
 RUN stat -c "%U:%G" /somewhere
