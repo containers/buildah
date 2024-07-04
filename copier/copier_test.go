@@ -1871,3 +1871,90 @@ func testRemove(t *testing.T) {
 		})
 	}
 }
+
+func TestGetNoDerefSymlink(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testGetNoDerefSymlink(t)
+	canChroot = couldChroot
+}
+
+func testGetNoDerefSymlink(t *testing.T) {
+	var testArchives = []struct {
+		name     string
+		rootOnly bool
+		headers  []tar.Header
+		contents map[string][]byte
+	}{
+		{
+			name:     "regular",
+			rootOnly: false,
+			headers: []tar.Header{
+				{Name: "link-b", Typeflag: tar.TypeSymlink, Linkname: "../file-doesnt-exist", Size: 23, Mode: 0777, ModTime: testDate},
+			},
+			contents: map[string][]byte{
+				"archive-a": testArchiveSlice,
+			},
+		},
+	}
+
+	topdir := "."
+	for _, testArchive := range testArchives {
+		if uid != 0 && testArchive.rootOnly {
+			t.Logf("test archive %q can only be tested with root privileges, skipping", testArchive.name)
+			continue
+		}
+
+		dir, err := makeContextFromArchive(t, makeArchive(testArchive.headers, testArchive.contents), topdir)
+		require.NoErrorf(t, err, "error creating context from archive %q", testArchive.name)
+
+		root := dir
+
+		for _, noDerefSymlinks := range []bool{true, false} {
+			for _, testItem := range testArchive.headers {
+				name := filepath.FromSlash(testItem.Name)
+				name = filepath.Join(root, topdir, name)
+				if !t.Failed() && testItem.Typeflag == tar.TypeSymlink {
+					t.Run(fmt.Sprintf("noDerefSymlinks=%t,name=%s", noDerefSymlinks, name), func(t *testing.T) {
+						var getErr error
+						var wg sync.WaitGroup
+						getOptions := GetOptions{}
+						getOptions.NoDerefSymlinks = noDerefSymlinks
+						pipeReader, pipeWriter := io.Pipe()
+						wg.Add(1)
+						go func() {
+							getErr = Get(root, topdir, getOptions, []string{name}, pipeWriter)
+							pipeWriter.Close()
+							wg.Done()
+						}()
+						tr := tar.NewReader(pipeReader)
+						hdr, err := tr.Next()
+						actualContents := []string{}
+						for err == nil {
+							actualContents = append(actualContents, filepath.FromSlash(hdr.Linkname))
+							hdr, err = tr.Next()
+						}
+						wg.Wait()
+						pipeReader.Close()
+						assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
+
+						// We stat the target(name) and then assert the err
+						// If we're following links (noDerefSymlinks: false)
+						// we expect an error because copier would create
+						// a link with a target which is non-existent (../file-b).
+						// https://github.com/containers/podman/issues/16585
+						//
+						// But if we're not following links, copier would
+						// create the link by following the target as per
+						// docker's behaviour when not following links.
+						if !noDerefSymlinks {
+							assert.ErrorContains(t, getErr, fmt.Sprintf("copier: get: lstat %q", name))
+						} else {
+							assert.NoErrorf(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
+						}
+					})
+				}
+			}
+		}
+	}
+}

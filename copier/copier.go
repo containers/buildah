@@ -1316,7 +1316,17 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 				// cases where this was a symlink that we
 				// dereferenced, be sure to use the name of the
 				// link.
-				if err := copierHandlerGetOne(info, "", filepath.Base(queue[i]), item, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
+
+				// If following link, pass symlink target for
+				// the link to be generated on the destination
+				var symlinkTarget string
+				if req.GetOptions.NoDerefSymlinks && info.Mode()&os.ModeType == os.ModeSymlink {
+					symlinkTarget, err = os.Readlink(item)
+					if err != nil {
+						return err
+					}
+				}
+				if err := copierHandlerGetOne(info, symlinkTarget, filepath.Base(queue[i]), item, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
 					if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
 						continue
 					}
