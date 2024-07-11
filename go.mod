@@ -25,7 +25,7 @@ require (
 	github.com/containers/luksy v0.0.0-20240618143119-a8846e21c08c
 	github.com/containers/ocicrypt v1.1.10
 	github.com/containers/storage v1.54.0
-	github.com/cyphar/filepath-securejoin v0.2.5
+	github.com/cyphar/filepath-securejoin v0.3.0
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v26.1.4+incompatible
 	github.com/docker/go-units v0.5.0
