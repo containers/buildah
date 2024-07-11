@@ -20,7 +20,7 @@ go 1.21 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 require (
 	github.com/containerd/containerd v1.7.18
 	github.com/containernetworking/cni v1.2.0
-	github.com/containers/common v0.59.1
+	github.com/containers/common v0.59.2
 	github.com/containers/image/v5 v5.31.1
 	github.com/containers/luksy v0.0.0-20240618143119-a8846e21c08c
 	github.com/containers/ocicrypt v1.1.10
