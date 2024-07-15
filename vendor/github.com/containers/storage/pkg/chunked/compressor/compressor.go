@@ -9,7 +9,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"io"
+	"strings"
+	"time"
 
+	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chunked/internal"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/klauspost/compress/zstd"
@@ -231,6 +234,14 @@ func newTarSplitData(level int) (*tarSplitData, error) {
 	}, nil
 }
 
+// timeIfNotZero returns a pointer to the time.Time if it is not zero, otherwise it returns nil.
+func timeIfNotZero(t *time.Time) *time.Time {
+	if t == nil || t.IsZero() {
+		return nil
+	}
+	return t
+}
+
 func writeZstdChunkedStream(destFile io.Writer, outMetadata map[string]string, reader io.Reader, level int) error {
 	// total written so far.  Used to retrieve partial offsets in the file
 	dest := ioutils.NewWriteCounter(destFile)
@@ -374,8 +385,12 @@ func writeZstdChunkedStream(destFile io.Writer, outMetadata map[string]string, r
 			return err
 		}
 		xattrs := make(map[string]string)
-		for k, v := range hdr.Xattrs {
-			xattrs[k] = base64.StdEncoding.EncodeToString([]byte(v))
+		for k, v := range hdr.PAXRecords {
+			xattrKey, ok := strings.CutPrefix(k, archive.PaxSchilyXattr)
+			if !ok {
+				continue
+			}
+			xattrs[xattrKey] = base64.StdEncoding.EncodeToString([]byte(v))
 		}
 		entries := []internal.FileMetadata{
 			{
@@ -386,9 +401,9 @@ func writeZstdChunkedStream(destFile io.Writer, outMetadata map[string]string, r
 				Size:       hdr.Size,
 				UID:        hdr.Uid,
 				GID:        hdr.Gid,
-				ModTime:    &hdr.ModTime,
-				AccessTime: &hdr.AccessTime,
-				ChangeTime: &hdr.ChangeTime,
+				ModTime:    timeIfNotZero(&hdr.ModTime),
+				AccessTime: timeIfNotZero(&hdr.AccessTime),
+				ChangeTime: timeIfNotZero(&hdr.ChangeTime),
 				Devmajor:   hdr.Devmajor,
 				Devminor:   hdr.Devminor,
 				Xattrs:     xattrs,
