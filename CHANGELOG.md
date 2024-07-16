@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v1.35.5 (2024-07-16)
+
+    [release-1.35] Fixes Listing tags in JFrog Artifactory may fail
+    Cross-build on Fedora
+
 ## v1.35.4 (2024-05-09)
 
     [release-1.35] CVE-2024-3727 updates
