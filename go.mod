@@ -21,7 +21,7 @@ require (
 	github.com/containerd/containerd v1.7.18
 	github.com/containernetworking/cni v1.2.2
 	github.com/containers/common v0.59.1-0.20240712101718-237a317152ae
-	github.com/containers/image/v5 v5.31.1
+	github.com/containers/image/v5 v5.31.1-0.20240711123249-1dbd8fbbe516
 	github.com/containers/luksy v0.0.0-20240618143119-a8846e21c08c
 	github.com/containers/ocicrypt v1.2.0
 	github.com/containers/storage v1.54.1-0.20240712125645-98ad80d6d165
