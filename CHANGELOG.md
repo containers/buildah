@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.33.9 (2024-07-16)
+
+    [release-1.33] Fixes Listing tags in JFrog Artifactory may fail
+
 ## v1.33.8 (2024-05-17)
 
     [release-1.33] Bump c/image v5.29.3, c/common v0.57.5, CVE-2024-3727
