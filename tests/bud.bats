@@ -6860,3 +6860,18 @@ _EOF
   run_buildah build ${TEST_SCRATCH_DIR}
   expect_output --substring "\-\-platform=$platform"
 }
+
+@test build-add-https-retry-ca {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  mkdir -p ${TEST_SCRATCH_DIR}/private
+  starthttpd ${TEST_SCRATCH_DIR} "" ${TEST_SCRATCH_DIR}/localhost.crt ${TEST_SCRATCH_DIR}/private/localhost.key
+  echo FROM scratch | tee ${TEST_SCRATCH_DIR}/Dockerfile
+  echo ADD "https://localhost:${HTTP_SERVER_PORT}/randomfile" / | tee -a ${TEST_SCRATCH_DIR}/Dockerfile
+  run_buildah build --retry-delay=0.142857s --retry=14 --cert-dir ${TEST_SCRATCH_DIR} ${TEST_SCRATCH_DIR}
+  run_buildah build --retry-delay=0.142857s --retry=14 --tls-verify=false $cid ${TEST_SCRATCH_DIR}
+  run_buildah 125 build --retry-delay=0.142857s --retry=14 $cid ${TEST_SCRATCH_DIR}
+  assert "$output" =~ "x509: certificate signed by unknown authority"
+  stophttpd
+  run_buildah 125 build --retry-delay=0.142857s --retry=14 --cert-dir ${TEST_SCRATCH_DIR} $cid ${TEST_SCRATCH_DIR}
+  assert "$output" =~ "retrying in 142.*ms .*14/14.*"
+}

@@ -21,6 +21,12 @@ Defaults to false.
 Note: You can also override the default value of --add-history by setting the
 BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 
+**--cert-dir** *path*
+
+Use certificates at *path* (\*.crt, \*.cert, \*.key) when connecting to
+registries for pulling images named with the **--from** flag.  The default
+certificates directory is _/etc/containers/certs.d_.
+
 **--checksum** *checksum*
 
 Checksum the source content. The value of *checksum* must be a standard
@@ -69,6 +75,12 @@ Defaults to `3`.
 Duration of delay between retry attempts in case of failure when performing pull of images from registry.
 
 Defaults to `2s`.
+
+**--tls-verify** *bool-value*
+
+Require verification of certificates when pulling images referred to with the
+**--from*** flag (defaults to true).  TLS verification cannot be used when
+talking to an insecure registry.
 
 ## EXAMPLE
 

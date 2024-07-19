@@ -101,7 +101,7 @@ function starthttpd() { # directory [working-directory-or-"" [certfile, keyfile]
         echo error creating temporary file
         exit 1
     fi
-    sh -c "./serve ${1:-${BATS_TMPDIR}} 0 ${portfile} "${3}" "${4}" ${pidfile} &"
+    sh -c "./serve ${1:-${BATS_TMPDIR}} 0 \"${portfile}\" \"${3}\" \"${4}\" ${pidfile} &"
     waited=0
     while ! test -s ${pidfile} ; do
         sleep 0.1

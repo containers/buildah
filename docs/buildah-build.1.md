@@ -183,7 +183,8 @@ given.
 
 **--cert-dir** *path*
 
-Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
+Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry
+and retrieve contents from HTTPS locations for ADD instructions.
 The default certificates directory is _/etc/containers/certs.d_.
 
 **--cgroup-parent**=""
@@ -994,7 +995,7 @@ When --timestamp is set, the created timestamp is always set to the time specifi
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
+Require HTTPS and verification of certificates when talking to container registries (defaults to true) and retrieving content from HTTPS locations for ADD instructions.  TLS verification cannot be used when talking to an insecure registry.
 
 **--ulimit** *type*=*soft-limit*[:*hard-limit*]
 
