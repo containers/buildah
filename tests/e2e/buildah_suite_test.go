@@ -103,6 +103,11 @@ func BuildahCreate(tempDir string) BuildAhTest {
 		storageOpts = fmt.Sprintf("--storage-driver %s", os.Getenv("STORAGE_DRIVER"))
 	}
 
+	registriesConfBase := "../../tests/registries"
+	if os.Getenv("CI_USE_REGISTRY_CACHE") != "" {
+		registriesConfBase += "-cached"
+	}
+
 	return BuildAhTest{
 		BuildAhBinary:  buildAhBinary,
 		RunRoot:        filepath.Join(tempDir, "runroot"),
@@ -111,7 +116,7 @@ func BuildahCreate(tempDir string) BuildAhTest {
 		ArtifactPath:   artifactDir,
 		TempDir:        tempDir,
 		SignaturePath:  "../../tests/policy.json",
-		RegistriesConf: "../../tests/registries.conf",
+		RegistriesConf: registriesConfBase + ".conf",
 	}
 }
 

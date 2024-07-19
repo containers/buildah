@@ -58,7 +58,14 @@ function mkcw_check_image() {
     skip "cryptsetup not found"
   fi
   _prefetch busybox
-  _prefetch bash
+  # The important thing we need from $SAFEIMAGE is that it have >1 layer.
+  # Per @nalind:
+  #     The error we were attempting to avoid was causing the disk image to lose
+  #     content from layers that weren't the last one (and as far as this test is
+  #     concerned, for images with one layer, the only layer is also the last layer),
+  #     and the presence of the second layer, empty as it is, means the image still
+  #     meets the test expectations.
+  _prefetch $SAFEIMAGE
   createrandom randomfile1
   createrandom randomfile2
 
@@ -67,8 +74,8 @@ function mkcw_check_image() {
   run_buildah mkcw --ignore-attestation-errors --type snp --passphrase=mkcw-convert --add-file randomfile1:/in-a-subdir/rnd1 busybox busybox-cw
   mkcw_check_image busybox-cw "" randomfile1:in-a-subdir/rnd1
   # image has multiple layers, check with all-upper-case TEE type name
-  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert --add-file randomfile2:rnd2 bash bash-cw
-  mkcw_check_image bash-cw "" randomfile2:/rnd2
+  run_buildah mkcw --ignore-attestation-errors --type SNP --passphrase=mkcw-convert --add-file randomfile2:rnd2 $SAFEIMAGE my-cw
+  mkcw_check_image my-cw "" randomfile2:/rnd2
 }
 
 @test "mkcw-commit" {
@@ -77,10 +84,10 @@ function mkcw_check_image() {
   if ! which cryptsetup > /dev/null 2> /dev/null ; then
     skip "cryptsetup not found"
   fi
-  _prefetch bash
+  _prefetch $SAFEIMAGE
 
   echo -n "mkcw commit" > "$TEST_SCRATCH_DIR"/key
-  run_buildah from bash
+  run_buildah from $SAFEIMAGE
   ctrID="$output"
   run_buildah commit --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw commit" "$ctrID"
   mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)

@@ -4586,9 +4586,11 @@ EOM
 }
 
 @test "bud copy chown with newuser" {
-  _prefetch quay.io/fedora/fedora
+  _prefetch $SAFEIMAGE
   # Regression test for https://github.com/containers/buildah/issues/2192
-  run_buildah build $WITH_POLICY_JSON -t testctr -f $BUDFILES/copy-chown/Containerfile.chown_user $BUDFILES/copy-chown
+  run_buildah build $WITH_POLICY_JSON -t testctr \
+              --build-arg SAFEIMAGE=$SAFEIMAGE \
+              -f $BUDFILES/copy-chown/Containerfile.chown_user $BUDFILES/copy-chown
   expect_output --substring "myuser:myuser"
 }
 
@@ -6334,10 +6336,10 @@ _EOF
   expect_output --substring "world"
 }
 
-@test "bud-verify-if-we-dont-clean-prexisting-path" {
+@test "bud-verify-if-we-dont-clean-preexisting-path" {
   skip_if_no_runtime
   skip_if_in_container
-  _prefetch alpine debian
+  _prefetch alpine ubuntu
   run_buildah 1 build -t testbud $WITH_POLICY_JSON --secret id=secret-foo,src=$BUDFILES/verify-cleanup/secret1.txt -f $BUDFILES/verify-cleanup/Dockerfile $BUDFILES/verify-cleanup/
   expect_output --substring "hello"
   expect_output --substring "secrettext"

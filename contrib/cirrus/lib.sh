@@ -68,6 +68,10 @@ CIRRUS_BASE_SHA=${CIRRUS_BASE_SHA:-unknown$(date +%d)}  # difficult to reliably 
 CIRRUS_BUILD_ID=${CIRRUS_BUILD_ID:-unknown$(date +%s)}  # must be short and unique enough
 CIRRUS_TASK_ID=${CIRRUS_BUILD_ID:-unknown$(date +%d)}   # to prevent state thrashing when
                                                         # debugging with `hack/get_ci_vm.sh`
+
+# All CI jobs use a local registry
+export CI_USE_REGISTRY_CACHE=true
+
 # Regex defining all CI-related env. vars. necessary for all possible
 # testing operations on all platforms and versions.  This is necessary
 # to avoid needlessly passing through global/system values across
@@ -92,8 +96,8 @@ PASSTHROUGH_ENV_RE="(^($PASSTHROUGH_ENV_EXACT)\$)|(^($PASSTHROUGH_ENV_ATSTART))|
 SECRET_ENV_RE='ACCOUNT|GC[EP]..|SSH|PASSWORD|SECRET|TOKEN'
 
 # FQINs needed for testing
-REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
-ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
+REGISTRY_FQIN=${REGISTRY_FQIN:-quay.io/libpod/registry:2.8.2}
+ALPINE_FQIN=${ALPINE_FQIN:-quay.io/libpod/alpine}
 
 # for in-container testing
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
@@ -189,7 +193,7 @@ in_podman() {
     done <<<"$(passthrough_envars)"
 
     showrun podman run -i --name="$IN_PODMAN_NAME" \
-                   --net="container:registry" \
+                   --net=host \
                    --privileged \
                    --cgroupns=host \
                    "${envargs[@]}" \
