@@ -15,12 +15,14 @@ load helpers
 @test "bud: build manifest list and --add-compression zstd" {
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $BUDFILES/dockerfile/Dockerfile
-  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $BUDFILES/dockerfile/Dockerfile
+
+  imgname="img$(random_string | tr A-Z a-z)"
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}1" --platform linux/amd64 -f $BUDFILES/dockerfile/Dockerfile
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}2" --platform linux/arm64 -f $BUDFILES/dockerfile/Dockerfile
 
   run_buildah manifest create foo
-  run_buildah manifest add foo image1
-  run_buildah manifest add foo image2
+  run_buildah manifest add foo "${imgname}1"
+  run_buildah manifest add foo "${imgname}2"
 
   run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
@@ -48,12 +50,14 @@ _EOF
 
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
-  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $contextdir/Dockerfile1
+
+  imgname="img$(random_string | tr A-Z a-z)"
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}1" --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}2" --platform linux/arm64 -f $contextdir/Dockerfile1
 
   run_buildah manifest create foo
-  run_buildah manifest add foo image1
-  run_buildah manifest add foo image2
+  run_buildah manifest add foo "${imgname}1"
+  run_buildah manifest add foo "${imgname}2"
 
   CONTAINERS_CONF=$contextdir/containers.conf run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
@@ -76,12 +80,14 @@ _EOF
 
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
-  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $contextdir/Dockerfile1
+
+  imgname="img$(random_string | tr A-Z a-z)"
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}1" --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}2" --platform linux/arm64 -f $contextdir/Dockerfile1
 
   run_buildah manifest create foo
-  run_buildah manifest add foo image1
-  run_buildah manifest add foo image2
+  run_buildah manifest add foo "${imgname}1"
+  run_buildah manifest add foo "${imgname}2"
 
   run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
@@ -125,11 +131,13 @@ _EOF
 }
 
 @test "no layer should be created on scratch" {
-  run_buildah build --layers --label "label1=value1" -t test -f $BUDFILES/from-scratch/Containerfile
-  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' test
+  imgname="img$(random_string | tr A-Z a-z)"
+
+  run_buildah build --layers --label "label1=value1" -t $imgname -f $BUDFILES/from-scratch/Containerfile
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' $imgname
   expect_output "0" "layer should not exist"
-  run_buildah build --layers -t test -f $BUDFILES/from-scratch/Containerfile
-  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' test
+  run_buildah build --layers -t $imgname -f $BUDFILES/from-scratch/Containerfile
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' $imgname
   expect_output "0" "layer should not exist"
 }
 
@@ -147,21 +155,21 @@ _EOF
 
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t $imgname --platform linux/amd64 -f $contextdir/Dockerfile1
 
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format gzip image1 docker://localhost:${REGISTRY_PORT}/$imgname
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format gzip $imgname docker://localhost:${REGISTRY_PORT}/$imgname
   run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should have no trace of zstd since push was with --compression-format gzip
   assert "$output" !~ "zstd" "zstd found in layers where push was with --compression-format gzip"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression=false image1 docker://localhost:${REGISTRY_PORT}/$imgname
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression=false $imgname docker://localhost:${REGISTRY_PORT}/$imgname
   run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should have no trace of zstd since push is --force-compression=false
   assert "$output" !~ "zstd" "zstd found even though push was without --force-compression"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd image1 docker://localhost:${REGISTRY_PORT}/$imgname
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd $imgname docker://localhost:${REGISTRY_PORT}/$imgname
   run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should container `zstd`
   expect_output --substring "zstd" "layers must contain zstd compression"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression image1 docker://localhost:${REGISTRY_PORT}/$imgname
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression $imgname docker://localhost:${REGISTRY_PORT}/$imgname
   run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should container `zstd`
   expect_output --substring "zstd" "layers must contain zstd compression"
