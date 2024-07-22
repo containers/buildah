@@ -189,7 +189,7 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 		} else {
 			from, err := b.From(stage.Node)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error: Determining base image: %v", err)
 			}
 			if prereq := e.Named[from]; prereq != nil {
 				b, ok := stages.ByName(from)
@@ -229,10 +229,10 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 		}
 
 		if err := stageExecutor.Prepare(stage.Builder, stage.Node, stageFrom); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error: preparing stage using %q as base: %v", stageFrom, err)
 		}
 		if err := stageExecutor.Execute(stage.Builder, stage.Node); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error: running stage: %v", err)
 		}
 
 		// remember the outcome of the stage execution on the container config in case
