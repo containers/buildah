@@ -19,7 +19,7 @@ go 1.21.0 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 
 require (
 	github.com/containerd/containerd v1.7.18
-	github.com/containernetworking/cni v1.2.2
+	github.com/containernetworking/cni v1.2.3
 	github.com/containers/common v0.59.1-0.20240712101718-237a317152ae
 	github.com/containers/image/v5 v5.31.1-0.20240711123249-1dbd8fbbe516
 	github.com/containers/luksy v0.0.0-20240618143119-a8846e21c08c
