@@ -1,5 +1,6 @@
-FROM alpine as build
 ARG CUSTOM_TARGET
+
+FROM alpine as build
 
 FROM build AS platform-first
 ENV BUILT_FOR=first
