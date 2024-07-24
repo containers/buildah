@@ -277,8 +277,8 @@ github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc h1:
 github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc/go.mod h1:8tx1helyqhUC65McMm3x7HmOex8lO2/v9zPuxmKHurs=
 github.com/opencontainers/selinux v1.11.0 h1:+5Zbo97w3Lbmb3PeqQtpmTkMwsW5nRI3YaLpt7tQ7oU=
 github.com/opencontainers/selinux v1.11.0/go.mod h1:E5dMC3VPuVvVHDYmi78qvhJp8+M586T4DlDRYpFkyec=
-github.com/openshift/imagebuilder v1.2.11 h1:4EmEMyiLr7jlskS1h6V6smdcrQSGLRdcIeaXeV3F8EM=
-github.com/openshift/imagebuilder v1.2.11/go.mod h1:KkkXOyRjJlZEXWQtHNBNzVHqh4vf/0xX5cDIQ2gr+5I=
+github.com/openshift/imagebuilder v1.2.13 h1:kBKMk+WMItJaZnGbB7m0rOkSeLyTfOj/EQ374ZIUk04=
+github.com/openshift/imagebuilder v1.2.13/go.mod h1:KkkXOyRjJlZEXWQtHNBNzVHqh4vf/0xX5cDIQ2gr+5I=
 github.com/ostreedev/ostree-go v0.0.0-20210805093236-719684c64e4f h1:/UDgs8FGMqwnHagNDPGOlts35QkhAZ8by3DR7nMih7M=
 github.com/ostreedev/ostree-go v0.0.0-20210805093236-719684c64e4f/go.mod h1:J6OG6YJVEWopen4avK3VNQSnALmmjvniMmni/YFYAwc=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
