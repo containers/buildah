@@ -2486,14 +2486,14 @@ _EOF
 #
 #  Usage:  _test_http  SUBDIRECTORY  URL_PATH  [EXTRA ARGS]
 #
-#     SUBDIRECTORY   is a subdirectory path under the 'buds' subdirectory.
+#     SUBDIRECTORY   is a subdirectory path under the 'bud' subdirectory.
 #                    This will be the argument to starthttpd(), i.e. where
 #                    the httpd will serve files.
 #
 #     URL_PATH       is the path requested by buildah from the http server,
 #                    probably 'Dockerfile' or 'context.tar'
 #
-#     [EXTRA ARGS]   if present, will be passed to buildah on the 'bud'
+#     [EXTRA ARGS]   if present, will be passed to buildah on the 'build'
 #                    command line; it is intended for '-f subdir/Dockerfile'.
 #
 function _test_http() {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -35,12 +36,27 @@ func sendThatFile(basepath string) func(w http.ResponseWriter, r *http.Request) 
 func main() {
 	args := os.Args
 	if len(args) < 2 {
-		log.Fatal("requires subdirectory path [and optional port [and optional port file name]]")
+		log.Fatal("requires subdirectory path [and optional port [and optional port file name [and optional TLS cert and key file names [and optional pid file name]]]]")
 	}
 	basedir := args[1]
 	port := "0"
 	if len(args) > 2 {
 		port = args[2]
+	}
+	certs, key := "", ""
+	if len(args) > 5 && args[4] != "" && args[5] != "" {
+		certs = args[4]
+		key = args[5]
+	}
+	if len(args) > 6 && args[6] != "" {
+		f, err := os.Create(args[6])
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		if _, err := f.WriteString(fmt.Sprintf("%d", os.Getpid())); err != nil {
+			log.Fatalf("%v", err)
+		}
+		f.Close()
 	}
 	http.HandleFunc("/", sendThatFile(basedir))
 	server := http.Server{
@@ -53,12 +69,12 @@ func main() {
 						log.Fatalf("%v", err)
 					}
 					tempName := f.Name()
-					bytes := []byte(strconv.Itoa(tcp.Port))
-					if n, err := f.Write(bytes); err != nil || n != len(bytes) {
+					port := strconv.Itoa(tcp.Port)
+					if n, err := f.WriteString(port); err != nil || n != len(port) {
 						if err != nil {
 							log.Fatalf("%v", err)
 						}
-						log.Fatalf("short write: %d != %d", n, len(bytes))
+						log.Fatalf("short write: %d != %d", n, len(port))
 					}
 					f.Close()
 					if err := os.Rename(tempName, args[3]); err != nil {
@@ -69,5 +85,9 @@ func main() {
 			return context.Background()
 		},
 	}
-	log.Fatal(server.ListenAndServe())
+	if certs != "" && key != "" {
+		log.Fatal(server.ListenAndServeTLS(certs, key))
+	} else {
+		log.Fatal(server.ListenAndServe())
+	}
 }
