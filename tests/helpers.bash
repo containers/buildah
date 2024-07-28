@@ -81,21 +81,42 @@ EOF
     PODMAN_REGISTRY_OPTS="${regconfopt}"
 }
 
-function starthttpd() {
+function starthttpd() { # directory [working-directory-or-"" [certfile, keyfile]]
+    if test -n "$4" ; then
+      if ! openssl req -newkey rsa:4096 -nodes -sha256 -keyout "$4" -x509 -days 2 -addext "subjectAltName = DNS:localhost" -out "$3" -subj "/CN=localhost" ; then
+        die error creating new key and certificate
+      fi
+      chmod 644 "$3"
+      chmod 600 "$4"
+    fi
     pushd ${2:-${TEST_SCRATCH_DIR}} > /dev/null
     go build -o serve ${TEST_SOURCES}/serve/serve.go
     portfile=$(mktemp)
     if test -z "${portfile}"; then
-        echo error creating temporaty file
+        echo error creating temporary file
         exit 1
     fi
-    ./serve ${1:-${BATS_TMPDIR}} 0 ${portfile} &
-    HTTP_SERVER_PID=$!
+    pidfile=$(mktemp)
+    if test -z "${pidfile}"; then
+        echo error creating temporary file
+        exit 1
+    fi
+    sh -c "./serve ${1:-${BATS_TMPDIR}} 0 \"${portfile}\" \"${3}\" \"${4}\" ${pidfile} &"
+    waited=0
+    while ! test -s ${pidfile} ; do
+        sleep 0.1
+        if test $((++waited)) -ge 300 ; then
+            echo test http server did not write pid file within timeout
+            exit 1
+        fi
+    done
+    HTTP_SERVER_PID=$(cat ${pidfile})
+    rm -f ${pidfile}
     waited=0
     while ! test -s ${portfile} ; do
         sleep 0.1
         if test $((++waited)) -ge 300 ; then
-            echo test http server did not start within timeout
+            echo test http server did not start listening within timeout
             exit 1
         fi
     done
