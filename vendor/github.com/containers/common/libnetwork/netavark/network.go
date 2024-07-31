@@ -36,9 +36,6 @@ type netavarkNetwork struct {
 	// aardvarkBinary is the path to the aardvark binary.
 	aardvarkBinary string
 
-	// firewallDriver sets the firewall driver to use
-	firewallDriver string
-
 	// defaultNetwork is the name for the default network.
 	defaultNetwork string
 	// defaultSubnet is the default subnet for the default network.
@@ -81,9 +78,6 @@ type InitConfig struct {
 
 	// NetworkRunDir is where temporary files are stored, i.e.the ipam db, aardvark config
 	NetworkRunDir string
-
-	// FirewallDriver sets the firewall driver to use
-	FirewallDriver string
 
 	// DefaultNetwork is the name for the default network.
 	DefaultNetwork string
@@ -152,7 +146,6 @@ func NewNetworkInterface(conf *InitConfig) (types.ContainerNetwork, error) {
 		aardvarkBinary:     conf.AardvarkBinary,
 		networkRootless:    unshare.IsRootless(),
 		ipamDBPath:         filepath.Join(conf.NetworkRunDir, "ipam.db"),
-		firewallDriver:     conf.FirewallDriver,
 		defaultNetwork:     defaultNetworkName,
 		defaultSubnet:      defaultNet,
 		defaultsubnetPools: defaultSubnetPools,

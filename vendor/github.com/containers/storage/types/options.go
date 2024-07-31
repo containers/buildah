@@ -11,9 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	cfg "github.com/containers/storage/pkg/config"
-	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/idtools"
-	"github.com/containers/storage/pkg/unshare"
 	"github.com/sirupsen/logrus"
 )
 
@@ -89,7 +87,7 @@ func loadDefaultStoreOptions() {
 
 	_, err := os.Stat(defaultOverrideConfigFile)
 	if err == nil {
-		// The DefaultConfigFile() function returns the path
+		// The DefaultConfigFile(rootless) function returns the path
 		// of the used storage.conf file, by returning defaultConfigFile
 		// If override exists containers/storage uses it by default.
 		defaultConfigFile = defaultOverrideConfigFile
@@ -111,41 +109,21 @@ func loadDefaultStoreOptions() {
 	setDefaults()
 }
 
-// loadStoreOptions returns the default storage ops for containers
-func loadStoreOptions() (StoreOptions, error) {
-	storageConf, err := DefaultConfigFile()
-	if err != nil {
-		return defaultStoreOptions, err
-	}
-	return loadStoreOptionsFromConfFile(storageConf)
-}
-
-// usePerUserStorage returns whether the user private storage must be used.
-// We cannot simply use the unshare.IsRootless() condition, because
-// that checks only if the current process needs a user namespace to
-// work and it would break cases where the process is already created
-// in a user namespace (e.g. nested Podman/Buildah) and the desired
-// behavior is to use system paths instead of user private paths.
-func usePerUserStorage() bool {
-	return unshare.IsRootless() && unshare.GetRootlessUID() != 0
-}
-
-// loadStoreOptionsFromConfFile is an internal implementation detail of DefaultStoreOptions to allow testing.
-// Everyone but the tests this is intended for should only call loadStoreOptions, never this function.
-func loadStoreOptionsFromConfFile(storageConf string) (StoreOptions, error) {
+// defaultStoreOptionsIsolated is an internal implementation detail of DefaultStoreOptions to allow testing.
+// Everyone but the tests this is intended for should only call DefaultStoreOptions, never this function.
+func defaultStoreOptionsIsolated(rootless bool, rootlessUID int, storageConf string) (StoreOptions, error) {
 	var (
 		defaultRootlessRunRoot   string
 		defaultRootlessGraphRoot string
 		err                      error
 	)
-
 	defaultStoreOptionsOnce.Do(loadDefaultStoreOptions)
 	if loadDefaultStoreOptionsErr != nil {
 		return StoreOptions{}, loadDefaultStoreOptionsErr
 	}
 	storageOpts := defaultStoreOptions
-	if usePerUserStorage() {
-		storageOpts, err = getRootlessStorageOpts(storageOpts)
+	if rootless && rootlessUID != 0 {
+		storageOpts, err = getRootlessStorageOpts(rootlessUID, storageOpts)
 		if err != nil {
 			return storageOpts, err
 		}
@@ -159,7 +137,7 @@ func loadStoreOptionsFromConfFile(storageConf string) (StoreOptions, error) {
 		defaultRootlessGraphRoot = storageOpts.GraphRoot
 		storageOpts = StoreOptions{}
 		reloadConfigurationFileIfNeeded(storageConf, &storageOpts)
-		if usePerUserStorage() {
+		if rootless && rootlessUID != 0 {
 			// If the file did not specify a graphroot or runroot,
 			// set sane defaults so we don't try and use root-owned
 			// directories
@@ -178,7 +156,6 @@ func loadStoreOptionsFromConfFile(storageConf string) (StoreOptions, error) {
 	if storageOpts.RunRoot == "" {
 		return storageOpts, fmt.Errorf("runroot must be set")
 	}
-	rootlessUID := unshare.GetRootlessUID()
 	runRoot, err := expandEnvPath(storageOpts.RunRoot, rootlessUID)
 	if err != nil {
 		return storageOpts, err
@@ -209,17 +186,26 @@ func loadStoreOptionsFromConfFile(storageConf string) (StoreOptions, error) {
 	return storageOpts, nil
 }
 
+// loadStoreOptions returns the default storage ops for containers
+func loadStoreOptions(rootless bool, rootlessUID int) (StoreOptions, error) {
+	storageConf, err := DefaultConfigFile(rootless && rootlessUID != 0)
+	if err != nil {
+		return defaultStoreOptions, err
+	}
+	return defaultStoreOptionsIsolated(rootless, rootlessUID, storageConf)
+}
+
 // UpdateOptions should be called iff container engine received a SIGHUP,
 // otherwise use DefaultStoreOptions
-func UpdateStoreOptions() (StoreOptions, error) {
-	storeOptions, storeError = loadStoreOptions()
+func UpdateStoreOptions(rootless bool, rootlessUID int) (StoreOptions, error) {
+	storeOptions, storeError = loadStoreOptions(rootless, rootlessUID)
 	return storeOptions, storeError
 }
 
 // DefaultStoreOptions returns the default storage ops for containers
-func DefaultStoreOptions() (StoreOptions, error) {
+func DefaultStoreOptions(rootless bool, rootlessUID int) (StoreOptions, error) {
 	once.Do(func() {
-		storeOptions, storeError = loadStoreOptions()
+		storeOptions, storeError = loadStoreOptions(rootless, rootlessUID)
 	})
 	return storeOptions, storeError
 }
@@ -284,26 +270,14 @@ func isRootlessDriver(driver string) bool {
 }
 
 // getRootlessStorageOpts returns the storage opts for containers running as non root
-func getRootlessStorageOpts(systemOpts StoreOptions) (StoreOptions, error) {
+func getRootlessStorageOpts(rootlessUID int, systemOpts StoreOptions) (StoreOptions, error) {
 	var opts StoreOptions
 
-	rootlessUID := unshare.GetRootlessUID()
-
-	dataDir, err := homedir.GetDataHome()
+	dataDir, rootlessRuntime, err := getRootlessDirInfo(rootlessUID)
 	if err != nil {
 		return opts, err
 	}
-
-	rootlessRuntime, err := homedir.GetRuntimeDir()
-	if err != nil {
-		return opts, err
-	}
-
-	opts.RunRoot = filepath.Join(rootlessRuntime, "containers")
-	if err := os.MkdirAll(opts.RunRoot, 0o700); err != nil {
-		return opts, fmt.Errorf("unable to make rootless runtime: %w", err)
-	}
-
+	opts.RunRoot = rootlessRuntime
 	opts.PullOptions = systemOpts.PullOptions
 	if systemOpts.RootlessStoragePath != "" {
 		opts.GraphRoot, err = expandEnvPath(systemOpts.RootlessStoragePath, rootlessUID)
@@ -367,6 +341,12 @@ func getRootlessStorageOpts(systemOpts StoreOptions) (StoreOptions, error) {
 	}
 
 	return opts, nil
+}
+
+// DefaultStoreOptionsAutoDetectUID returns the default storage ops for containers
+func DefaultStoreOptionsAutoDetectUID() (StoreOptions, error) {
+	uid := getRootlessUID()
+	return DefaultStoreOptions(uid != 0, uid)
 }
 
 var prevReloadConfig = struct {
@@ -538,8 +518,8 @@ func Options() (StoreOptions, error) {
 }
 
 // Save overwrites the tomlConfig in storage.conf with the given conf
-func Save(conf TomlConfig) error {
-	configFile, err := DefaultConfigFile()
+func Save(conf TomlConfig, rootless bool) error {
+	configFile, err := DefaultConfigFile(rootless)
 	if err != nil {
 		return err
 	}
@@ -557,10 +537,10 @@ func Save(conf TomlConfig) error {
 }
 
 // StorageConfig is used to retrieve the storage.conf toml in order to overwrite it
-func StorageConfig() (*TomlConfig, error) {
+func StorageConfig(rootless bool) (*TomlConfig, error) {
 	config := new(TomlConfig)
 
-	configFile, err := DefaultConfigFile()
+	configFile, err := DefaultConfigFile(rootless)
 	if err != nil {
 		return nil, err
 	}
