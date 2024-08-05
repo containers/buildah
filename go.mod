@@ -22,7 +22,7 @@ require (
 	github.com/containernetworking/cni v1.2.3
 	github.com/containers/common v0.60.0
 	github.com/containers/image/v5 v5.32.0
-	github.com/containers/luksy v0.0.0-20240618143119-a8846e21c08c
+	github.com/containers/luksy v0.0.0-20240708191104-1f482a9731bc
 	github.com/containers/ocicrypt v1.2.0
 	github.com/containers/storage v1.55.0
 	github.com/cyphar/filepath-securejoin v0.3.1
