@@ -230,6 +230,38 @@ func includeDirectoryAnyway(path string, pm *fileutils.PatternMatcher) bool {
 	return false
 }
 
+// validateSourceAndDest performs a sanity check on the case that if more
+// than one source is provided then destination must end with a slash (`/`),
+// which signifies that destination is a directory and similarly function
+// returns error if destination does not ends with a slash (`/`).
+// Following function can contain more validation cases in future.
+func validateSourceAndDest(destination string, sources []string) error {
+	multipleSources := false
+	if len(sources) > 1 {
+		multipleSources = true
+	} else {
+		// Check length before accessing `0`
+		// to avoid `index out of range`.
+		if len(sources) == 1 {
+			if strings.Contains(sources[0], "*") {
+				matches, err := filepath.Glob(sources[0])
+				if err != nil {
+					return err
+				}
+				if len(matches) > 1 {
+					multipleSources = true
+				}
+			}
+		}
+	}
+	if multipleSources {
+		if !strings.HasSuffix(destination, "/") {
+			return errors.New("adding multiple sources to non-directory destination")
+		}
+	}
+	return nil
+}
+
 // Add copies the contents of the specified sources into the container's root
 // filesystem, optionally extracting contents of local files that look like
 // non-empty archives.
@@ -289,6 +321,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		if err != nil {
 			return fmt.Errorf("checking on sources under %q: %w", contextDir, err)
 		}
+	}
+	if err := validateSourceAndDest(destination, localSources); err != nil {
+		return err
 	}
 	numLocalSourceItems := 0
 	for _, localSourceStat := range localSourceStats {
