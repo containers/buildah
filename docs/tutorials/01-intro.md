@@ -115,9 +115,9 @@ Notice that the overlay mount point is somewhere under `/var/lib/containers/stor
 
 Now that we have a new empty container we can install or remove software packages or simply copy content into that container. So let's install `bash` and `coreutils` so that we can run bash scripts. This could easily be `nginx` or other packages needed for your container.
 
-**NOTE:** the version in the example below (35) relates to a Fedora version which is the Linux platform this example was run on.  If you are running dnf on the host to populate the container, the version you specify must be valid for the host or dnf will throw an error.  I.e. If you were to run this on a RHEL platform, you'd need to specify `--releasever 8.1` or similar instead of `--releasever 35`.  If you want the container to be a particular Linux platform, change `scratch` in the first line of the example to the platform you want, i.e. `# newcontainer=$(buildah from fedora)`, and then you can specify an appropriate version number for that Linux platform.
+**NOTE:** the version in the example below (40) relates to a Fedora version which is the Linux platform this example was run on.  If you are running dnf on the host to populate the container, the version you specify must be valid for the host or dnf will throw an error.  I.e. If you were to run this on a RHEL platform, you'd need to specify `--releasever 8.1` or similar instead of `--releasever 40`.  If you want the container to be a particular Linux platform, change `scratch` in the first line of the example to the platform you want, i.e. `# newcontainer=$(buildah from fedora)`, and then you can specify an appropriate version number for that Linux platform.
 
-    # dnf install --installroot $scratchmnt --releasever 35 bash coreutils --setopt install_weak_deps=false -y
+    # dnf install --installroot $scratchmnt --releasever 40 bash coreutils --setopt install_weak_deps=false -y
 
 Let's try it out (showing the prompt in this example to demonstrate the difference):
 
@@ -142,7 +142,7 @@ With `buildah` files can be copied into the new container.  We can then use `bui
 
     # To test with Podman, first install via:
     # dnf -y install podman
-    # buildah copy $newcontainer ./runecho.sh /usr/bin
+    # buildah copy $newcontainer ./runecho.sh /usr/bin/
     # buildah config --cmd /usr/bin/runecho.sh $newcontainer
     # buildah commit $newcontainer newimage
 
@@ -180,7 +180,7 @@ It works! Congratulations, you have built a new OCI container image from scratch
 Back to Buildah, let's add some more configuration information.
 
     # buildah config --created-by "ipbabble"  $newcontainer
-    # buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora35-bashecho $newcontainer
+    # buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora40-bashecho $newcontainer
 
 We can inspect the working container's metadata using the `inspect` command:
 
