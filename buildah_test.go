@@ -6,11 +6,19 @@ import (
 	"os"
 	"testing"
 
+	imagetypes "github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	testSystemContext = imagetypes.SystemContext{
+		SignaturePolicyPath:      "tests/policy.json",
+		SystemRegistriesConfPath: "tests/registries.conf",
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -68,7 +76,8 @@ func TestOpenBuilderCommonBuildOpts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, container)
 	b, err = ImportBuilder(ctx, store, ImportOptions{
-		Container: container.ID,
+		Container:           container.ID,
+		SignaturePolicyPath: testSystemContext.SignaturePolicyPath,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, b.CommonBuildOpts)
