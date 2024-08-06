@@ -87,7 +87,6 @@ func main() {
 	}
 	if certs != "" && key != "" {
 		log.Fatal(server.ListenAndServeTLS(certs, key))
-	} else {
-		log.Fatal(server.ListenAndServe())
 	}
+	log.Fatal(server.ListenAndServe())
 }

@@ -664,39 +664,38 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 							//  `from` to refer from stageMountPoints map later.
 							stageMountPoints[from] = internal.StageMountDetails{IsStage: false, DidExecute: true, MountPoint: mountPoint}
 							break
-						} else {
-							// Most likely this points to path on filesystem
-							// or external tar archive, Treat it as a stage
-							// nothing is different for this. So process and
-							// point mountPoint to path on host and it will
-							// be automatically handled correctly by since
-							// GetBindMount will honor IsStage:false while
-							// processing stageMountPoints.
-							mountPoint := additionalBuildContext.Value
-							if additionalBuildContext.IsURL {
-								// Check if following buildContext was already
-								// downloaded before in any other RUN step. If not
-								// download it and populate DownloadCache field for
-								// future RUN steps.
-								if additionalBuildContext.DownloadedCache == "" {
-									// additional context contains a tar file
-									// so download and explode tar to buildah
-									// temp and point context to that.
-									path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
-									if err != nil {
-										return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
-									}
-									// point context dir to the extracted path
-									mountPoint = filepath.Join(path, subdir)
-									// populate cache for next RUN step
-									additionalBuildContext.DownloadedCache = mountPoint
-								} else {
-									mountPoint = additionalBuildContext.DownloadedCache
-								}
-							}
-							stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: true, MountPoint: mountPoint}
-							break
 						}
+						// Most likely this points to path on filesystem
+						// or external tar archive, Treat it as a stage
+						// nothing is different for this. So process and
+						// point mountPoint to path on host and it will
+						// be automatically handled correctly by since
+						// GetBindMount will honor IsStage:false while
+						// processing stageMountPoints.
+						mountPoint := additionalBuildContext.Value
+						if additionalBuildContext.IsURL {
+							// Check if following buildContext was already
+							// downloaded before in any other RUN step. If not
+							// download it and populate DownloadCache field for
+							// future RUN steps.
+							if additionalBuildContext.DownloadedCache == "" {
+								// additional context contains a tar file
+								// so download and explode tar to buildah
+								// temp and point context to that.
+								path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+								if err != nil {
+									return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
+								}
+								// point context dir to the extracted path
+								mountPoint = filepath.Join(path, subdir)
+								// populate cache for next RUN step
+								additionalBuildContext.DownloadedCache = mountPoint
+							} else {
+								mountPoint = additionalBuildContext.DownloadedCache
+							}
+						}
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: true, MountPoint: mountPoint}
+						break
 					}
 					// If the source's name corresponds to the
 					// result of an earlier stage, wait for that
@@ -1376,14 +1375,13 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 						// since this additional context
 						// is not an image.
 						break
-					} else {
-						// replace with image set in build context
-						from = additionalBuildContext.Value
-						if _, err := s.getImageRootfs(ctx, from); err != nil {
-							return "", nil, false, fmt.Errorf("%s --from=%s: no stage or image found with that name", command, from)
-						}
-						break
 					}
+					// replace with image set in build context
+					from = additionalBuildContext.Value
+					if _, err := s.getImageRootfs(ctx, from); err != nil {
+						return "", nil, false, fmt.Errorf("%s --from=%s: no stage or image found with that name", command, from)
+					}
+					break
 				}
 
 				// If the source's name corresponds to the
@@ -1432,30 +1430,29 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				}
 				s.builder.AddPrependedEmptyLayer(&timestamp, s.getCreatedBy(node, addedContentSummary), "", "")
 				continue
-			} else {
-				// This is the last instruction for this stage,
-				// so we should commit this container to create
-				// an image, but only if it's the last stage,
-				// or if it's used as the basis for a later
-				// stage.
-				if lastStage || imageIsUsedLater {
-					logCommit(s.output, i)
-					imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), false, s.output, s.executor.squash, lastStage && lastInstruction)
-					if err != nil {
-						return "", nil, false, fmt.Errorf("committing container for step %+v: %w", *step, err)
-					}
-					logImageID(imgID)
-					// Generate build output if needed.
-					if canGenerateBuildOutput {
-						if err := s.generateBuildOutput(buildOutputOption); err != nil {
-							return "", nil, false, err
-						}
-					}
-				} else {
-					imgID = ""
-				}
-				break
 			}
+			// This is the last instruction for this stage,
+			// so we should commit this container to create
+			// an image, but only if it's the last stage,
+			// or if it's used as the basis for a later
+			// stage.
+			if lastStage || imageIsUsedLater {
+				logCommit(s.output, i)
+				imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), false, s.output, s.executor.squash, lastStage && lastInstruction)
+				if err != nil {
+					return "", nil, false, fmt.Errorf("committing container for step %+v: %w", *step, err)
+				}
+				logImageID(imgID)
+				// Generate build output if needed.
+				if canGenerateBuildOutput {
+					if err := s.generateBuildOutput(buildOutputOption); err != nil {
+						return "", nil, false, err
+					}
+				}
+			} else {
+				imgID = ""
+			}
+			break
 		}
 
 		// We're in a multi-layered build.
