@@ -786,7 +786,7 @@ func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 	return stdioPipe, nil
 }
 
-func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, networkString string, configureUTS bool, err error) {
+func setupNamespaces(_ *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, networkString string, configureUTS bool, err error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return false, "", false, fmt.Errorf("failed to get container config: %w", err)

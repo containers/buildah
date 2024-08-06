@@ -801,7 +801,7 @@ func SBOMScanOptions(c *cobra.Command) (*define.SBOMScanOptions, error) {
 }
 
 // SBOMScanOptionsFromFlagSet parses scan settings from the cli
-func SBOMScanOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name string) *pflag.Flag) (*define.SBOMScanOptions, error) {
+func SBOMScanOptionsFromFlagSet(flags *pflag.FlagSet, _ func(name string) *pflag.Flag) (*define.SBOMScanOptions, error) {
 	preset, err := flags.GetString("sbom")
 	if err != nil {
 		return nil, fmt.Errorf("invalid value for --sbom: %w", err)
@@ -866,7 +866,7 @@ func SBOMScanOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name str
 }
 
 // IDMappingOptions parses the build options related to user namespaces and ID mapping.
-func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptions define.NamespaceOptions, idmapOptions *define.IDMappingOptions, err error) {
+func IDMappingOptions(c *cobra.Command, _ define.Isolation) (usernsOptions define.NamespaceOptions, idmapOptions *define.IDMappingOptions, err error) {
 	return IDMappingOptionsFromFlagSet(c.Flags(), c.PersistentFlags(), c.Flag)
 }
 

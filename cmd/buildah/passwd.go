@@ -20,7 +20,7 @@ var (
 	}
 )
 
-func passwdCmd(c *cobra.Command, args []string) error {
+func passwdCmd(_ *cobra.Command, args []string) error {
 	passwd, err := bcrypt.GenerateFromPassword([]byte(args[0]), bcrypt.DefaultCost)
 	if err != nil {
 		return err

@@ -409,7 +409,7 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	return oimage, omanifest, dimage, dmanifest, nil
 }
 
-func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.SystemContext) (src types.ImageSource, err error) {
+func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
 	// Decide which type of manifest and configuration output we're going to provide.
 	manifestType := i.preferredManifestType
 	// If it's not a format we support, return an error.
@@ -922,7 +922,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	return src, nil
 }
 
-func (i *containerImageRef) NewImageDestination(ctx context.Context, sc *types.SystemContext) (types.ImageDestination, error) {
+func (i *containerImageRef) NewImageDestination(_ context.Context, _ *types.SystemContext) (types.ImageDestination, error) {
 	return nil, errors.New("can't write to a container")
 }
 
@@ -966,15 +966,15 @@ func (i *containerImageSource) Reference() types.ImageReference {
 	return i.ref
 }
 
-func (i *containerImageSource) GetSignatures(ctx context.Context, instanceDigest *digest.Digest) ([][]byte, error) {
+func (i *containerImageSource) GetSignatures(_ context.Context, _ *digest.Digest) ([][]byte, error) {
 	return nil, nil
 }
 
-func (i *containerImageSource) GetManifest(ctx context.Context, instanceDigest *digest.Digest) ([]byte, string, error) {
+func (i *containerImageSource) GetManifest(_ context.Context, _ *digest.Digest) ([]byte, string, error) {
 	return i.manifest, i.manifestType, nil
 }
 
-func (i *containerImageSource) LayerInfosForCopy(ctx context.Context, instanceDigest *digest.Digest) ([]types.BlobInfo, error) {
+func (i *containerImageSource) LayerInfosForCopy(_ context.Context, _ *digest.Digest) ([]types.BlobInfo, error) {
 	return nil, nil
 }
 
@@ -982,7 +982,7 @@ func (i *containerImageSource) HasThreadSafeGetBlob() bool {
 	return false
 }
 
-func (i *containerImageSource) GetBlob(ctx context.Context, blob types.BlobInfo, cache types.BlobInfoCache) (reader io.ReadCloser, size int64, err error) {
+func (i *containerImageSource) GetBlob(_ context.Context, blob types.BlobInfo, _ types.BlobInfoCache) (reader io.ReadCloser, size int64, err error) {
 	if blob.Digest == i.configDigest {
 		logrus.Debugf("start reading config")
 		reader := bytes.NewReader(i.config)

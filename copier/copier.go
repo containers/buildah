@@ -222,7 +222,7 @@ type EvalOptions struct {
 // If the directory is specified as an absolute path, it should either be the
 // root directory or a subdirectory of the root directory.  Otherwise, the
 // directory is treated as a path relative to the root directory.
-func Eval(root string, directory string, options EvalOptions) (string, error) {
+func Eval(root string, directory string, _ EvalOptions) (string, error) {
 	req := request{
 		Request:   requestEval,
 		Root:      root,

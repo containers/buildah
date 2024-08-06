@@ -1702,7 +1702,7 @@ var internalTestCases = []testCase{
 			"ADD archive.tar subdir1/",
 			"ADD archive/ subdir2/",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			content := []byte("test content")
 
 			if err := os.Mkdir(filepath.Join(contextDir, "archive"), 0755); err != nil {
@@ -1788,7 +1788,7 @@ var internalTestCases = []testCase{
 			"COPY subdir/ subdir/",
 			"COPY --chown=99:99 subdir/ subdir/",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			content := []byte("test content")
 
 			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
@@ -1827,7 +1827,7 @@ var internalTestCases = []testCase{
 			"COPY --chown=99:99 subdir/ subdir/",
 			"COPY subdir/ subdir/",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			content := []byte("test content")
 
 			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
@@ -1889,7 +1889,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir1",
 			"ADD  . subdir2",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			filename := filepath.Join(contextDir, "should-be-setuid-file")
 			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return fmt.Errorf("creating setuid test file in temporary context directory: %w", err)
@@ -1976,7 +1976,7 @@ var internalTestCases = []testCase{
 			fmt.Sprintf("# Do the setuid/setgid/sticky files in this archive end up setuid(0%o)/setgid(0%o)/sticky(0%o)?", syscall.S_ISUID, syscall.S_ISGID, syscall.S_ISVTX),
 			"ADD archive.tar .",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			filename := filepath.Join(contextDir, "archive.tar")
 			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
@@ -2312,7 +2312,7 @@ var internalTestCases = []testCase{
 	{
 		name:       "dockerignore-irrelevant",
 		contextDir: "dockerignore/empty",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2332,7 +2332,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0644); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2352,7 +2352,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2372,7 +2372,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"!**/*-c"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2392,7 +2392,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("!**/*-c\n")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0100); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2412,7 +2412,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-c")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2432,7 +2432,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-c")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2452,7 +2452,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-c")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2472,7 +2472,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-c")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2492,7 +2492,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-*")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2512,7 +2512,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-*")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2532,7 +2532,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-*")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2552,7 +2552,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-*")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2572,7 +2572,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-f")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0666); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2592,7 +2592,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-f")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2612,7 +2612,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-b")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0705); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2632,7 +2632,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-b")
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2652,7 +2652,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2672,7 +2672,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2692,7 +2692,7 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
@@ -2712,7 +2712,7 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
 			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)

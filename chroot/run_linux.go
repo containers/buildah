@@ -225,7 +225,7 @@ func makeRlimit(limit specs.POSIXRlimit) unix.Rlimit {
 	return unix.Rlimit{Cur: limit.Soft, Max: limit.Hard}
 }
 
-func createPlatformContainer(options runUsingChrootExecSubprocOptions) error {
+func createPlatformContainer(_ runUsingChrootExecSubprocOptions) error {
 	return errors.New("unsupported createPlatformContainer")
 }
 

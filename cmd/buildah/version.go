@@ -49,7 +49,7 @@ func init() {
 		Use:   "version",
 		Short: "Display the Buildah version information",
 		Long:  "Displays Buildah version information.",
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return versionCmd(opts)
 		},
 		Args:    cobra.NoArgs,

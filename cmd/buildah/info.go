@@ -28,7 +28,7 @@ func init() {
 		Use:   "info",
 		Short: "Display Buildah system information",
 		Long:  infoDescription,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return infoCmd(cmd, opts)
 		},
 		Args:    cobra.NoArgs,

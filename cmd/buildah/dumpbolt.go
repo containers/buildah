@@ -21,7 +21,7 @@ var (
 	}
 )
 
-func dumpBoltCmd(c *cobra.Command, args []string) error {
+func dumpBoltCmd(_ *cobra.Command, args []string) error {
 	db, err := bolt.Open(args[0], 0600, &bolt.Options{ReadOnly: true})
 	if err != nil {
 		return fmt.Errorf("opening database %q: %w", args[0], err)

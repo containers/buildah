@@ -173,7 +173,7 @@ func getProcessNoNewPrivileges(r *types.TestReport) error {
 	return nil
 }
 
-func getProcessAppArmorProfile(r *types.TestReport) error {
+func getProcessAppArmorProfile(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
@@ -198,7 +198,7 @@ func getProcessOOMScoreAdjust(r *types.TestReport) error {
 	return nil
 }
 
-func getProcessSeLinuxLabel(r *types.TestReport) error {
+func getProcessSeLinuxLabel(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
@@ -336,47 +336,47 @@ func getLinuxSysctl(r *types.TestReport) error {
 	return filepath.Walk("/proc/sys", walk)
 }
 
-func getLinuxResources(r *types.TestReport) error {
+func getLinuxResources(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxCgroupsPath(r *types.TestReport) error {
+func getLinuxCgroupsPath(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxNamespaces(r *types.TestReport) error {
+func getLinuxNamespaces(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxDevices(r *types.TestReport) error {
+func getLinuxDevices(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxRootfsPropagation(r *types.TestReport) error {
+func getLinuxRootfsPropagation(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxMaskedPaths(r *types.TestReport) error {
+func getLinuxMaskedPaths(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxReadOnlyPaths(r *types.TestReport) error {
+func getLinuxReadOnlyPaths(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxMountLabel(r *types.TestReport) error {
+func getLinuxMountLabel(_ *types.TestReport) error {
 	// TODO
 	return nil
 }
 
-func getLinuxIntelRdt(r *types.TestReport) error {
+func getLinuxIntelRdt(_ *types.TestReport) error {
 	// TODO
 	return nil
 }

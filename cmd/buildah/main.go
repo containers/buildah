@@ -45,13 +45,13 @@ type globalFlags struct {
 var rootCmd = &cobra.Command{
 	Use:  "buildah",
 	Long: "A tool that facilitates building OCI images",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return cmd.Help()
 	},
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return before(cmd)
 	},
-	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPostRunE: func(cmd *cobra.Command, _ []string) error {
 		return after(cmd)
 	},
 	SilenceUsage:  true,

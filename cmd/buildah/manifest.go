@@ -623,7 +623,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	return err
 }
 
-func manifestRemoveCmd(c *cobra.Command, args []string, opts manifestRemoveOpts) error {
+func manifestRemoveCmd(c *cobra.Command, args []string, _ manifestRemoveOpts) error {
 	listImageSpec := ""
 	var instanceDigest digest.Digest
 	var instanceSpec string

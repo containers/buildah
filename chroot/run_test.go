@@ -127,9 +127,9 @@ func TestMinimalSkeleton(t *testing.T) {
 		t.Skip("tests need to be run as root")
 	}
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(_ *generate.Generator, _, _ string) {
 		},
-		func(t *testing.T, report *types.TestReport) {
+		func(_ *testing.T, _ *types.TestReport) {
 		},
 	)
 }
@@ -140,7 +140,7 @@ func TestProcessTerminal(t *testing.T) {
 	}
 	for _, terminal := range []bool{false, true} {
 		testMinimal(t,
-			func(g *generate.Generator, rootDir, bundleDir string) {
+			func(g *generate.Generator, _, _ string) {
 				g.SetProcessTerminal(terminal)
 			},
 			func(t *testing.T, report *types.TestReport) {
@@ -158,7 +158,7 @@ func TestProcessConsoleSize(t *testing.T) {
 	}
 	for _, size := range [][2]uint{{80, 25}, {132, 50}} {
 		testMinimal(t,
-			func(g *generate.Generator, rootDir, bundleDir string) {
+			func(g *generate.Generator, _, _ string) {
 				g.SetProcessTerminal(true)
 				g.SetProcessConsoleSize(size[0], size[1])
 			},
@@ -180,7 +180,7 @@ func TestProcessUser(t *testing.T) {
 	}
 	for _, id := range []uint32{0, 1000} {
 		testMinimal(t,
-			func(g *generate.Generator, rootDir, bundleDir string) {
+			func(g *generate.Generator, _, _ string) {
 				g.SetProcessUID(id)
 				g.SetProcessGID(id + 1)
 				g.AddProcessAdditionalGid(id + 2)
@@ -203,7 +203,7 @@ func TestProcessEnv(t *testing.T) {
 	}
 	e := fmt.Sprintf("PARENT_TEST_PID=%d", unix.Getpid())
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(g *generate.Generator, _, _ string) {
 			g.ClearProcessEnv()
 			g.AddProcessEnv("PARENT_TEST_PID", strconv.Itoa(unix.Getpid()))
 		},
@@ -223,7 +223,7 @@ func TestProcessCwd(t *testing.T) {
 		t.Skip("tests need to be run as root")
 	}
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(g *generate.Generator, rootDir, _ string) {
 			if err := os.Mkdir(filepath.Join(rootDir, "/no-such-directory"), 0700); err != nil {
 				t.Fatalf("mkdir(%q): %v", filepath.Join(rootDir, "/no-such-directory"), err)
 			}
@@ -242,7 +242,7 @@ func TestProcessCapabilities(t *testing.T) {
 		t.Skip("tests need to be run as root")
 	}
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(g *generate.Generator, _, _ string) {
 			g.ClearProcessCapabilities()
 		},
 		func(t *testing.T, report *types.TestReport) {
@@ -252,7 +252,7 @@ func TestProcessCapabilities(t *testing.T) {
 		},
 	)
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(g *generate.Generator, _, _ string) {
 			g.ClearProcessCapabilities()
 			if err := g.AddProcessCapabilityEffective("CAP_IPC_LOCK"); err != nil {
 				t.Fatalf("%v", err)
@@ -287,7 +287,7 @@ func TestProcessRlimits(t *testing.T) {
 	}
 	for _, limit := range []uint64{100 * 1024 * 1024 * 1024, 200 * 1024 * 1024 * 1024, unix.RLIM_INFINITY} {
 		testMinimal(t,
-			func(g *generate.Generator, rootDir, bundleDir string) {
+			func(g *generate.Generator, _, _ string) {
 				g.ClearProcessRlimits()
 				if limit != unix.RLIM_INFINITY {
 					g.AddProcessRlimits("rlimit_as", limit, limit)
@@ -328,7 +328,7 @@ func TestProcessNoNewPrivileges(t *testing.T) {
 	}
 	for _, nope := range []bool{false, true} {
 		testMinimal(t,
-			func(g *generate.Generator, rootDir, bundleDir string) {
+			func(g *generate.Generator, _, _ string) {
 				g.SetProcessNoNewPrivileges(nope)
 			},
 			func(t *testing.T, report *types.TestReport) {
@@ -346,7 +346,7 @@ func TestProcessOOMScoreAdj(t *testing.T) {
 	}
 	for _, adj := range []int{0, 1, 2, 3} {
 		testMinimal(t,
-			func(g *generate.Generator, rootDir, bundleDir string) {
+			func(g *generate.Generator, _, _ string) {
 				g.SetProcessOOMScoreAdj(adj)
 			},
 			func(t *testing.T, report *types.TestReport) {
@@ -368,7 +368,7 @@ func TestHostname(t *testing.T) {
 	}
 	hostname := fmt.Sprintf("host%d", unix.Getpid())
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(g *generate.Generator, _, _ string) {
 			g.SetHostname(hostname)
 		},
 		func(t *testing.T, report *types.TestReport) {
@@ -385,7 +385,7 @@ func TestMounts(t *testing.T) {
 	}
 	t.Run("tmpfs", func(t *testing.T) {
 		testMinimal(t,
-			func(g *generate.Generator, rootDir, bundleDir string) {
+			func(g *generate.Generator, _, _ string) {
 				g.AddMount(specs.Mount{
 					Source:      "tmpfs",
 					Destination: "/was-not-there-before",
@@ -485,7 +485,7 @@ func TestMounts(t *testing.T) {
 			tmpfsFlags, tmpfsOptions := mount.ParseOptions(tmpfsOptions)
 			require.NoErrorf(t, unix.Mount("none", tmpfsMount, "tmpfs", uintptr(tmpfsFlags), tmpfsOptions), "error mounting a tmpfs with flags=%#x,options=%q at %s", tmpfsFlags, tmpfsOptions, tmpfsMount)
 			testMinimal(t,
-				func(g *generate.Generator, rootDir, bundleDir string) {
+				func(g *generate.Generator, _, _ string) {
 					fsType := bind.fsType
 					if fsType == "" {
 						fsType = "bind"
@@ -543,7 +543,7 @@ func TestLinuxIDMapping(t *testing.T) {
 		t.Skip("tests need to be run as root")
 	}
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(g *generate.Generator, _, _ string) {
 			g.ClearLinuxUIDMappings()
 			g.ClearLinuxGIDMappings()
 			g.AddLinuxUIDMapping(uint32(unix.Getuid()), 0, 1)
@@ -580,7 +580,7 @@ func TestLinuxIDMappingShift(t *testing.T) {
 		t.Skip("tests need to be run as root")
 	}
 	testMinimal(t,
-		func(g *generate.Generator, rootDir, bundleDir string) {
+		func(g *generate.Generator, _, _ string) {
 			g.ClearLinuxUIDMappings()
 			g.ClearLinuxGIDMappings()
 			g.AddLinuxUIDMapping(uint32(unix.Getuid())+1, 0, 1)
