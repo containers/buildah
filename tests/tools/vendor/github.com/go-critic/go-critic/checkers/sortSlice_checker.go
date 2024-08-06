@@ -6,7 +6,8 @@ import (
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/typep"
@@ -16,7 +17,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "sortSlice"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Summary = "Detects suspicious sort.Slice calls"
 	info.Before = `sort.Slice(xs, func(i, j) bool { return keys[i] < keys[j] })`
 	info.After = `sort.Slice(kv, func(i, j) bool { return kv[i].key < kv[j].key })`

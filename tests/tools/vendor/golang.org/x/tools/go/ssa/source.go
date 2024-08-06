@@ -14,8 +14,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-
-	"golang.org/x/tools/internal/typeparams"
 )
 
 // EnclosingFunction returns the function that contains the syntax
@@ -121,7 +119,9 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
 				if obj.Pos() == pos {
-					return pkg.objects[obj].(*Function)
+					// obj from MethodSet may not be the origin type.
+					m := obj.Origin()
+					return pkg.objects[m].(*Function)
 				}
 			}
 		}
@@ -170,16 +170,19 @@ func (f *Function) ValueForExpr(e ast.Expr) (value Value, isAddr bool) {
 // --- Lookup functions for source-level named entities (types.Objects) ---
 
 // Package returns the SSA Package corresponding to the specified
-// type-checker package object.
-// It returns nil if no such SSA package has been created.
-func (prog *Program) Package(obj *types.Package) *Package {
-	return prog.packages[obj]
+// type-checker package. It returns nil if no such Package was
+// created by a prior call to prog.CreatePackage.
+func (prog *Program) Package(pkg *types.Package) *Package {
+	return prog.packages[pkg]
 }
 
-// packageLevelMember returns the package-level member corresponding to
-// the specified named object, which may be a package-level const
-// (*NamedConst), var (*Global) or func (*Function) of some package in
-// prog.  It returns nil if the object is not found.
+// packageLevelMember returns the package-level member corresponding
+// to the specified symbol, which may be a package-level const
+// (*NamedConst), var (*Global) or func/method (*Function) of some
+// package in prog.
+//
+// It returns nil if the object belongs to a package that has not been
+// created by prog.CreatePackage.
 func (prog *Program) packageLevelMember(obj types.Object) Member {
 	if pkg, ok := prog.packages[obj.Pkg()]; ok {
 		return pkg.objects[obj]
@@ -187,24 +190,16 @@ func (prog *Program) packageLevelMember(obj types.Object) Member {
 	return nil
 }
 
-// originFunc returns the package-level generic function that is the
-// origin of obj. If returns nil if the generic function is not found.
-func (prog *Program) originFunc(obj *types.Func) *Function {
-	return prog.declaredFunc(typeparams.OriginMethod(obj))
-}
-
-// FuncValue returns the concrete Function denoted by the source-level
-// named function obj, or nil if obj denotes an interface method.
-//
-// TODO(adonovan): check the invariant that obj.Type() matches the
-// result's Signature, both in the params/results and in the receiver.
+// FuncValue returns the SSA function or (non-interface) method
+// denoted by the specified func symbol. It returns nil id the symbol
+// denotes an interface method, or belongs to a package that was not
+// created by prog.CreatePackage.
 func (prog *Program) FuncValue(obj *types.Func) *Function {
 	fn, _ := prog.packageLevelMember(obj).(*Function)
 	return fn
 }
 
-// ConstValue returns the SSA Value denoted by the source-level named
-// constant obj.
+// ConstValue returns the SSA constant denoted by the specified const symbol.
 func (prog *Program) ConstValue(obj *types.Const) *Const {
 	// TODO(adonovan): opt: share (don't reallocate)
 	// Consts for const objects and constant ast.Exprs.
@@ -221,7 +216,7 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 }
 
 // VarValue returns the SSA Value that corresponds to a specific
-// identifier denoting the source-level named variable obj.
+// identifier denoting the specified var symbol.
 //
 // VarValue returns nil if a local variable was not found, perhaps
 // because its package was not built, the debug information was not

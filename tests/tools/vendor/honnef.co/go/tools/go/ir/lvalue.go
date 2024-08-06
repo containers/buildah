@@ -114,6 +114,40 @@ func (e *element) typ() types.Type {
 	return e.t
 }
 
+// A lazyAddress is an lvalue whose address is the result of an instruction.
+// These work like an *address except a new address.address() Value
+// is created on each load, store and address call.
+// A lazyAddress can be used to control when a side effect (nil pointer
+// dereference, index out of bounds) of using a location happens.
+type lazyAddress struct {
+	addr func(fn *Function) Value // emit to fn the computation of the address
+	t    types.Type               // type of the location
+	expr ast.Expr                 // source syntax of the value (not address) [debug mode]
+}
+
+func (l *lazyAddress) load(fn *Function, source ast.Node) Value {
+	load := emitLoad(fn, l.addr(fn), source)
+	return load
+}
+
+func (l *lazyAddress) store(fn *Function, v Value, source ast.Node) {
+	store := emitStore(fn, l.addr(fn), v, source)
+	if l.expr != nil {
+		// store.Val is v, converted for assignability.
+		emitDebugRef(fn, l.expr, store.Val, false)
+	}
+}
+
+func (l *lazyAddress) address(fn *Function) Value {
+	addr := l.addr(fn)
+	if l.expr != nil {
+		emitDebugRef(fn, l.expr, addr, true)
+	}
+	return addr
+}
+
+func (l *lazyAddress) typ() types.Type { return l.t }
+
 // A blank is a dummy variable whose name is "_".
 // It is not reified: loads are illegal and stores are ignored.
 type blank struct{}

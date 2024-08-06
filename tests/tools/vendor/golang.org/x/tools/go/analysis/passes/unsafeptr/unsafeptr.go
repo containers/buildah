@@ -7,6 +7,7 @@
 package unsafeptr
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -14,20 +15,18 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/aliases"
 )
 
-const Doc = `check for invalid conversions of uintptr to unsafe.Pointer
-
-The unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer
-to convert integers to pointers. A conversion from uintptr to
-unsafe.Pointer is invalid if it implies that there is a uintptr-typed
-word in memory that holds a pointer value, because that word will be
-invisible to stack copying and to the garbage collector.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "unsafeptr",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "unsafeptr"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unsafeptr",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -71,7 +70,7 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 	// Check unsafe.Pointer safety rules according to
 	// https://golang.org/pkg/unsafe/#Pointer.
 
-	switch x := analysisutil.Unparen(x).(type) {
+	switch x := astutil.Unparen(x).(type) {
 	case *ast.SelectorExpr:
 		// "(6) Conversion of a reflect.SliceHeader or
 		// reflect.StringHeader Data field to or from Pointer."
@@ -90,7 +89,7 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 		// by the time we get to the conversion at the end.
 		// For now approximate by saying that *Header is okay
 		// but Header is not.
-		pt, ok := info.Types[x.X].Type.(*types.Pointer)
+		pt, ok := aliases.Unalias(info.Types[x.X].Type).(*types.Pointer)
 		if ok && isReflectHeader(pt.Elem()) {
 			return true
 		}
@@ -107,8 +106,7 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 		}
 		switch sel.Sel.Name {
 		case "Pointer", "UnsafeAddr":
-			t, ok := info.Types[sel.X].Type.(*types.Named)
-			if ok && t.Obj().Pkg().Path() == "reflect" && t.Obj().Name() == "Value" {
+			if analysisutil.IsNamedType(info.Types[sel.X].Type, "reflect", "Value") {
 				return true
 			}
 		}
@@ -121,7 +119,7 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 // isSafeArith reports whether x is a pointer arithmetic expression that is safe
 // to convert to unsafe.Pointer.
 func isSafeArith(info *types.Info, x ast.Expr) bool {
-	switch x := analysisutil.Unparen(x).(type) {
+	switch x := astutil.Unparen(x).(type) {
 	case *ast.CallExpr:
 		// Base case: initial conversion from unsafe.Pointer to uintptr.
 		return len(x.Args) == 1 &&
@@ -156,13 +154,5 @@ func hasBasicType(info *types.Info, x ast.Expr, kind types.BasicKind) bool {
 
 // isReflectHeader reports whether t is reflect.SliceHeader or reflect.StringHeader.
 func isReflectHeader(t types.Type) bool {
-	if named, ok := t.(*types.Named); ok {
-		if obj := named.Obj(); obj.Pkg() != nil && obj.Pkg().Path() == "reflect" {
-			switch obj.Name() {
-			case "SliceHeader", "StringHeader":
-				return true
-			}
-		}
-	}
-	return false
+	return analysisutil.IsNamedType(t, "reflect", "SliceHeader", "StringHeader")
 }

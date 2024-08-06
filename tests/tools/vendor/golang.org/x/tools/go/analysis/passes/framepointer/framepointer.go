@@ -20,6 +20,7 @@ const Doc = "report assembly that clobbers the frame pointer before saving it"
 var Analyzer = &analysis.Analyzer{
 	Name: "framepointer",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/framepointer",
 	Run:  run,
 }
 
@@ -47,7 +48,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	for _, fname := range sfiles {
-		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
+		content, tf, err := analysisutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}

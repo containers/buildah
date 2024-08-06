@@ -3,9 +3,13 @@ package lintersdb
 import (
 	"errors"
 	"fmt"
+	"os"
+	"slices"
 	"strings"
 
 	"github.com/golangci/golangci-lint/pkg/config"
+	"github.com/golangci/golangci-lint/pkg/lint/linter"
+	"github.com/golangci/golangci-lint/pkg/logutils"
 )
 
 type Validator struct {
@@ -13,20 +17,49 @@ type Validator struct {
 }
 
 func NewValidator(m *Manager) *Validator {
-	return &Validator{
-		m: m,
+	return &Validator{m: m}
+}
+
+// Validate validates the configuration by calling all other validators for different
+// sections in the configuration and then some additional linter validation functions.
+func (v Validator) Validate(cfg *config.Config) error {
+	validators := []func(cfg *config.Linters) error{
+		v.validateLintersNames,
+		v.validatePresets,
+		v.alternativeNamesDeprecation,
 	}
+
+	for _, v := range validators {
+		if err := v(&cfg.Linters); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (v Validator) validateLintersNames(cfg *config.Linters) error {
-	allNames := append([]string{}, cfg.Enable...)
-	allNames = append(allNames, cfg.Disable...)
-
 	var unknownNames []string
 
-	for _, name := range allNames {
+	for _, name := range cfg.Enable {
 		if v.m.GetLinterConfigs(name) == nil {
 			unknownNames = append(unknownNames, name)
+		}
+	}
+
+	for _, name := range cfg.Disable {
+		lcs := v.m.GetLinterConfigs(name)
+		if len(lcs) == 0 {
+			unknownNames = append(unknownNames, name)
+			continue
+		}
+
+		for _, lc := range lcs {
+			if lc.IsDeprecated() && lc.Deprecation.Level > linter.DeprecationWarning {
+				v.m.log.Warnf("The linter %q is deprecated (step 2) and deactivated. "+
+					"It should be removed from the list of disabled linters. "+
+					"https://golangci-lint.run/product/roadmap/#linter-deprecation-cycle", lc.Name())
+			}
 		}
 	}
 
@@ -38,12 +71,13 @@ func (v Validator) validateLintersNames(cfg *config.Linters) error {
 	return nil
 }
 
-func (v Validator) validatePresets(cfg *config.Linters) error {
-	allPresets := v.m.allPresetsSet()
+func (Validator) validatePresets(cfg *config.Linters) error {
+	presets := AllPresets()
+
 	for _, p := range cfg.Presets {
-		if !allPresets[p] {
+		if !slices.Contains(presets, p) {
 			return fmt.Errorf("no such preset %q: only next presets exist: (%s)",
-				p, strings.Join(v.m.AllPresets(), "|"))
+				p, strings.Join(presets, "|"))
 		}
 	}
 
@@ -54,53 +88,31 @@ func (v Validator) validatePresets(cfg *config.Linters) error {
 	return nil
 }
 
-func (v Validator) validateAllDisableEnableOptions(cfg *config.Linters) error {
-	if cfg.EnableAll && cfg.DisableAll {
-		return errors.New("--enable-all and --disable-all options must not be combined")
+func (v Validator) alternativeNamesDeprecation(cfg *config.Linters) error {
+	if v.m.cfg.InternalTest || v.m.cfg.InternalCmdTest || os.Getenv(logutils.EnvTestRun) == "1" {
+		return nil
 	}
 
-	if cfg.DisableAll {
-		if len(cfg.Enable) == 0 && len(cfg.Presets) == 0 {
-			return errors.New("all linters were disabled, but no one linter was enabled: must enable at least one")
-		}
-
-		if len(cfg.Disable) != 0 {
-			return fmt.Errorf("can't combine options --disable-all and --disable %s", cfg.Disable[0])
+	altNames := map[string][]string{}
+	for _, lc := range v.m.GetAllSupportedLinterConfigs() {
+		for _, alt := range lc.AlternativeNames {
+			altNames[alt] = append(altNames[alt], lc.Name())
 		}
 	}
 
-	if cfg.EnableAll && len(cfg.Enable) != 0 && !cfg.Fast {
-		return fmt.Errorf("can't combine options --enable-all and --enable %s", cfg.Enable[0])
-	}
+	names := cfg.Enable
+	names = append(names, cfg.Disable...)
 
-	return nil
-}
-
-func (v Validator) validateDisabledAndEnabledAtOneMoment(cfg *config.Linters) error {
-	enabledLintersSet := map[string]bool{}
-	for _, name := range cfg.Enable {
-		enabledLintersSet[name] = true
-	}
-
-	for _, name := range cfg.Disable {
-		if enabledLintersSet[name] {
-			return fmt.Errorf("linter %q can't be disabled and enabled at one moment", name)
+	for _, name := range names {
+		lc, ok := altNames[name]
+		if !ok {
+			continue
 		}
-	}
 
-	return nil
-}
-
-func (v Validator) validateEnabledDisabledLintersConfig(cfg *config.Linters) error {
-	validators := []func(cfg *config.Linters) error{
-		v.validateLintersNames,
-		v.validatePresets,
-		v.validateAllDisableEnableOptions,
-		v.validateDisabledAndEnabledAtOneMoment,
-	}
-	for _, v := range validators {
-		if err := v(cfg); err != nil {
-			return err
+		if len(lc) > 1 {
+			v.m.log.Warnf("The linter named %q is deprecated. It has been split into: %s.", name, strings.Join(lc, ", "))
+		} else {
+			v.m.log.Warnf("The name %q is deprecated. The linter has been renamed to: %s.", name, lc[0])
 		}
 	}
 

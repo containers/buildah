@@ -10,6 +10,7 @@ vendor:
 	$(GO) mod tidy
 	$(GO) mod vendor
 	$(GO) mod verify
+	if test -n "$(strip $(shell go env GOTOOLCHAIN))"; then go mod edit -toolchain none ; fi
 
 .PHONY: clean
 clean:
@@ -17,12 +18,8 @@ clean:
 
 .PHONY: $(BUILDDIR)
 $(BUILDDIR): \
-	$(BUILDDIR)/ginkgo \
 	$(BUILDDIR)/go-md2man \
 	$(BUILDDIR)/golangci-lint
-
-$(BUILDDIR)/ginkgo:
-	$(GO_BUILD) -o $@ ./vendor/github.com/onsi/ginkgo/v2/ginkgo
 
 $(BUILDDIR)/go-md2man:
 	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man/v2

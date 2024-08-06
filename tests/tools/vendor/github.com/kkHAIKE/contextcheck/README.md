@@ -3,7 +3,7 @@
 
 # contextcheck
 
-`contextcheck` is a static analysis tool, it is used to check whether the function uses a non-inherited context, which will result in a broken call link.
+`contextcheck` is a static analysis tool used to check whether a function uses a non-inherited context that could result in a broken call link.
 
 For example:
 
@@ -94,8 +94,8 @@ func NoInheritCancel(_ context.Context) (context.Context,context.CancelFunc) {
 }
 ```
 
-### skip check specify function
-You can add `// nolint: contextcheck` in function decl doc comment, to skip this linter in some false-positive case.
+### skip the check for the specified function
+To skip this linter in some false-positive cases, you can add // nolint: contextcheck to the function declaration's comment.
 
 ```go
 // nolint: contextcheck
@@ -112,8 +112,8 @@ func call3() {
 }
 ```
 
-### force mark specify function have server-side http.Request parameter
-default behavior is mark http.HandlerFunc or a function use r.Context().
+### force the marking of a specified function as having a server-side http.Request parameter
+The default behavior is to mark `http.HandlerFunc` or any function that uses `r.Context()`.
 
 ```go
 // @contextcheck(req_has_ctx)

@@ -40,6 +40,16 @@ func (w lintEmptyBlock) Visit(node ast.Node) ast.Visitor {
 	case *ast.FuncLit:
 		w.ignore[n.Body] = true
 		return w
+	case *ast.SelectStmt:
+		w.ignore[n.Body] = true
+		return w
+	case *ast.ForStmt:
+		if len(n.Body.List) == 0 && n.Init == nil && n.Post == nil && n.Cond != nil {
+			if _, isCall := n.Cond.(*ast.CallExpr); isCall {
+				w.ignore[n.Body] = true
+				return w
+			}
+		}
 	case *ast.RangeStmt:
 		if len(n.Body.List) == 0 {
 			w.onFailure(lint.Failure{

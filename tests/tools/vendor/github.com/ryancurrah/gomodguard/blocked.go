@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 // Blocked is a list of modules that are
@@ -15,7 +15,7 @@ type Blocked struct {
 	LocalReplaceDirectives bool            `yaml:"local_replace_directives"`
 }
 
-// BlockedVersion has a version constraint a reason why the the module version is blocked.
+// BlockedVersion has a version constraint a reason why the module version is blocked.
 type BlockedVersion struct {
 	Version string `yaml:"version"`
 	Reason  string `yaml:"reason"`
@@ -23,24 +23,22 @@ type BlockedVersion struct {
 
 // IsLintedModuleVersionBlocked returns true if a version constraint is specified and the
 // linted module version matches the constraint.
-func (r *BlockedVersion) IsLintedModuleVersionBlocked(lintedModuleVersion string) bool {
+func (r *BlockedVersion) IsLintedModuleVersionBlocked(lintedModuleVersion string) (bool, error) {
 	if r.Version == "" {
-		return false
+		return false, nil
 	}
 
 	constraint, err := semver.NewConstraint(r.Version)
 	if err != nil {
-		return false
+		return true, err
 	}
 
 	version, err := semver.NewVersion(lintedModuleVersion)
 	if err != nil {
-		return false
+		return true, err
 	}
 
-	meet := constraint.Check(version)
-
-	return meet
+	return constraint.Check(version), nil
 }
 
 // Message returns the reason why the module version is blocked.

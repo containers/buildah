@@ -8,7 +8,7 @@ import (
 	"github.com/mgechev/revive/lint"
 )
 
-// CommentSpacings Rule check the whether there is a space between
+// CommentSpacingsRule check the whether there is a space between
 // the comment symbol( // ) and the start of the comment text
 type CommentSpacingsRule struct {
 	allowList []string
@@ -23,6 +23,7 @@ func (r *CommentSpacingsRule) configure(arguments lint.Arguments) {
 		r.allowList = []string{
 			"//go:",
 			"//revive:",
+			"//nolint:",
 		}
 
 		for _, arg := range arguments {
@@ -35,6 +36,7 @@ func (r *CommentSpacingsRule) configure(arguments lint.Arguments) {
 	}
 }
 
+// Apply the rule.
 func (r *CommentSpacingsRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
 	r.configure(args)
 
@@ -47,7 +49,13 @@ func (r *CommentSpacingsRule) Apply(file *lint.File, args lint.Arguments) []lint
 				continue // nothing to do
 			}
 
-			isOK := commentLine[2] == ' '
+			isMultiLineComment := commentLine[1] == '*'
+			isOK := commentLine[2] == '\n'
+			if isMultiLineComment && isOK {
+				continue
+			}
+
+			isOK = (commentLine[2] == ' ') || (commentLine[2] == '\t')
 			if isOK {
 				continue
 			}
@@ -67,6 +75,7 @@ func (r *CommentSpacingsRule) Apply(file *lint.File, args lint.Arguments) []lint
 	return failures
 }
 
+// Name yields this rule name.
 func (*CommentSpacingsRule) Name() string {
 	return "comment-spacings"
 }

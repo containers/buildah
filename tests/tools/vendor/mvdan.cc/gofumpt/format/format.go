@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -26,22 +25,26 @@ import (
 	"golang.org/x/mod/semver"
 	"golang.org/x/tools/go/ast/astutil"
 
+	"mvdan.cc/gofumpt/internal/govendor/go/format"
 	"mvdan.cc/gofumpt/internal/version"
 )
 
 // Options is the set of formatting options which affect gofumpt.
 type Options struct {
-	// LangVersion corresponds to the Go language version a piece of code is
-	// written in. The version is used to decide whether to apply formatting
-	// rules which require new language features. When inside a Go module,
-	// LangVersion should be:
-	//
-	//     go mod edit -json | jq -r '.Go'
+	// TODO: link to the go/version docs once Go 1.22 is out.
+	// The old semver docs said:
 	//
 	// LangVersion is treated as a semantic version, which may start with a "v"
 	// prefix. Like Go versions, it may also be incomplete; "1.14" is equivalent
 	// to "1.14.0". When empty, it is equivalent to "v1", to not use language
 	// features which could break programs.
+
+	// LangVersion is the Go version a piece of code is written in.
+	// The version is used to decide whether to apply formatting
+	// rules which require new language features.
+	// When inside a Go module, LangVersion should typically be:
+	//
+	//     go mod edit -json | jq -r '.Go'
 	LangVersion string
 
 	// ModulePath corresponds to the Go module path which contains the source
@@ -82,22 +85,28 @@ func Source(src []byte, opts Options) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+var rxGoVersionMajorMinor = regexp.MustCompile(`^(v|go)?([1-9]+)\.([0-9]+)`)
+
 // File modifies a file and fset in place to follow gofumpt's format. The
 // changes might include manipulating adding or removing newlines in fset,
 // modifying the position of nodes, or modifying literal values.
 func File(fset *token.FileSet, file *ast.File, opts Options) {
 	simplify(file)
 
+	// TODO: replace this hacky mess with go/version once we can rely on Go 1.22,
+	// as well as replacing our uses of the semver package.
+	// In particular, we likely want to allow any of 1.21, 1.21.2, or go1.21rc3,
+	// but we can rely on go/version.Lang to validate and normalize.
 	if opts.LangVersion == "" {
-		opts.LangVersion = "v1"
-	} else if opts.LangVersion[0] != 'v' {
-		opts.LangVersion = "v" + opts.LangVersion
+		opts.LangVersion = "v1.0"
 	}
-	if !semver.IsValid(opts.LangVersion) {
-		panic(fmt.Sprintf("invalid semver string: %q", opts.LangVersion))
+	m := rxGoVersionMajorMinor.FindStringSubmatch(opts.LangVersion)
+	if m == nil {
+		panic(fmt.Sprintf("invalid Go version: %q", opts.LangVersion))
 	}
+	opts.LangVersion = "v" + m[2] + "." + m[3]
 	f := &fumpter{
-		File:    fset.File(file.Pos()),
+		file:    fset.File(file.Pos()),
 		fset:    fset,
 		astFile: file,
 		Options: opts,
@@ -170,7 +179,7 @@ var rxOctalInteger = regexp.MustCompile(`\A0[0-7_]+\z`)
 type fumpter struct {
 	Options
 
-	*token.File
+	file *token.File
 	fset *token.FileSet
 
 	astFile *ast.File
@@ -217,7 +226,8 @@ func (f *fumpter) inlineComment(pos token.Pos) *ast.Comment {
 func (f *fumpter) addNewline(at token.Pos) {
 	offset := f.Offset(at)
 
-	field := reflect.ValueOf(f.File).Elem().FieldByName("lines")
+	// TODO: replace with the new Lines method once we require Go 1.21 or later
+	field := reflect.ValueOf(f.file).Elem().FieldByName("lines")
 	n := field.Len()
 	lines := make([]int, 0, n+1)
 	for i := 0; i < n; i++ {
@@ -236,7 +246,7 @@ func (f *fumpter) addNewline(at token.Pos) {
 	if offset >= 0 {
 		lines = append(lines, offset)
 	}
-	if !f.SetLines(lines) {
+	if !f.file.SetLines(lines) {
 		panic(fmt.Sprintf("could not set lines to %v", lines))
 	}
 }
@@ -245,7 +255,7 @@ func (f *fumpter) addNewline(at token.Pos) {
 // up on the same line.
 func (f *fumpter) removeLines(fromLine, toLine int) {
 	for fromLine < toLine {
-		f.MergeLine(fromLine)
+		f.file.MergeLine(fromLine)
 		toLine--
 	}
 }
@@ -254,6 +264,18 @@ func (f *fumpter) removeLines(fromLine, toLine int) {
 // two positions.
 func (f *fumpter) removeLinesBetween(from, to token.Pos) {
 	f.removeLines(f.Line(from)+1, f.Line(to))
+}
+
+func (f *fumpter) Position(p token.Pos) token.Position {
+	return f.file.PositionFor(p, false)
+}
+
+func (f *fumpter) Line(p token.Pos) int {
+	return f.Position(p).Line
+}
+
+func (f *fumpter) Offset(p token.Pos) int {
+	return f.file.Offset(p)
 }
 
 type byteCounter int
@@ -285,14 +307,14 @@ func (f *fumpter) lineEnd(line int) token.Pos {
 	if line < 1 {
 		panic("illegal line number")
 	}
-	total := f.LineCount()
+	total := f.file.LineCount()
 	if line > total {
 		panic("illegal line number")
 	}
 	if line == total {
 		return f.astFile.End()
 	}
-	return f.LineStart(line+1) - 1
+	return f.file.LineStart(line+1) - 1
 }
 
 // rxCommentDirective covers all common Go comment directives:
@@ -305,10 +327,11 @@ func (f *fumpter) lineEnd(line int) token.Pos {
 //	//sys(nb)?     | syscall function wrapper prototypes
 //	//nolint       | nolint directive for golangci
 //	//noinspection | noinspection directive for GoLand and friends
+//	//NOSONAR      | NOSONAR directive for SonarQube
 //
 // Note that the "some-words:" matching expects a letter afterward, such as
 // "go:generate", to prevent matching false positives like "https://site".
-var rxCommentDirective = regexp.MustCompile(`^([a-z-]+:[a-z]+|line\b|export\b|extern\b|sys(nb)?\b|no(lint|inspection)\b)`)
+var rxCommentDirective = regexp.MustCompile(`^([a-z-]+:[a-z]+|line\b|export\b|extern\b|sys(nb)?\b|no(lint|inspection)\b)|NOSONAR\b`)
 
 func (f *fumpter) applyPre(c *astutil.Cursor) {
 	f.splitLongLine(c)
@@ -395,7 +418,7 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 					slc := []string{
 						"//gofumpt:diagnose",
 						"version:",
-						version.String(),
+						version.String(""),
 						"flags:",
 						"-lang=" + f.LangVersion,
 						"-modpath=" + f.ModulePath,
@@ -467,13 +490,19 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 			specEnd := node.Specs[0].End()
 
 			if len(f.commentsBetween(node.TokPos, specPos)) > 0 {
-				// If the single spec has any comment, it must
-				// go before the entire declaration now.
+				// If the single spec has a comment on the line above,
+				// the comment must go before the entire declaration now.
 				node.TokPos = specPos
 			} else {
 				f.removeLines(f.Line(node.TokPos), f.Line(specPos))
 			}
-			f.removeLines(f.Line(specEnd), f.Line(node.Rparen))
+			if len(f.commentsBetween(specEnd, node.Rparen)) > 0 {
+				// Leave one newline to not force a comment on the next line to
+				// become an inline comment.
+				f.removeLines(f.Line(specEnd)+1, f.Line(node.Rparen))
+			} else {
+				f.removeLines(f.Line(specEnd), f.Line(node.Rparen))
+			}
 
 			// Remove the parentheses. go/printer will automatically
 			// get rid of the newlines.
@@ -546,12 +575,19 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 
 			if f.Line(sign.Pos()) != endLine {
 				handleMultiLine := func(fl *ast.FieldList) {
+					// Refuse to insert a newline before the closing token
+					// if the list is empty or all in one line.
 					if fl == nil || len(fl.List) == 0 {
 						return
 					}
+					fieldOpeningLine := f.Line(fl.Opening)
+					fieldClosingLine := f.Line(fl.Closing)
+					if fieldOpeningLine == fieldClosingLine {
+						return
+					}
+
 					lastFieldEnd := fl.List[len(fl.List)-1].End()
 					lastFieldLine := f.Line(lastFieldEnd)
-					fieldClosingLine := f.Line(fl.Closing)
 					isLastFieldOnFieldClosingLine := lastFieldLine == fieldClosingLine
 					isLastFieldOnSigClosingLine := lastFieldLine == endLine
 
@@ -852,9 +888,9 @@ func (f *fumpter) stmts(list []ast.Stmt) {
 			continue // not an if following another statement
 		}
 		as, ok := list[i-1].(*ast.AssignStmt)
-		if !ok || as.Tok != token.DEFINE ||
+		if !ok || (as.Tok != token.DEFINE && as.Tok != token.ASSIGN) ||
 			!identEqual(as.Lhs[len(as.Lhs)-1], "err") {
-			continue // not "..., err := ..."
+			continue // not ", err :=" nor ", err ="
 		}
 		be, ok := ifs.Cond.(*ast.BinaryExpr)
 		if !ok || ifs.Init != nil || ifs.Else != nil {

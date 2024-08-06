@@ -17,7 +17,6 @@ import (
 	"honnef.co/go/tools/go/ast/astutil"
 	"honnef.co/go/tools/go/types/typeutil"
 
-	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/types/objectpath"
 )
@@ -1151,8 +1150,7 @@ func (g *graph) decl(decl ast.Decl, by types.Object) {
 		}
 
 	case *ast.FuncDecl:
-		// XXX calling OriginMethod is unnecessary if we use types.Func.Origin
-		obj := typeparams.OriginMethod(g.info.ObjectOf(decl.Name).(*types.Func))
+		obj := g.info.ObjectOf(decl.Name).(*types.Func).Origin()
 		g.see(obj, nil)
 
 		if token.IsExported(decl.Name.Name) && g.opts.ExportedIsUsed {
@@ -1332,7 +1330,7 @@ func (g *graph) stmt(stmt ast.Stmt, by types.Object) {
 				g.read(comm.Chan, by)
 				g.read(comm.Value, by)
 			case *ast.ExprStmt:
-				g.read(comm.X.(*ast.UnaryExpr).X, by)
+				g.read(astutil.Unparen(comm.X).(*ast.UnaryExpr).X, by)
 			case *ast.AssignStmt:
 				for _, lhs := range comm.Lhs {
 					g.write(lhs, by)
@@ -1394,9 +1392,9 @@ func (g *graph) stmt(stmt ast.Stmt, by types.Object) {
 // embeddedField sees the field declared by the embedded field node, and marks the type as used by the field.
 //
 // Embedded fields are special in two ways: they don't have names, so we don't have immediate access to an ast.Ident to
-// resolve to the field's types.Var, and we cannot use g.read on the type because eventually we do get to an ast.Ident,
-// and ObjectOf resolves embedded fields to the field they declare, not the type. That's why we have code specially for
-// handling embedded fields.
+// resolve to the field's types.Var and need to instead walk the AST, and we cannot use g.read on the type because
+// eventually we do get to an ast.Ident, and ObjectOf resolves embedded fields to the field they declare, not the type.
+// That's why we have code specially for handling embedded fields.
 func (g *graph) embeddedField(node ast.Node, by types.Object) *types.Var {
 	// We need to traverse the tree to find the ast.Ident, but all the nodes we traverse should be used by the object we
 	// get once we resolve the ident. Collect the nodes and process them once we've found the ident.
@@ -1404,18 +1402,28 @@ func (g *graph) embeddedField(node ast.Node, by types.Object) *types.Var {
 	for {
 		switch node_ := node.(type) {
 		case *ast.Ident:
+			// obj is the field
 			obj := g.info.ObjectOf(node_).(*types.Var)
+			// the field is declared by the enclosing type
 			g.see(obj, by)
 			for _, n := range nodes {
 				g.read(n, obj)
 			}
-			switch typ := typeutil.Dereference(g.info.TypeOf(node_)).(type) {
-			case *types.Named:
-				g.use(typ.Obj(), obj)
-			case *types.Basic:
-				// Nothing to do
-			default:
-				lint.ExhaustiveTypeSwitch(typ)
+
+			if tname, ok := g.info.Uses[node_].(*types.TypeName); ok && tname.IsAlias() {
+				// When embedding an alias we want to use the alias, not what the alias points to.
+				g.use(tname, obj)
+			} else {
+				switch typ := typeutil.Dereference(g.info.TypeOf(node_)).(type) {
+				case *types.Named:
+					// (7.2) fields use their types
+					g.use(typ.Obj(), obj)
+				case *types.Basic:
+					// Nothing to do
+				default:
+					// Other types are only possible for aliases, which we've already handled
+					lint.ExhaustiveTypeSwitch(typ)
+				}
 			}
 			return obj
 		case *ast.StarExpr:
@@ -1518,6 +1526,9 @@ func (g *graph) namedType(typ *types.TypeName, spec ast.Expr) {
 					obj := g.info.ObjectOf(name)
 					g.see(obj, typ)
 					// (7.2) fields use their types
+					//
+					// This handles aliases correctly because ObjectOf(alias) returns the TypeName of the alias, not
+					// what the alias points to.
 					g.read(field.Type, obj)
 					if name.Name == "_" {
 						// (9.9) objects named the blank identifier are used

@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 var tokensByString = map[string]Token{
@@ -560,13 +562,14 @@ func (fn Symbol) Match(m *Matcher, node interface{}) (interface{}, bool) {
 		return nil, false
 	}
 
-	fun := r
+	fun := r.(ast.Expr)
 	switch idx := fun.(type) {
 	case *ast.IndexExpr:
 		fun = idx.X
 	case *ast.IndexListExpr:
 		fun = idx.X
 	}
+	fun = astutil.Unparen(fun)
 
 	switch fun := fun.(type) {
 	case *ast.Ident:

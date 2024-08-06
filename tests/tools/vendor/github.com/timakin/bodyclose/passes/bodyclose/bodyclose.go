@@ -127,7 +127,12 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		resRefs := *val.Referrers()
 		for _, resRef := range resRefs {
 			switch resRef := resRef.(type) {
-			case *ssa.Store: // Call in Closure function
+			case *ssa.Store: // Call in Closure function / Response is global variable
+				if _, ok := resRef.Addr.(*ssa.Global); ok {
+					// Referrers for globals are always nil, so skip.
+					return false
+				}
+
 				if len(*resRef.Addr.Referrers()) == 0 {
 					return true
 				}
@@ -217,6 +222,10 @@ func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 	case ssa.Value:
 		if instr.Type().String() == r.resTyp.String() {
 			return instr, true
+		}
+	case *ssa.Store:
+		if instr.Val.Type().String() == r.resTyp.String() {
+			return instr.Val, true
 		}
 	}
 	return nil, false

@@ -14,7 +14,7 @@ import (
 	"runtime"
 )
 
-// Extracted from golang.org/x/tools@v0.1.12/cmd/goimports/goimports.go
+// Extracted from golang.org/x/tools@v0.13.0/cmd/goimports/goimports.go
 
 func writeTempFile(dir, prefix string, data []byte) (string, error) {
 	file, err := ioutil.TempFile(dir, prefix)

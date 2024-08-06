@@ -1,36 +1,48 @@
 # tparallel
+
 [![tparallel](https://github.com/moricho/tparallel/workflows/tparallel/badge.svg?branch=master)](https://github.com/moricho/tparallel/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/moricho/tparallel)](https://goreportcard.com/report/github.com/moricho/tparallel)
 [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 
 `tparallel` finds inappropriate usage of `t.Parallel()` method in your Go test codes.  
-It detects the following:  
+It detects the following:
+
 - `t.Parallel()` is called in either a top-level test function or a sub-test function only
 - Although `t.Parallel()` is called in the sub-test function, it is post-processed by `defer` instead of `t.Cleanup()`
-  
-This tool was inspired by this blog: [Go言語でのテストの並列化 〜t.Parallel()メソッドを理解する〜](https://engineering.mercari.com/blog/entry/how_to_use_t_parallel/)
+
+This tool was inspired by this blog: [Go 言語でのテストの並列化 〜t.Parallel()メソッドを理解する〜](https://engineering.mercari.com/blog/entry/how_to_use_t_parallel/)
 
 ## Installation
 
 ### From GitHub Releases
+
 Please see [GitHub Releases](https://github.com/moricho/tparallel/releases).  
 Available binaries are:
+
 - macOS
 - Linux
 - Windows
 
 ### macOS
-``` sh
+
+```sh
 $ brew tap moricho/tparallel
 $ brew install tparallel
 ```
 
 ### go get
+
 ```sh
 $ go get -u github.com/moricho/tparallel/cmd/tparallel
 ```
 
 ## Usage
+
+### golangci-lint
+
+[golangci-lint](https://github.com/golangci/golangci-lint) now supports `tparallel`, so you can enable this linter and use in it.
+
+### shell
 
 ```sh
 $ go vet -vettool=`which tparallel` <pkgname>

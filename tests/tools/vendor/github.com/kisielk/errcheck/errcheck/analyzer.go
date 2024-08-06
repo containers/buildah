@@ -31,7 +31,6 @@ func init() {
 }
 
 func runAnalyzer(pass *analysis.Pass) (interface{}, error) {
-
 	exclude := map[string]bool{}
 	if !argExcludeOnly {
 		for _, name := range DefaultExcludedSymbols {
@@ -65,8 +64,9 @@ func runAnalyzer(pass *analysis.Pass) (interface{}, error) {
 
 		for _, err := range v.errors {
 			pass.Report(analysis.Diagnostic{
-				Pos:     pass.Fset.File(f.Pos()).Pos(err.Pos.Offset),
-				Message: "unchecked error",
+				Pos:      pass.Fset.File(f.Pos()).Pos(err.Pos.Offset),
+				Message:  "unchecked error",
+				Category: "errcheck",
 			})
 		}
 

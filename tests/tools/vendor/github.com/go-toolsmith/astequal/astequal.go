@@ -4,8 +4,6 @@ package astequal
 import (
 	"go/ast"
 	"go/token"
-
-	"golang.org/x/exp/typeparams"
 )
 
 // Node reports whether two AST nodes are structurally (deep) equal.
@@ -109,8 +107,8 @@ func astExprEq(x, y ast.Expr) bool {
 		y, ok := y.(*ast.IndexExpr)
 		return ok && astIndexExprEq(x, y)
 
-	case *typeparams.IndexListExpr:
-		y, ok := y.(*typeparams.IndexListExpr)
+	case *ast.IndexListExpr:
+		y, ok := y.(*ast.IndexListExpr)
 		return ok && astIndexListExprEq(x, y)
 
 	case *ast.SliceExpr:
@@ -323,7 +321,7 @@ func astFuncTypeEq(x, y *ast.FuncType) bool {
 	}
 	return astFieldListEq(x.Params, y.Params) &&
 		astFieldListEq(x.Results, y.Results) &&
-		astFieldListEq(typeparams.ForFuncType(x), typeparams.ForFuncType(y))
+		astFieldListEq(forFuncType(x), forFuncType(y))
 }
 
 func astBasicLitEq(x, y *ast.BasicLit) bool {
@@ -378,7 +376,7 @@ func astIndexExprEq(x, y *ast.IndexExpr) bool {
 	return astExprEq(x.X, y.X) && astExprEq(x.Index, y.Index)
 }
 
-func astIndexListExprEq(x, y *typeparams.IndexListExpr) bool {
+func astIndexListExprEq(x, y *ast.IndexListExpr) bool {
 	if x == nil || y == nil {
 		return x == y
 	}
@@ -690,7 +688,7 @@ func astTypeSpecEq(x, y *ast.TypeSpec) bool {
 		return x == y
 	}
 	return astIdentEq(x.Name, y.Name) && astExprEq(x.Type, y.Type) &&
-		astFieldListEq(typeparams.ForTypeSpec(x), typeparams.ForTypeSpec(y))
+		astFieldListEq(forTypeSpec(x), forTypeSpec(y))
 }
 
 func astValueSpecEq(x, y *ast.ValueSpec) bool {
@@ -754,4 +752,20 @@ func astExprSliceEq(xs, ys []ast.Expr) bool {
 		}
 	}
 	return true
+}
+
+// forTypeSpec returns n.TypeParams.
+func forTypeSpec(n *ast.TypeSpec) *ast.FieldList {
+	if n == nil {
+		return nil
+	}
+	return n.TypeParams
+}
+
+// forFuncType returns n.TypeParams.
+func forFuncType(n *ast.FuncType) *ast.FieldList {
+	if n == nil {
+		return nil
+	}
+	return n.TypeParams
 }

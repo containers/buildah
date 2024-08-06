@@ -88,7 +88,7 @@ func (l *reviveRunLog) AddResult(failure lint.Failure) {
 	location := garif.NewLocation().WithURI(filename).WithLineColumn(line, column)
 	result.Locations = append(result.Locations, location)
 	result.RuleId = failure.RuleName
-	result.Level = l.rules[failure.RuleName].Severity
+	result.Level = garif.ResultLevel(l.rules[failure.RuleName].Severity)
 
 	l.run.Results = append(l.run.Results, result)
 }

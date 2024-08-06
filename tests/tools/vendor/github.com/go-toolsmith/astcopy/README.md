@@ -1,12 +1,15 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/go-toolsmith/astcopy)](https://goreportcard.com/report/github.com/go-toolsmith/astcopy)
-[![GoDoc](https://godoc.org/github.com/go-toolsmith/astcopy?status.svg)](https://godoc.org/github.com/go-toolsmith/astcopy)
-[![Build Status](https://travis-ci.org/go-toolsmith/astcopy.svg?branch=master)](https://travis-ci.org/go-toolsmith/astcopy)
-
 # astcopy
 
-Package astcopy implements Go AST reflection-free deep copy operations.
+[![build-img]][build-url]
+[![pkg-img]][pkg-url]
+[![reportcard-img]][reportcard-url]
+[![version-img]][version-url]
+
+Package `astcopy` implements Go AST reflection-free deep copy operations.
 
 ## Installation:
+
+Go version 1.16+
 
 ```bash
 go get github.com/go-toolsmith/astcopy
@@ -39,3 +42,16 @@ func main() {
 	fmt.Println(astequal.Expr(x, y)) // => false
 }
 ```
+
+## License
+
+[MIT License](LICENSE).
+
+[build-img]: https://github.com/go-toolsmith/astp/workflows/build/badge.svg
+[build-url]: https://github.com/go-toolsmith/astp/actions
+[pkg-img]: https://pkg.go.dev/badge/go-toolsmith/astp
+[pkg-url]: https://pkg.go.dev/github.com/go-toolsmith/astp
+[reportcard-img]: https://goreportcard.com/badge/go-toolsmith/astp
+[reportcard-url]: https://goreportcard.com/report/go-toolsmith/astp
+[version-img]: https://img.shields.io/github/v/release/go-toolsmith/astp
+[version-url]: https://github.com/go-toolsmith/astp/releases

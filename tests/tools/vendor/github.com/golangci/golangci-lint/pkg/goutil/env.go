@@ -3,12 +3,11 @@ package goutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/golangci/golangci-lint/pkg/logutils"
 )
@@ -34,20 +33,23 @@ func NewEnv(log logutils.Log) *Env {
 	}
 }
 
-func (e *Env) Discover(ctx context.Context) error {
+func (e Env) Discover(ctx context.Context) error {
 	startedAt := time.Now()
-	args := []string{"env", "-json"}
-	args = append(args, string(EnvGoCache), string(EnvGoRoot))
-	out, err := exec.CommandContext(ctx, "go", args...).Output()
+
+	//nolint:gosec // Everything is static here.
+	cmd := exec.CommandContext(ctx, "go", "env", "-json", string(EnvGoCache), string(EnvGoRoot))
+
+	out, err := cmd.Output()
 	if err != nil {
-		return errors.Wrap(err, "failed to run 'go env'")
+		return fmt.Errorf("failed to run '%s': %w", strings.Join(cmd.Args, " "), err)
 	}
 
 	if err = json.Unmarshal(out, &e.vars); err != nil {
-		return errors.Wrapf(err, "failed to parse 'go %s' json", strings.Join(args, " "))
+		return fmt.Errorf("failed to parse '%s' json: %w", strings.Join(cmd.Args, " "), err)
 	}
 
 	e.debugf("Read go env for %s: %#v", time.Since(startedAt), e.vars)
+
 	return nil
 }
 

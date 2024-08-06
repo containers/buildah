@@ -204,6 +204,8 @@ func getConverter(c string) (func(s string) string, error) {
 		return toHeader, nil
 	case "upper":
 		return strings.ToUpper, nil
+	case "upperSnake":
+		return strcase.ToSNAKE, nil
 	case "lower":
 		return strings.ToLower, nil
 	default:

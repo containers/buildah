@@ -161,6 +161,9 @@ var TimeLayout = map[string]string{
 	time.StampMilli:  "time.StampMilli",
 	time.StampMicro:  "time.StampMicro",
 	time.StampNano:   "time.StampNano",
+	time.DateTime:    "time.DateTime",
+	time.DateOnly:    "time.DateOnly",
+	time.TimeOnly:    "time.TimeOnly",
 }
 
 var SQLIsolationLevel = map[string]string{

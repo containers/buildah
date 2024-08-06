@@ -77,13 +77,13 @@ func mapChecker(pass *analysis.Pass, cfg mapConfig, generated boolCache, comment
 			}
 		}
 
-		if !cfg.explicit && hasComment(relatedComments, ignoreComment) {
+		if !cfg.explicit && hasCommentPrefix(relatedComments, ignoreComment) {
 			// Skip checking of this map literal due to ignore
 			// comment. Still return true because there may be nested
 			// map literals that are not to be ignored.
 			return true, resultIgnoreComment
 		}
-		if cfg.explicit && !hasComment(relatedComments, enforceComment) {
+		if cfg.explicit && !hasCommentPrefix(relatedComments, enforceComment) {
 			return true, resultNoEnforceComment
 		}
 
@@ -97,7 +97,7 @@ func mapChecker(pass *analysis.Pass, cfg mapConfig, generated boolCache, comment
 		checkl.ignoreType(cfg.ignoreType)
 
 		for _, e := range es {
-			checkl.add(e.et, e.em, pass.Pkg == e.et.Pkg())
+			checkl.add(e.typ, e.members, pass.Pkg == e.typ.Pkg())
 		}
 
 		analyzeMapLiteral(lit, pass.TypesInfo, checkl.found)
@@ -128,7 +128,7 @@ func makeMapDiagnostic(lit *ast.CompositeLit, enumTypes []enumType, missing map[
 		Message: fmt.Sprintf(
 			"missing keys in map of key type %s: %s",
 			diagnosticEnumTypes(enumTypes),
-			diagnosticGroups(groupMissing(missing, enumTypes)),
+			diagnosticGroups(groupify(missing, enumTypes)),
 		),
 	}
 }

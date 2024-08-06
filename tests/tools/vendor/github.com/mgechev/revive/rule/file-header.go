@@ -21,20 +21,27 @@ var (
 
 func (r *FileHeaderRule) configure(arguments lint.Arguments) {
 	r.Lock()
+	defer r.Unlock()
 	if r.header == "" {
-		checkNumberOfArguments(1, arguments, r.Name())
+		if len(arguments) < 1 {
+			return
+		}
+
 		var ok bool
 		r.header, ok = arguments[0].(string)
 		if !ok {
-			panic(fmt.Sprintf("invalid argument for \"file-header\" rule: first argument should be a string, got %T", arguments[0]))
+			panic(fmt.Sprintf("invalid argument for \"file-header\" rule: argument should be a string, got %T", arguments[0]))
 		}
 	}
-	r.Unlock()
 }
 
 // Apply applies the rule to given file.
 func (r *FileHeaderRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
 	r.configure(arguments)
+
+	if r.header == "" {
+		return nil
+	}
 
 	failure := []lint.Failure{
 		{

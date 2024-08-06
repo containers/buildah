@@ -5,10 +5,9 @@
 package ssa
 
 import (
-	"fmt"
 	"go/types"
 
-	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/aliases"
 )
 
 // Type substituter for a fixed set of replacement types.
@@ -19,41 +18,42 @@ import (
 //
 // Not concurrency-safe.
 type subster struct {
+	replacements map[*types.TypeParam]types.Type // values should contain no type params
+	cache        map[types.Type]types.Type       // cache of subst results
+	ctxt         *types.Context                  // cache for instantiation
+	scope        *types.Scope                    // *types.Named declared within this scope can be substituted (optional)
+	debug        bool                            // perform extra debugging checks
+	// TODO(taking): consider adding Pos
 	// TODO(zpavlinovic): replacements can contain type params
 	// when generating instances inside of a generic function body.
-	replacements map[*typeparams.TypeParam]types.Type // values should contain no type params
-	cache        map[types.Type]types.Type            // cache of subst results
-	ctxt         *typeparams.Context
-	debug        bool // perform extra debugging checks
-	// TODO(taking): consider adding Pos
 }
 
 // Returns a subster that replaces tparams[i] with targs[i]. Uses ctxt as a cache.
 // targs should not contain any types in tparams.
-func makeSubster(ctxt *typeparams.Context, tparams *typeparams.TypeParamList, targs []types.Type, debug bool) *subster {
+// scope is the (optional) lexical block of the generic function for which we are substituting.
+func makeSubster(ctxt *types.Context, scope *types.Scope, tparams *types.TypeParamList, targs []types.Type, debug bool) *subster {
 	assert(tparams.Len() == len(targs), "makeSubster argument count must match")
 
 	subst := &subster{
-		replacements: make(map[*typeparams.TypeParam]types.Type, tparams.Len()),
+		replacements: make(map[*types.TypeParam]types.Type, tparams.Len()),
 		cache:        make(map[types.Type]types.Type),
 		ctxt:         ctxt,
+		scope:        scope,
 		debug:        debug,
 	}
 	for i := 0; i < tparams.Len(); i++ {
 		subst.replacements[tparams.At(i)] = targs[i]
 	}
 	if subst.debug {
-		if err := subst.wellFormed(); err != nil {
-			panic(err)
-		}
+		subst.wellFormed()
 	}
 	return subst
 }
 
-// wellFormed returns an error if subst was not properly initialized.
-func (subst *subster) wellFormed() error {
-	if subst == nil || len(subst.replacements) == 0 {
-		return nil
+// wellFormed asserts that subst was properly initialized.
+func (subst *subster) wellFormed() {
+	if subst == nil {
+		return
 	}
 	// Check that all of the type params do not appear in the arguments.
 	s := make(map[types.Type]bool, len(subst.replacements))
@@ -62,10 +62,9 @@ func (subst *subster) wellFormed() error {
 	}
 	for _, r := range subst.replacements {
 		if reaches(r, s) {
-			return fmt.Errorf("\n‰r %s s %v replacements %v\n", r, s, subst.replacements)
+			panic(subst)
 		}
 	}
-	return nil
 }
 
 // typ returns the type of t with the type parameter tparams[i] substituted
@@ -81,9 +80,8 @@ func (subst *subster) typ(t types.Type) (res types.Type) {
 		subst.cache[t] = res
 	}()
 
-	// fall through if result r will be identical to t, types.Identical(r, t).
 	switch t := t.(type) {
-	case *typeparams.TypeParam:
+	case *types.TypeParam:
 		r := subst.replacements[t]
 		assert(r != nil, "type param without replacement encountered")
 		return r
@@ -132,14 +130,20 @@ func (subst *subster) typ(t types.Type) (res types.Type) {
 	case *types.Signature:
 		return subst.signature(t)
 
-	case *typeparams.Union:
+	case *types.Union:
 		return subst.union(t)
 
 	case *types.Interface:
 		return subst.interface_(t)
 
+	case *aliases.Alias:
+		return subst.alias(t)
+
 	case *types.Named:
 		return subst.named(t)
+
+	case *opaqueType:
+		return t // opaque types are never substituted
 
 	default:
 		panic("unreachable")
@@ -221,25 +225,25 @@ func (subst *subster) var_(v *types.Var) *types.Var {
 	return v
 }
 
-func (subst *subster) union(u *typeparams.Union) *typeparams.Union {
-	var out []*typeparams.Term // nil => no updates
+func (subst *subster) union(u *types.Union) *types.Union {
+	var out []*types.Term // nil => no updates
 
 	for i, n := 0, u.Len(); i < n; i++ {
 		t := u.Term(i)
 		r := subst.typ(t.Type())
 		if r != t.Type() && out == nil {
-			out = make([]*typeparams.Term, n)
+			out = make([]*types.Term, n)
 			for j := 0; j < i; j++ {
 				out[j] = u.Term(j)
 			}
 		}
 		if out != nil {
-			out[i] = typeparams.NewTerm(t.Tilde(), r)
+			out[i] = types.NewTerm(t.Tilde(), r)
 		}
 	}
 
 	if out != nil {
-		return typeparams.NewUnion(out)
+		return types.NewUnion(out)
 	}
 	return u
 }
@@ -250,7 +254,7 @@ func (subst *subster) interface_(iface *types.Interface) *types.Interface {
 	}
 
 	// methods for the interface. Initially nil if there is no known change needed.
-	// Signatures for the method where recv is nil. NewInterfaceType fills in the recievers.
+	// Signatures for the method where recv is nil. NewInterfaceType fills in the receivers.
 	var methods []*types.Func
 	initMethods := func(n int) { // copy first n explicit methods
 		methods = make([]*types.Func, iface.NumExplicitMethods())
@@ -263,7 +267,7 @@ func (subst *subster) interface_(iface *types.Interface) *types.Interface {
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		f := iface.ExplicitMethod(i)
 		// On interfaces, we need to cycle break on anonymous interface types
-		// being in a cycle with their signatures being in cycles with their recievers
+		// being in a cycle with their signatures being in cycles with their receivers
 		// that do not go through a Named.
 		norecv := changeRecv(f.Type().(*types.Signature), nil)
 		sig := subst.typ(norecv)
@@ -305,30 +309,69 @@ func (subst *subster) interface_(iface *types.Interface) *types.Interface {
 	return types.NewInterfaceType(methods, embeds).Complete()
 }
 
-func (subst *subster) named(t *types.Named) types.Type {
-	// A name type may be:
-	// (1) ordinary (no type parameters, no type arguments),
-	// (2) generic (type parameters but no type arguments), or
-	// (3) instantiated (type parameters and type arguments).
-	tparams := typeparams.ForNamed(t)
-	if tparams.Len() == 0 {
-		// case (1) ordinary
-
-		// Note: If Go allows for local type declarations in generic
-		// functions we may need to descend into underlying as well.
-		return t
+func (subst *subster) alias(t *aliases.Alias) types.Type {
+	// TODO(go.dev/issues/46477): support TypeParameters once these are available from go/types.
+	u := aliases.Unalias(t)
+	if s := subst.typ(u); s != u {
+		// If there is any change, do not create a new alias.
+		return s
 	}
-	targs := typeparams.NamedTypeArgs(t)
+	// If there is no change, t did not reach any type parameter.
+	// Keep the Alias.
+	return t
+}
+
+func (subst *subster) named(t *types.Named) types.Type {
+	// A named type may be:
+	// (1) ordinary named type (non-local scope, no type parameters, no type arguments),
+	// (2) locally scoped type,
+	// (3) generic (type parameters but no type arguments), or
+	// (4) instantiated (type parameters and type arguments).
+	tparams := t.TypeParams()
+	if tparams.Len() == 0 {
+		if subst.scope != nil && !subst.scope.Contains(t.Obj().Pos()) {
+			// Outside the current function scope?
+			return t // case (1) ordinary
+		}
+
+		// case (2) locally scoped type.
+		// Create a new named type to represent this instantiation.
+		// We assume that local types of distinct instantiations of a
+		// generic function are distinct, even if they don't refer to
+		// type parameters, but the spec is unclear; see golang/go#58573.
+		//
+		// Subtle: We short circuit substitution and use a newly created type in
+		// subst, i.e. cache[t]=n, to pre-emptively replace t with n in recursive
+		// types during traversal. This both breaks infinite cycles and allows for
+		// constructing types with the replacement applied in subst.typ(under).
+		//
+		// Example:
+		// func foo[T any]() {
+		//   type linkedlist struct {
+		//     next *linkedlist
+		//     val T
+		//   }
+		// }
+		//
+		// When the field `next *linkedlist` is visited during subst.typ(under),
+		// we want the substituted type for the field `next` to be `*n`.
+		n := types.NewNamed(t.Obj(), nil, nil)
+		subst.cache[t] = n
+		subst.cache[n] = n
+		n.SetUnderlying(subst.typ(t.Underlying()))
+		return n
+	}
+	targs := t.TypeArgs()
 
 	// insts are arguments to instantiate using.
 	insts := make([]types.Type, tparams.Len())
 
-	// case (2) generic ==> targs.Len() == 0
+	// case (3) generic ==> targs.Len() == 0
 	// Instantiating a generic with no type arguments should be unreachable.
 	// Please report a bug if you encounter this.
 	assert(targs.Len() != 0, "substition into a generic Named type is currently unsupported")
 
-	// case (3) instantiated.
+	// case (4) instantiated.
 	// Substitute into the type arguments and instantiate the replacements/
 	// Example:
 	//    type N[A any] func() A
@@ -341,13 +384,13 @@ func (subst *subster) named(t *types.Named) types.Type {
 		inst := subst.typ(targs.At(i)) // TODO(generic): Check with rfindley for mutual recursion
 		insts[i] = inst
 	}
-	r, err := typeparams.Instantiate(subst.ctxt, typeparams.NamedTypeOrigin(t), insts, false)
+	r, err := types.Instantiate(subst.ctxt, t.Origin(), insts, false)
 	assert(err == nil, "failed to Instantiate Named type")
 	return r
 }
 
 func (subst *subster) signature(t *types.Signature) types.Type {
-	tparams := typeparams.ForSignature(t)
+	tparams := t.TypeParams()
 
 	// We are choosing not to support tparams.Len() > 0 until a need has been observed in practice.
 	//
@@ -362,7 +405,7 @@ func (subst *subster) signature(t *types.Signature) types.Type {
 	//    no type params to substitute
 	// (2)generic method and recv needs to be substituted.
 
-	// Recievers can be either:
+	// Receivers can be either:
 	// named
 	// pointer to named
 	// interface
@@ -372,25 +415,32 @@ func (subst *subster) signature(t *types.Signature) types.Type {
 	params := subst.tuple(t.Params())
 	results := subst.tuple(t.Results())
 	if recv != t.Recv() || params != t.Params() || results != t.Results() {
-		return typeparams.NewSignatureType(recv, nil, nil, params, results, t.Variadic())
+		return types.NewSignatureType(recv, nil, nil, params, results, t.Variadic())
 	}
 	return t
 }
 
 // reaches returns true if a type t reaches any type t' s.t. c[t'] == true.
-// Updates c to cache results.
+// It updates c to cache results.
+//
+// reaches is currently only part of the wellFormed debug logic, and
+// in practice c is initially only type parameters. It is not currently
+// relied on in production.
 func reaches(t types.Type, c map[types.Type]bool) (res bool) {
 	if c, ok := c[t]; ok {
 		return c
 	}
-	c[t] = false // prevent cycles
+
+	// c is populated with temporary false entries as types are visited.
+	// This avoids repeat visits and break cycles.
+	c[t] = false
 	defer func() {
 		c[t] = res
 	}()
 
 	switch t := t.(type) {
-	case *typeparams.TypeParam, *types.Basic:
-		// no-op => c == false
+	case *types.TypeParam, *types.Basic:
+		return false
 	case *types.Array:
 		return reaches(t.Elem(), c)
 	case *types.Slice:
@@ -418,7 +468,7 @@ func reaches(t types.Type, c map[types.Type]bool) (res bool) {
 			return true
 		}
 		return reaches(t.Params(), c) || reaches(t.Results(), c)
-	case *typeparams.Union:
+	case *types.Union:
 		for i := 0; i < t.Len(); i++ {
 			if reaches(t.Term(i).Type(), c) {
 				return true
@@ -435,7 +485,7 @@ func reaches(t types.Type, c map[types.Type]bool) (res bool) {
 				return true
 			}
 		}
-	case *types.Named:
+	case *types.Named, *aliases.Alias:
 		return reaches(t.Underlying(), c)
 	default:
 		panic("unreachable")

@@ -39,7 +39,7 @@ func relName(v Value, i Instruction) string {
 	return v.Name()
 }
 
-// normalizeAnyFortesting controls whether we replace occurrences of
+// normalizeAnyForTesting controls whether we replace occurrences of
 // interface{} with any. It is only used for normalizing test output.
 var normalizeAnyForTesting bool
 
@@ -51,7 +51,7 @@ func relType(t types.Type, from *types.Package) string {
 	return s
 }
 
-func relTerm(term *typeparams.Term, from *types.Package) string {
+func relTerm(term *types.Term, from *types.Package) string {
 	s := relType(term.Type(), from)
 	if term.Tilde() {
 		return "~" + s
@@ -95,7 +95,7 @@ func (v *Alloc) String() string {
 		op = "new"
 	}
 	from := v.Parent().relPkg()
-	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), from), v.Comment)
+	return fmt.Sprintf("%s %s (%s)", op, relType(typeparams.MustDeref(v.Type()), from), v.Comment)
 }
 
 func (v *Phi) String() string {
@@ -259,21 +259,19 @@ func (v *MakeChan) String() string {
 }
 
 func (v *FieldAddr) String() string {
-	st := typeparams.CoreType(deref(v.X.Type())).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
-	if 0 <= v.Field && v.Field < st.NumFields() {
-		name = st.Field(v.Field).Name()
+	if fld := fieldOf(typeparams.MustDeref(v.X.Type()), v.Field); fld != nil {
+		name = fld.Name()
 	}
 	return fmt.Sprintf("&%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }
 
 func (v *Field) String() string {
-	st := typeparams.CoreType(v.X.Type()).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
-	if 0 <= v.Field && v.Field < st.NumFields() {
-		name = st.Field(v.Field).Name()
+	if fld := fieldOf(v.X.Type(), v.Field); fld != nil {
+		name = fld.Name()
 	}
 	return fmt.Sprintf("%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }
@@ -357,7 +355,12 @@ func (s *Send) String() string {
 }
 
 func (s *Defer) String() string {
-	return printCall(&s.Call, "defer ", s)
+	prefix := "defer "
+	if s._DeferStack != nil {
+		prefix += "[" + relName(s._DeferStack, s) + "] "
+	}
+	c := printCall(&s.Call, prefix, s)
+	return c
 }
 
 func (s *Select) String() string {
@@ -452,7 +455,7 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 
 		case *Global:
 			fmt.Fprintf(buf, "  var   %-*s %s\n",
-				maxname, name, relType(mem.Type().(*types.Pointer).Elem(), from))
+				maxname, name, relType(typeparams.MustDeref(mem.Type()), from))
 		}
 	}
 

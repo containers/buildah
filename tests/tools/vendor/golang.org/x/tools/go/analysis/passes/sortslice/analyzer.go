@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -27,11 +28,16 @@ the interface{} value passed to sort.Slice is actually a slice.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "sortslice",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sortslice",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	if !analysisutil.Imports(pass.Pkg, "sort") {
+		return nil, nil // doesn't directly import sort
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -41,12 +47,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
 		fn, _ := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
-		if fn == nil {
-			return
-		}
-
-		fnName := fn.FullName()
-		if fnName != "sort.Slice" && fnName != "sort.SliceStable" && fnName != "sort.SliceIsSorted" {
+		if !analysisutil.IsFunctionNamed(fn, "sort", "Slice", "SliceStable", "SliceIsSorted") {
 			return
 		}
 
@@ -125,7 +126,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		pass.Report(analysis.Diagnostic{
 			Pos:            call.Pos(),
 			End:            call.End(),
-			Message:        fmt.Sprintf("%s's argument must be a slice; is called with %s", fnName, typ.String()),
+			Message:        fmt.Sprintf("%s's argument must be a slice; is called with %s", fn.FullName(), typ.String()),
 			SuggestedFixes: fixes,
 		})
 	})

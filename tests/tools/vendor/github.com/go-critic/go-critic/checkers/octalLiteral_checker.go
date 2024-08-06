@@ -7,14 +7,15 @@ import (
 	"unicode"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "octalLiteral"
-	info.Tags = []string{"style", "experimental", "opinionated"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag, linter.OpinionatedTag}
 	info.Summary = "Detects old-style octal literals"
 	info.Before = `foo(02)`
 	info.After = `foo(0o2)`
@@ -30,6 +31,9 @@ type octalLiteralChecker struct {
 }
 
 func (c *octalLiteralChecker) VisitExpr(expr ast.Expr) {
+	if !c.ctx.GoVersion.GreaterOrEqual(linter.GoVersion{Major: 1, Minor: 13}) {
+		return
+	}
 	lit := astcast.ToBasicLit(expr)
 	if lit.Kind != token.INT {
 		return

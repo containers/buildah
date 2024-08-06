@@ -5,14 +5,15 @@ import (
 	"go/types"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "sloppyTypeAssert"
-	info.Tags = []string{"diagnostic"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects redundant type assertions"
 	info.Before = `
 func f(r io.Reader) interface{} {

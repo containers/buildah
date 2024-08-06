@@ -24,6 +24,10 @@ type Analyzer struct {
 	// (no capital or period, max ~60 letters).
 	Doc string
 
+	// URL holds an optional link to a web page with additional
+	// documentation for this analyzer.
+	URL string
+
 	// Flags defines any flags accepted by the analyzer.
 	// The manner in which these flags are exposed to the user
 	// depends on the driver which runs the analyzer.
@@ -87,7 +91,7 @@ type Pass struct {
 	Analyzer *Analyzer // the identity of the current analyzer
 
 	// syntax and type information
-	Fset         *token.FileSet // file position information
+	Fset         *token.FileSet // file position information; Run may add new files
 	Files        []*ast.File    // the abstract syntax tree of each file
 	OtherFiles   []string       // names of non-Go files of this package
 	IgnoredFiles []string       // names of ignored source files in this package
@@ -107,6 +111,19 @@ type Pass struct {
 	// and the type of each corresponding value is the required
 	// analysis's ResultType.
 	ResultOf map[*Analyzer]interface{}
+
+	// ReadFile returns the contents of the named file.
+	//
+	// The only valid file names are the elements of OtherFiles
+	// and IgnoredFiles, and names returned by
+	// Fset.File(f.FileStart).Name() for each f in Files.
+	//
+	// Analyzers must use this function (if provided) instead of
+	// accessing the file system directly. This allows a driver to
+	// provide a virtualized file tree (including, for example,
+	// unsaved editor buffers) and to track dependencies precisely
+	// to avoid unnecessary recomputation.
+	ReadFile func(filename string) ([]byte, error)
 
 	// -- facts --
 
@@ -135,32 +152,24 @@ type Pass struct {
 	// See comments for ExportObjectFact.
 	ExportPackageFact func(fact Fact)
 
-	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
-	// in unspecified order.
-	// WARNING: This is an experimental API and may change in the future.
+	// AllPackageFacts returns a new slice containing all package
+	// facts of the analysis's FactTypes in unspecified order.
 	AllPackageFacts func() []PackageFact
 
-	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
-	// in unspecified order.
-	// WARNING: This is an experimental API and may change in the future.
+	// AllObjectFacts returns a new slice containing all object
+	// facts of the analysis's FactTypes in unspecified order.
 	AllObjectFacts func() []ObjectFact
 
-	// typeErrors contains types.Errors that are associated with the pkg.
-	typeErrors []types.Error
-
 	/* Further fields may be added in future. */
-	// For example, suggested or applied refactorings.
 }
 
 // PackageFact is a package together with an associated fact.
-// WARNING: This is an experimental API and may change in the future.
 type PackageFact struct {
 	Package *types.Package
 	Fact    Fact
 }
 
 // ObjectFact is an object together with an associated fact.
-// WARNING: This is an experimental API and may change in the future.
 type ObjectFact struct {
 	Object types.Object
 	Fact   Fact

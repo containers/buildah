@@ -18,20 +18,18 @@ type LocalDefVisitor interface {
 	VisitLocalDef(Name, ast.Expr)
 }
 
-type (
-	// NameKind describes what kind of name Name object holds.
-	NameKind int
+// NameKind describes what kind of name Name object holds.
+type NameKind int
 
-	// Name holds ver/const/param definition symbol info.
-	Name struct {
-		ID   *ast.Ident
-		Kind NameKind
+// Name holds ver/const/param definition symbol info.
+type Name struct {
+	ID   *ast.Ident
+	Kind NameKind
 
-		// Index is NameVar-specific field that is used to
-		// specify nth tuple element being assigned to the name.
-		Index int
-	}
-)
+	// Index is NameVar-specific field that is used to
+	// specify nth tuple element being assigned to the name.
+	Index int
+}
 
 // NOTE: set of name kinds is not stable and may change over time.
 //
