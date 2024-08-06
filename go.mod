@@ -35,7 +35,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.12.5
 	github.com/onsi/ginkgo/v2 v2.19.1
-	github.com/onsi/gomega v1.34.0
+	github.com/onsi/gomega v1.34.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.1.13
