@@ -1296,10 +1296,10 @@ func setupSpecialMountSpecChanges(spec *specs.Spec, shmSize string) ([]specs.Mou
 		if err != nil {
 			return nil, err
 		}
-		gid5Available = checkIdsGreaterThan5(gids)
+		gid5Available = checkIDsGreaterThan5(gids)
 	}
 	if gid5Available && len(spec.Linux.GIDMappings) > 0 {
-		gid5Available = checkIdsGreaterThan5(spec.Linux.GIDMappings)
+		gid5Available = checkIDsGreaterThan5(spec.Linux.GIDMappings)
 	}
 	if !gid5Available {
 		// If we have no GID mappings, the gid=5 default option would fail, so drop it.
@@ -1370,7 +1370,7 @@ func setupSpecialMountSpecChanges(spec *specs.Spec, shmSize string) ([]specs.Mou
 	return mounts, nil
 }
 
-func checkIdsGreaterThan5(ids []specs.LinuxIDMapping) bool {
+func checkIDsGreaterThan5(ids []specs.LinuxIDMapping) bool {
 	for _, r := range ids {
 		if r.ContainerID <= 5 && 5 < r.ContainerID+r.Size {
 			return true
