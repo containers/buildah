@@ -24,20 +24,20 @@ Next, we should import Buildah as a dependency. However, make sure that you have
 developer packages installed:
 
 ```shell
-dnf install btrfs-progs-devel gpgme-devel
+dnf install btrfs-progs-devel gpgme-devel passt
 ```
 
 Depending on your Linux distribution, the names of the packages can be slightly different. For instance, on
 OpenSUSE it would be
 
 ```shell
-zypper in libbtrfs-devel libgpgme-devel
+zypper install libbtrfs-devel libgpgme-devel passt
 ```
 
 On Debian and Ubuntu, it would be
 
 ```shell
-apt install libbtrfs-dev libgpgme-dev
+apt install libbtrfs-dev libgpgme-dev passt
 ```
 
 Now import Buildah as a dependency:
@@ -48,12 +48,12 @@ go get github.com/containers/buildah
 
 ## Build the image
 
-Now you can develop your application. To access to the build features of Buildah, you need to instantiate `buildah.Builder`. This struct has methods to configure the build, define the build steps and run it.
+Now you can develop your application. To access to the build features of Buildah, you need to instantiate a `buildah.Builder`. This struct has methods to configure the build, define the build steps and run it.
 
 To instantiate a `Builder`, you need a `storage.Store` (the Store interface found in [store.go](https://github.com/containers/storage/blob/main/store.go)) from [`github.com/containers/storage`](https://github.com/containers/storage), where the intermediate and result images will be stored:
 
 ```go
-buildStoreOptions, err := storage.DefaultStoreOptionsAutoDetectUID()
+buildStoreOptions, err := storage.DefaultStoreOptions()
 buildStore, err := storage.GetStore(buildStoreOptions)
 ```
 
@@ -61,7 +61,7 @@ Define the builder options:
 
 ```go
 builderOpts := buildah.BuilderOptions{
-  FromImage: "node:12-alpine", // base image
+  FromImage: "docker.io/library/node:12-alpine", // base image
 }
 ```
 
@@ -71,7 +71,7 @@ Now instantiate the `Builder`:
 builder, err := buildah.NewBuilder(context.TODO(), buildStore, builderOpts)
 ```
 
-Let's add our JS file (assuming is in your local directory with name `script.js`):
+Let's add our JS file (assuming it is in your local directory with name `script.js`):
 
 ```go
 err = builder.Add("/home/node/", false, buildah.AddAndCopyOptions{}, "script.js")
@@ -89,7 +89,7 @@ Before completing the build, create the image reference:
 imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusername/my-image")
 ```
 
-Now you can run commit the build:
+Now you can commit the container to create the image:
 
 ```go
 imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
@@ -106,7 +106,7 @@ isolation, err := parse.IsolationOption("")
 
 ## Rootless mode
 
-To enable rootless mode, import `github.com/containers/storage/pkg/unshare` and add this code at the beginning of your main method:
+To enable rootless mode, import `github.com/containers/storage/pkg/unshare` and add this code at the beginning of your main() method:
 
 ```go
 if buildah.InitReexec() {
@@ -115,7 +115,7 @@ if buildah.InitReexec() {
 unshare.MaybeReexecUsingUserNamespace(false)
 ```
 
-This code ensures that your application is re-executed in a user namespace where it has root privileges.
+This code ensures that your application is re-executed in a user namespace where it has root privileges. The reexec mechanism which `buildah.InitReexec()` sets up is also used for various other internal functions, so it should always be called.
 
 ## Complete code
 
@@ -140,7 +140,7 @@ func main() {
   }
   unshare.MaybeReexecUsingUserNamespace(false)
 
-  buildStoreOptions, err := storage.DefaultStoreOptionsAutoDetectUID()
+  buildStoreOptions, err := storage.DefaultStoreOptions()
   if err != nil {
     panic(err)
   }
@@ -161,7 +161,7 @@ func main() {
   defer buildStore.Shutdown(false)
 
   builderOpts := buildah.BuilderOptions{
-    FromImage:        "node:12-alpine",
+    FromImage:        "docker.io/library/node:12-alpine",
     Capabilities:     capabilitiesForRoot,
   }
 

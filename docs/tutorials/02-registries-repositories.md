@@ -27,7 +27,7 @@ You can use `--log-level=debug` on any Buildah command.
 
 The registry is running and is waiting for requests to process. Notice that this registry is a Docker registry that we pulled from Docker Hub and we are running it for this example using `buildah run`. There is no Docker daemon running at this time.
 
-Let's push our image to the private registry. By default, Buildah is set up to only make secure connections to a registry. Therefore we will need to turn the TLS verification off using the `--tls-verify` flag. We also need to tell Buildah that the registry is on this local host ( i.e. localhost) and listening on port 5000. Similar to  what you'd expect to do on multi-tenant Docker Hub, we will explicitly specify that the registry is to store the image under the `ipbabble` repository - so as not to clash with other users' similarly named images.
+Let's push our image to the private registry. By default, Buildah is set up to only make secure connections to a registry. Therefore we will need to turn the TLS verification off using the `--tls-verify` flag. We also need to tell Buildah that the registry is on this local host (i.e. localhost) and listening on port 5000. Similar to  what you'd expect to do on multi-tenant Docker Hub, we will explicitly specify that the registry is to store the image under the `ipbabble` repository - so as not to clash with other users' similarly named images.
 
     # buildah push --tls-verify=false fedora-bashecho docker://localhost:5000/ipbabble/fedora-bashecho:latest
 
