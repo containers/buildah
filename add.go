@@ -567,7 +567,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						return false, false, nil
 					})
 				}
-				writer = newTarFilterer(writer, func(hdr *tar.Header) (bool, bool, io.Reader) {
+				writer = newTarFilterer(writer, func(_ *tar.Header) (bool, bool, io.Reader) {
 					itemsCopied++
 					return false, false, nil
 				})

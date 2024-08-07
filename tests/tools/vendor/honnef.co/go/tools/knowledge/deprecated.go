@@ -187,54 +187,44 @@ var StdlibDeprecations = map[string]Deprecation{
 	"syscall.Syscall18": {18, 18},
 	"syscall.Syscall6":  {18, 18},
 	"syscall.Syscall9":  {18, 18},
+
+	"reflect.SliceHeader":                              {21, 17},
+	"reflect.StringHeader":                             {21, 20},
+	"crypto/elliptic.GenerateKey":                      {21, 21},
+	"crypto/elliptic.Marshal":                          {21, 21},
+	"crypto/elliptic.Unmarshal":                        {21, 21},
+	"(*crypto/elliptic.CurveParams).Add":               {21, 21},
+	"(*crypto/elliptic.CurveParams).Double":            {21, 21},
+	"(*crypto/elliptic.CurveParams).IsOnCurve":         {21, 21},
+	"(*crypto/elliptic.CurveParams).ScalarBaseMult":    {21, 21},
+	"(*crypto/elliptic.CurveParams).ScalarMult":        {21, 21},
+	"crypto/rsa.GenerateMultiPrimeKey":                 {21, DeprecatedNeverUse},
+	"(crypto/rsa.PrecomputedValues).CRTValues":         {21, DeprecatedNeverUse},
+	"(crypto/x509.RevocationList).RevokedCertificates": {21, 21},
 }
 
-// Last imported from Go at 9f0234214473dfb785a5ad84a8fc62a6a395cbc3 with the following numbers of deprecations:
+// Last imported from Go at c19c4c566c63818dfd059b352e52c4710eecf14d with the following numbers of deprecations:
 //
 // archive/tar/common.go:2
 // archive/zip/struct.go:6
 // bytes/bytes.go:1
-// cmd/api/testdata/src/pkg/p1/p1.go:8
-// cmd/api/testdata/src/pkg/p2/p2.go:2
-// cmd/api/testdata/src/pkg/p4/p4.go:1
-// cmd/compile/internal/noder/quirks.go:1
-// cmd/compile/internal/reflectdata/reflect.go:2
-// cmd/compile/internal/syntax/walk.go:1
-// cmd/compile/internal/types/sym.go:3
-// cmd/go/internal/modcmd/edit.go:1
-// cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt:2
-// cmd/go/testdata/mod/example.com_deprecated_b_v1.9.0.txt:2
-// cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt:2
-// cmd/go/testdata/script/mod_deprecate_message.txt:4
-// cmd/go/testdata/script/mod_edit.txt:1
-// cmd/go/testdata/script/mod_list_deprecated.txt:2
-// cmd/go/testdata/script/mod_list_deprecated_replace.txt:1
-// cmd/internal/obj/link.go:5
-// cmd/internal/obj/textflag.go:1
-// cmd/vendor/golang.org/x/mod/modfile/rule.go:2
-// cmd/vendor/golang.org/x/mod/semver/semver.go:1
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_amd64.go:1
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_arm64.go:1
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_386.go:1
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_amd64.go:1
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_arm.go:1
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_arm64.go:1
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_openbsd_riscv64.go:1
-// cmd/vendor/golang.org/x/sys/windows/security_windows.go:1
-// cmd/vendor/golang.org/x/sys/windows/syscall_windows.go:2
 // compress/flate/inflate.go:2
 // crypto/dsa/dsa.go:1
+// crypto/elliptic/elliptic.go:8
+// crypto/elliptic/params.go:5
 // crypto/rc4/rc4.go:1
-// crypto/tls/common.go:7
+// crypto/rsa/rsa.go:2
+// crypto/tls/common.go:6
 // crypto/x509/cert_pool.go:1
 // crypto/x509/pem_decrypt.go:3
 // crypto/x509/pkix/pkix.go:2
-// crypto/x509/x509.go:5
+// crypto/x509/x509.go:6
 // database/sql/driver/driver.go:6
 // debug/gosym/pclntab.go:2
 // encoding/csv/reader.go:2
 // encoding/json/decode.go:1
 // encoding/json/encode.go:1
+// go/build/build.go:1
 // go/doc/comment.go:2
 // go/doc/doc.go:1
 // go/doc/synopsis.go:1
@@ -260,7 +250,7 @@ var StdlibDeprecations = map[string]Deprecation{
 // path/filepath/path_plan9.go:1
 // path/filepath/path_unix.go:1
 // path/filepath/path_windows.go:1
-// reflect/value.go:1
+// reflect/value.go:3
 // regexp/regexp.go:1
 // runtime/cpuprof.go:1
 // strings/strings.go:1

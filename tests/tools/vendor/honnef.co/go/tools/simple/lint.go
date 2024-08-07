@@ -778,13 +778,13 @@ var checkLoopAppendQ = pattern.MustParse(`
 		x
 		[(AssignStmt [lhs] "=" [(CallExpr (Builtin "append") [lhs val])])])
 	(RangeStmt
-		idx@(Ident _)
+		idx@(Object _)
 		nil
 		_
 		x
 		[(AssignStmt [lhs] "=" [(CallExpr (Builtin "append") [lhs (IndexExpr x idx)])])])
 	(RangeStmt
-		idx@(Ident _)
+		idx@(Object _)
 		nil
 		_
 		x
@@ -800,14 +800,33 @@ func CheckLoopAppend(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		val, ok := m.State["val"].(types.Object)
-		if ok && refersTo(pass, m.State["lhs"].(ast.Expr), val) {
+		if val, ok := m.State["val"].(types.Object); ok && refersTo(pass, m.State["lhs"].(ast.Expr), val) {
 			return
 		}
 
 		if m.State["idx"] != nil && code.MayHaveSideEffects(pass, m.State["x"].(ast.Expr), pure) {
 			// When using an index-based loop, x gets evaluated repeatedly and thus should be pure.
 			// This doesn't matter for value-based loops, because x only gets evaluated once.
+			return
+		}
+
+		if idx, ok := m.State["idx"].(types.Object); ok && refersTo(pass, m.State["lhs"].(ast.Expr), idx) {
+			// The lhs mustn't refer to the index loop variable.
+			return
+		}
+
+		if code.MayHaveSideEffects(pass, m.State["lhs"].(ast.Expr), pure) {
+			// The lhs may be dynamic and return different values on each iteration. For example:
+			//
+			// 	func bar() map[int][]int { /* return one of several maps */ }
+			//
+			// 	func foo(x []int, y [][]int) {
+			// 		for i := range x {
+			// 			bar()[0] = append(bar()[0], x[i])
+			// 		}
+			// 	}
+			//
+			// The dynamic nature of the lhs might also affect the value of the index.
 			return
 		}
 

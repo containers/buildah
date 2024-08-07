@@ -3,15 +3,44 @@ package lint
 // Arguments is type used for the arguments of a rule.
 type Arguments = []interface{}
 
+// FileFilters is type used for modeling file filters to apply to rules.
+type FileFilters = []*FileFilter
+
 // RuleConfig is type used for the rule configuration.
 type RuleConfig struct {
 	Arguments Arguments
 	Severity  Severity
 	Disabled  bool
+	// Exclude - rule-level file excludes, TOML related (strings)
+	Exclude []string
+	// excludeFilters - regex-based file filters, initialized from Exclude
+	excludeFilters []*FileFilter
+}
+
+// Initialize - should be called after reading from TOML file
+func (rc *RuleConfig) Initialize() error {
+	for _, f := range rc.Exclude {
+		ff, err := ParseFileFilter(f)
+		if err != nil {
+			return err
+		}
+		rc.excludeFilters = append(rc.excludeFilters, ff)
+	}
+	return nil
 }
 
 // RulesConfig defines the config for all rules.
 type RulesConfig = map[string]RuleConfig
+
+// MustExclude - checks if given filename `name` must be excluded
+func (rc *RuleConfig) MustExclude(name string) bool {
+	for _, exclude := range rc.excludeFilters {
+		if exclude.MatchFileName(name) {
+			return true
+		}
+	}
+	return false
+}
 
 // DirectiveConfig is type used for the linter directive configuration.
 type DirectiveConfig struct {

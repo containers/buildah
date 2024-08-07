@@ -50,6 +50,16 @@ load helpers
   expect_output "$inspect_after_commit"
 }
 
+@test "inspect-is-json" {
+  _prefetch alpine
+  run_buildah images -q --no-trunc
+  imageid="$output"
+  run_buildah inspect --type image "$imageid"
+  inspectoutput="$output"
+  # jq will complain if it's not valid JSON
+  run jq . <<< "$inspectoutput"
+}
+
 @test "inspect-config-is-json" {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine

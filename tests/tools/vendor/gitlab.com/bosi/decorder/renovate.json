@@ -1,29 +1,7 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
-        "config:base",
-        "group:allNonMajor",
-        ":automergePatch",
-        ":automergeMinor",
-        ":automergeLinters",
-        ":automergeTesters",
-        ":automergeTypes"
-    ],
-    "enabled": true,
-    "dependencyDashboard": false,
-    "separateMajorMinor": true,
-    "separateMultipleMajor": false,
-    "prHourlyLimit": 2,
-    "prConcurrentLimit": 10,
-    "labels": [
-        "depUpdate"
-    ],
-    "updateLockFiles": true,
-    "docker": {
-        "pinDigests": true
-    },
-    "postUpdateOptions": [
-        "gomodTidy"
+        "gitlab>bosi/renovate-configs//configs/golang",
+        "gitlab>bosi/renovate-configs//configs/automerge"
     ]
 }
-

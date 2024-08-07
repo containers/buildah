@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
@@ -16,28 +15,38 @@ It also checks that the t.Parallel is used if multiple tests cases are run as pa
 As part of ensuring parallel tests works as expected it checks for reinitialising of the range value
 over the test cases.(https://tinyurl.com/y6555cy6)`
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "paralleltest",
-	Doc:      Doc,
-	Run:      run,
-	Flags:    flags(),
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+func NewAnalyzer() *analysis.Analyzer {
+	return newParallelAnalyzer().analyzer
 }
 
-const ignoreMissingFlag = "i"
-
-func flags() flag.FlagSet {
-	options := flag.NewFlagSet("", flag.ExitOnError)
-	options.Bool(ignoreMissingFlag, false, "ignore missing calls to t.Parallel")
-	return *options
+// parallelAnalyzer is an internal analyzer that makes options available to a
+// run pass. It wraps an `analysis.Analyzer` that should be returned for
+// linters.
+type parallelAnalyzer struct {
+	analyzer              *analysis.Analyzer
+	ignoreMissing         bool
+	ignoreMissingSubtests bool
+	ignoreLoopVar         bool
 }
 
-type boolValue bool
+func newParallelAnalyzer() *parallelAnalyzer {
+	a := &parallelAnalyzer{}
 
-func run(pass *analysis.Pass) (interface{}, error) {
+	var flags flag.FlagSet
+	flags.BoolVar(&a.ignoreMissing, "i", false, "ignore missing calls to t.Parallel")
+	flags.BoolVar(&a.ignoreMissingSubtests, "ignoremissingsubtests", false, "ignore missing calls to t.Parallel in subtests")
+	flags.BoolVar(&a.ignoreLoopVar, "ignoreloopVar", false, "ignore loop variable detection")
 
-	ignoreMissing := pass.Analyzer.Flags.Lookup(ignoreMissingFlag).Value.(flag.Getter).Get().(bool)
+	a.analyzer = &analysis.Analyzer{
+		Name:  "paralleltest",
+		Doc:   Doc,
+		Run:   a.run,
+		Flags: flags,
+	}
+	return a
+}
 
+func (a *parallelAnalyzer) run(pass *analysis.Pass) (interface{}, error) {
 	inspector := inspector.New(pass.Files)
 
 	nodeFilter := []ast.Node{
@@ -47,8 +56,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspector.Preorder(nodeFilter, func(node ast.Node) {
 		funcDecl := node.(*ast.FuncDecl)
 		var funcHasParallelMethod,
+			funcCantParallelMethod,
 			rangeStatementOverTestCasesExists,
-			rangeStatementHasParallelMethod bool
+			rangeStatementHasParallelMethod,
+			rangeStatementCantParallelMethod bool
 		var loopVariableUsedInRun *string
 		var numberOfTestRun int
 		var positionOfTestRunNode []ast.Node
@@ -70,20 +81,29 @@ func run(pass *analysis.Pass) (interface{}, error) {
 						funcHasParallelMethod = methodParallelIsCalledInTestFunction(n, testVar)
 					}
 
+					// Check if the test calls t.Setenv, cannot be used in parallel tests or tests with parallel ancestors
+					if !funcCantParallelMethod {
+						funcCantParallelMethod = methodSetenvIsCalledInTestFunction(n, testVar)
+					}
+
 					// Check if the t.Run within the test function is calling t.Parallel
 					if methodRunIsCalledInTestFunction(n, testVar) {
 						// n is a call to t.Run; find out the name of the subtest's *testing.T parameter.
 						innerTestVar := getRunCallbackParameterName(n)
 
 						hasParallel := false
+						cantParallel := false
 						numberOfTestRun++
 						ast.Inspect(v, func(p ast.Node) bool {
 							if !hasParallel {
 								hasParallel = methodParallelIsCalledInTestFunction(p, innerTestVar)
 							}
+							if !cantParallel {
+								cantParallel = methodSetenvIsCalledInTestFunction(p, innerTestVar)
+							}
 							return true
 						})
-						if !hasParallel {
+						if !hasParallel && !cantParallel {
 							positionOfTestRunNode = append(positionOfTestRunNode, n)
 						}
 					}
@@ -115,7 +135,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								rangeStatementHasParallelMethod = methodParallelIsCalledInMethodRun(r.X, innerTestVar)
 							}
 
-							if loopVariableUsedInRun == nil {
+							if !rangeStatementCantParallelMethod {
+								rangeStatementCantParallelMethod = methodSetenvIsCalledInMethodRun(r.X, innerTestVar)
+							}
+
+							if !a.ignoreLoopVar && loopVariableUsedInRun == nil {
 								if run, ok := r.X.(*ast.CallExpr); ok {
 									loopVariableUsedInRun = loopVarReferencedInRun(run, loopVars, pass.TypesInfo)
 								}
@@ -127,13 +151,18 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 		}
 
-		if !ignoreMissing && !funcHasParallelMethod {
+		// Descendents which call Setenv, also prevent tests from calling Parallel
+		if rangeStatementCantParallelMethod {
+			funcCantParallelMethod = true
+		}
+
+		if !a.ignoreMissing && !funcHasParallelMethod && !funcCantParallelMethod {
 			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel\n", funcDecl.Name.Name)
 		}
 
 		if rangeStatementOverTestCasesExists && rangeNode != nil {
-			if !rangeStatementHasParallelMethod {
-				if !ignoreMissing {
+			if !rangeStatementHasParallelMethod && !rangeStatementCantParallelMethod {
+				if !a.ignoreMissing && !a.ignoreMissingSubtests {
 					pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in test Run\n", funcDecl.Name.Name)
 				}
 			} else if loopVariableUsedInRun != nil {
@@ -142,10 +171,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		// Check if the t.Run is more than one as there is no point making one test parallel
-		if !ignoreMissing {
+		if !a.ignoreMissing && !a.ignoreMissingSubtests {
 			if numberOfTestRun > 1 && len(positionOfTestRunNode) > 0 {
 				for _, n := range positionOfTestRunNode {
-					pass.Reportf(n.Pos(), "Function %s has missing the call to method parallel in the test run\n", funcDecl.Name.Name)
+					pass.Reportf(n.Pos(), "Function %s missing the call to method parallel in the test run\n", funcDecl.Name.Name)
 				}
 			}
 		}
@@ -155,15 +184,23 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func methodParallelIsCalledInMethodRun(node ast.Node, testVar string) bool {
-	var methodParallelCalled bool
+	return targetMethodIsCalledInMethodRun(node, testVar, "Parallel")
+}
+
+func methodSetenvIsCalledInMethodRun(node ast.Node, testVar string) bool {
+	return targetMethodIsCalledInMethodRun(node, testVar, "Setenv")
+}
+
+func targetMethodIsCalledInMethodRun(node ast.Node, testVar, targetMethod string) bool {
+	var called bool
 	// nolint: gocritic
 	switch callExp := node.(type) {
 	case *ast.CallExpr:
 		for _, arg := range callExp.Args {
-			if !methodParallelCalled {
+			if !called {
 				ast.Inspect(arg, func(n ast.Node) bool {
-					if !methodParallelCalled {
-						methodParallelCalled = methodParallelIsCalledInRunMethod(n, testVar)
+					if !called {
+						called = exprCallHasMethod(n, testVar, targetMethod)
 						return true
 					}
 					return false
@@ -171,11 +208,7 @@ func methodParallelIsCalledInMethodRun(node ast.Node, testVar string) bool {
 			}
 		}
 	}
-	return methodParallelCalled
-}
-
-func methodParallelIsCalledInRunMethod(node ast.Node, testVar string) bool {
-	return exprCallHasMethod(node, testVar, "Parallel")
+	return called
 }
 
 func methodParallelIsCalledInTestFunction(node ast.Node, testVar string) bool {
@@ -189,6 +222,11 @@ func methodRunIsCalledInRangeStatement(node ast.Node, testVar string) bool {
 func methodRunIsCalledInTestFunction(node ast.Node, testVar string) bool {
 	return exprCallHasMethod(node, testVar, "Run")
 }
+
+func methodSetenvIsCalledInTestFunction(node ast.Node, testVar string) bool {
+	return exprCallHasMethod(node, testVar, "Setenv")
+}
+
 func exprCallHasMethod(node ast.Node, receiverName, methodName string) bool {
 	// nolint: gocritic
 	switch n := node.(type) {
@@ -249,7 +287,9 @@ func isTestFunction(funcDecl *ast.FuncDecl) (bool, string) {
 		if selectExpr, ok := starExp.X.(*ast.SelectorExpr); ok {
 			if selectExpr.Sel.Name == testMethodStruct {
 				if s, ok := selectExpr.X.(*ast.Ident); ok {
-					return s.Name == testMethodPackageType, param.Names[0].Name
+					if len(param.Names) > 0 {
+						return s.Name == testMethodPackageType, param.Names[0].Name
+					}
 				}
 			}
 		}

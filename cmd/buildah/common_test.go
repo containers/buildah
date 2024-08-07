@@ -49,7 +49,7 @@ func TestGetStore(t *testing.T) {
 	failTestIfNotRoot(t)
 	testCmd := &cobra.Command{
 		Use: "test",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			_, err := getStore(cmd)
 			return err
 		},

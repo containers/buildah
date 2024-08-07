@@ -29,6 +29,7 @@ func (*ImportShadowingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fail
 			failures = append(failures, failure)
 		},
 		alreadySeen: map[*ast.Object]struct{}{},
+		skipIdents:  map[*ast.Ident]struct{}{},
 	}
 
 	ast.Walk(walker, fileAst)
@@ -62,6 +63,7 @@ type importShadowing struct {
 	importNames      map[string]struct{}
 	onFailure        func(lint.Failure)
 	alreadySeen      map[*ast.Object]struct{}
+	skipIdents       map[*ast.Ident]struct{}
 }
 
 // Visit visits AST nodes and checks if id nodes (ast.Ident) shadow an import name
@@ -80,6 +82,10 @@ func (w importShadowing) Visit(n ast.Node) ast.Visitor {
 		*ast.SelectorExpr, // skip analysis of selector expressions (anId.otherId): because if anId shadows an import name, it was already detected, and otherId does not shadows the import name
 		*ast.StructType:   // skip analysis of struct type because struct fields can not shadow an import name
 		return nil
+	case *ast.FuncDecl:
+		if n.Recv != nil {
+			w.skipIdents[n.Name] = struct{}{}
+		}
 	case *ast.Ident:
 		if n == w.packageNameIdent {
 			return nil // skip the ident corresponding to the package name of this file
@@ -92,11 +98,12 @@ func (w importShadowing) Visit(n ast.Node) ast.Visitor {
 
 		_, isImportName := w.importNames[id]
 		_, alreadySeen := w.alreadySeen[n.Obj]
-		if isImportName && !alreadySeen {
+		_, skipIdent := w.skipIdents[n]
+		if isImportName && !alreadySeen && !skipIdent {
 			w.onFailure(lint.Failure{
 				Confidence: 1,
 				Node:       n,
-				Category:   "namming",
+				Category:   "naming",
 				Failure:    fmt.Sprintf("The name '%s' shadows an import name", id),
 			})
 

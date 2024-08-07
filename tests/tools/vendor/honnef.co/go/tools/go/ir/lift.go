@@ -970,7 +970,24 @@ func liftable(alloc *Alloc, instructions BlockMap[liftInstructions]) bool {
 	for i := range blocks {
 		// Update firstUnliftable to be one after lastLiftable. We do this to include the unliftable's preceding
 		// DebugRefs in the renaming.
-		blocks[i].firstUnliftable = blocks[i].lastLiftable + 1
+		if blocks[i].lastLiftable == -1 && !blocks[i].storeInPreds {
+			// There are no liftable instructions (for this alloc) in this block. Set firstUnliftable to the
+			// first non-head instruction to avoid inserting the store before phi instructions, which would
+			// fail validation.
+			first := -1
+		instrLoop:
+			for i, instr := range fn.Blocks[i].Instrs {
+				switch instr.(type) {
+				case *Phi, *Sigma:
+				default:
+					first = i
+					break instrLoop
+				}
+			}
+			blocks[i].firstUnliftable = first
+		} else {
+			blocks[i].firstUnliftable = blocks[i].lastLiftable + 1
+		}
 	}
 
 	// If a block is reachable by a (partially) unliftable block, then the entirety of the block is unliftable. In that

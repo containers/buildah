@@ -11,8 +11,6 @@ import (
 	"go/types"
 
 	"honnef.co/go/tools/analysis/lint"
-
-	"golang.org/x/exp/typeparams"
 )
 
 // MethodValue returns the Function implementing method sel, building
@@ -118,7 +116,7 @@ func (prog *Program) RuntimeTypes() []types.Type {
 // declaredFunc returns the concrete function/method denoted by obj.
 // Panic ensues if there is none.
 func (prog *Program) declaredFunc(obj *types.Func) *Function {
-	if origin := typeparams.OriginMethod(obj); origin != obj {
+	if origin := obj.Origin(); origin != obj {
 		// Calling method on instantiated type, create a wrapper that calls the generic type's method
 		base := prog.packageLevelValue(origin)
 		return makeInstance(prog, base.(*Function), obj.Type().(*types.Signature), nil)

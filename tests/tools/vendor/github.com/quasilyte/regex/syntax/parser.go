@@ -2,7 +2,6 @@ package syntax
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -94,12 +93,38 @@ func newParser(opts *ParserOptions) *Parser {
 		}
 	}
 
+	p.prefixParselets[tokQ] = func(tok token) *Expr {
+		litPos := tok.pos
+		litPos.Begin += uint16(len(`\Q`))
+		form := FormQuoteUnclosed
+		if strings.HasSuffix(p.tokenValue(tok), `\E`) {
+			litPos.End -= uint16(len(`\E`))
+			form = FormDefault
+		}
+		lit := p.newExpr(OpString, litPos)
+		return p.newExprForm(OpQuote, form, tok.pos, lit)
+	}
+
 	p.prefixParselets[tokEscapeHexFull] = func(tok token) *Expr {
-		return p.newExprForm(OpEscapeHex, FormEscapeHexFull, tok.pos)
+		litPos := tok.pos
+		litPos.Begin += uint16(len(`\x{`))
+		litPos.End -= uint16(len(`}`))
+		lit := p.newExpr(OpString, litPos)
+		return p.newExprForm(OpEscapeHex, FormEscapeHexFull, tok.pos, lit)
 	}
 	p.prefixParselets[tokEscapeUniFull] = func(tok token) *Expr {
-		return p.newExprForm(OpEscapeUni, FormEscapeUniFull, tok.pos)
+		litPos := tok.pos
+		litPos.Begin += uint16(len(`\p{`))
+		litPos.End -= uint16(len(`}`))
+		lit := p.newExpr(OpString, litPos)
+		return p.newExprForm(OpEscapeUni, FormEscapeUniFull, tok.pos, lit)
 	}
+
+	p.prefixParselets[tokEscapeHex] = func(tok token) *Expr { return p.parseEscape(OpEscapeHex, `\x`, tok) }
+	p.prefixParselets[tokEscapeOctal] = func(tok token) *Expr { return p.parseEscape(OpEscapeOctal, `\`, tok) }
+	p.prefixParselets[tokEscapeChar] = func(tok token) *Expr { return p.parseEscape(OpEscapeChar, `\`, tok) }
+	p.prefixParselets[tokEscapeMeta] = func(tok token) *Expr { return p.parseEscape(OpEscapeMeta, `\`, tok) }
+	p.prefixParselets[tokEscapeUni] = func(tok token) *Expr { return p.parseEscape(OpEscapeUni, `\p`, tok) }
 
 	p.prefixParselets[tokLparen] = func(tok token) *Expr { return p.parseGroup(OpCapture, tok) }
 	p.prefixParselets[tokLparenAtomic] = func(tok token) *Expr { return p.parseGroup(OpAtomicGroup, tok) }
@@ -161,6 +186,10 @@ func (p *Parser) setValues(e *Expr) {
 		p.setValues(&e.Args[i])
 	}
 	e.Value = p.exprValue(e)
+}
+
+func (p *Parser) tokenValue(tok token) string {
+	return p.out.Pattern[tok.pos.Begin:tok.pos.End]
 }
 
 func (p *Parser) exprValue(e *Expr) string {
@@ -239,7 +268,7 @@ func (p *Parser) allocExpr() *Expr {
 func (p *Parser) expect(kind tokenKind) Position {
 	tok := p.lexer.NextToken()
 	if tok.kind != kind {
-		throwErrorf(int(tok.pos.Begin), int(tok.pos.End), "expected '%s', found '%s'", kind, tok.kind)
+		throwExpectedFound(tok.pos, kind.String(), tok.kind.String())
 	}
 	return tok.pos
 }
@@ -248,7 +277,7 @@ func (p *Parser) parseExpr(precedence int) *Expr {
 	tok := p.lexer.NextToken()
 	prefix := p.prefixParselets[tok.kind]
 	if prefix == nil {
-		throwfPos(tok.pos, "unexpected token: %v", tok)
+		throwUnexpectedToken(tok.pos, tok.String())
 	}
 	left := prefix(tok)
 
@@ -277,7 +306,7 @@ func (p *Parser) parseCharClass(op Operation, tok token) *Expr {
 			break
 		}
 		if next.kind == tokNone {
-			throwfPos(tok.pos, "unterminated '['")
+			throw(tok.pos, "unterminated '['")
 		}
 	}
 
@@ -400,6 +429,13 @@ func (p *Parser) parseGroupWithFlags(tok token) *Expr {
 	return result
 }
 
+func (p *Parser) parseEscape(op Operation, prefix string, tok token) *Expr {
+	litPos := tok.pos
+	litPos.Begin += uint16(len(prefix))
+	lit := p.newExpr(OpString, litPos)
+	return p.newExpr(op, tok.pos, lit)
+}
+
 func (p *Parser) precedenceOf(tok token) int {
 	switch tok.kind {
 	case tokPipe:
@@ -436,36 +472,32 @@ func (p *Parser) newPCRE(source string) (*RegexpPCRE, error) {
 			return nil, errors.New("whitespace is not a valid delimiter")
 		}
 		if isAlphanumeric(delim) {
-			return nil, fmt.Errorf("'%c' is not a valid delimiter", delim)
+			return nil, errors.New("'" + string(delim) + "' is not a valid delimiter")
 		}
 	}
 
-	j := strings.LastIndexByte(source, endDelim)
+	const delimLen = 1
+	j := strings.LastIndexByte(source[delimLen:], endDelim)
 	if j == -1 {
-		return nil, fmt.Errorf("can't find '%c' ending delimiter", endDelim)
+		return nil, errors.New("can't find '" + string(endDelim) + "' ending delimiter")
 	}
+	j += delimLen
 
 	pcre := &RegexpPCRE{
-		Pattern:   source[1:j],
+		Pattern:   source[delimLen:j],
 		Source:    source,
 		Delim:     [2]byte{delim, endDelim},
-		Modifiers: source[j+1:],
+		Modifiers: source[j+delimLen:],
 	}
 	return pcre, nil
 }
 
 var tok2op = [256]Operation{
-	tokDollar:      OpDollar,
-	tokCaret:       OpCaret,
-	tokDot:         OpDot,
-	tokChar:        OpChar,
-	tokMinus:       OpChar,
-	tokEscapeChar:  OpEscapeChar,
-	tokEscapeMeta:  OpEscapeMeta,
-	tokEscapeHex:   OpEscapeHex,
-	tokEscapeOctal: OpEscapeOctal,
-	tokEscapeUni:   OpEscapeUni,
-	tokPosixClass:  OpPosixClass,
-	tokQ:           OpQuote,
-	tokComment:     OpComment,
+	tokDollar:     OpDollar,
+	tokCaret:      OpCaret,
+	tokDot:        OpDot,
+	tokChar:       OpChar,
+	tokMinus:      OpChar,
+	tokPosixClass: OpPosixClass,
+	tokComment:    OpComment,
 }

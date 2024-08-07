@@ -186,32 +186,32 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 	knownCaps := capability.List()
 	noCap := capability.Cap(-1)
 	for capType, capList := range capMap {
-		for _, capToSet := range capList {
-			cap := noCap
+		for _, capSpec := range capList {
+			capToSet := noCap
 			for _, c := range knownCaps {
-				if strings.EqualFold("CAP_"+c.String(), capToSet) {
-					cap = c
+				if strings.EqualFold("CAP_"+c.String(), capSpec) {
+					capToSet = c
 					break
 				}
 			}
-			if cap == noCap {
-				return fmt.Errorf("mapping capability %q to a number", capToSet)
+			if capToSet == noCap {
+				return fmt.Errorf("mapping capability %q to a number", capSpec)
 			}
-			caps.Set(capType, cap)
+			caps.Set(capType, capToSet)
 		}
-		for _, capToSet := range keepCaps {
-			cap := noCap
+		for _, capSpec := range keepCaps {
+			capToSet := noCap
 			for _, c := range knownCaps {
-				if strings.EqualFold("CAP_"+c.String(), capToSet) {
-					cap = c
+				if strings.EqualFold("CAP_"+c.String(), capSpec) {
+					capToSet = c
 					break
 				}
 			}
-			if cap == noCap {
-				return fmt.Errorf("mapping capability %q to a number", capToSet)
+			if capToSet == noCap {
+				return fmt.Errorf("mapping capability %q to a number", capSpec)
 			}
-			if currentCaps.Get(capType, cap) {
-				caps.Set(capType, cap)
+			if currentCaps.Get(capType, capToSet) {
+				caps.Set(capType, capToSet)
 			}
 		}
 	}
@@ -225,7 +225,7 @@ func makeRlimit(limit specs.POSIXRlimit) unix.Rlimit {
 	return unix.Rlimit{Cur: limit.Soft, Max: limit.Hard}
 }
 
-func createPlatformContainer(options runUsingChrootExecSubprocOptions) error {
+func createPlatformContainer(_ runUsingChrootExecSubprocOptions) error {
 	return errors.New("unsupported createPlatformContainer")
 }
 

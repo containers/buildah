@@ -505,7 +505,7 @@ func testPut(t *testing.T) {
 				require.NoErrorf(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
 
 				var found []string
-				err = filepath.WalkDir(tmp, func(path string, d fs.DirEntry, err error) error {
+				err = filepath.WalkDir(tmp, func(path string, _ fs.DirEntry, err error) error {
 					if err != nil {
 						return err
 					}
@@ -1607,7 +1607,7 @@ func testMkdir(t *testing.T) {
 					root := dir
 					options := MkdirOptions{ChownNew: &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}}
 					var beforeNames, afterNames []string
-					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {
 							return err
 						}
@@ -1621,7 +1621,7 @@ func testMkdir(t *testing.T) {
 					require.NoErrorf(t, err, "error walking directory to catalog pre-Mkdir contents: %v", err)
 					err = Mkdir(root, testCase.create, options)
 					require.NoErrorf(t, err, "error creating directory %q under %q with Mkdir: %v", testCase.create, root, err)
-					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {
 							return err
 						}
@@ -1822,7 +1822,7 @@ func testRemove(t *testing.T) {
 					root := dir
 					options := RemoveOptions{All: testCase.all}
 					beforeNames := make(map[string]struct{})
-					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {
 							return err
 						}
@@ -1841,7 +1841,7 @@ func testRemove(t *testing.T) {
 					}
 					require.NoErrorf(t, err, "error removing item %q under %q with Remove: %v", testCase.remove, root, err)
 					afterNames := make(map[string]struct{})
-					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {
 							return err
 						}

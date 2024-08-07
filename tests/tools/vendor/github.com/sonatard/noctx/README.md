@@ -1,23 +1,58 @@
 # noctx
 
-![](https://github.com/sonatard/noctx/workflows/.github/workflows/ci.yml/badge.svg)
+![](https://github.com/sonatard/noctx/workflows/CI/badge.svg)
 
 `noctx` finds sending http request without context.Context.
 
-You should use `noctx` if sending http request in your library. 
+You should use `noctx` if sending http request in your library.
 Passing `context.Context` enables library user to cancel http request, getting trace information and so on.
-
-## Install
-
-```sh
-$ go get -u github.com/sonatard/noctx/cmd/noctx
-```
 
 ## Usage
 
+
+### noctx with go vet
+
+go vet is a Go standard tool for analyzing source code.
+
+1. Install noctx.
+```sh
+$ go install github.com/sonatard/noctx/cmd/noctx@latest
+```
+
+2. noctx execute
 ```sh
 $ go vet -vettool=`which noctx` main.go
 ./main.go:6:11: net/http.Get must not be called
+```
+
+### noctx with golangci-lint
+
+golangci-lint is a fast Go linters runner.
+
+1. Install golangci-lint.
+[golangci-lint - Install](https://golangci-lint.run/usage/install/)
+
+2. Setup .golangci.yml
+```yaml:
+# Add noctx to enable linters.
+linters:
+  enable:
+    - noctx
+
+# Or enable-all is true.
+linters:
+  enable-all: true
+  disable:
+   - xxx # Add unused linter to disable linters.
+```
+
+3. noctx execute
+```sh
+# Use .golangci.yml
+$ golangci-lint run
+
+# Only noctx execute
+golangci-lint run --disable-all -E noctx
 ```
 
 ## Detection rules
@@ -39,7 +74,51 @@ $ go vet -vettool=`which noctx` main.go
 
 `(http.Request).WithContext(ctx)` has a disadvantage of performance because it returns a copy of `http.Request`. Use `http.NewRequestWithContext` function if you only support Go1.13 or later.
 
-## Sample Code
+
+If your library already provides functions that don't accept context, you define a new function that accepts context and make the existing function a wrapper for a new function.
+
+
+```go
+// Before fix code
+// Sending an HTTP request but not accepting context
+func Send(body io.Reader)  error {
+    req,err := http.NewRequest(http.MethodPost, "http://example.com", body)
+    if err != nil {
+        return err
+    }
+    _, err = http.DefaultClient.Do(req)
+    if err != nil{
+        return err
+    }
+
+    return nil
+}
+```
+
+```go
+// After fix code
+func Send(body io.Reader) error {
+    // Pass context.Background() to SendWithContext
+    return SendWithContext(context.Background(), body)
+}
+
+// Sending an HTTP request and accepting context
+func SendWithContext(ctx context.Context, body io.Reader) error {
+    // Change NewRequest to NewRequestWithContext and pass context it
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://example.com", body)
+    if err != nil {
+        return nil
+    }
+    _, err = http.DefaultClient.Do(req)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+```
+
+## Detection sample
 
 ```go
 package main

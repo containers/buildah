@@ -6,7 +6,8 @@ import (
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/typep"
@@ -16,7 +17,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "weakCond"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Summary = "Detects conditions that are unsafe due to not being exhaustive"
 	info.Before = `xs != nil && xs[0] != nil`
 	info.After = `len(xs) != 0 && xs[0] != nil`

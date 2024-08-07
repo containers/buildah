@@ -786,7 +786,7 @@ func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 	return stdioPipe, nil
 }
 
-func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, networkString string, configureUTS bool, err error) {
+func setupNamespaces(_ *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, networkString string, configureUTS bool, err error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return false, "", false, fmt.Errorf("failed to get container config: %w", err)
@@ -1296,10 +1296,10 @@ func setupSpecialMountSpecChanges(spec *specs.Spec, shmSize string) ([]specs.Mou
 		if err != nil {
 			return nil, err
 		}
-		gid5Available = checkIdsGreaterThan5(gids)
+		gid5Available = checkIDsGreaterThan5(gids)
 	}
 	if gid5Available && len(spec.Linux.GIDMappings) > 0 {
-		gid5Available = checkIdsGreaterThan5(spec.Linux.GIDMappings)
+		gid5Available = checkIDsGreaterThan5(spec.Linux.GIDMappings)
 	}
 	if !gid5Available {
 		// If we have no GID mappings, the gid=5 default option would fail, so drop it.
@@ -1370,7 +1370,7 @@ func setupSpecialMountSpecChanges(spec *specs.Spec, shmSize string) ([]specs.Mou
 	return mounts, nil
 }
 
-func checkIdsGreaterThan5(ids []specs.LinuxIDMapping) bool {
+func checkIDsGreaterThan5(ids []specs.LinuxIDMapping) bool {
 	for _, r := range ids {
 		if r.ContainerID <= 5 && 5 < r.ContainerID+r.Size {
 			return true

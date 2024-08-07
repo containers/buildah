@@ -1144,17 +1144,31 @@ func CheckDubiousDeferInChannelRangeLoop(pass *analysis.Pass) (interface{}, erro
 		if !ok {
 			return
 		}
+
+		stmts := []*ast.DeferStmt{}
+		exits := false
 		fn2 := func(node ast.Node) bool {
 			switch stmt := node.(type) {
 			case *ast.DeferStmt:
-				report.Report(pass, stmt, "defers in this range loop won't run unless the channel gets closed")
+				stmts = append(stmts, stmt)
 			case *ast.FuncLit:
 				// Don't look into function bodies
 				return false
+			case *ast.ReturnStmt:
+				exits = true
+			case *ast.BranchStmt:
+				exits = node.(*ast.BranchStmt).Tok == token.BREAK
 			}
 			return true
 		}
 		ast.Inspect(loop.Body, fn2)
+
+		if exits {
+			return
+		}
+		for _, stmt := range stmts {
+			report.Report(pass, stmt, "defers in this range loop won't run unless the channel gets closed")
+		}
 	}
 	code.Preorder(pass, fn, (*ast.RangeStmt)(nil))
 	return nil, nil
@@ -1598,7 +1612,7 @@ func CheckEmptyCriticalSection(pass *analysis.Pass) (interface{}, error) {
 		if !ok {
 			return nil, "", false
 		}
-		call, ok := expr.X.(*ast.CallExpr)
+		call, ok := astutil.Unparen(expr.X).(*ast.CallExpr)
 		if !ok {
 			return nil, "", false
 		}
@@ -3168,7 +3182,7 @@ func CheckDeprecated(pass *analysis.Pass) (interface{}, error) {
 
 		obj := pass.TypesInfo.ObjectOf(sel.Sel)
 		if obj_, ok := obj.(*types.Func); ok {
-			obj = typeparams.OriginMethod(obj_)
+			obj = obj_.Origin()
 		}
 		if obj.Pkg() == nil {
 			return true

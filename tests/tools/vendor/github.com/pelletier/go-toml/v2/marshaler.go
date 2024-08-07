@@ -3,6 +3,7 @@ package toml
 import (
 	"bytes"
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/pelletier/go-toml/v2/internal/characters"
 )
 
 // Marshal serializes a Go value as a TOML document.
@@ -35,10 +38,11 @@ type Encoder struct {
 	w io.Writer
 
 	// global settings
-	tablesInline    bool
-	arraysMultiline bool
-	indentSymbol    string
-	indentTables    bool
+	tablesInline       bool
+	arraysMultiline    bool
+	indentSymbol       string
+	indentTables       bool
+	marshalJsonNumbers bool
 }
 
 // NewEncoder returns a new Encoder that writes to w.
@@ -82,6 +86,17 @@ func (enc *Encoder) SetIndentSymbol(s string) *Encoder {
 // SetIndentTables forces the encoder to intent tables and array tables.
 func (enc *Encoder) SetIndentTables(indent bool) *Encoder {
 	enc.indentTables = indent
+	return enc
+}
+
+// SetMarshalJsonNumbers forces the encoder to serialize `json.Number` as a
+// float or integer instead of relying on TextMarshaler to emit a string.
+//
+// *Unstable:* This method does not follow the compatibility guarantees of
+// semver. It can be changed or removed without a new major version being
+// issued.
+func (enc *Encoder) SetMarshalJsonNumbers(indent bool) *Encoder {
+	enc.marshalJsonNumbers = indent
 	return enc
 }
 
@@ -146,6 +161,9 @@ func (enc *Encoder) SetIndentTables(indent bool) *Encoder {
 //
 // The "omitempty" option prevents empty values or groups from being emitted.
 //
+// The "commented" option prefixes the value and all its children with a comment
+// symbol.
+//
 // In addition to the "toml" tag struct tag, a "comment" tag can be used to emit
 // a TOML comment before the value being annotated. Comments are ignored inside
 // inline tables. For array tables, the comment is only present before the first
@@ -178,6 +196,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 type valueOptions struct {
 	multiline bool
 	omitempty bool
+	commented bool
 	comment   string
 }
 
@@ -202,6 +221,9 @@ type encoderCtx struct {
 
 	// Indentation level
 	indent int
+
+	// Prefix the current value with a comment.
+	commented bool
 
 	// Options coming from struct tags
 	options valueOptions
@@ -243,6 +265,18 @@ func (enc *Encoder) encode(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, e
 		return append(b, x.String()...), nil
 	case LocalDateTime:
 		return append(b, x.String()...), nil
+	case json.Number:
+		if enc.marshalJsonNumbers {
+			if x == "" { /// Useful zero value.
+				return append(b, "0"...), nil
+			} else if v, err := x.Int64(); err == nil {
+				return enc.encode(b, ctx, reflect.ValueOf(v))
+			} else if f, err := x.Float64(); err == nil {
+				return enc.encode(b, ctx, reflect.ValueOf(f))
+			} else {
+				return nil, fmt.Errorf("toml: unable to convert %q to int64 or float64", x)
+			}
+		}
 	}
 
 	hasTextMarshaler := v.Type().Implements(textMarshalerType)
@@ -271,7 +305,7 @@ func (enc *Encoder) encode(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, e
 		return enc.encodeMap(b, ctx, v)
 	case reflect.Struct:
 		return enc.encodeStruct(b, ctx, v)
-	case reflect.Slice:
+	case reflect.Slice, reflect.Array:
 		return enc.encodeSlice(b, ctx, v)
 	case reflect.Interface:
 		if v.IsNil() {
@@ -355,9 +389,10 @@ func (enc *Encoder) encodeKv(b []byte, ctx encoderCtx, options valueOptions, v r
 
 	if !ctx.inline {
 		b = enc.encodeComment(ctx.indent, options.comment, b)
+		b = enc.commented(ctx.commented, b)
+		b = enc.indent(ctx.indent, b)
 	}
 
-	b = enc.indent(ctx.indent, b)
 	b = enc.encodeKey(b, ctx.key)
 	b = append(b, " = "...)
 
@@ -374,6 +409,13 @@ func (enc *Encoder) encodeKv(b []byte, ctx encoderCtx, options valueOptions, v r
 	}
 
 	return b, nil
+}
+
+func (enc *Encoder) commented(commented bool, b []byte) []byte {
+	if commented {
+		return append(b, "# "...)
+	}
+	return b
 }
 
 func isEmptyValue(v reflect.Value) bool {
@@ -437,7 +479,7 @@ func (enc *Encoder) encodeString(b []byte, v string, options valueOptions) []byt
 func needsQuoting(v string) bool {
 	// TODO: vectorize
 	for _, b := range []byte(v) {
-		if b == '\'' || b == '\r' || b == '\n' || invalidAscii(b) {
+		if b == '\'' || b == '\r' || b == '\n' || characters.InvalidAscii(b) {
 			return true
 		}
 	}
@@ -524,6 +566,8 @@ func (enc *Encoder) encodeTableHeader(ctx encoderCtx, b []byte) ([]byte, error) 
 
 	b = enc.encodeComment(ctx.indent, ctx.options.comment, b)
 
+	b = enc.commented(ctx.commented, b)
+
 	b = enc.indent(ctx.indent, b)
 
 	b = append(b, '[')
@@ -575,11 +619,23 @@ func (enc *Encoder) encodeKey(b []byte, k string) []byte {
 	}
 }
 
-func (enc *Encoder) encodeMap(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
-	if v.Type().Key().Kind() != reflect.String {
-		return nil, fmt.Errorf("toml: type %s is not supported as a map key", v.Type().Key().Kind())
-	}
+func (enc *Encoder) keyToString(k reflect.Value) (string, error) {
+	keyType := k.Type()
+	switch {
+	case keyType.Kind() == reflect.String:
+		return k.String(), nil
 
+	case keyType.Implements(textMarshalerType):
+		keyB, err := k.Interface().(encoding.TextMarshaler).MarshalText()
+		if err != nil {
+			return "", fmt.Errorf("toml: error marshalling key %v from text: %w", k, err)
+		}
+		return string(keyB), nil
+	}
+	return "", fmt.Errorf("toml: type %s is not supported as a map key", keyType.Kind())
+}
+
+func (enc *Encoder) encodeMap(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
 	var (
 		t                 table
 		emptyValueOptions valueOptions
@@ -587,11 +643,15 @@ func (enc *Encoder) encodeMap(b []byte, ctx encoderCtx, v reflect.Value) ([]byte
 
 	iter := v.MapRange()
 	for iter.Next() {
-		k := iter.Key().String()
 		v := iter.Value()
 
 		if isNil(v) {
 			continue
+		}
+
+		k, err := enc.keyToString(iter.Key())
+		if err != nil {
+			return nil, err
 		}
 
 		if willConvertToTableOrArrayTable(ctx, v) {
@@ -672,6 +732,8 @@ func walkStruct(ctx encoderCtx, t *table, v reflect.Value) {
 			if fieldType.Anonymous {
 				if fieldType.Type.Kind() == reflect.Struct {
 					walkStruct(ctx, t, f)
+				} else if fieldType.Type.Kind() == reflect.Pointer && !f.IsNil() && f.Elem().Kind() == reflect.Struct {
+					walkStruct(ctx, t, f.Elem())
 				}
 				continue
 			} else {
@@ -686,6 +748,7 @@ func walkStruct(ctx encoderCtx, t *table, v reflect.Value) {
 		options := valueOptions{
 			multiline: opts.multiline,
 			omitempty: opts.omitempty,
+			commented: opts.commented,
 			comment:   fieldType.Tag.Get("comment"),
 		}
 
@@ -745,6 +808,7 @@ type tagOptions struct {
 	multiline bool
 	inline    bool
 	omitempty bool
+	commented bool
 }
 
 func parseTag(tag string) (string, tagOptions) {
@@ -772,6 +836,8 @@ func parseTag(tag string) (string, tagOptions) {
 			opts.inline = true
 		case "omitempty":
 			opts.omitempty = true
+		case "commented":
+			opts.commented = true
 		}
 	}
 
@@ -807,8 +873,10 @@ func (enc *Encoder) encodeTable(b []byte, ctx encoderCtx, t table) ([]byte, erro
 		hasNonEmptyKV = true
 
 		ctx.setKey(kv.Key)
+		ctx2 := ctx
+		ctx2.commented = kv.Options.commented || ctx2.commented
 
-		b, err = enc.encodeKv(b, ctx, kv.Options, kv.Value)
+		b, err = enc.encodeKv(b, ctx2, kv.Options, kv.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -833,8 +901,10 @@ func (enc *Encoder) encodeTable(b []byte, ctx encoderCtx, t table) ([]byte, erro
 		ctx.setKey(table.Key)
 
 		ctx.options = table.Options
+		ctx2 := ctx
+		ctx2.commented = ctx2.commented || ctx.options.commented
 
-		b, err = enc.encode(b, ctx, table.Value)
+		b, err = enc.encode(b, ctx2, table.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -912,7 +982,7 @@ func willConvertToTableOrArrayTable(ctx encoderCtx, v reflect.Value) bool {
 		return willConvertToTableOrArrayTable(ctx, v.Elem())
 	}
 
-	if t.Kind() == reflect.Slice {
+	if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
 		if v.Len() == 0 {
 			// An empty slice should be a kv = [].
 			return false
@@ -952,6 +1022,13 @@ func (enc *Encoder) encodeSliceAsArrayTable(b []byte, ctx encoderCtx, v reflect.
 	ctx.shiftKey()
 
 	scratch := make([]byte, 0, 64)
+
+	scratch = enc.commented(ctx.commented, scratch)
+
+	if enc.indentTables {
+		scratch = enc.indent(ctx.indent, scratch)
+	}
+
 	scratch = append(scratch, "[["...)
 
 	for i, k := range ctx.parentKey {
@@ -966,6 +1043,10 @@ func (enc *Encoder) encodeSliceAsArrayTable(b []byte, ctx encoderCtx, v reflect.
 	ctx.skipTableHeader = true
 
 	b = enc.encodeComment(ctx.indent, ctx.options.comment, b)
+
+	if enc.indentTables {
+		ctx.indent++
+	}
 
 	for i := 0; i < v.Len(); i++ {
 		if i != 0 {

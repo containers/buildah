@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Denis Tingaikin
+// Copyright (c) 2020-2024 Denis Tingaikin
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,11 +19,18 @@ package goheader
 type Issue interface {
 	Location() Location
 	Message() string
+	Fix() *Fix
 }
 
 type issue struct {
 	msg      string
 	location Location
+	fix      *Fix
+}
+
+type Fix struct {
+	Actual   []string
+	Expected []string
 }
 
 func (i *issue) Location() Location {
@@ -34,10 +41,22 @@ func (i *issue) Message() string {
 	return i.msg
 }
 
+func (i *issue) Fix() *Fix {
+	return i.fix
+}
+
 func NewIssueWithLocation(msg string, location Location) Issue {
 	return &issue{
 		msg:      msg,
 		location: location,
+	}
+}
+
+func NewIssueWithFix(msg string, location Location, fix Fix) Issue {
+	return &issue{
+		msg:      msg,
+		location: location,
+		fix:      &fix,
 	}
 }
 

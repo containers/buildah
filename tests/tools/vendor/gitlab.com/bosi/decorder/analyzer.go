@@ -1,9 +1,11 @@
 package decorder
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -16,6 +18,17 @@ type (
 		funcPoss    []funcPos
 	}
 
+	options struct {
+		decOrder                  string
+		ignoreUnderscoreVars      bool
+		disableDecNumCheck        bool
+		disableTypeDecNumCheck    bool
+		disableConstDecNumCheck   bool
+		disableVarDecNumCheck     bool
+		disableDecOrderCheck      bool
+		disableInitFuncFirstCheck bool
+	}
+
 	funcPos struct {
 		start token.Pos
 		end   token.Pos
@@ -26,9 +39,15 @@ const (
 	Name = "decorder"
 
 	FlagDo    = "dec-order"
+	FlagIuv   = "ignore-underscore-vars"
 	FlagDdnc  = "disable-dec-num-check"
+	FlagDtdnc = "disable-type-dec-num-check"
+	FlagDcdnc = "disable-const-dec-num-check"
+	FlagDvdnc = "disable-var-dec-num-check"
 	FlagDdoc  = "disable-dec-order-check"
 	FlagDiffc = "disable-init-func-first-check"
+
+	defaultDecOrder = "type,const,var,func"
 )
 
 var (
@@ -38,27 +57,45 @@ var (
 		Run:  run,
 	}
 
-	decOrder                  string
-	disableDecNumCheck        bool
-	disableDecOrderCheck      bool
-	disableInitFuncFirstCheck bool
+	opts = options{}
 
 	tokens = []token.Token{token.TYPE, token.CONST, token.VAR, token.FUNC}
+
+	decNumConf = map[token.Token]bool{
+		token.TYPE:  false,
+		token.CONST: false,
+		token.VAR:   false,
+	}
+	decLock sync.Mutex
 )
 
 //nolint:lll
 func init() {
-	Analyzer.Flags.StringVar(&decOrder, FlagDo, "type,const,var,func", "define the required order of types, constants, variables and functions declarations inside a file")
-	Analyzer.Flags.BoolVar(&disableDecNumCheck, FlagDdnc, false, "option to disable check for number of e.g. var declarations inside file")
-	Analyzer.Flags.BoolVar(&disableDecOrderCheck, FlagDdoc, false, "option to disable check for order of declarations inside file")
-	Analyzer.Flags.BoolVar(&disableInitFuncFirstCheck, FlagDiffc, false, "option to disable check that init function is always first function in file")
+	Analyzer.Flags.StringVar(&opts.decOrder, FlagDo, defaultDecOrder, "define the required order of types, constants, variables and functions declarations inside a file")
+	Analyzer.Flags.BoolVar(&opts.ignoreUnderscoreVars, FlagIuv, false, "option to ignore underscore vars for dec order and dec num check")
+	Analyzer.Flags.BoolVar(&opts.disableDecNumCheck, FlagDdnc, false, "option to disable (all) checks for number of declarations inside file")
+	Analyzer.Flags.BoolVar(&opts.disableTypeDecNumCheck, FlagDtdnc, false, "option to disable check for number of type declarations inside file")
+	Analyzer.Flags.BoolVar(&opts.disableConstDecNumCheck, FlagDcdnc, false, "option to disable check for number of const declarations inside file")
+	Analyzer.Flags.BoolVar(&opts.disableVarDecNumCheck, FlagDvdnc, false, "option to disable check for number of var declarations inside file")
+	Analyzer.Flags.BoolVar(&opts.disableDecOrderCheck, FlagDdoc, false, "option to disable check for order of declarations inside file")
+	Analyzer.Flags.BoolVar(&opts.disableInitFuncFirstCheck, FlagDiffc, false, "option to disable check that init function is always first function in file")
+}
+
+func initDec() {
+	decLock.Lock()
+	decNumConf[token.TYPE] = opts.disableTypeDecNumCheck
+	decNumConf[token.CONST] = opts.disableConstDecNumCheck
+	decNumConf[token.VAR] = opts.disableVarDecNumCheck
+	decLock.Unlock()
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	initDec()
+
 	for _, f := range pass.Files {
 		ast.Inspect(f, runDeclNumAndDecOrderCheck(pass))
 
-		if !disableInitFuncFirstCheck {
+		if !opts.disableInitFuncFirstCheck {
 			ast.Inspect(f, runInitFuncFirstCheck(pass))
 		}
 	}
@@ -90,7 +127,7 @@ func runInitFuncFirstCheck(pass *analysis.Pass) func(ast.Node) bool {
 func runDeclNumAndDecOrderCheck(pass *analysis.Pass) func(ast.Node) bool {
 	dnc := newDecNumChecker()
 
-	if disableDecNumCheck && disableDecOrderCheck {
+	if opts.disableDecNumCheck && opts.disableDecOrderCheck {
 		return func(n ast.Node) bool {
 			return true
 		}
@@ -113,7 +150,7 @@ func runDeclNumAndDecOrderCheck(pass *analysis.Pass) func(ast.Node) bool {
 
 		dnc.handleGenDecl(gd, pass)
 
-		if !disableDecOrderCheck {
+		if !opts.disableDecOrderCheck {
 			dnc.handleDecOrderCheck(gd, pass)
 		}
 
@@ -134,7 +171,7 @@ func newDecNumChecker() decNumChecker {
 		dnc.tokenMap[t.String()] = t
 	}
 
-	for _, do := range strings.Split(decOrder, ",") {
+	for _, do := range strings.Split(opts.decOrder, ",") {
 		dnc.decOrder = append(dnc.decOrder, strings.TrimSpace(do))
 	}
 
@@ -159,19 +196,33 @@ func (dnc decNumChecker) isToLate(t token.Token) (string, bool) {
 func (dnc *decNumChecker) handleGenDecl(gd *ast.GenDecl, pass *analysis.Pass) {
 	for _, t := range tokens {
 		if gd.Tok == t {
+			if opts.ignoreUnderscoreVars && declName(gd) == "_" {
+				continue
+			}
+
 			dnc.tokenCounts[t]++
 
-			if !disableDecNumCheck && dnc.tokenCounts[t] > 1 {
+			if !opts.disableDecNumCheck && !decNumConf[t] && dnc.tokenCounts[t] > 1 {
 				pass.Reportf(gd.Pos(), "multiple \"%s\" declarations are not allowed; use parentheses instead", t.String())
 			}
 		}
 	}
 }
 
+func declName(gd *ast.GenDecl) string {
+	for _, spec := range gd.Specs {
+		s, ok := spec.(*ast.ValueSpec)
+		if ok && len(s.Names) > 0 && s.Names[0] != nil {
+			return s.Names[0].Name
+		}
+	}
+	return ""
+}
+
 func (dnc decNumChecker) handleDecOrderCheck(gd *ast.GenDecl, pass *analysis.Pass) {
 	l, c := dnc.isToLate(gd.Tok)
 	if !c {
-		pass.Reportf(gd.Pos(), "%s must not be placed after %s", gd.Tok.String(), l)
+		pass.Reportf(gd.Pos(), fmtWrongOrderMsg(gd.Tok.String(), l))
 	}
 }
 
@@ -189,12 +240,16 @@ func (dnc *decNumChecker) handleFuncDec(fd *ast.FuncDecl, pass *analysis.Pass) b
 
 	dnc.tokenCounts[token.FUNC]++
 
-	if !disableDecOrderCheck {
+	if !opts.disableDecOrderCheck {
 		l, c := dnc.isToLate(token.FUNC)
 		if !c {
-			pass.Reportf(fd.Pos(), "%s must not be placed after %s", token.FUNC.String(), l)
+			pass.Reportf(fd.Pos(), fmtWrongOrderMsg(token.FUNC.String(), l))
 		}
 	}
 
 	return true
+}
+
+func fmtWrongOrderMsg(target string, notAfter string) string {
+	return fmt.Sprintf("%s must not be placed after %s (desired order: %s)", target, notAfter, opts.decOrder)
 }

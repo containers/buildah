@@ -17,7 +17,9 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //// Sanity checking utilities
@@ -41,13 +43,14 @@ func isBlankIdent(e ast.Expr) bool {
 	return ok && id.Name == "_"
 }
 
-//// Type utilities.  Some of these belong in go/types.
-
-// isPointer returns true for types whose underlying type is a pointer.
-func isPointer(typ types.Type) bool {
-	_, ok := typ.Underlying().(*types.Pointer)
-	return ok
+// rangePosition is the position to give for the `range` token in a RangeStmt.
+var rangePosition = func(rng *ast.RangeStmt) token.Pos {
+	// Before 1.20, this is unreachable.
+	// rng.For is a close, but incorrect position.
+	return rng.For
 }
+
+//// Type utilities.  Some of these belong in go/types.
 
 // isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
 func isNonTypeParamInterface(t types.Type) bool {
@@ -55,17 +58,21 @@ func isNonTypeParamInterface(t types.Type) bool {
 }
 
 // isBasic reports whether t is a basic type.
+// t is assumed to be an Underlying type (not Named or Alias).
 func isBasic(t types.Type) bool {
 	_, ok := t.(*types.Basic)
 	return ok
 }
 
 // isString reports whether t is exactly a string type.
+// t is assumed to be an Underlying type (not Named or Alias).
 func isString(t types.Type) bool {
-	return isBasic(t) && t.(*types.Basic).Info()&types.IsString != 0
+	basic, ok := t.(*types.Basic)
+	return ok && basic.Info()&types.IsString != 0
 }
 
 // isByteSlice reports whether t is of the form []~bytes.
+// t is assumed to be an Underlying type (not Named or Alias).
 func isByteSlice(t types.Type) bool {
 	if b, ok := t.(*types.Slice); ok {
 		e, _ := b.Elem().Underlying().(*types.Basic)
@@ -75,6 +82,7 @@ func isByteSlice(t types.Type) bool {
 }
 
 // isRuneSlice reports whether t is of the form []~runes.
+// t is assumed to be an Underlying type (not Named or Alias).
 func isRuneSlice(t types.Type) bool {
 	if b, ok := t.(*types.Slice); ok {
 		e, _ := b.Elem().Underlying().(*types.Basic)
@@ -100,12 +108,22 @@ func isBasicConvTypes(tset termList) bool {
 	return all && basics >= 1 && tset.Len()-basics <= 1
 }
 
-// deref returns a pointer's element type; otherwise it returns typ.
-func deref(typ types.Type) types.Type {
-	if p, ok := typ.Underlying().(*types.Pointer); ok {
-		return p.Elem()
-	}
-	return typ
+// isPointer reports whether t's underlying type is a pointer.
+func isPointer(t types.Type) bool {
+	return is[*types.Pointer](t.Underlying())
+}
+
+// isPointerCore reports whether t's core type is a pointer.
+//
+// (Most pointer manipulation is related to receivers, in which case
+// isPointer is appropriate. tecallers can use isPointer(t).
+func isPointerCore(t types.Type) bool {
+	return is[*types.Pointer](typeparams.CoreType(t))
+}
+
+func is[T any](x any) bool {
+	_, ok := x.(T)
+	return ok
 }
 
 // recvType returns the receiver type of method obj.
@@ -113,8 +131,20 @@ func recvType(obj *types.Func) types.Type {
 	return obj.Type().(*types.Signature).Recv().Type()
 }
 
-// isUntyped returns true for types that are untyped.
+// fieldOf returns the index'th field of the (core type of) a struct type;
+// otherwise returns nil.
+func fieldOf(typ types.Type, index int) *types.Var {
+	if st, ok := typeparams.CoreType(typ).(*types.Struct); ok {
+		if 0 <= index && index < st.NumFields() {
+			return st.Field(index)
+		}
+	}
+	return nil
+}
+
+// isUntyped reports whether typ is the type of an untyped constant.
 func isUntyped(typ types.Type) bool {
+	// No Underlying/Unalias: untyped constant types cannot be Named or Alias.
 	b, ok := typ.(*types.Basic)
 	return ok && b.Info()&types.IsUntyped != 0
 }
@@ -154,39 +184,15 @@ func makeLen(T types.Type) *Builtin {
 	}
 }
 
-// nonbasicTypes returns a list containing all of the types T in ts that are non-basic.
-func nonbasicTypes(ts []types.Type) []types.Type {
-	if len(ts) == 0 {
-		return nil
+// receiverTypeArgs returns the type arguments to a method's receiver.
+// Returns an empty list if the receiver does not have type arguments.
+func receiverTypeArgs(method *types.Func) []types.Type {
+	recv := method.Type().(*types.Signature).Recv()
+	_, named := typesinternal.ReceiverNamed(recv)
+	if named == nil {
+		return nil // recv is anonymous struct/interface
 	}
-	added := make(map[types.Type]bool) // additionally filter duplicates
-	var filtered []types.Type
-	for _, T := range ts {
-		if !isBasic(T) {
-			if !added[T] {
-				added[T] = true
-				filtered = append(filtered, T)
-			}
-		}
-	}
-	return filtered
-}
-
-// receiverTypeArgs returns the type arguments to a function's reciever.
-// Returns an empty list if obj does not have a reciever or its reciever does not have type arguments.
-func receiverTypeArgs(obj *types.Func) []types.Type {
-	rtype := recvType(obj)
-	if rtype == nil {
-		return nil
-	}
-	if isPointer(rtype) {
-		rtype = rtype.(*types.Pointer).Elem()
-	}
-	named, ok := rtype.(*types.Named)
-	if !ok {
-		return nil
-	}
-	ts := typeparams.NamedTypeArgs(named)
+	ts := named.TypeArgs()
 	if ts.Len() == 0 {
 		return nil
 	}
@@ -205,7 +211,7 @@ func recvAsFirstArg(sig *types.Signature) *types.Signature {
 	for i := 0; i < sig.Params().Len(); i++ {
 		params = append(params, sig.Params().At(i))
 	}
-	return typeparams.NewSignatureType(nil, nil, nil, types.NewTuple(params...), sig.Results(), sig.Variadic())
+	return types.NewSignatureType(nil, nil, nil, types.NewTuple(params...), sig.Results(), sig.Variadic())
 }
 
 // instance returns whether an expression is a simple or qualified identifier
@@ -222,13 +228,13 @@ func instance(info *types.Info, expr ast.Expr) bool {
 	default:
 		return false
 	}
-	_, ok := typeparams.GetInstances(info)[id]
+	_, ok := info.Instances[id]
 	return ok
 }
 
 // instanceArgs returns the Instance[id].TypeArgs as a slice.
 func instanceArgs(info *types.Info, id *ast.Ident) []types.Type {
-	targList := typeparams.GetInstances(info)[id].TypeArgs
+	targList := info.Instances[id].TypeArgs
 	if targList == nil {
 		return nil
 	}
@@ -263,13 +269,40 @@ func (c *canonizer) List(ts []types.Type) *typeList {
 		return nil
 	}
 
+	unaliasAll := func(ts []types.Type) []types.Type {
+		// Is there some top level alias?
+		var found bool
+		for _, t := range ts {
+			if _, ok := t.(*aliases.Alias); ok {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return ts // no top level alias
+		}
+
+		cp := make([]types.Type, len(ts)) // copy with top level aliases removed.
+		for i, t := range ts {
+			cp[i] = aliases.Unalias(t)
+		}
+		return cp
+	}
+	l := unaliasAll(ts)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.lists.rep(ts)
+	return c.lists.rep(l)
 }
 
 // Type returns a canonical representative of type T.
+// Removes top-level aliases.
+//
+// For performance, reasons the canonical instance is order-dependent,
+// and may contain deeply nested aliases.
 func (c *canonizer) Type(T types.Type) types.Type {
+	T = aliases.Unalias(T) // remove the top level alias.
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -280,7 +313,7 @@ func (c *canonizer) Type(T types.Type) types.Type {
 	return T
 }
 
-// A type for representating an canonized list of types.
+// A type for representing a canonized list of types.
 type typeList []types.Type
 
 func (l *typeList) identical(ts []types.Type) bool {
@@ -346,17 +379,30 @@ func (m *typeListMap) hash(ts []types.Type) uint32 {
 }
 
 // instantiateMethod instantiates m with targs and returns a canonical representative for this method.
-func (canon *canonizer) instantiateMethod(m *types.Func, targs []types.Type, ctxt *typeparams.Context) *types.Func {
+func (canon *canonizer) instantiateMethod(m *types.Func, targs []types.Type, ctxt *types.Context) *types.Func {
 	recv := recvType(m)
-	if p, ok := recv.(*types.Pointer); ok {
+	if p, ok := aliases.Unalias(recv).(*types.Pointer); ok {
 		recv = p.Elem()
 	}
-	named := recv.(*types.Named)
-	inst, err := typeparams.Instantiate(ctxt, typeparams.NamedTypeOrigin(named), targs, false)
+	named := aliases.Unalias(recv).(*types.Named)
+	inst, err := types.Instantiate(ctxt, named.Origin(), targs, false)
 	if err != nil {
 		panic(err)
 	}
 	rep := canon.Type(inst)
 	obj, _, _ := types.LookupFieldOrMethod(rep, true, m.Pkg(), m.Name())
 	return obj.(*types.Func)
+}
+
+// Exposed to ssautil using the linkname hack.
+func isSyntactic(pkg *Package) bool { return pkg.syntax }
+
+// mapValues returns a new unordered array of map values.
+func mapValues[K comparable, V any](m map[K]V) []V {
+	vals := make([]V, 0, len(m))
+	for _, fn := range m {
+		vals = append(vals, fn)
+	}
+	return vals
+
 }

@@ -41,7 +41,6 @@ package ssa
 import (
 	"fmt"
 	"go/token"
-	"go/types"
 	"math/big"
 	"os"
 
@@ -106,9 +105,14 @@ func buildDomFrontier(fn *Function) domFrontier {
 }
 
 func removeInstr(refs []Instruction, instr Instruction) []Instruction {
+	return removeInstrsIf(refs, func(i Instruction) bool { return i == instr })
+}
+
+func removeInstrsIf(refs []Instruction, p func(Instruction) bool) []Instruction {
+	// TODO(taking): replace with go1.22 slices.DeleteFunc.
 	i := 0
 	for _, ref := range refs {
-		if ref == instr {
+		if p(ref) {
 			continue
 		}
 		refs[i] = ref
@@ -171,9 +175,12 @@ func lift(fn *Function) {
 	// for the block, reusing the original array if space permits.
 
 	// While we're here, we also eliminate 'rundefers'
-	// instructions in functions that contain no 'defer'
-	// instructions.
+	// instructions and ssa:deferstack() in functions that contain no
+	// 'defer' instructions. Eliminate ssa:deferstack() if it does not
+	// escape.
 	usesDefer := false
+	deferstackAlloc, deferstackCall := deferstackPreamble(fn)
+	eliminateDeferStack := deferstackAlloc != nil && !deferstackAlloc.Heap
 
 	// A counter used to generate ~unique ids for Phi nodes, as an
 	// aid to debugging.  We use large numbers to make them highly
@@ -197,6 +204,15 @@ func lift(fn *Function) {
 				instr.index = index
 			case *Defer:
 				usesDefer = true
+				if eliminateDeferStack {
+					// Clear _DeferStack and remove references to loads
+					if instr._DeferStack != nil {
+						if refs := instr._DeferStack.Referrers(); refs != nil {
+							*refs = removeInstr(*refs, instr)
+						}
+						instr._DeferStack = nil
+					}
+				}
 			case *RunDefers:
 				b.rundefers++
 			}
@@ -215,6 +231,18 @@ func lift(fn *Function) {
 
 	// Eliminate dead φ-nodes.
 	removeDeadPhis(fn.Blocks, newPhis)
+
+	// Eliminate ssa:deferstack() call.
+	if eliminateDeferStack {
+		b := deferstackCall.block
+		for i, instr := range b.Instrs {
+			if instr == deferstackCall {
+				b.Instrs[i] = nil
+				b.gaps++
+				break
+			}
+		}
+	}
 
 	// Prepend remaining live φ-nodes to each block.
 	for _, b := range fn.Blocks {
@@ -383,16 +411,10 @@ type newPhiMap map[*BasicBlock][]newPhi
 //
 // fresh is a source of fresh ids for phi nodes.
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap, fresh *int) bool {
-	// TODO(taking): zero constants of aggregated types can now be lifted.
-	switch deref(alloc.Type()).Underlying().(type) {
-	case *types.Array, *types.Struct, *typeparams.TypeParam:
-		return false
-	}
-
-	// Don't lift named return values in functions that defer
+	// Don't lift result values in functions that defer
 	// calls that may recover from panic.
 	if fn := alloc.Parent(); fn.Recover != nil {
-		for _, nr := range fn.namedResults {
+		for _, nr := range fn.results {
 			if nr == alloc {
 				return false
 			}
@@ -469,7 +491,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap, fresh *int) bool
 				*fresh++
 
 				phi.pos = alloc.Pos()
-				phi.setType(deref(alloc.Type()))
+				phi.setType(typeparams.MustDeref(alloc.Type()))
 				phi.block = v
 				if debugLifting {
 					fmt.Fprintf(os.Stderr, "\tplace %s = %s at block %s\n", phi.Name(), phi, v)
@@ -514,7 +536,7 @@ func replaceAll(x, y Value) {
 func renamed(renaming []Value, alloc *Alloc) Value {
 	v := renaming[alloc.index]
 	if v == nil {
-		v = zeroConst(deref(alloc.Type()))
+		v = zeroConst(typeparams.MustDeref(alloc.Type()))
 		renaming[alloc.index] = v
 	}
 	return v
@@ -645,4 +667,18 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 		rename(v, r, newPhis)
 	}
 
+}
+
+// deferstackPreamble returns the *Alloc and ssa:deferstack() call for fn.deferstack.
+func deferstackPreamble(fn *Function) (*Alloc, *Call) {
+	if alloc, _ := fn.vars[fn.deferstack].(*Alloc); alloc != nil {
+		for _, ref := range *alloc.Referrers() {
+			if ref, _ := ref.(*Store); ref != nil && ref.Addr == alloc {
+				if call, _ := ref.Val.(*Call); call != nil {
+					return alloc, call
+				}
+			}
+		}
+	}
+	return nil, nil
 }

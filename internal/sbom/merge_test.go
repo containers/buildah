@@ -209,7 +209,7 @@ func TestMergeSlicesWithoutDuplicatesFixed(t *testing.T) {
 			map[string]any{"first": 1},
 		},
 	}
-	err := mergeSlicesWithoutDuplicates(base, merge, "array", func(record any) (string, error) {
+	err := mergeSlicesWithoutDuplicates(base, merge, "array", func(_ any) (string, error) {
 		return "fixed", nil
 	})
 	assert.NoError(t, err)

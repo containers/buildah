@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -77,13 +78,12 @@ func isSCMPath(s string) bool {
 	if strings.Contains(filepath.Base(s), "EDITMSG") {
 		return false
 	}
+
 	parts := strings.Split(filepath.Clean(s), string(filepath.Separator))
-	for _, dir := range parts {
-		if scm[dir] {
-			return true
-		}
-	}
-	return false
+
+	return slices.ContainsFunc(parts, func(dir string) bool {
+		return scm[dir]
+	})
 }
 
 var magicHeaders = [][]byte{
@@ -174,7 +174,8 @@ func ReadTextFile(filename string) (string, error) {
 	// if not-text, then exit
 	isText := false
 	if fstat.Size() > 50000 {
-		fin, err := os.Open(filename)
+		var fin *os.File
+		fin, err = os.Open(filename)
 		if err != nil {
 			return "", fmt.Errorf("unable to open large file %q: %w", filename, err)
 		}

@@ -4,5 +4,5 @@ import (
 	"testing"
 )
 
-func TestDummy(t *testing.T) {
+func TestDummy(_ *testing.T) {
 }

@@ -9,7 +9,7 @@ type Pattern interface {
 }
 
 // Compile parses a regular expression and returns a compiled
-// pattern that can match inputs descriped by the regexp.
+// pattern that can match inputs described by the regexp.
 //
 // Semantically it's close to the regexp.Compile, but
 // it does recognize some common patterns and creates

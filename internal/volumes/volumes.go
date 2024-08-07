@@ -224,7 +224,7 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 // GetCacheMount parses a single cache mount entry from the --mount flag.
 //
 // If this function succeeds and returns a non-nil *lockfile.LockFile, the caller must unlock it (when??).
-func GetCacheMount(args []string, store storage.Store, imageMountLabel string, additionalMountPoints map[string]internal.StageMountDetails, workDir string) (specs.Mount, *lockfile.LockFile, error) {
+func GetCacheMount(args []string, _ storage.Store, _ string, additionalMountPoints map[string]internal.StageMountDetails, workDir string) (specs.Mount, *lockfile.LockFile, error) {
 	var err error
 	var mode uint64
 	var buildahLockFilesDir string

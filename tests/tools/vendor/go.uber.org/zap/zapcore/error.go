@@ -36,13 +36,13 @@ import (
 // causer (from github.com/pkg/errors), a ${key}Causes field is added with an
 // array of objects containing the errors this error was comprised of.
 //
-//  {
-//    "error": err.Error(),
-//    "errorVerbose": fmt.Sprintf("%+v", err),
-//    "errorCauses": [
-//      ...
-//    ],
-//  }
+//	{
+//	  "error": err.Error(),
+//	  "errorVerbose": fmt.Sprintf("%+v", err),
+//	  "errorCauses": [
+//	    ...
+//	  ],
+//	}
 func encodeError(key string, err error, enc ObjectEncoder) (retErr error) {
 	// Try to capture panics (from nil references or otherwise) when calling
 	// the Error() method
@@ -83,7 +83,7 @@ type errorGroup interface {
 	Errors() []error
 }
 
-// Note that errArry and errArrayElem are very similar to the version
+// Note that errArray and errArrayElem are very similar to the version
 // implemented in the top-level error.go file. We can't re-use this because
 // that would require exporting errArray as part of the zapcore API.
 

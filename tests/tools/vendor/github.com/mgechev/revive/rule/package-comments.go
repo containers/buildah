@@ -58,12 +58,14 @@ func (l *lintPackageComments) checkPackageComment() []lint.Failure {
 	var packageFile *ast.File // which name is $package.go
 	var firstFile *ast.File
 	var firstFileName string
+	var fileSource string
 	for name, file := range l.file.Pkg.Files() {
 		if file.AST.Doc != nil {
 			return nil
 		}
 		if name == "doc.go" {
 			docFile = file.AST
+			fileSource = "doc.go"
 		}
 		if name == file.AST.Name.String()+".go" {
 			packageFile = file.AST
@@ -76,14 +78,21 @@ func (l *lintPackageComments) checkPackageComment() []lint.Failure {
 	// prefer warning on doc.go, $package.go over first file
 	if docFile == nil {
 		docFile = packageFile
+		fileSource = l.fileAst.Name.String() + ".go"
 	}
 	if docFile == nil {
 		docFile = firstFile
+		fileSource = firstFileName
 	}
+
 	if docFile != nil {
+		pkgFile := l.file.Pkg.Files()[fileSource]
 		return []lint.Failure{{
-			Category:   "comments",
-			Node:       docFile,
+			Category: "comments",
+			Position: lint.FailurePosition{
+				Start: pkgFile.ToPosition(docFile.Pos()),
+				End:   pkgFile.ToPosition(docFile.Name.End()),
+			},
 			Confidence: 1,
 			Failure:    "should have a package comment",
 		}}

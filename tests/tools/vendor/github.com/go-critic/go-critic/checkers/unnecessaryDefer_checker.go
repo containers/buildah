@@ -4,14 +4,15 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astfmt"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "unnecessaryDefer"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Summary = "Detects redundantly deferred calls"
 	info.Before = `
 func() {
@@ -36,7 +37,7 @@ type unnecessaryDeferChecker struct {
 // Visit implements the ast.Visitor. This visitor keeps track of the block
 // statement belongs to a function or any other block. If the block is not a
 // function and ends with a defer statement that should be OK since it's
-// defering the outer function.
+// deferring the outer function.
 func (c *unnecessaryDeferChecker) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.FuncDecl, *ast.FuncLit:

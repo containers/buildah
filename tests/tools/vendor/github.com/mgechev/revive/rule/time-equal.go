@@ -60,9 +60,9 @@ func (l *lintTimeEqual) Visit(node ast.Node) ast.Visitor {
 	var failure string
 	switch expr.Op {
 	case token.EQL:
-		failure = fmt.Sprintf("use %s.Equal(%s) instead of %q operator", expr.X, expr.Y, expr.Op)
+		failure = fmt.Sprintf("use %s.Equal(%s) instead of %q operator", gofmt(expr.X), gofmt(expr.Y), expr.Op)
 	case token.NEQ:
-		failure = fmt.Sprintf("use !%s.Equal(%s) instead of %q operator", expr.X, expr.Y, expr.Op)
+		failure = fmt.Sprintf("use !%s.Equal(%s) instead of %q operator", gofmt(expr.X), gofmt(expr.Y), expr.Op)
 	}
 
 	l.onFailure(lint.Failure{

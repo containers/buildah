@@ -109,10 +109,12 @@ Flags:
         apply all suggested fixes
   -flags
         print analyzer flags in JSON
+  -ignore value
+        ignore words
   -json
         emit JSON output
   -keyword value
-        key words for detecting duplicate words
+        keywords for detecting duplicate words
   -memprofile string
         write memory profile to this file
   -source
@@ -128,7 +130,7 @@ Flags:
 
 ### 5. my advice
 
-use `--keyword=the,and,a` and `-fix` together. I personally think that specifying only common repeated prepositions can effectively avoid false positives. 
+use `--keyword=the,and,a` and `-fix` together. I think that specifying only commonly repeated prepositions can effectively avoid false positives. 
 
 see [dupword#4](https://github.com/Abirdcfly/dupword/issues/4) for real code example.
 

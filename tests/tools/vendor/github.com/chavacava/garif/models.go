@@ -935,10 +935,10 @@ type Result struct {
 	HostedViewerUri string `json:"hostedViewerUri,omitempty"`
 
 	// A value that categorizes results by evaluation state.
-	Kind interface{} `json:"kind,omitempty"`
+	Kind ResultKind `json:"kind,omitempty"`
 
 	// A value specifying the severity level of the result.
-	Level interface{} `json:"level,omitempty"`
+	Level ResultLevel `json:"level,omitempty"`
 
 	// The set of locations where the result was detected. Specify only one location unless the problem indicated by the result can only be corrected by making a change at every specified location.
 	Locations []*Location `json:"locations,omitempty"`

@@ -53,7 +53,7 @@ func (w lintDataRaces) Visit(n ast.Node) ast.Visitor {
 	return nil
 }
 
-func (w lintDataRaces) ExtractReturnIDs(fields []*ast.Field) map[*ast.Object]struct{} {
+func (lintDataRaces) ExtractReturnIDs(fields []*ast.Field) map[*ast.Object]struct{} {
 	r := map[*ast.Object]struct{}{}
 	for _, f := range fields {
 		for _, id := range f.Names {
@@ -111,7 +111,7 @@ func (w lintFunctionForDataRaces) Visit(node ast.Node) ast.Visitor {
 			return ok
 		}
 
-		ids := pick(funcLit.Body, selectIDs, nil)
+		ids := pick(funcLit.Body, selectIDs)
 		for _, id := range ids {
 			id := id.(*ast.Ident)
 			_, isRangeID := w.rangeIDs[id.Obj]

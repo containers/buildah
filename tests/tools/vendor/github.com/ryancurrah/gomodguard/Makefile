@@ -6,7 +6,7 @@ lint:
 
 .PHONY: build
 build:
-	go build -o gomodguard cmd/gomodguard/main.go
+	go build -o "$$(go env GOPATH)/bin/gomodguard" cmd/gomodguard/main.go
 
 .PHONY: run
 run: build

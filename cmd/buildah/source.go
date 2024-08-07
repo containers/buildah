@@ -17,7 +17,7 @@ var (
 		Use:   "source",
 		Short: "Manage source containers",
 		Long:  sourceDescription,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return nil
 		},
 	}
@@ -34,7 +34,7 @@ var (
 		Short:   "Create a source image",
 		Long:    sourceCreateDescription,
 		Example: "buildah source create /tmp/fedora:latest-source",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			return source.Create(context.Background(), args[0], sourceCreateOptions)
 		},
 	}
@@ -51,7 +51,7 @@ var (
 		Short:   "Add a source artifact to a source image",
 		Long:    sourceAddDescription,
 		Example: "buildah source add /tmp/fedora sources.tar.gz",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			return source.Add(context.Background(), args[0], args[1], sourceAddOptions)
 		},
 	}
@@ -68,7 +68,7 @@ var (
 		Short:   "Pull a source image from a registry to a specified path",
 		Long:    sourcePullDescription,
 		Example: "buildah source pull quay.io/sourceimage/example:latest /tmp/sourceimage:latest",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			return source.Pull(context.Background(), args[0], args[1], sourcePullOptions)
 		},
 	}
@@ -85,7 +85,7 @@ var (
 		Short:   "Push a source image from a specified path to a registry",
 		Long:    sourcePushDescription,
 		Example: "buildah source push /tmp/sourceimage:latest quay.io/sourceimage/example:latest",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			return source.Push(context.Background(), args[0], args[1], sourcePushOptions)
 		},
 	}

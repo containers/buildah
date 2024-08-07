@@ -1,33 +1,45 @@
 linters:
   enable:
-  - asciicheck
-  - bodyclose
-  - deadcode
-  - depguard
-  - dogsled
-  - durationcheck
-  - errcheck
-  - errorlint
-  - exportloopref
-  - gci
-  - gofmt
-  - gofumpt
-  - goimports
-  - gosec
-  - gosimple
-  - govet
-  - importas
-  - ineffassign
-  - megacheck
-  - misspell
-  - nakedret
-  - nolintlint
-  - revive
-  - staticcheck
-  - structcheck
-  - typecheck
-  - unconvert
-  - unparam
-  - unused
-  - varcheck
-  - wastedassign
+    - asciicheck
+    - bodyclose
+    - dogsled
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exportloopref
+    - gci
+    - ginkgolinter
+    - gochecknoinits
+    - gofmt
+    - gofumpt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - importas
+    - ineffassign
+    - megacheck
+    - misspell
+    - nakedret
+    - nolintlint
+    - revive
+    - staticcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/securego)
+  revive:
+    rules:
+      - name: dot-imports
+        disabled: true
+
+run:
+  timeout: 5m

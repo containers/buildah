@@ -353,11 +353,16 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) (RET lvalue) {
 		}
 		wantAddr := true
 		v := b.receiver(fn, e.X, wantAddr, escaping, sel, e)
-		last := len(sel.Index()) - 1
-		return &address{
-			addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel),
-			expr: e.Sel,
+		index := sel.Index()[len(sel.Index())-1]
+		vut := typeutil.CoreType(deref(v.Type())).Underlying().(*types.Struct)
+		fld := vut.Field(index)
+		// Due to the two phases of resolving AssignStmt, a panic from x.f = p()
+		// when x is nil is required to come after the side-effects of
+		// evaluating x and p().
+		emit := func(fn *Function) Value {
+			return emitFieldSelection(fn, v, index, true, e.Sel)
 		}
+		return &lazyAddress{addr: emit, t: fld.Type(), expr: e.Sel}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -411,12 +416,19 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) (RET lvalue) {
 			panic("unexpected container type in IndexExpr: " + t.String())
 		}
 
-		v := &IndexAddr{
-			X:     x,
-			Index: b.expr(fn, e.Index),
+		// Due to the two phases of resolving AssignStmt, a panic from x[i] = p()
+		// when x is nil or i is out-of-bounds is required to come after the
+		// side-effects of evaluating x, i and p().
+		index := b.expr(fn, e.Index)
+		emit := func(fn *Function) Value {
+			v := &IndexAddr{
+				X:     x,
+				Index: index,
+			}
+			v.setType(et)
+			return fn.emit(v, e)
 		}
-		v.setType(et)
-		return &address{addr: fn.emit(v, e), expr: e}
+		return &lazyAddress{addr: emit, t: deref(et), expr: e}
 
 	case *ast.StarExpr:
 		return &address{addr: b.expr(fn, e.X), expr: e}
@@ -680,11 +692,11 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		}
 
 		var low, high, max Value
-		if e.High != nil {
-			high = b.expr(fn, e.High)
-		}
 		if e.Low != nil {
 			low = b.expr(fn, e.Low)
+		}
+		if e.High != nil {
+			high = b.expr(fn, e.High)
 		}
 		if e.Slice3 {
 			max = b.expr(fn, e.Max)
@@ -1027,8 +1039,7 @@ func (b *builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 
 // assignOp emits to fn code to perform loc <op>= val.
 func (b *builder) assignOp(fn *Function, loc lvalue, val Value, op token.Token, source ast.Node) {
-	oldv := loc.load(fn, source)
-	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, val, oldv.Type(), source), loc.typ(), source), source)
+	loc.store(fn, emitArith(fn, op, loc.load(fn, source), val, loc.typ(), source), source)
 }
 
 // localValueSpec emits to fn code to define all of the vars in the
@@ -1145,16 +1156,13 @@ func (b *builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 //	x = T{a: x.a}
 //
 // all the reads must occur before all the writes. This is implicitly handled by the write buffering effected by
-// compositeElement.
+// compositeElement and explicitly by the storebuf for when we don't use CompositeValue.
 //
 // A CompositeLit may have pointer type only in the recursive (nested)
 // case when the type name is implicit.  e.g. in []*T{{}}, the inner
 // literal has type *T behaves like &T{}.
 // In that case, addr must hold a T, not a *T.
 func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero bool, sb *storebuf) {
-	// Even though we no longer need storebuf for nested composite literals (because compositeElements act as buffers
-	// themselves), we still need storebuf for things like multiple assignment, e.g. 't.F1, t.F2 = T2{1}, T2{t.F1.X}'
-
 	typ := deref(fn.Pkg.typeOf(e))
 	switch t := typeutil.CoreType(typ).(type) {
 	case *types.Struct:
@@ -1220,41 +1228,77 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 				final = zc
 			}
 		} else {
-			v := &CompositeValue{
-				Values: make([]Value, at.Len()),
-			}
-			zc := emitConst(fn, zeroConst(at.Elem()))
-			for i := range v.Values {
-				v.Values[i] = zc
-			}
-			v.setType(at)
+			if at.Len() == int64(len(e.Elts)) {
+				// The literal specifies all elements, so we can use a composite value
+				v := &CompositeValue{
+					Values: make([]Value, at.Len()),
+				}
+				zc := emitConst(fn, zeroConst(at.Elem()))
+				for i := range v.Values {
+					v.Values[i] = zc
+				}
+				v.setType(at)
 
-			var idx *Const
-			for _, e := range e.Elts {
-				if kv, ok := e.(*ast.KeyValueExpr); ok {
-					idx = b.expr(fn, kv.Key).(*Const)
-					e = kv.Value
-				} else {
-					var idxval int64
-					if idx != nil {
-						idxval = idx.Int64() + 1
+				var idx *Const
+				for _, e := range e.Elts {
+					if kv, ok := e.(*ast.KeyValueExpr); ok {
+						idx = b.expr(fn, kv.Key).(*Const)
+						e = kv.Value
+					} else {
+						var idxval int64
+						if idx != nil {
+							idxval = idx.Int64() + 1
+						}
+						idx = emitConst(fn, intConst(idxval)).(*Const)
 					}
-					idx = emitConst(fn, intConst(idxval)).(*Const)
+
+					iaddr := &compositeElement{
+						cv:   v,
+						idx:  int(idx.Int64()),
+						t:    at.Elem(),
+						expr: e,
+					}
+
+					b.assign(fn, iaddr, e, true, sb, e)
+					v.Bitmap.SetBit(&v.Bitmap, int(idx.Int64()), 1)
+					v.NumSet++
+				}
+				final = v
+				fn.emit(v, e)
+			} else {
+				// Not all elements are specified. Populate the array with a series of stores, to guard against literals
+				// like []int{1<<62: 1}.
+				if !isZero {
+					// memclear
+					sb.store(&address{array, nil}, zeroValue(fn, deref(array.Type()), e), e)
 				}
 
-				iaddr := &compositeElement{
-					cv:   v,
-					idx:  int(idx.Int64()),
-					t:    at.Elem(),
-					expr: e,
+				var idx *Const
+				for _, e := range e.Elts {
+					if kv, ok := e.(*ast.KeyValueExpr); ok {
+						idx = b.expr(fn, kv.Key).(*Const)
+						e = kv.Value
+					} else {
+						var idxval int64
+						if idx != nil {
+							idxval = idx.Int64() + 1
+						}
+						idx = emitConst(fn, intConst(idxval)).(*Const)
+					}
+					iaddr := &IndexAddr{
+						X:     array,
+						Index: idx,
+					}
+					iaddr.setType(types.NewPointer(at.Elem()))
+					fn.emit(iaddr, e)
+					if t != at { // slice
+						// backing array is unaliased => storebuf not needed.
+						b.assign(fn, &address{addr: iaddr, expr: e}, e, true, nil, e)
+					} else {
+						b.assign(fn, &address{addr: iaddr, expr: e}, e, true, sb, e)
+					}
 				}
-
-				b.assign(fn, iaddr, e, true, sb, e)
-				v.Bitmap.SetBit(&v.Bitmap, int(idx.Int64()), 1)
-				v.NumSet++
 			}
-			final = v
-			fn.emit(v, e)
 		}
 		if t != at { // slice
 			if final != nil {
