@@ -1,4 +1,4 @@
-FROM busybox
+FROM mirror.gcr.io/busybox
 COPY . /upload/
 COPY src /upload/src2/
 COPY test1.txt /upload/test1.txt

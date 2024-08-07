@@ -1666,7 +1666,7 @@ var internalTestCases = []testCase{
 	{
 		name:          "transient-mount",
 		contextDir:    "transientmount",
-		buildahRegex:  "file2.*?FROM busybox ENV name value",
+		buildahRegex:  "file2.*?FROM mirror.gcr.io/busybox ENV name value",
 		withoutDocker: true,
 		transientMounts: []string{
 			"@@TEMPDIR@@:/mountdir" + selinuxMountFlag(),
@@ -1678,7 +1678,7 @@ var internalTestCases = []testCase{
 		// from internal team chat
 		name: "ci-pipeline-modified",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox",
+			"FROM mirror.gcr.io/busybox",
 			"WORKDIR /go/src/github.com/openshift/ocp-release-operator-sdk/",
 			"ENV GOPATH=/go",
 			"RUN env | grep -E -v '^(HOSTNAME|OLDPWD)=' | LANG=C sort | tee /env-contents.txt\n",
@@ -1864,7 +1864,7 @@ var internalTestCases = []testCase{
 		// list in the image repository would do
 		name: "stage-container-as-source-plus-hardlinks",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox@sha256:9ddee63a712cea977267342e8750ecbc60d3aab25f04ceacfa795e6fce341793 AS build",
+			"FROM mirror.gcr.io/busybox@sha256:9ae97d36d26566ff84e8893c64a6dc4fe8ca6d1144bf5b87b2b85a32def253c7 AS build",
 			"RUN mkdir -p /target/subdir",
 			"RUN cp -p /etc/passwd /target/",
 			"RUN ln /target/passwd /target/subdir/passwd",
@@ -2119,7 +2119,7 @@ var internalTestCases = []testCase{
 		// possibly around https://github.com/moby/moby/pull/38599
 		name: "setuid-file-in-other-stage",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox",
+			"FROM mirror.gcr.io/busybox",
 			"RUN mkdir /a && echo whatever > /a/setuid && chmod u+xs /a/setuid && touch -t @1485449953 /a/setuid",
 			"RUN mkdir /b && echo whatever > /b/setgid && chmod g+xs /b/setgid && touch -t @1485449953 /b/setgid",
 			"RUN mkdir /c && echo whatever > /c/sticky && chmod o+x /c/sticky && chmod +t /c/sticky && touch -t @1485449953 /c/sticky",
@@ -2273,7 +2273,7 @@ var internalTestCases = []testCase{
 	{
 		name: "multi-stage-through-base",
 		dockerfileContents: strings.Join([]string{
-			"FROM alpine AS base",
+			"FROM mirror.gcr.io/alpine AS base",
 			"RUN touch -t @1485449953 /1",
 			"ENV LOCAL=/1",
 			"RUN find $LOCAL",
@@ -2286,11 +2286,11 @@ var internalTestCases = []testCase{
 	{
 		name: "multi-stage-derived", // from #2415
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox as layer",
+			"FROM mirror.gcr.io/busybox as layer",
 			"RUN touch /root/layer",
 			"FROM layer as derived",
 			"RUN touch -t @1485449953 /root/derived ; rm /root/layer",
-			"FROM busybox AS output",
+			"FROM mirror.gcr.io/busybox AS output",
 			"COPY --from=layer /root /root",
 		}, "\n"),
 		fsSkip: []string{"(dir):root:mtime", "(dir):root:(dir):layer:mtime"},
@@ -2886,7 +2886,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy-from-owner", // from issue #2518
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`RUN set -ex; touch -t @1485449953 /test; chown 65:65 /test`,
 			`FROM scratch`,
 			`USER 66:66`,
@@ -2898,7 +2898,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy-from-owner-with-chown", // issue #2518, but with chown to override
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`RUN set -ex; touch -t @1485449953 /test; chown 65:65 /test`,
 			`FROM scratch`,
 			`USER 66:66`,
@@ -2911,7 +2911,7 @@ var internalTestCases = []testCase{
 		name:       "copy-for-user", // flip side of issue #2518
 		contextDir: "copy",
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`USER 66:66`,
 			`COPY /script /script`,
 		}, "\n"),
@@ -2921,7 +2921,7 @@ var internalTestCases = []testCase{
 		name:       "copy-for-user-with-chown", // flip side of issue #2518, but with chown to override
 		contextDir: "copy",
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`USER 66:66`,
 			`COPY --chown=1:1 /script /script`,
 		}, "\n"),
@@ -3173,7 +3173,7 @@ var internalTestCases = []testCase{
 		name: "workdir-owner", // from issue #3620
 		dockerfileContents: strings.Join([]string{
 			`# syntax=docker/dockerfile:1.4`,
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`USER daemon`,
 			`WORKDIR /created/directory`,
 			`RUN ls /created`,
@@ -3204,7 +3204,7 @@ var internalTestCases = []testCase{
 	{
 		name: "workdir with trailing separator",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox",
+			"FROM mirror.gcr.io/busybox",
 			"USER daemon",
 			"WORKDIR /tmp/",
 		}, "\n"),
@@ -3213,7 +3213,7 @@ var internalTestCases = []testCase{
 	{
 		name: "workdir without trailing separator",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox",
+			"FROM mirror.gcr.io/busybox",
 			"USER daemon",
 			"WORKDIR /tmp",
 		}, "\n"),
@@ -3229,7 +3229,7 @@ var internalTestCases = []testCase{
 		name:              "builtins",
 		contextDir:        "builtins",
 		dockerUseBuildKit: true,
-		buildArgs:         map[string]string{"SOURCE": "source", "BUSYBOX": "busybox", "ALPINE": "alpine", "OWNERID": "0", "       SECONDBASE": "localhost/no-such-image"},
+		buildArgs:         map[string]string{"SOURCE": "source", "BUSYBOX": "mirror.gcr.io/busybox", "ALPINE": "mirror.gcr.io/alpine", "OWNERID": "0", "SECONDBASE": "localhost/no-such-image"},
 	},
 
 	{
@@ -3248,33 +3248,33 @@ func TestCommit(t *testing.T) {
 	}{
 		{
 			description: "defaults",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 		},
 		{
 			description: "empty change",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{""},
 		},
 		{
 			description: "empty config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config:      &docker.Config{},
 		},
 		{
 			description: "cmd just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"CMD /bin/imaginarySh"},
 		},
 		{
 			description: "cmd just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				Cmd: []string{"/usr/bin/imaginarySh"},
 			},
 		},
 		{
 			description: "cmd conflict",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"CMD /bin/imaginarySh"},
 			config: &docker.Config{
 				Cmd: []string{"/usr/bin/imaginarySh"},
@@ -3282,19 +3282,19 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "entrypoint just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"ENTRYPOINT /bin/imaginarySh"},
 		},
 		{
 			description: "entrypoint just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				Entrypoint: []string{"/usr/bin/imaginarySh"},
 			},
 		},
 		{
 			description: "entrypoint conflict",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"ENTRYPOINT /bin/imaginarySh"},
 			config: &docker.Config{
 				Entrypoint: []string{"/usr/bin/imaginarySh"},
@@ -3302,19 +3302,19 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "environment just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"ENV A=1", "ENV C=2"},
 		},
 		{
 			description: "environment just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				Env: []string{"A=B"},
 			},
 		},
 		{
 			description: "environment with conflict union",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"ENV A=1", "ENV C=2"},
 			config: &docker.Config{
 				Env: []string{"A=B"},
@@ -3322,19 +3322,19 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "expose just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"EXPOSE 12345"},
 		},
 		{
 			description: "expose just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				ExposedPorts: map[docker.Port]struct{}{"23456": struct{}{}},
 			},
 		},
 		{
 			description: "expose union",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"EXPOSE 12345"},
 			config: &docker.Config{
 				ExposedPorts: map[docker.Port]struct{}{"23456": struct{}{}},
@@ -3342,12 +3342,12 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "healthcheck just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{`HEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=1 CMD ["/bin/false"]`},
 		},
 		{
 			description: "healthcheck just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				Healthcheck: &docker.HealthConfig{
 					Test:        []string{"/bin/true"},
@@ -3360,7 +3360,7 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "healthcheck conflict",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{`HEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=1 CMD ["/bin/false"]`},
 			config: &docker.Config{
 				Healthcheck: &docker.HealthConfig{
@@ -3374,19 +3374,19 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "label just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"LABEL A=1 C=2"},
 		},
 		{
 			description: "label just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				Labels: map[string]string{"A": "B"},
 			},
 		},
 		{
 			description: "label with conflict union",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"LABEL A=1 C=2"},
 			config: &docker.Config{
 				Labels: map[string]string{"A": "B"},
@@ -3395,13 +3395,13 @@ func TestCommit(t *testing.T) {
 		// n.b. dockerd didn't like a MAINTAINER change, so no test for it, and it's not in a config blob
 		{
 			description:    "onbuild just changes",
-			baseImage:      "docker.io/library/busybox",
+			baseImage:      "mirror.gcr.io/busybox",
 			changes:        []string{"ONBUILD USER alice", "ONBUILD LABEL A=1"},
 			derivedChanges: []string{"LABEL C=3"},
 		},
 		{
 			description: "onbuild just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				OnBuild: []string{"USER bob", `CMD ["/bin/smash"]`, "LABEL B=2"},
 			},
@@ -3409,7 +3409,7 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "onbuild conflict",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"ONBUILD USER alice", "ONBUILD LABEL A=1"},
 			config: &docker.Config{
 				OnBuild: []string{"USER bob", `CMD ["/bin/smash"]`, "LABEL B=2"},
@@ -3419,14 +3419,14 @@ func TestCommit(t *testing.T) {
 		// n.b. dockerd didn't like a SHELL change, so no test for it or a conflict with a config blob
 		{
 			description: "shell just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				Shell: []string{"/usr/bin/imaginarySh"},
 			},
 		},
 		{
 			description: "stop signal conflict",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"STOPSIGNAL SIGTERM"},
 			config: &docker.Config{
 				StopSignal: "SIGKILL",
@@ -3434,21 +3434,21 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "stop timeout=0",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				StopTimeout: 0,
 			},
 		},
 		{
 			description: "stop timeout=15",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				StopTimeout: 15,
 			},
 		},
 		{
 			description: "stop timeout=15, then 0",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				StopTimeout: 15,
 			},
@@ -3458,7 +3458,7 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "stop timeout=0, then 15",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				StopTimeout: 0,
 			},
@@ -3468,19 +3468,19 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "user just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"USER 1001:1001"},
 		},
 		{
 			description: "user just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				User: "1000:1000",
 			},
 		},
 		{
 			description: "user with conflict",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"USER 1001:1001"},
 			config: &docker.Config{
 				User: "1000:1000",
@@ -3488,19 +3488,19 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "volume just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"VOLUME /a-volume"},
 		},
 		{
 			description: "volume just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				Volumes: map[string]struct{}{"/b-volume": struct{}{}},
 			},
 		},
 		{
 			description: "volume union",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"VOLUME /a-volume"},
 			config: &docker.Config{
 				Volumes: map[string]struct{}{"/b-volume": struct{}{}},
@@ -3508,19 +3508,19 @@ func TestCommit(t *testing.T) {
 		},
 		{
 			description: "workdir just changes",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"WORKDIR /yeah"},
 		},
 		{
 			description: "workdir just config",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
 				WorkingDir: "/naw",
 			},
 		},
 		{
 			description: "workdir with conflict",
-			baseImage:   "docker.io/library/busybox",
+			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"WORKDIR /yeah"},
 			config: &docker.Config{
 				WorkingDir: "/naw",

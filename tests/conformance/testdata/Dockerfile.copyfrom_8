@@ -1,5 +1,5 @@
-FROM busybox as base
+FROM mirror.gcr.io/busybox as base
 RUN mkdir -p /a && touch -t @1485449953 /a/b
-FROM busybox
+FROM mirror.gcr.io/busybox
 COPY --from=base /a/b /a
 RUN ls -al /a && ! ls -al /b

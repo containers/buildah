@@ -1,4 +1,4 @@
-FROM busybox
+FROM mirror.gcr.io/busybox
 ARG argA=argvA
 ENV varA=valueA
 
