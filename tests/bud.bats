@@ -15,12 +15,14 @@ load helpers
 @test "bud: build manifest list and --add-compression zstd" {
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $BUDFILES/dockerfile/Dockerfile
-  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $BUDFILES/dockerfile/Dockerfile
+
+  imgname="img$(random_string | tr A-Z a-z)"
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}1" --platform linux/amd64 -f $BUDFILES/dockerfile/Dockerfile
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}2" --platform linux/arm64 -f $BUDFILES/dockerfile/Dockerfile
 
   run_buildah manifest create foo
-  run_buildah manifest add foo image1
-  run_buildah manifest add foo image2
+  run_buildah manifest add foo "${imgname}1"
+  run_buildah manifest add foo "${imgname}2"
 
   run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
@@ -48,12 +50,14 @@ _EOF
 
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
-  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $contextdir/Dockerfile1
+
+  imgname="img$(random_string | tr A-Z a-z)"
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}1" --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}2" --platform linux/arm64 -f $contextdir/Dockerfile1
 
   run_buildah manifest create foo
-  run_buildah manifest add foo image1
-  run_buildah manifest add foo image2
+  run_buildah manifest add foo "${imgname}1"
+  run_buildah manifest add foo "${imgname}2"
 
   CONTAINERS_CONF=$contextdir/containers.conf run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
@@ -76,12 +80,14 @@ _EOF
 
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
-  run_buildah build $WITH_POLICY_JSON -t image2 --platform linux/arm64 -f $contextdir/Dockerfile1
+
+  imgname="img$(random_string | tr A-Z a-z)"
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}1" --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t "${imgname}2" --platform linux/arm64 -f $contextdir/Dockerfile1
 
   run_buildah manifest create foo
-  run_buildah manifest add foo image1
-  run_buildah manifest add foo image2
+  run_buildah manifest add foo "${imgname}1"
+  run_buildah manifest add foo "${imgname}2"
 
   run_buildah manifest push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --all --add-compression zstd --tls-verify=false foo docker://localhost:${REGISTRY_PORT}/list
 
@@ -117,19 +123,22 @@ _EOF
 }
 
 @test "Multi-stage should not remove used base-image without --layers" {
-  run_buildah build -t parent-one -f $BUDFILES/multi-stage-only-base/Containerfile1
-  run_buildah build -t parent-two -f $BUDFILES/multi-stage-only-base/Containerfile2
-  run_buildah build -t multi-stage -f $BUDFILES/multi-stage-only-base/Containerfile3
+  imgname="img$(random_string | tr A-Z a-z)"
+  run_buildah build -t "${imgname}-parent-one" -f $BUDFILES/multi-stage-only-base/Containerfile1
+  run_buildah build -t "${imgname}-parent-two" -f $BUDFILES/multi-stage-only-base/Containerfile2
+  run_buildah build -t "${imgname}-multi-stage" -f $BUDFILES/multi-stage-only-base/Containerfile3
   run_buildah images -a
-  expect_output --substring "parent-one" "parent one must not be removed"
+  expect_output --substring "${imgname}-parent-one" "parent one must not be removed"
 }
 
 @test "no layer should be created on scratch" {
-  run_buildah build --layers --label "label1=value1" -t test -f $BUDFILES/from-scratch/Containerfile
-  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' test
+  imgname="img$(random_string | tr A-Z a-z)"
+
+  run_buildah build --layers --label "label1=value1" -t $imgname -f $BUDFILES/from-scratch/Containerfile
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' $imgname
   expect_output "0" "layer should not exist"
-  run_buildah build --layers -t test -f $BUDFILES/from-scratch/Containerfile
-  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' test
+  run_buildah build --layers -t $imgname -f $BUDFILES/from-scratch/Containerfile
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' $imgname
   expect_output "0" "layer should not exist"
 }
 
@@ -143,24 +152,26 @@ _EOF
 FROM alpine
 _EOF
 
+  imgname="img$(random_string | tr A-Z a-z)"
+
   start_registry
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah build $WITH_POLICY_JSON -t image1 --platform linux/amd64 -f $contextdir/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON -t $imgname --platform linux/amd64 -f $contextdir/Dockerfile1
 
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format gzip image1 docker://localhost:${REGISTRY_PORT}/image
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/image
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format gzip $imgname docker://localhost:${REGISTRY_PORT}/$imgname
+  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should have no trace of zstd since push was with --compression-format gzip
   assert "$output" !~ "zstd" "zstd found in layers where push was with --compression-format gzip"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression=false image1 docker://localhost:${REGISTRY_PORT}/image
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/image
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression=false $imgname docker://localhost:${REGISTRY_PORT}/$imgname
+  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should have no trace of zstd since push is --force-compression=false
   assert "$output" !~ "zstd" "zstd found even though push was without --force-compression"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd image1 docker://localhost:${REGISTRY_PORT}/image
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/image
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd $imgname docker://localhost:${REGISTRY_PORT}/$imgname
+  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should container `zstd`
   expect_output --substring "zstd" "layers must contain zstd compression"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression image1 docker://localhost:${REGISTRY_PORT}/image
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/image
+  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression $imgname docker://localhost:${REGISTRY_PORT}/$imgname
+  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
   # layers should container `zstd`
   expect_output --substring "zstd" "layers must contain zstd compression"
 }
@@ -5561,7 +5572,12 @@ _EOF
 }
 _EOF
 
-    run_buildah build --runtime=crun --runtime-flag=debug --security-opt seccomp=${TEST_SCRATCH_DIR}/seccomp.json \
+    # crun caches seccomp profiles, so this test fails if run more than once.
+    # See https://github.com/containers/crun/issues/1475
+    cruntmp=${TEST_SCRATCH_DIR}/crun
+    mkdir $cruntmp
+    run_buildah build --runtime=crun --runtime-flag=debug --runtime-flag=root=$cruntmp \
+                    --security-opt seccomp=${TEST_SCRATCH_DIR}/seccomp.json \
                     -q -t alpine-bud-crun $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
     expect_output --substring "unknown seccomp syscall"
   fi
@@ -6380,10 +6396,11 @@ _EOF
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount
   cp -R $BUDFILES/buildkit-mount $contextdir
+  # Use a private TMPDIR so type=cache tests can run in parallel
   # try writing something to persistent cache
-  run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewrite
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewrite
   # try reading something from persistent cache in a different build
-  run_buildah build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecacheread
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecacheread
   expect_output --substring "hello"
 }
 
@@ -6394,11 +6411,11 @@ _EOF
   local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount
   cp -R $BUDFILES/buildkit-mount $contextdir
   # try writing something to persistent cache
-  run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewrite
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewrite
   # prune the mount cache
-  run_buildah prune
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah prune
   # try reading something from persistent cache in a different build
-  run_buildah 1 build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecacheread
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah 1 build -t testbud2 $WITH_POLICY_JSON -f $contextdir/Dockerfilecacheread
   expect_output --substring "No such file or directory"
 }
 
@@ -6424,7 +6441,7 @@ _EOF
   local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount
   cp -R $BUDFILES/buildkit-mount $contextdir
   # try writing something to persistent cache
-  run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewritesharing
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachewritesharing
   expect_output --substring "world"
 }
 
@@ -6522,7 +6539,7 @@ _EOF
   local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # try reading something from persistent cache in a different build
-  run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefrom $contextdir/
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefrom $contextdir/
   expect_output --substring "hello"
 }
 
@@ -6535,10 +6552,10 @@ _EOF
   cp -R $BUDFILES/buildkit-mount-from $contextdir
 
   # build base image which we will use as our `from`
-  run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
 
   # try reading something from persistent cache in a different build
-  run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
   expect_output --substring "no stage found with name buildkitbase"
 }
 
@@ -6549,7 +6566,7 @@ _EOF
   local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # try reading something from persistent cache in a different build
-  run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachemultiplefrom $contextdir/
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachemultiplefrom $contextdir/
   expect_output --substring "hello"
   expect_output --substring "hello2"
 }
