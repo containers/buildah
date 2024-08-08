@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	"github.com/containers/buildah/define"
 	iversion "github.com/containers/image/v5/version"
@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//Overwritten at build time
+// Overwritten at build time
 var (
 	GitCommit  string
 	buildInfo  string

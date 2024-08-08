@@ -16,7 +16,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	internalUtil "github.com/containers/buildah/internal/util"
