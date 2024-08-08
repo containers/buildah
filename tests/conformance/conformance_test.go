@@ -1422,6 +1422,13 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name:              "copy-escape-glob",
+		contextDir:        "copy-escape-glob",
+		fsSkip:            []string{"(dir):app:mtime", "(dir):app2:mtime", "(dir):app3:mtime", "(dir):app4:mtime", "(dir):app5:mtime"},
+		dockerUseBuildKit: true,
+	},
+
+	{
 		name:         "copy file to root",
 		dockerfile:   "Dockerfile.copyfrom_1",
 		buildahRegex: "[-rw]+.*?/a",
