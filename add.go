@@ -230,6 +230,18 @@ func includeDirectoryAnyway(path string, pm *fileutils.PatternMatcher) bool {
 	return false
 }
 
+// globbedToGlobbable takes a pathname which might include the '[', *, or ?
+// characters, and converts it into a glob pattern that matches itself by
+// marking the '[' characters as _not_ the beginning of match ranges and
+// escaping the * and ? characters.
+func globbedToGlobbable(glob string) string {
+	result := glob
+	result = strings.ReplaceAll(result, "[", "[[]")
+	result = strings.ReplaceAll(result, "?", "\\?")
+	result = strings.ReplaceAll(result, "*", "\\*")
+	return result
+}
+
 // Add copies the contents of the specified sources into the container's root
 // filesystem, optionally extracting contents of local files that look like
 // non-empty archives.
@@ -517,27 +529,27 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 
 		// Iterate through every item that matched the glob.
 		itemsCopied := 0
-		for _, glob := range localSourceStat.Globbed {
-			rel := glob
-			if filepath.IsAbs(glob) {
-				if rel, err = filepath.Rel(contextDir, glob); err != nil {
-					return fmt.Errorf("computing path of %q relative to %q: %w", glob, contextDir, err)
+		for _, globbed := range localSourceStat.Globbed {
+			rel := globbed
+			if filepath.IsAbs(globbed) {
+				if rel, err = filepath.Rel(contextDir, globbed); err != nil {
+					return fmt.Errorf("computing path of %q relative to %q: %w", globbed, contextDir, err)
 				}
 			}
 			if strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-				return fmt.Errorf("possible escaping context directory error: %q is outside of %q", glob, contextDir)
+				return fmt.Errorf("possible escaping context directory error: %q is outside of %q", globbed, contextDir)
 			}
 			// Check for dockerignore-style exclusion of this item.
 			if rel != "." {
 				excluded, err := pm.Matches(filepath.ToSlash(rel)) // nolint:staticcheck
 				if err != nil {
-					return fmt.Errorf("checking if %q(%q) is excluded: %w", glob, rel, err)
+					return fmt.Errorf("checking if %q(%q) is excluded: %w", globbed, rel, err)
 				}
 				if excluded {
 					// non-directories that are excluded are excluded, no question, but
 					// directories can only be skipped if we don't have to allow for the
 					// possibility of finding things to include under them
-					globInfo := localSourceStat.Results[glob]
+					globInfo := localSourceStat.Results[globbed]
 					if !globInfo.IsDir || !includeDirectoryAnyway(rel, pm) {
 						continue
 					}
@@ -554,7 +566,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				// due to potentially not having anything in the tarstream that we passed.
 				itemsCopied++
 			}
-			st := localSourceStat.Results[glob]
+			st := localSourceStat.Results[globbed]
 			pipeReader, pipeWriter := io.Pipe()
 			wg.Add(1)
 			go func() {
@@ -584,7 +596,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					StripSetgidBit: options.StripSetgidBit,
 					StripStickyBit: options.StripStickyBit,
 				}
-				getErr = copier.Get(contextDir, contextDir, getOptions, []string{glob}, writer)
+				getErr = copier.Get(contextDir, contextDir, getOptions, []string{globbedToGlobbable(globbed)}, writer)
 				closeErr = writer.Close()
 				if renameTarget != "" && renamedItems > 1 {
 					renameErr = fmt.Errorf("internal error: renamed %d items when we expected to only rename 1", renamedItems)
