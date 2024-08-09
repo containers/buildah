@@ -1,5 +1,4 @@
 //go:build linux || netbsd || freebsd || darwin
-// +build linux netbsd freebsd darwin
 
 package copier
 

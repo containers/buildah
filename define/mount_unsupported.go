@@ -1,5 +1,4 @@
 //go:build darwin || windows || netbsd
-// +build darwin windows netbsd
 
 package define
 
