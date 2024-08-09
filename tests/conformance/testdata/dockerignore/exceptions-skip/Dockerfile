@@ -1,2 +1,2 @@
-FROM alpine
+FROM mirror.gcr.io/alpine
 COPY ./ ./

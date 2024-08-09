@@ -1,4 +1,4 @@
-FROM busybox
+FROM mirror.gcr.io/busybox
 
 ADD file /var/www/
 VOLUME /var/www

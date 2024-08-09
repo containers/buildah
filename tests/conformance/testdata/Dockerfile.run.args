@@ -1,4 +1,4 @@
-FROM busybox
+FROM mirror.gcr.io/busybox
 RUN echo first second
 RUN /bin/echo third fourth
 RUN ["/bin/echo", "fifth", "sixth"]
