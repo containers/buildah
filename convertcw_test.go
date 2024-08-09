@@ -16,7 +16,6 @@ import (
 
 	"github.com/containers/buildah/internal/mkcw"
 	mkcwtypes "github.com/containers/buildah/internal/mkcw/types"
-	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +67,6 @@ func (d *dummyAttestationHandler) ServeHTTP(rw http.ResponseWriter, req *http.Re
 
 func TestCWConvertImage(t *testing.T) {
 	ctx := context.TODO()
-	systemContext := &types.SystemContext{}
 	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
 		for _, ignoreChainRetrievalErrors := range []bool{false, true} {
 			for _, ignoreAttestationErrors := range []bool{false, true} {
@@ -110,8 +108,9 @@ func TestCWConvertImage(t *testing.T) {
 						AttestationURL:          "http://" + addr.String(),
 						IgnoreAttestationErrors: ignoreAttestationErrors,
 						Slop:                    "16MB",
+						SignaturePolicyPath:     testSystemContext.SignaturePolicyPath,
 					}
-					id, _, _, err := CWConvertImage(ctx, systemContext, store, options)
+					id, _, _, err := CWConvertImage(ctx, &testSystemContext, store, options)
 					if status != http.StatusOK && !ignoreAttestationErrors {
 						assert.Error(t, err)
 						return

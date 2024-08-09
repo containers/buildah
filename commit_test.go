@@ -12,7 +12,6 @@ import (
 	"time"
 
 	imageStorage "github.com/containers/image/v5/storage"
-	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	storageTypes "github.com/containers/storage/types"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -23,7 +22,6 @@ import (
 
 func TestCommitLinkedLayers(t *testing.T) {
 	ctx := context.TODO()
-	systemContext := types.SystemContext{}
 	now := time.Now()
 
 	graphDriverName := os.Getenv("STORAGE_DRIVER")
@@ -84,6 +82,7 @@ func TestCommitLinkedLayers(t *testing.T) {
 			Name: string(rspec.NetworkNamespace),
 			Host: true,
 		}},
+		SystemContext: &testSystemContext,
 	}
 	b, err := NewBuilder(ctx, store, builderOptions)
 	require.NoError(t, err, "creating builder")
@@ -91,7 +90,9 @@ func TestCommitLinkedLayers(t *testing.T) {
 	firstFile := makeFile("file0", 0)
 	err = b.Add("/", false, AddAndCopyOptions{}, firstFile)
 	require.NoError(t, err, "adding", firstFile)
-	commitOptions := CommitOptions{}
+	commitOptions := CommitOptions{
+		SystemContext: &testSystemContext,
+	}
 	ref, err := imageStorage.Transport.ParseStoreReference(store, imageName(layerNumber))
 	require.NoError(t, err, "parsing reference for to-be-committed image", imageName(layerNumber))
 	_, _, _, err = b.Commit(ctx, ref, commitOptions)
@@ -106,7 +107,9 @@ func TestCommitLinkedLayers(t *testing.T) {
 	secondFile := makeFile("file1", 0)
 	err = b.Add("/", false, AddAndCopyOptions{}, secondFile)
 	require.NoError(t, err, "adding", secondFile)
-	commitOptions = CommitOptions{}
+	commitOptions = CommitOptions{
+		SystemContext: &testSystemContext,
+	}
 	ref, err = imageStorage.Transport.ParseStoreReference(store, imageName(layerNumber))
 	require.NoError(t, err, "parsing reference for to-be-committed image", imageName(layerNumber))
 	_, _, _, err = b.Commit(ctx, ref, commitOptions)
@@ -161,6 +164,7 @@ func TestCommitLinkedLayers(t *testing.T) {
 				},
 			},
 		},
+		SystemContext: &testSystemContext,
 	}
 	b.AddAppendedLinkedLayer(nil, imageName(layerNumber+6), "", "", ninthArchiveFile)
 	ref, err = imageStorage.Transport.ParseStoreReference(store, imageName(layerNumber))
@@ -177,7 +181,9 @@ func TestCommitLinkedLayers(t *testing.T) {
 	tenthFile := makeFile("file9", 0)
 	err = b.Add("/", false, AddAndCopyOptions{}, tenthFile)
 	require.NoError(t, err, "adding", tenthFile)
-	commitOptions = CommitOptions{}
+	commitOptions = CommitOptions{
+		SystemContext: &testSystemContext,
+	}
 	ref, err = imageStorage.Transport.ParseStoreReference(store, imageName(layerNumber))
 	require.NoError(t, err, "parsing reference for to-be-committed image", imageName(layerNumber))
 	_, _, _, err = b.Commit(ctx, ref, commitOptions)
@@ -186,10 +192,10 @@ func TestCommitLinkedLayers(t *testing.T) {
 	// Get set to examine this image.  At this point, each history entry
 	// should just have "image%d" as its CreatedBy field, and each layer
 	// should have the corresponding file (and nothing else) in it.
-	src, err := ref.NewImageSource(ctx, &systemContext)
+	src, err := ref.NewImageSource(ctx, &testSystemContext)
 	require.NoError(t, err, "opening image source")
 	defer src.Close()
-	img, err := ref.NewImage(ctx, &systemContext)
+	img, err := ref.NewImage(ctx, &testSystemContext)
 	require.NoError(t, err, "opening image")
 	defer img.Close()
 	config, err := img.OCIConfig(ctx)

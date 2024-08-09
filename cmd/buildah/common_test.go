@@ -18,7 +18,10 @@ import (
 var (
 	signaturePolicyPath = ""
 	storeOptions, _     = storage.DefaultStoreOptions()
-	testSystemContext   = types.SystemContext{}
+	testSystemContext   = types.SystemContext{
+		SignaturePolicyPath:      "../../tests/policy.json",
+		SystemRegistriesConfPath: "../../tests/registries.conf",
+	}
 )
 
 func TestMain(m *testing.M) {
