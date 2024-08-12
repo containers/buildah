@@ -3336,7 +3336,7 @@ func TestCommit(t *testing.T) {
 			description: "expose just config",
 			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
-				ExposedPorts: map[docker.Port]struct{}{"23456": struct{}{}},
+				ExposedPorts: map[docker.Port]struct{}{"23456": {}},
 			},
 		},
 		{
@@ -3344,7 +3344,7 @@ func TestCommit(t *testing.T) {
 			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"EXPOSE 12345"},
 			config: &docker.Config{
-				ExposedPorts: map[docker.Port]struct{}{"23456": struct{}{}},
+				ExposedPorts: map[docker.Port]struct{}{"23456": {}},
 			},
 		},
 		{
@@ -3502,7 +3502,7 @@ func TestCommit(t *testing.T) {
 			description: "volume just config",
 			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
-				Volumes: map[string]struct{}{"/b-volume": struct{}{}},
+				Volumes: map[string]struct{}{"/b-volume": {}},
 			},
 		},
 		{
@@ -3510,7 +3510,7 @@ func TestCommit(t *testing.T) {
 			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"VOLUME /a-volume"},
 			config: &docker.Config{
-				Volumes: map[string]struct{}{"/b-volume": struct{}{}},
+				Volumes: map[string]struct{}{"/b-volume": {}},
 			},
 		},
 		{

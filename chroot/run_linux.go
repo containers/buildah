@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package chroot
 
@@ -179,7 +178,7 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 	capMap := map[capability.CapType][]string{
 		capability.BOUNDING:    spec.Process.Capabilities.Bounding,
 		capability.EFFECTIVE:   spec.Process.Capabilities.Effective,
-		capability.INHERITABLE: []string{},
+		capability.INHERITABLE: {},
 		capability.PERMITTED:   spec.Process.Capabilities.Permitted,
 		capability.AMBIENT:     spec.Process.Capabilities.Ambient,
 	}

@@ -27,9 +27,9 @@ func TestParseNextGroup(t *testing.T) {
 	// Test parsing group file
 	rc := bufio.NewScanner(strings.NewReader(testGroupData))
 	expected := []lookupGroupEntry{
-		lookupGroupEntry{"wheel", 0, "root"},
-		lookupGroupEntry{"daemon", 1, ""},
-		lookupGroupEntry{"kmem", 2, ""},
+		{"wheel", 0, "root"},
+		{"daemon", 1, ""},
+		{"kmem", 2, ""},
 	}
 	for _, exp := range expected {
 		grp := parseNextGroup(rc)
