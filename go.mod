@@ -20,7 +20,7 @@ go 1.21.0 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
 require (
 	github.com/containerd/platforms v0.2.1
 	github.com/containernetworking/cni v1.2.3
-	github.com/containers/common v0.60.0
+	github.com/containers/common v0.60.1
 	github.com/containers/image/v5 v5.32.1
 	github.com/containers/luksy v0.0.0-20240708191104-1f482a9731bc
 	github.com/containers/ocicrypt v1.2.0
@@ -131,8 +131,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/onsi/ginkgo/v2 v2.19.1 // indirect
-	github.com/onsi/gomega v1.34.0 // indirect
 	github.com/ostreedev/ostree-go v0.0.0-20210805093236-719684c64e4f // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -159,7 +157,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	golang.org/x/mod v0.19.0 // indirect
-	golang.org/x/net v0.27.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/grpc v1.64.1 // indirect
