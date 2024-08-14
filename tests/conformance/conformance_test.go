@@ -3349,6 +3349,31 @@ var internalTestCases = []testCase{
 		contextDir:        "header-builtin",
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:              "copyglob-1",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "**/*.txt"},
+	},
+	{
+		name:              "copyglob-2",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "**/sub/*.txt"},
+	},
+	{
+		name:              "copyglob-3",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "e/**/*sub/*.txt"},
+	},
+	{
+		name:              "copyglob-4",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "e/**/**/*sub/*.txt"},
+	},
 }
 
 func TestCommit(t *testing.T) {
