@@ -1422,9 +1422,25 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:              "copy-escape-glob",
-		contextDir:        "copy-escape-glob",
-		fsSkip:            []string{"(dir):app:mtime", "(dir):app2:mtime", "(dir):app3:mtime", "(dir):app4:mtime", "(dir):app5:mtime"},
+		name:       "copy-escape-glob",
+		contextDir: "copy-escape-glob",
+		fsSkip:     []string{"(dir):app:mtime", "(dir):app2:mtime", "(dir):app3:mtime", "(dir):app4:mtime", "(dir):app5:mtime"},
+		tweakContextDir: func(t *testing.T, contextDir, _, _ string) error {
+			appDir := filepath.Join(contextDir, "app")
+			jklDir := filepath.Join(appDir, "jkl?")
+			require.NoError(t, os.Mkdir(jklDir, 0o700))
+			jklFile := filepath.Join(jklDir, "file.txt")
+			require.NoError(t, os.WriteFile(jklFile, []byte("another"), 0o600))
+			nopeDir := filepath.Join(appDir, "n?pe")
+			require.NoError(t, os.Mkdir(nopeDir, 0o700))
+			nopeFile := filepath.Join(nopeDir, "file.txt")
+			require.NoError(t, os.WriteFile(nopeFile, []byte("and also"), 0o600))
+			stuvDir := filepath.Join(appDir, "st*uv")
+			require.NoError(t, os.Mkdir(stuvDir, 0o700))
+			stuvFile := filepath.Join(stuvDir, "file.txt")
+			require.NoError(t, os.WriteFile(stuvFile, []byte("and yet"), 0o600))
+			return nil
+		},
 		dockerUseBuildKit: true,
 	},
 
