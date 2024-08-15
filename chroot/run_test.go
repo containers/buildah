@@ -49,17 +49,17 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	// t.TempDir returns /tmp/TestName/001.
 	// /tmp/TestName/001 has permission 0777, but /tmp/TestName is 0700
 	tempDir := t.TempDir()
-	if err = os.Chmod(filepath.Dir(tempDir), 0711); err != nil {
+	if err = os.Chmod(filepath.Dir(tempDir), 0o711); err != nil {
 		t.Fatalf("error loosening permissions on %q: %v", tempDir, err)
 	}
 
 	rootDir := filepath.Join(tempDir, "root")
-	if err := os.Mkdir(rootDir, 0711); err != nil {
+	if err := os.Mkdir(rootDir, 0o711); err != nil {
 		t.Fatalf("os.Mkdir(%q): %v", rootDir, err)
 	}
 
 	rootTmpDir := filepath.Join(rootDir, "tmp")
-	if err := os.Mkdir(rootTmpDir, 01777); err != nil {
+	if err := os.Mkdir(rootTmpDir, 0o1777); err != nil {
 		t.Fatalf("os.Mkdir(%q): %v", rootTmpDir, err)
 	}
 
@@ -69,7 +69,7 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 		t.Fatalf("open(%q): %v", specPath, err)
 	}
 	defer specBinarySource.Close()
-	specBinary, err := os.OpenFile(filepath.Join(rootDir, reportCommand), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0711)
+	specBinary, err := os.OpenFile(filepath.Join(rootDir, reportCommand), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o711)
 	if err != nil {
 		t.Fatalf("open(%q): %v", filepath.Join(rootDir, reportCommand), err)
 	}
@@ -83,7 +83,7 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	g.SetProcessArgs([]string{"/" + reportCommand})
 
 	bundleDir := filepath.Join(tempDir, "bundle")
-	if err := os.Mkdir(bundleDir, 0700); err != nil {
+	if err := os.Mkdir(bundleDir, 0o700); err != nil {
 		t.Fatalf("os.Mkdir(%q): %v", bundleDir, err)
 	}
 
@@ -223,7 +223,7 @@ func TestProcessCwd(t *testing.T) {
 	}
 	testMinimal(t,
 		func(g *generate.Generator, rootDir, _ string) {
-			if err := os.Mkdir(filepath.Join(rootDir, "/no-such-directory"), 0700); err != nil {
+			if err := os.Mkdir(filepath.Join(rootDir, "/no-such-directory"), 0o700); err != nil {
 				t.Fatalf("mkdir(%q): %v", filepath.Join(rootDir, "/no-such-directory"), err)
 			}
 			g.SetProcessCwd("/no-such-directory")
@@ -431,7 +431,8 @@ func TestMounts(t *testing.T) {
 			name:        "nosuid",
 			destination: "/nosuid",
 			options:     []string{"nosuid"},
-			reject:      []string{"suid"}},
+			reject:      []string{"suid"},
+		},
 		{
 			name:        "nodev,noexec",
 			destination: "/nodev,noexec",

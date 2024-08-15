@@ -75,9 +75,7 @@ func openChrootedFile(rootdir, filename string) (*exec.Cmd, io.ReadCloser, error
 	return cmd, stdout, nil
 }
 
-var (
-	lookupUser, lookupGroup sync.Mutex
-)
+var lookupUser, lookupGroup sync.Mutex
 
 type lookupPasswdEntry struct {
 	name string

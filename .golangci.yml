@@ -9,6 +9,7 @@ run:
 linters:
   enable:
     - gofmt
+    - gofumpt
     - revive
     - unconvert
     - unparam

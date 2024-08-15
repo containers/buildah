@@ -258,7 +258,7 @@ func (s *StageExecutor) volumeCacheSaveVFS() (mounts []specs.Mount, err error) {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
-		createdDirPerms := os.FileMode(0755)
+		createdDirPerms := os.FileMode(0o755)
 		if err := copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return nil, fmt.Errorf("ensuring volume path exists: %w", err)
 		}
@@ -455,7 +455,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				if err != nil {
 					return fmt.Errorf("unable to create tmp file for COPY instruction at %q: %w", parse.GetTempDir(), err)
 				}
-				err = tmpFile.Chmod(0644) // 644 is consistent with buildkit
+				err = tmpFile.Chmod(0o644) // 644 is consistent with buildkit
 				if err != nil {
 					tmpFile.Close()
 					return fmt.Errorf("unable to chmod tmp file created for COPY instruction at %q: %w", tmpFile.Name(), err)
@@ -734,7 +734,7 @@ func (s *StageExecutor) createNeededHeredocMountsForRun(files []imagebuilder.Fil
 			f.Close()
 			return nil, err
 		}
-		err = f.Chmod(0755)
+		err = f.Chmod(0o755)
 		if err != nil {
 			f.Close()
 			return nil, err
@@ -2129,7 +2129,7 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 		if err != nil {
 			logrus.Debugf("failed pulling cache from source %s: %v", src, err)
 			continue // failed pulling this one try next
-			//return "", fmt.Errorf("failed while pulling cache from %q: %w", src, err)
+			// return "", fmt.Errorf("failed while pulling cache from %q: %w", src, err)
 		}
 		logrus.Debugf("successfully pulled cache from repo %s: %s", src, id)
 		return src.DockerReference(), id, nil

@@ -54,5 +54,4 @@ func TestGetTempDir(t *testing.T) {
 	require.NoError(t, err)
 	tmpdir = GetTempDir()
 	assert.Equal(t, "/mnt", tmpdir)
-
 }

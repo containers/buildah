@@ -328,7 +328,7 @@ func validateExtraHost(val string) error {
 // validateIPAddress validates an Ip address.
 // for dns, ip, and ip6 flags also
 func validateIPAddress(val string) (string, error) {
-	var ip = net.ParseIP(strings.TrimSpace(val))
+	ip := net.ParseIP(strings.TrimSpace(val))
 	if ip != nil {
 		return ip.String(), nil
 	}
@@ -661,15 +661,19 @@ func GetBuildOutput(buildOutput string) (define.BuildOutputOption, error) {
 	if len(buildOutput) == 1 && buildOutput == "-" {
 		// Feature parity with buildkit, output tar to stdout
 		// Read more here: https://docs.docker.com/engine/reference/commandline/build/#custom-build-outputs
-		return define.BuildOutputOption{Path: "",
+		return define.BuildOutputOption{
+			Path:     "",
 			IsDir:    false,
-			IsStdout: true}, nil
+			IsStdout: true,
+		}, nil
 	}
 	if !strings.Contains(buildOutput, ",") {
 		// expect default --output <dirname>
-		return define.BuildOutputOption{Path: buildOutput,
+		return define.BuildOutputOption{
+			Path:     buildOutput,
 			IsDir:    true,
-			IsStdout: false}, nil
+			IsStdout: false,
+		}, nil
 	}
 	isDir := true
 	isStdout := false
@@ -714,9 +718,11 @@ func GetBuildOutput(buildOutput string) (define.BuildOutputOption, error) {
 		if isDir {
 			return define.BuildOutputOption{}, fmt.Errorf("invalid build output option %q, type=local and dest=- is not supported", buildOutput)
 		}
-		return define.BuildOutputOption{Path: "",
+		return define.BuildOutputOption{
+			Path:     "",
 			IsDir:    false,
-			IsStdout: true}, nil
+			IsStdout: true,
+		}, nil
 	}
 
 	return define.BuildOutputOption{Path: path, IsDir: isDir, IsStdout: isStdout}, nil
@@ -1211,7 +1217,7 @@ func Device(device string) (string, string, string, error) {
 // isValidDeviceMode checks if the mode for device is valid or not.
 // isValid mode is a composition of r (read), w (write), and m (mknod).
 func isValidDeviceMode(mode string) bool {
-	var legalDeviceMode = map[rune]struct{}{
+	legalDeviceMode := map[rune]struct{}{
 		'r': {},
 		'w': {},
 		'm': {},

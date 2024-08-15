@@ -61,7 +61,7 @@ func TestDeviceParser(t *testing.T) {
 	assert.Equal(t, dest, "/dev/foo")
 	assert.Equal(t, permissions, "rm")
 
-	//test bogus permissions
+	// test bogus permissions
 	_, _, _, err = Device("/dev/fuse1:BOGUS")
 	assert.Error(t, err)
 

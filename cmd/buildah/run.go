@@ -53,7 +53,6 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.NameSpaceResults = &namespaceResults
 			return runCmd(cmd, args, opts)
-
 		},
 		Example: `buildah run containerID -- ps -auxw
   buildah run --terminal containerID /bin/bash

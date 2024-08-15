@@ -324,7 +324,7 @@ func downloadToDirectory(url, dir string) error {
 		}
 		dockerfile := filepath.Join(dir, "Dockerfile")
 		// Assume this is a Dockerfile
-		if err := ioutils.AtomicWriteFile(dockerfile, body, 0600); err != nil {
+		if err := ioutils.AtomicWriteFile(dockerfile, body, 0o600); err != nil {
 			return fmt.Errorf("failed to write %q to %q: %w", url, dockerfile, err)
 		}
 	}
@@ -342,7 +342,7 @@ func stdinToDirectory(dir string) error {
 	if err := chrootarchive.Untar(reader, dir, nil); err != nil {
 		dockerfile := filepath.Join(dir, "Dockerfile")
 		// Assume this is a Dockerfile
-		if err := ioutils.AtomicWriteFile(dockerfile, b, 0600); err != nil {
+		if err := ioutils.AtomicWriteFile(dockerfile, b, 0o600); err != nil {
 			return fmt.Errorf("failed to write bytes to %q: %w", dockerfile, err)
 		}
 	}

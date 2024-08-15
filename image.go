@@ -289,7 +289,6 @@ func (i *containerImageRef) extractRootfs(opts ExtractRootfsOptions) (io.ReadClo
 		err := copier.Get(mountPoint, mountPoint, copierOptions, []string{"."}, pipeWriter)
 		errChan <- err
 		pipeWriter.Close()
-
 	}()
 	return ioutils.NewReadCloserWrapper(pipeReader, func() error {
 		if err = pipeReader.Close(); err != nil {
@@ -627,7 +626,7 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		}
 		srcHasher := digest.Canonical.Digester()
 		// Set up to write the possibly-recompressed blob.
-		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0600)
+		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
 			rc.Close()
 			return nil, fmt.Errorf("opening file for %s: %w", what, err)
@@ -1004,7 +1003,7 @@ func (i *containerImageSource) GetBlob(_ context.Context, blob types.BlobInfo, _
 	} else {
 		for _, blobDir := range []string{i.blobDirectory, i.path} {
 			var layerFile *os.File
-			layerFile, err = os.OpenFile(filepath.Join(blobDir, blob.Digest.String()), os.O_RDONLY, 0600)
+			layerFile, err = os.OpenFile(filepath.Join(blobDir, blob.Digest.String()), os.O_RDONLY, 0o600)
 			if err == nil {
 				st, err := layerFile.Stat()
 				if err != nil {

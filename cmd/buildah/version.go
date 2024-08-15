@@ -44,7 +44,7 @@ type versionOptions struct {
 func init() {
 	var opts versionOptions
 
-	//cli command to print out the version info of buildah
+	// cli command to print out the version info of buildah
 	versionCommand := &cobra.Command{
 		Use:   "version",
 		Short: "Display the Buildah version information",
@@ -67,7 +67,7 @@ func versionCmd(opts versionOptions) error {
 	var err error
 	buildTime := int64(0)
 	if buildInfo != "" {
-		//converting unix time from string to int64
+		// converting unix time from string to int64
 		buildTime, err = strconv.ParseInt(buildInfo, 10, 64)
 		if err != nil {
 			return err
@@ -106,7 +106,7 @@ func versionCmd(opts versionOptions) error {
 	fmt.Println("image Version:  ", version.ImageVersion)
 	fmt.Println("Git Commit:     ", version.GitCommit)
 
-	//Prints out the build time in readable format
+	// Prints out the build time in readable format
 	fmt.Println("Built:          ", version.Built)
 	fmt.Println("OS/Arch:        ", version.OsArch)
 	fmt.Println("BuildPlatform:  ", version.BuildPlatform)

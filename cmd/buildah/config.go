@@ -104,7 +104,6 @@ func init() {
 	flags.StringSliceVar(&opts.unsetLabels, "unsetlabel", nil, "remove image configuration label")
 
 	rootCmd.AddCommand(configCommand)
-
 }
 
 func updateCmd(builder *buildah.Builder, cmd string) error {
@@ -386,7 +385,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck-retries").Changed {
 			healthcheck.Retries = iopts.healthcheckRetries
 			args = args + "--retries=" + strconv.Itoa(iopts.healthcheckRetries) + " "
-			//args = fmt.Sprintf("%s --retries=%d ", args, iopts.healthcheckRetries)
+			// args = fmt.Sprintf("%s --retries=%d ", args, iopts.healthcheckRetries)
 
 		}
 		if c.Flag("healthcheck-start-period").Changed {

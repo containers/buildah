@@ -1,12 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
-
-	"errors"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
@@ -255,7 +254,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	logrus.Debugf("Successfully pushed %s with digest %s", transports.ImageName(dest), digest.String())
 
 	if iopts.digestfile != "" {
-		if err = os.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
+		if err = os.WriteFile(iopts.digestfile, []byte(digest.String()), 0o644); err != nil {
 			return util.GetFailureCause(err, fmt.Errorf("failed to write digest to file %q: %w", iopts.digestfile, err))
 		}
 	}

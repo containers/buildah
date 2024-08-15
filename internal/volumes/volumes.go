@@ -2,14 +2,13 @@ package volumes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"errors"
 
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
@@ -373,7 +372,7 @@ func GetCacheMount(args []string, _ storage.Store, _ string, additionalMountPoin
 		// cache parent directory: creates separate cache parent for each user.
 		cacheParent := CacheParent()
 		// create cache on host if not present
-		err = os.MkdirAll(cacheParent, os.FileMode(0755))
+		err = os.MkdirAll(cacheParent, os.FileMode(0o755))
 		if err != nil {
 			return newMount, nil, fmt.Errorf("unable to create build cache directory: %w", err)
 		}
@@ -397,7 +396,7 @@ func GetCacheMount(args []string, _ storage.Store, _ string, additionalMountPoin
 
 		// create a subdirectory inside `cacheParent` just to store lockfiles
 		buildahLockFilesDir = filepath.Join(cacheParent, buildahLockFilesDir)
-		err = os.MkdirAll(buildahLockFilesDir, os.FileMode(0700))
+		err = os.MkdirAll(buildahLockFilesDir, os.FileMode(0o700))
 		if err != nil {
 			return newMount, nil, fmt.Errorf("unable to create build cache lockfiles directory: %w", err)
 		}

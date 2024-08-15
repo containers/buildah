@@ -570,7 +570,7 @@ func (b *Builder) Save() error {
 	if err != nil {
 		return err
 	}
-	if err = ioutils.AtomicWriteFile(filepath.Join(cdir, stateFile), buildstate, 0600); err != nil {
+	if err = ioutils.AtomicWriteFile(filepath.Join(cdir, stateFile), buildstate, 0o600); err != nil {
 		return fmt.Errorf("saving builder state to %q: %w", filepath.Join(cdir, stateFile), err)
 	}
 	return nil

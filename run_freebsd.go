@@ -45,16 +45,14 @@ const (
 	PROC_REAP_RELEASE = 3
 )
 
-var (
-	// We dont want to remove destinations with /etc, /dev as
-	// rootfs already contains these files and unionfs will create
-	// a `whiteout` i.e `.wh` files on removal of overlapping
-	// files from these directories.  everything other than these
-	// will be cleaned up
-	nonCleanablePrefixes = []string{
-		"/etc", "/dev",
-	}
-)
+// We dont want to remove destinations with /etc, /dev as
+// rootfs already contains these files and unionfs will create
+// a `whiteout` i.e `.wh` files on removal of overlapping
+// files from these directories.  everything other than these
+// will be cleaned up
+var nonCleanablePrefixes = []string{
+	"/etc", "/dev",
+}
 
 func procctl(idtype int, id int, cmd int, arg *byte) error {
 	_, _, e1 := unix.Syscall6(
@@ -184,7 +182,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	uid, gid := spec.Process.User.UID, spec.Process.User.GID
 	idPair := &idtools.IDPair{UID: int(uid), GID: int(gid)}
 
-	mode := os.FileMode(0755)
+	mode := os.FileMode(0o755)
 	coptions := copier.MkdirOptions{
 		ChownNew: idPair,
 		ChmodNew: &mode,
@@ -535,7 +533,7 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions
 	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
 
 	networkPolicy := options.ConfigureNetwork
-	//Nothing was specified explicitly so network policy should be inherited from builder
+	// Nothing was specified explicitly so network policy should be inherited from builder
 	if networkPolicy == NetworkDefault {
 		networkPolicy = b.ConfigureNetwork
 
