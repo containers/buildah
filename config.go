@@ -61,7 +61,7 @@ func unmarshalConvertedConfig(ctx context.Context, dest interface{}, img types.I
 	return nil
 }
 
-func (b *Builder) initConfig(ctx context.Context, img types.Image, sys *types.SystemContext) error {
+func (b *Builder) initConfig(ctx context.Context, sys *types.SystemContext, img types.Image, options *BuilderOptions) error {
 	if img != nil { // A pre-existing image, as opposed to a "FROM scratch" new one.
 		rawManifest, manifestMIMEType, err := img.Manifest(ctx)
 		if err != nil {
@@ -99,6 +99,21 @@ func (b *Builder) initConfig(ctx context.Context, img types.Image, sys *types.Sy
 				for k, v := range v1Manifest.Annotations {
 					b.ImageAnnotations[k] = v
 				}
+			}
+		}
+	} else {
+		if options == nil || options.CompatScratchConfig != types.OptionalBoolTrue {
+			b.Docker = docker.V2Image{
+				V1Image: docker.V1Image{
+					Config: &docker.Config{
+						WorkingDir: "/",
+					},
+				},
+			}
+			b.OCIv1 = ociv1.Image{
+				Config: ociv1.ImageConfig{
+					WorkingDir: "/",
+				},
 			}
 		}
 	}

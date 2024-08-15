@@ -162,6 +162,7 @@ type Executor struct {
 	cdiConfigDir                            string
 	compatSetParent                         types.OptionalBool
 	compatVolumes                           types.OptionalBool
+	compatScratchConfig                     types.OptionalBool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -320,6 +321,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		cdiConfigDir:                            options.CDIConfigDir,
 		compatSetParent:                         options.CompatSetParent,
 		compatVolumes:                           options.CompatVolumes,
+		compatScratchConfig:                     options.CompatScratchConfig,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

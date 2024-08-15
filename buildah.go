@@ -377,6 +377,11 @@ type BuilderOptions struct {
 	// CDIConfigDir is the location of CDI configuration files, if the files in
 	// the default configuration locations shouldn't be used.
 	CDIConfigDir string
+	// CompatScratchConfig controls whether a "scratch" image is created
+	// with a truly empty configuration, as would have happened in the past
+	// (when set to true), or with a minimal initial configuration which
+	// has a working directory set in it.
+	CompatScratchConfig types.OptionalBool
 }
 
 // ImportOptions are used to initialize a Builder from an existing container
