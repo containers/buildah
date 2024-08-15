@@ -386,7 +386,6 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 			healthcheck.Retries = iopts.healthcheckRetries
 			args = args + "--retries=" + strconv.Itoa(iopts.healthcheckRetries) + " "
 			// args = fmt.Sprintf("%s --retries=%d ", args, iopts.healthcheckRetries)
-
 		}
 		if c.Flag("healthcheck-start-period").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckStartPeriod)

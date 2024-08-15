@@ -13,3 +13,4 @@ linters:
     - revive
     - unconvert
     - unparam
+    - whitespace

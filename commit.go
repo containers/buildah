@@ -505,7 +505,6 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			return imgID, nil, "", err
 		}
 		logrus.Debugf("added imgID %s to manifestID %s", imgID, manifestID)
-
 	}
 	return imgID, ref, manifestDigest, nil
 }

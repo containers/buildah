@@ -70,7 +70,6 @@ func init() {
 	if err != nil {
 		logrus.Error(err.Error())
 		os.Exit(1)
-
 	}
 
 	if len(storageOptions.GraphDriverOptions) > 0 {

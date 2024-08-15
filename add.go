@@ -689,7 +689,6 @@ func (b *Builder) userForRun(mountPoint string, userspec string) (specs.User, st
 		} else {
 			u.AdditionalGids = groups
 		}
-
 	}
 	return u, homeDir, err
 }

@@ -250,7 +250,6 @@ func parseSecurityOpts(securityOpts []string, commonOpts *define.CommonBuildOpti
 		default:
 			return fmt.Errorf("invalid --security-opt 2: %q", opt)
 		}
-
 	}
 
 	if commonOpts.SeccompProfilePath == "" {
@@ -1293,7 +1292,6 @@ func Secrets(secrets []string) (map[string]define.Secret, error) {
 			SourceType: typ,
 		}
 		parsed[id] = newSecret
-
 	}
 	return parsed, nil
 }
