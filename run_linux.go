@@ -49,16 +49,14 @@ import (
 	"tags.cncf.io/container-device-interface/pkg/parser"
 )
 
-var (
-	// We dont want to remove destinations with /etc, /dev, /sys,
-	// /proc as rootfs already contains these files and unionfs
-	// will create a `whiteout` i.e `.wh` files on removal of
-	// overlapping files from these directories.  everything other
-	// than these will be cleaned up
-	nonCleanablePrefixes = []string{
-		"/etc", "/dev", "/sys", "/proc",
-	}
-)
+// We dont want to remove destinations with /etc, /dev, /sys,
+// /proc as rootfs already contains these files and unionfs
+// will create a `whiteout` i.e `.wh` files on removal of
+// overlapping files from these directories.  everything other
+// than these will be cleaned up
+var nonCleanablePrefixes = []string{
+	"/etc", "/dev", "/sys", "/proc",
+}
 
 func setChildProcess() error {
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
@@ -345,7 +343,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	idPair := &idtools.IDPair{UID: int(uid), GID: int(gid)}
 
-	mode := os.FileMode(0755)
+	mode := os.FileMode(0o755)
 	coptions := copier.MkdirOptions{
 		ChownNew: idPair,
 		ChmodNew: &mode,
@@ -431,7 +429,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	// Empty file, so no need to recreate if it exists
 	if _, ok := bindFiles["/run/.containerenv"]; !ok {
 		containerenvPath := filepath.Join(path, "/run/.containerenv")
-		if err = os.MkdirAll(filepath.Dir(containerenvPath), 0755); err != nil {
+		if err = os.MkdirAll(filepath.Dir(containerenvPath), 0o755); err != nil {
 			return err
 		}
 
@@ -449,7 +447,7 @@ imageid=%q
 rootless=%d
 `, define.Version, b.Container, b.ContainerID, b.FromImage, b.FromImageID, rootless)
 
-		if err = ioutils.AtomicWriteFile(containerenvPath, []byte(containerenv), 0755); err != nil {
+		if err = ioutils.AtomicWriteFile(containerenvPath, []byte(containerenv), 0o755); err != nil {
 			return err
 		}
 		if err := relabel(containerenvPath, b.MountLabel, false); err != nil {
@@ -915,7 +913,7 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions
 	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
 
 	networkPolicy := options.ConfigureNetwork
-	//Nothing was specified explicitly so network policy should be inherited from builder
+	// Nothing was specified explicitly so network policy should be inherited from builder
 	if networkPolicy == NetworkDefault {
 		networkPolicy = b.ConfigureNetwork
 

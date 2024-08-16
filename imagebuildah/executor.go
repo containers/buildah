@@ -220,7 +220,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		if options.RusageLogFile == "" {
 			rusageLogFile = options.Out
 		} else {
-			rusageLogFile, err = os.OpenFile(options.RusageLogFile, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+			rusageLogFile, err = os.OpenFile(options.RusageLogFile, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0o644)
 			if err != nil {
 				return nil, err
 			}
@@ -1050,7 +1050,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	}
 	logrus.Debugf("printing final image id %q", imageID)
 	if b.iidfile != "" {
-		if err = os.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
+		if err = os.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0o644); err != nil {
 			return imageID, ref, fmt.Errorf("failed to write image ID to file %q: %w", b.iidfile, err)
 		}
 	} else {

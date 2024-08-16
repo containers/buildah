@@ -31,7 +31,6 @@ func testClient(path string) ([]*agent.Key, error) {
 		return nil, err
 	}
 	return keys, nil
-
 }
 
 func TestAgentServer(t *testing.T) {

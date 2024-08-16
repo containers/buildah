@@ -153,15 +153,13 @@ type LinkedLayer struct {
 	BlobPath string     // corresponding uncompressed blob file (layer as a tar archive), or directory tree to archive
 }
 
-var (
-	// storageAllowedPolicyScopes overrides the policy for local storage
-	// to ensure that we can read images from it.
-	storageAllowedPolicyScopes = signature.PolicyTransportScopes{
-		"": []signature.PolicyRequirement{
-			signature.NewPRInsecureAcceptAnything(),
-		},
-	}
-)
+// storageAllowedPolicyScopes overrides the policy for local storage
+// to ensure that we can read images from it.
+var storageAllowedPolicyScopes = signature.PolicyTransportScopes{
+	"": []signature.PolicyRequirement{
+		signature.NewPRInsecureAcceptAnything(),
+	},
+}
 
 // checkRegistrySourcesAllows checks the $BUILD_REGISTRY_SOURCES environment
 // variable, if it's set.  The contents are expected to be a JSON-encoded
@@ -458,7 +456,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			logrus.Debugf("removing %v from assigned names to image %q", nameToRemove, img.ID)
 		}
 		if options.IIDFile != "" {
-			if err = os.WriteFile(options.IIDFile, []byte("sha256:"+img.ID), 0644); err != nil {
+			if err = os.WriteFile(options.IIDFile, []byte("sha256:"+img.ID), 0o644); err != nil {
 				return imgID, nil, "", err
 			}
 		}
@@ -507,7 +505,6 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			return imgID, nil, "", err
 		}
 		logrus.Debugf("added imgID %s to manifestID %s", imgID, manifestID)
-
 	}
 	return imgID, ref, manifestDigest, nil
 }

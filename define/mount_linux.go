@@ -10,7 +10,5 @@ const (
 	TempDir = "/dev/shm"
 )
 
-var (
-	// Mount potions for bind
-	BindOptions = []string{"bind"}
-)
+// Mount potions for bind
+var BindOptions = []string{"bind"}

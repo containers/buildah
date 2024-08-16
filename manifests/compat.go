@@ -17,10 +17,8 @@ type (
 	PushOptions = manifests.PushOptions
 )
 
-var (
-	// ErrListImageUnknown is an alias for github.com/containers/common/libimage/manifests.ErrListImageUnknown
-	ErrListImageUnknown = manifests.ErrListImageUnknown
-)
+// ErrListImageUnknown is an alias for github.com/containers/common/libimage/manifests.ErrListImageUnknown
+var ErrListImageUnknown = manifests.ErrListImageUnknown
 
 // Create wraps github.com/containers/common/libimage/manifests.Create().
 func Create() List {

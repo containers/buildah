@@ -75,7 +75,7 @@ missing: pull images if the named images are not present in store,
 never: only use images present in store if available,
 newer: only pull images when newer images exist on the registry than those in the store.`)
 
-	flags.Lookup("pull").NoOptDefVal = "true" //allow `--pull ` to be set to `true` as expected.
+	flags.Lookup("pull").NoOptDefVal = "true" // allow `--pull ` to be set to `true` as expected.
 
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
 	if err := flags.MarkHidden("pull-always"); err != nil {
@@ -312,7 +312,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	if iopts.cidfile != "" {
 		filePath := iopts.cidfile
-		if err := os.WriteFile(filePath, []byte(builder.ContainerID), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(builder.ContainerID), 0o644); err != nil {
 			return fmt.Errorf("failed to write container ID file %q: %w", filePath, err)
 		}
 	}

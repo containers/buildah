@@ -65,14 +65,11 @@ var (
 )
 
 func init() {
-	var (
-		defaultStoreDriverOptions []string
-	)
+	var defaultStoreDriverOptions []string
 	storageOptions, err := storage.DefaultStoreOptions()
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Error(err.Error())
 		os.Exit(1)
-
 	}
 
 	if len(storageOptions.GraphDriverOptions) > 0 {
@@ -82,7 +79,7 @@ func init() {
 
 	defaultContainerConfig, err = config.Default()
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Error(err.Error())
 		os.Exit(1)
 	}
 	defaultContainerConfig.CheckCgroupsAndAdjustConfig()
@@ -90,7 +87,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 	// Disable the implicit `completion` command in cobra.
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	//rootCmd.TraverseChildren = true
+	// rootCmd.TraverseChildren = true
 	rootCmd.Version = fmt.Sprintf("%s (image-spec %s, runtime-spec %s)", define.Version, ispecs.Version, rspecs.Version)
 	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.Debug, "debug", false, "print debugging information")
 	// TODO Need to allow for environment variable

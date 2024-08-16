@@ -86,7 +86,6 @@ func rmCmd(c *cobra.Command, args []string, iopts rmResults) error {
 			}
 			fmt.Printf("%s\n", id)
 		}
-
 	}
 	return lastError
 }

@@ -20,10 +20,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var (
-	// configuration, including customizations made in containers.conf
-	needToShutdownStore = false
-)
+// configuration, including customizations made in containers.conf
+var needToShutdownStore = false
 
 func getStore(c *cobra.Command) (storage.Store, error) {
 	if err := setXDGRuntimeDir(); err != nil {

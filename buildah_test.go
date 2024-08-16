@@ -14,12 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	testSystemContext = imagetypes.SystemContext{
-		SignaturePolicyPath:      "tests/policy.json",
-		SystemRegistriesConfPath: "tests/registries.conf",
-	}
-)
+var testSystemContext = imagetypes.SystemContext{
+	SignaturePolicyPath:      "tests/policy.json",
+	SystemRegistriesConfPath: "tests/registries.conf",
+}
 
 func TestMain(m *testing.M) {
 	var logLevel string

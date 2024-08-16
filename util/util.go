@@ -35,14 +35,12 @@ const (
 	DefaultTransport = "docker://"
 )
 
-var (
-	// RegistryDefaultPathPrefix contains a per-registry listing of default prefixes
-	// to prepend to image names that only contain a single path component.
-	RegistryDefaultPathPrefix = map[string]string{
-		"index.docker.io": "library",
-		"docker.io":       "library",
-	}
-)
+// RegistryDefaultPathPrefix contains a per-registry listing of default prefixes
+// to prepend to image names that only contain a single path component.
+var RegistryDefaultPathPrefix = map[string]string{
+	"index.docker.io": "library",
+	"docker.io":       "library",
+}
 
 // StringInSlice is deprecated, use golang.org/x/exp/slices.Contains
 func StringInSlice(s string, slice []string) bool {

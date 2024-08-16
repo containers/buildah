@@ -84,7 +84,8 @@ func (b *Builder) createResolvConf(rdir string, chownOpts *idtools.IDPair) (stri
 
 // addResolvConf copies files from host and sets them up to bind mount into container
 func (b *Builder) addResolvConfEntries(file string, networkNameServer []string,
-	spec *specs.Spec, keepHostServers, ipv6 bool) error {
+	spec *specs.Spec, keepHostServers, ipv6 bool,
+) error {
 	defaultConfig, err := config.Default()
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
@@ -179,7 +180,7 @@ func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDP
 	hostnameBuffer.Write([]byte(fmt.Sprintf("%s\n", hostname)))
 
 	cfile := filepath.Join(rdir, filepath.Base(hostnamePath))
-	if err = ioutils.AtomicWriteFile(cfile, hostnameBuffer.Bytes(), 0644); err != nil {
+	if err = ioutils.AtomicWriteFile(cfile, hostnameBuffer.Bytes(), 0o644); err != nil {
 		return "", fmt.Errorf("writing /etc/hostname into the container: %w", err)
 	}
 
@@ -257,7 +258,7 @@ func runLookupPath(g *generate.Generator, command []string) []string {
 		// check if it's there,
 		if fi, err := os.Lstat(filepath.Join(spec.Root.Path, candidate)); fi != nil && err == nil {
 			// and if it's not a directory, and either a symlink or executable,
-			if !fi.IsDir() && ((fi.Mode()&os.ModeSymlink != 0) || (fi.Mode()&0111 != 0)) {
+			if !fi.IsDir() && ((fi.Mode()&os.ModeSymlink != 0) || (fi.Mode()&0o111 != 0)) {
 				// use that.
 				return append([]string{candidate}, command[1:]...)
 			}
@@ -439,7 +440,8 @@ func waitForSync(pipeR *os.File) error {
 }
 
 func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string,
-	containerCreateW io.WriteCloser, containerStartR io.ReadCloser) (wstatus unix.WaitStatus, err error) {
+	containerCreateW io.WriteCloser, containerStartR io.ReadCloser,
+) (wstatus unix.WaitStatus, err error) {
 	if options.Logger == nil {
 		options.Logger = logrus.StandardLogger()
 	}
@@ -465,7 +467,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	if err != nil {
 		return 1, fmt.Errorf("encoding configuration %#v as json: %w", spec, err)
 	}
-	if err = ioutils.AtomicWriteFile(filepath.Join(bundlePath, "config.json"), specbytes, 0600); err != nil {
+	if err = ioutils.AtomicWriteFile(filepath.Join(bundlePath, "config.json"), specbytes, 0o600); err != nil {
 		return 1, fmt.Errorf("storing runtime configuration: %w", err)
 	}
 
@@ -1137,7 +1139,8 @@ func runUsingRuntimeMain() {
 }
 
 func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, networkString string,
-	moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName, buildContainerName, hostsFile, resolvFile string) (err error) {
+	moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName, buildContainerName, hostsFile, resolvFile string,
+) (err error) {
 	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -1339,8 +1342,8 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	}
 
 	// Get host UID and GID of the container process.
-	var uidMap = []specs.LinuxIDMapping{}
-	var gidMap = []specs.LinuxIDMapping{}
+	uidMap := []specs.LinuxIDMapping{}
+	gidMap := []specs.LinuxIDMapping{}
 	if spec.Linux != nil {
 		uidMap = spec.Linux.UIDMappings
 		gidMap = spec.Linux.GIDMappings
@@ -1380,7 +1383,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	}
 
 	// Get the list of explicitly-specified volume mounts.
-	var mountLabel = ""
+	mountLabel := ""
 	if spec.Linux != nil {
 		mountLabel = spec.Linux.MountLabel
 	}
@@ -1441,7 +1444,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 				return nil, err
 			}
 			logrus.Debugf("setting up built-in volume path at %q for %q", volumePath, volume)
-			if err = os.MkdirAll(volumePath, 0755); err != nil {
+			if err = os.MkdirAll(volumePath, 0o755); err != nil {
 				return nil, err
 			}
 			if err = relabel(volumePath, mountLabel, false); err != nil {
@@ -1680,7 +1683,7 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	var id, target string
 	var required bool
 	var uid, gid uint32
-	var mode uint32 = 0400
+	var mode uint32 = 0o400
 	for _, val := range tokens {
 		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
@@ -1774,10 +1777,10 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 
 	// Copy secrets to container working dir (or tmp dir if it's an env), since we need to chmod,
 	// chown and relabel it for the container user and we don't want to mess with the original file
-	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0o755); err != nil {
 		return nil, "", err
 	}
-	if err := os.WriteFile(ctrFileOnHost, data, 0644); err != nil {
+	if err := os.WriteFile(ctrFileOnHost, data, 0o644); err != nil {
 		return nil, "", err
 	}
 
@@ -1923,7 +1926,7 @@ func (b *Builder) cleanupTempVolumes() {
 	for tempVolume, val := range b.TempVolumes {
 		if val {
 			if err := overlay.RemoveTemp(tempVolume); err != nil {
-				b.Logger.Errorf(err.Error())
+				b.Logger.Error(err.Error())
 			}
 			b.TempVolumes[tempVolume] = false
 		}
@@ -1939,7 +1942,7 @@ func (b *Builder) cleanupRunMounts(context *imageTypes.SystemContext, mountpoint
 		}
 	}
 
-	//cleanup any mounted images for this run
+	// cleanup any mounted images for this run
 	for _, image := range artifacts.MountedImages {
 		if image != "" {
 			// if flow hits here some image was mounted for this run

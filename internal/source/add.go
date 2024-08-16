@@ -130,5 +130,5 @@ func updateIndexWithNewManifestDescriptor(manifest *specV1.Descriptor, sourcePat
 		return err
 	}
 
-	return os.WriteFile(indexPath, rawData, 0644)
+	return os.WriteFile(indexPath, rawData, 0o644)
 }

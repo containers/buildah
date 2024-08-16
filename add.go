@@ -35,7 +35,7 @@ import (
 
 // AddAndCopyOptions holds options for add and copy commands.
 type AddAndCopyOptions struct {
-	//Chmod sets the access permissions of the destination content.
+	// Chmod sets the access permissions of the destination content.
 	Chmod string
 	// Chown is a spec for the user who should be given ownership over the
 	// newly-added content, potentially overriding permissions which would
@@ -176,7 +176,7 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 		uid = chown.UID
 		gid = chown.GID
 	}
-	var mode int64 = 0600
+	var mode int64 = 0o600
 	if chmod != nil {
 		mode = int64(*chmod)
 	}
@@ -689,7 +689,6 @@ func (b *Builder) userForRun(mountPoint string, userspec string) (specs.User, st
 		} else {
 			u.AdditionalGids = groups
 		}
-
 	}
 	return u, homeDir, err
 }

@@ -83,7 +83,6 @@ func init() {
 	commitCommand.SetUsageTemplate(UsageTemplate())
 	commitListFlagSet(commitCommand, &opts)
 	rootCmd.AddCommand(commitCommand)
-
 }
 
 func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
@@ -125,7 +124,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	_ = cmd.RegisterFlagCompletionFunc("reference-time", completion.AutocompleteNone)
 
 	flags.StringVar(&opts.pull, "pull", "true", "pull SBOM scanner images from the registry if newer or not present in store, if false, only pull SBOM scanner images if not present, if always, pull SBOM scanner images even if the named images are present in store, if never, only use images present in store if available")
-	flags.Lookup("pull").NoOptDefVal = "true" //allow `--pull ` to be set to `true` as expected.
+	flags.Lookup("pull").NoOptDefVal = "true" // allow `--pull ` to be set to `true` as expected.
 
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
 	if err := flags.MarkHidden("pull-always"); err != nil {
