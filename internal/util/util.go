@@ -1,6 +1,7 @@
 package util
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,68 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+// computeFileHash computes the SHA-256 checksum of a single file.
+func computeFileHash(filePath string) ([]byte, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return nil, err
+	}
+
+	return hash.Sum(nil), nil
+}
+
+// computeDirectoryHash computes the SHA-256 checksum of all files in a directory.
+func computeDirectoryHash(dirPath string) ([]byte, error) {
+	hash := sha256.New()
+
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		fileHash, err := computeFileHash(path)
+		if err != nil {
+			return err
+		}
+
+		_, err = hash.Write(fileHash)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return hash.Sum(nil), nil
+}
+
+// GeneratePathChecksum generates the SHA-256 checksum for a file or a directory.
+func GeneratePathChecksum(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		checksum, err := computeDirectoryHash(path)
+		return fmt.Sprintf("%x", checksum), err
+	}
+	checksum, err := computeFileHash(path)
+	return fmt.Sprintf("%x", checksum), err
+}
 
 // LookupImage returns *Image to corresponding imagename or id
 func LookupImage(ctx *types.SystemContext, store storage.Store, image string) (*libimage.Image, error) {
