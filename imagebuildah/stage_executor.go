@@ -1492,7 +1492,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			return "", nil, false, err
 		}
 		for _, mountPoint := range stageMountPoints {
-			if mountPoint.DidExecute {
+			if mountPoint.DidExecute && mountPoint.IsStage {
 				avoidLookingCache = true
 			}
 		}
