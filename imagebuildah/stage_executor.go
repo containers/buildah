@@ -694,7 +694,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 								mountPoint = additionalBuildContext.DownloadedCache
 							}
 						}
-						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: true, MountPoint: mountPoint}
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: false, DidExecute: true, MountPoint: mountPoint}
 						break
 					}
 					// If the source's name corresponds to the
