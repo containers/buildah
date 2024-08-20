@@ -147,8 +147,12 @@ _EOF
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir
 
+  # Make sure this is an image never used in any other zstd tests,
+  # nor with any layers used in zstd tests. That could lead to a
+  # different test pushing it zstd, and a "did not expect zstd"
+  # failure below.
   cat > $contextdir/Dockerfile1 << _EOF
-FROM alpine
+FROM quay.io/libpod/testimage:00000000
 _EOF
 
   imgname="img$(random_string | tr A-Z a-z)"
@@ -157,21 +161,42 @@ _EOF
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
   run_buildah build $WITH_POLICY_JSON -t $imgname --platform linux/amd64 -f $contextdir/Dockerfile1
 
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format gzip $imgname docker://localhost:${REGISTRY_PORT}/$imgname
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
+  # Helper function. push our image with the given options, and run skopeo inspect
+  function _test_buildah_push() {
+      run_buildah push \
+                  $WITH_POLICY_JSON \
+                  --authfile ${TEST_SCRATCH_DIR}/test.auth \
+                  --tls-verify=false \
+                  $* \
+                  $imgname \
+                  docker://localhost:${REGISTRY_PORT}/$imgname
+
+      echo "# skopeo inspect $imgname"
+      run podman run --rm \
+          --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z \
+          --net host \
+          quay.io/skopeo/stable inspect \
+          --authfile=/test.auth \
+          --tls-verify=false \
+          --raw \
+          docker://localhost:${REGISTRY_PORT}/$imgname
+      echo "$output"
+  }
+
   # layers should have no trace of zstd since push was with --compression-format gzip
+  _test_buildah_push --compression-format gzip
   assert "$output" !~ "zstd" "zstd found in layers where push was with --compression-format gzip"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression=false $imgname docker://localhost:${REGISTRY_PORT}/$imgname
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
+
   # layers should have no trace of zstd since push is --force-compression=false
+  _test_buildah_push --compression-format zstd --force-compression=false
   assert "$output" !~ "zstd" "zstd found even though push was without --force-compression"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd $imgname docker://localhost:${REGISTRY_PORT}/$imgname
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
+
   # layers should container `zstd`
+  _test_buildah_push --compression-format zstd
   expect_output --substring "zstd" "layers must contain zstd compression"
-  run_buildah push $WITH_POLICY_JSON --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false --compression-format zstd --force-compression $imgname docker://localhost:${REGISTRY_PORT}/$imgname
-  run podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --net host quay.io/skopeo/stable inspect --authfile=/test.auth --tls-verify=false --raw docker://localhost:${REGISTRY_PORT}/$imgname
+
   # layers should container `zstd`
+  _test_buildah_push --compression-format zstd --force-compression
   expect_output --substring "zstd" "layers must contain zstd compression"
 }
 
