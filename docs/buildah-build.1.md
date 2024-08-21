@@ -536,7 +536,7 @@ If *label* is named, but neither `=` nor a `value` is provided, then the *label*
 Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
 a Containerfile that specifies the list of Linux capabilities required for the
 container to run properly. This label specified in a container image tells
-container engines, like Podman, to run the container with just these
+container engines, like Podman, which recognize this label to run the container with just these
 capabilities. The container engine launches the container with just the specified
 capabilities, as long as this list of capabilities is a subset of the default
 list.
@@ -547,7 +547,8 @@ capabilities.
 
 **--layer-label** *label[=value]*
 
-Add an intermediate image *label* (e.g. label=*value*) to the intermediate image metadata. It can be used multiple times.
+Add an intermediate image *label* (e.g. label=*value*) to the metadata in intermediate images, i.e., any images built for
+non-final stages and for non-final instructions in stages when **--layers** is **true**. It can be used multiple times.
 If *label* is named, but neither `=` nor a `value` is provided, then the *label* is set to an empty value.
 
 **--layers** *bool-value*
