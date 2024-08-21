@@ -28,6 +28,8 @@ Name: buildah
 # Set different Epoch for copr
 %if %{defined copr_username}
 Epoch: 102
+%else
+Epoch: 2
 %endif
 # DO NOT TOUCH the Version string!
 # The TRUE source of this specfile is:
@@ -85,7 +87,7 @@ or
 %package tests
 Summary: Tests for %{name}
 
-Requires: %{name} = %{version}-%{release}
+Requires: %{name} = %{epoch}:%{version}-%{release}
 %if %{defined fedora}
 Requires: bats
 %endif
