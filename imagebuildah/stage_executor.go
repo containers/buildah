@@ -623,10 +623,8 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 	return nil
 }
 
-// Returns a map of StageName/ImageName:internal.StageMountDetails for RunOpts if any --mount with from is provided
-// Stage can automatically cleanup this mounts when a stage is removed
-// check if RUN contains `--mount` with `from`. If yes pre-mount images or stages from executor for Run.
-// stages mounted here will we used be Run().
+// Returns a map of StageName/ImageName:internal.StageMountDetails for the
+// items in the passed-in mounts list which include a "from=" value.
 func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]internal.StageMountDetails, error) {
 	stageMountPoints := make(map[string]internal.StageMountDetails)
 	for _, flag := range mountList {
@@ -649,9 +647,11 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 					if fromErr != nil {
 						return nil, fmt.Errorf("unable to resolve argument %q: %w", val, fromErr)
 					}
-					// If additional buildContext contains this
-					// give priority to that and break if additional
-					// is not an external image.
+					// If the value corresponds to an additional build context,
+					// the mount source is either either the rootfs of the image,
+					// the filesystem path, or a temporary directory populated
+					// with the contents of the URL, all in preference to any
+					// stage which might have the value as its name.
 					if additionalBuildContext, ok := s.executor.additionalBuildContexts[from]; ok {
 						if additionalBuildContext.IsImage {
 							mountPoint, err := s.getImageRootfs(s.ctx, additionalBuildContext.Value)
@@ -703,10 +703,13 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 					if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
 						return nil, err
 					}
+					// If the source's name is a stage, return a
+					// pointer to its rootfs.
 					if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
 						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: otherStage.didExecute, MountPoint: otherStage.mountPoint}
 						break
 					} else {
+						// Treat the source's name as the name of an image.
 						mountPoint, err := s.getImageRootfs(s.ctx, from)
 						if err != nil {
 							return nil, fmt.Errorf("%s from=%s: no stage or image found with that name", flag, from)

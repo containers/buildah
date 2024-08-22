@@ -19,12 +19,11 @@ type AdditionalBuildContext struct {
 	IsURL bool
 	// Value is the name of an image which may or may not have already been pulled.
 	IsImage bool
-	// Value holds a URL, an image name, or an absolute filesystem path.
+	// Value holds a URL (if IsURL), an image name (if IsImage), or an absolute filesystem path.
 	Value string
-	// Absolute filesystem path to downloaded and exported build context
-	// from external tar archive. This will be populated only if following
-	// buildcontext is created from IsURL and was downloaded before in any
-	// of the RUN step.
+	// Absolute filesystem path to a downloaded and exported build context
+	// from an external tar archive.  This will be populated only if the
+	// build context was a URL and its contents have been downloaded.
 	DownloadedCache string
 }
 
