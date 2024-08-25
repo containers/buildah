@@ -1,0 +1,20 @@
+#!/bin/bash
+cd "$(dirname "$(readlink -f "$BASH_SOURCE")")/.."
+discovered=$(mktemp -t discovered_XXXXXX)
+recorded=$(mktemp -t recorded_XXXXXX)
+addlist=$(mktemp -t need_to_add_XXXXXX)
+# SOURCES in the top-level Makefile is more or less the dependencies of our
+# "imagebuildah" package, so look for things that we depend on that aren't
+# listed therein.
+ls -1 $(go list -deps "${@:-./imagebuildah}" | grep ^github.com/containers/buildah | sed -r -e 's,$,/*.go,' -e 's,^github.com/containers/buildah/?,,') | sort -u > "$discovered"
+ls -1 $(grep ^SOURCES Makefile | sed -e 's,.*=,,' ) | sort -u > "$recorded"
+# Filter for things that are missing, since some of the platform-specific
+# packages are going to be dropped on this particular platform, but we still
+# want to list them as dependencies.
+diff "$recorded" "$discovered" | grep '^>' | cut -c 3- | xargs -r dirname > "$addlist"
+if test -s "$addlist"; then
+    echo The \"SOURCES\" definition in the top-level Makefile is missing these patterns:
+    sed -e 's,$,/*.go,' "$addlist"
+    exit 1
+fi
+exit 0
