@@ -115,7 +115,7 @@ Users can specify a series of Unix shell glob patterns in an ignore file to
 identify files/directories to exclude.
 
 Buildah supports a special wildcard string `**` which matches any number of
-directories (including zero). For example, **/*.go will exclude all files that
+directories (including zero). For example, `**/*.go` will exclude all files that
 end with .go that are found in all directories.
 
 Example .containerignore/.dockerignore file:

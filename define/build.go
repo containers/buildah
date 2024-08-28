@@ -373,4 +373,10 @@ type BuildOptions struct {
 	// base images or by a VOLUME instruction to be preserved during RUN
 	// instructions.  Newer BuildKit-based docker build doesn't bother.
 	CompatVolumes types.OptionalBool
+	// CompatScratchConfig causes the image, if it does not have a base
+	// image, to begin with a truly empty default configuration instead of
+	// a minimal default configuration. Newer BuildKit-based docker build
+	// provides a minimal initial configuration with a working directory
+	// set in it.
+	CompatScratchConfig types.OptionalBool
 }

@@ -1007,6 +1007,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		MountLabel:            s.executor.mountLabel,
 		PreserveBaseImageAnns: preserveBaseImageAnnotations,
 		CDIConfigDir:          s.executor.cdiConfigDir,
+		CompatScratchConfig:   s.executor.compatScratchConfig,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
