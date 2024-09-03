@@ -1,0 +1,3 @@
+FROM scratch
+ARG SOURCE
+COPY $SOURCE /

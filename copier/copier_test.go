@@ -1871,3 +1871,36 @@ func testRemove(t *testing.T) {
 		})
 	}
 }
+
+func TestExtendedGlob(t *testing.T) {
+	tmpdir := t.TempDir()
+	buf := []byte("buffer")
+	var expected1, expected2 []string
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "a"), 0o700))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "a", "b"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpdir, "a", "b", "a.dat"), buf, 0o600))
+	expected1 = append(expected1, filepath.Join(tmpdir, "a", "b", "a.dat"))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "b"), 0o700))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "b", "c"), 0o700))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "c"), 0o700))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "c", "d"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpdir, "c", "d", "c.dat"), buf, 0o600))
+	expected1 = append(expected1, filepath.Join(tmpdir, "c", "d", "c.dat"))
+	expected2 = append(expected2, filepath.Join(tmpdir, "c", "d", "c.dat"))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpdir, "d"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpdir, "d", "d.dat"), buf, 0o600))
+	expected1 = append(expected1, filepath.Join(tmpdir, "d", "d.dat"))
+	expected2 = append(expected2, filepath.Join(tmpdir, "d", "d.dat"))
+	matched, err := extendedGlob(filepath.Join(tmpdir, "**", "*.dat"))
+	require.NoError(t, err, "globbing")
+	require.ElementsMatchf(t, expected1, matched, "**/*.dat")
+	matched, err = extendedGlob(filepath.Join(tmpdir, "**", "d", "*.dat"))
+	require.NoError(t, err, "globbing")
+	require.ElementsMatch(t, expected2, matched, "**/d/*.dat")
+	matched, err = extendedGlob(filepath.Join(tmpdir, "**", "**", "d", "*.dat"))
+	require.NoError(t, err, "globbing")
+	require.ElementsMatch(t, expected2, matched, "**/**/d/*.dat")
+	matched, err = extendedGlob(filepath.Join(tmpdir, "**", "d", "**", "*.dat"))
+	require.NoError(t, err, "globbing")
+	require.ElementsMatch(t, expected2, matched, "**/d/**/*.dat")
+}
