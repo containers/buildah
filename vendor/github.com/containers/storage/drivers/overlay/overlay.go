@@ -1492,7 +1492,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 				if err := unix.Uname(&uts); err == nil {
 					release = " " + string(uts.Release[:]) + " " + string(uts.Version[:])
 				}
-				logrus.StandardLogger().Logf(logLevel, "Ignoring global metacopy option, not supported with booted kernel"+release)
+				logrus.StandardLogger().Logf(logLevel, "Ignoring global metacopy option, not supported with booted kernel %s", release)
 			} else {
 				logrus.Debugf("Ignoring global metacopy option, the mount program doesn't support it")
 			}
@@ -1934,7 +1934,7 @@ func (d *Driver) Put(id string) error {
 		// If fusermount|fusermount3 failed to unmount the FUSE file system, make sure all
 		// pending changes are propagated to the file system
 		if !unmounted {
-			fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
+			fd, err := unix.Open(mountpoint, unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
 			if err == nil {
 				if err := unix.Syncfs(fd); err != nil {
 					logrus.Debugf("Error Syncfs(%s) - %v", mountpoint, err)
