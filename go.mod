@@ -1,21 +1,8 @@
 module github.com/containers/buildah
 
-// Minimum required golang version
-go 1.21.0 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
+// Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
 
-//         Go versions 1.21 and later will AUTO-UPDATE based
-//         on currently running tools and the (new) `toolchain`
-//         value (when also increasing the `go` value above).
-//         ref: https://go.dev/doc/toolchain  Because several
-//         different distros and distro-versions build from
-//         this code, golang version consistency is
-//         desireable.  After manually updating to 1.21, a
-//         `toolchain` specification should be added to pin
-//         the version and block auto-updates.  This does not
-//         block any future changes to the `go` value.
-//         Ref: Upstream discussion:
-//         https://github.com/golang/go/issues/65847
-//         *****  ATTENTION  WARNING  CAUTION  DANGER  ******
+go 1.22.0
 
 require (
 	github.com/containerd/platforms v0.2.1
