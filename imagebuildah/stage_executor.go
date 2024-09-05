@@ -451,7 +451,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				data = strings.TrimPrefix(data, "\n")
 				// add breakline when heredoc ends for docker compat
 				data = data + "\n"
-				tmpFile, err := os.Create(filepath.Join(parse.GetTempDir(), path.Base(filepath.ToSlash(file.Name))))
+				tmpFile, err := os.CreateTemp(parse.GetTempDir(), path.Base(filepath.ToSlash(file.Name)))
 				if err != nil {
 					return fmt.Errorf("unable to create tmp file for COPY instruction at %q: %w", parse.GetTempDir(), err)
 				}
