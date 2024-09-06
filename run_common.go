@@ -152,7 +152,7 @@ func (b *Builder) createHostsFile(rdir string, chownOpts *idtools.IDPair) (strin
 	return targetfile, nil
 }
 
-func (b *Builder) addHostsEntries(file, imageRoot string, entries etchosts.HostEntries, exculde []net.IP) error {
+func (b *Builder) addHostsEntries(file, imageRoot string, entries etchosts.HostEntries, exclude []net.IP, preferIP string) error {
 	conf, err := config.Default()
 	if err != nil {
 		return err
@@ -163,11 +163,15 @@ func (b *Builder) addHostsEntries(file, imageRoot string, entries etchosts.HostE
 		return err
 	}
 	return etchosts.New(&etchosts.Params{
-		BaseFile:                 base,
-		ExtraHosts:               b.CommonBuildOpts.AddHost,
-		HostContainersInternalIP: etchosts.GetHostContainersInternalIPExcluding(conf, nil, nil, exculde),
-		TargetFile:               file,
-		ContainerIPs:             entries,
+		BaseFile:   base,
+		ExtraHosts: b.CommonBuildOpts.AddHost,
+		HostContainersInternalIP: etchosts.GetHostContainersInternalIP(etchosts.HostContainersInternalOptions{
+			Conf:     conf,
+			Exclude:  exclude,
+			PreferIP: preferIP,
+		}),
+		TargetFile:   file,
+		ContainerIPs: entries,
 	})
 }
 
@@ -1255,7 +1259,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 
 			// only add hosts if we manage the hosts file
 			if hostsFile != "" {
-				err = b.addHostsEntries(hostsFile, rootPath, netResult.entries, netResult.excludeIPs)
+				err = b.addHostsEntries(hostsFile, rootPath, netResult.entries, netResult.excludeIPs, netResult.preferredHostContainersInternalIP)
 				if err != nil {
 					return err
 				}
