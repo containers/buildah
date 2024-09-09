@@ -7,11 +7,11 @@ go 1.22.0
 require (
 	github.com/containerd/platforms v0.2.1
 	github.com/containernetworking/cni v1.2.3
-	github.com/containers/common v0.60.1-0.20240829150358-9d025e4cb348
+	github.com/containers/common v0.60.1-0.20240906123248-5298b838dcbd
 	github.com/containers/image/v5 v5.32.2
 	github.com/containers/luksy v0.0.0-20240812184316-2e7307c02f06
 	github.com/containers/ocicrypt v1.2.0
-	github.com/containers/storage v1.55.1-0.20240821103551-8ec73cadc730
+	github.com/containers/storage v1.55.1-0.20240829103427-8bc8379af275
 	github.com/cyphar/filepath-securejoin v0.3.1
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v27.2.0+incompatible
@@ -23,7 +23,7 @@ require (
 	github.com/moby/buildkit v0.15.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/opencontainers/runc v1.2.0-rc.2.0.20240801140032-ad5b481dace5
+	github.com/opencontainers/runc v1.2.0-rc.3
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/opencontainers/runtime-tools v0.9.1-0.20230914150019-408c51e934dc
 	github.com/opencontainers/selinux v1.11.0
@@ -34,8 +34,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
-	go.etcd.io/bbolt v1.3.10
-	golang.org/x/crypto v0.26.0
+	go.etcd.io/bbolt v1.3.11
+	golang.org/x/crypto v0.27.0
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
 	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.25.0
@@ -144,7 +144,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect

@@ -742,6 +742,8 @@ function configure_and_check_user() {
 	ip=$(hostname -I | cut -f 1 -d " ")
 	run_buildah run --network pasta --hostname $hostname $cid cat /etc/hosts
 	assert "$output" =~ "$ip[[:blank:]]$hostname $cid" "--network pasta adds correct hostname"
+	# FIXME we need pasta 20240814 or newer in the VMs to enable this
+	# assert "$output" =~ "169.254.1.2[[:blank:]]host.containers.internal" "--network pasta adds correct internal entry"
 
 	# check with containers.conf setting
 	echo -e "[network]\ndefault_rootless_network_cmd = \"pasta\"" > ${TEST_SCRATCH_DIR}/containers.conf
@@ -750,7 +752,7 @@ function configure_and_check_user() {
 
 	# resolv.conf checks
 	run_buildah run --network pasta $cid grep nameserver /etc/resolv.conf
-	assert "${lines[0]}" == "nameserver 169.254.0.1" "first pasta nameserver should be stub forwarder"
+	assert "${lines[0]}" == "nameserver 169.254.1.1" "first pasta nameserver should be stub forwarder"
 
 	run_buildah run --network pasta:--dns-forward,192.168.0.1 $cid grep nameserver /etc/resolv.conf
 	assert "${lines[0]}" == "nameserver 192.168.0.1" "pasta nameserver with --dns-forward"

@@ -393,7 +393,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 					})
 				}
 			}
-			err = b.addHostsEntries(hostsFile, mountPoint, entries, nil)
+			err = b.addHostsEntries(hostsFile, mountPoint, entries, nil, "")
 			if err != nil {
 				return err
 			}
@@ -652,7 +652,7 @@ func setupSlirp4netnsNetwork(config *config.Config, netns, cid string, options, 
 }
 
 func setupPasta(config *config.Config, netns string, options, hostnames []string) (func(), *netResult, error) {
-	res, err := pasta.Setup2(&pasta.SetupOptions{
+	res, err := pasta.Setup(&pasta.SetupOptions{
 		Config:       config,
 		Netns:        netns,
 		ExtraOptions: options,
@@ -666,12 +666,18 @@ func setupPasta(config *config.Config, netns string, options, hostnames []string
 		entries = etchosts.HostEntries{{IP: res.IPAddresses[0].String(), Names: hostnames}}
 	}
 
+	mappedIP := ""
+	if len(res.MapGuestAddrIPs) > 0 {
+		mappedIP = res.MapGuestAddrIPs[0]
+	}
+
 	result := &netResult{
-		entries:           entries,
-		dnsServers:        res.DNSForwardIPs,
-		excludeIPs:        res.IPAddresses,
-		ipv6:              res.IPv6,
-		keepHostResolvers: true,
+		entries:                           entries,
+		dnsServers:                        res.DNSForwardIPs,
+		excludeIPs:                        res.IPAddresses,
+		ipv6:                              res.IPv6,
+		keepHostResolvers:                 true,
+		preferredHostContainersInternalIP: mappedIP,
 	}
 
 	return nil, result, nil
