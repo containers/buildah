@@ -6157,6 +6157,18 @@ _EOF
   assert "$manifests" = "amd64 arm64 ppc64le s390x" "arch list in manifest"
 }
 
+@test "bud-targetplatform-as-build-arg" {
+  outputlist=localhost/testlist
+  for targetplatform in linux/arm64 linux/amd64 ; do
+    run_buildah build $WITH_POLICY_JSON \
+              --build-arg SAFEIMAGE=$SAFEIMAGE \
+              --build-arg TARGETPLATFORM=$targetplatform \
+              -f $BUDFILES/multiarch/Dockerfile.built-in-args \
+              $BUDFILES/multiarch
+    expect_output --substring "I'm compiling for $targetplatform"
+  done
+}
+
 # * Performs multi-stage build with label1=value1 and verifies
 # * Relabels build with label1=value2 and verifies
 # * Rebuild with label1=value1 and makes sure everything is used from cache
