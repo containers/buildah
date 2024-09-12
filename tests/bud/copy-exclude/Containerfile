@@ -1,0 +1,3 @@
+FROM alpine
+COPY --exclude=*txt . /testdir
+run ls /testdir

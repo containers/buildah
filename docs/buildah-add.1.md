@@ -49,6 +49,11 @@ Build context directory. Specifying a context directory causes Buildah to
 chroot into that context directory. This means copying files pointed at
 by symbolic links outside of the chroot will fail.
 
+**--exclude** *pattern*
+
+Exclude coping files mattching the specified pattern. Option can be specified
+multiple times.
+
 **--from** *containerOrImage*
 
 Use the root directory of the specified working container or image as the root

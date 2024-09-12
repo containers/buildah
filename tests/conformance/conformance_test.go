@@ -2445,6 +2445,83 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name: "add--exclude-includes-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"ADD --exclude='!**/*-c' * subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "add--exclude-includes-dot-slash-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"ADD --exclude='!**/*-c' ./* subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "add--exclude-includes-slash-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"ADD --exclude='!**/*-c' /* subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+		dockerUseBuildKit:   true,
+	},
+	{
+		name: "copy--exclude-includes-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude='!**/*-c' * subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--exclude-includes-dot-slash-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude='!**/*-c' ./* subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--exclude-includes-slash-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude='!**/*-c' /* subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+		dockerUseBuildKit:   true,
+	},
+
+	{
 		name: "dockerignore-includes-star",
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
