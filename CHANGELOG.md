@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v1.36.1 (2024-07-16)
+
+    [release-1.36] Fixes Listing tags in JFrog Artifactory may fail
+    Packit: enable c10s downstream sync
+
 ## v1.36.0 (2024-05-23)
 
     build: be more selective about specifying the default OS
