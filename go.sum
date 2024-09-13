@@ -112,8 +112,8 @@ github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
-github.com/fsouza/go-dockerclient v1.11.2 h1:Wos4OMUwIjOW2rt8Z10TZSJHxgQH0KcYyf3O86dqFII=
-github.com/fsouza/go-dockerclient v1.11.2/go.mod h1:HZN6ky2Mg5mfZO/WZBFDe6XCricqTnDJntfXHZTYnQQ=
+github.com/fsouza/go-dockerclient v1.12.0 h1:S2f2crEUbBNCFiF06kR/GvioEB8EMsb3Td/bpawD+aU=
+github.com/fsouza/go-dockerclient v1.12.0/go.mod h1:YWUtjg8japrqD/80L98nTtCoxQFp5B5wrSsnyeB5lFo=
 github.com/go-jose/go-jose/v4 v4.0.2 h1:R3l3kkBds16bO7ZFAEEcofK0MkrAJt3jlJznWZG0nvk=
 github.com/go-jose/go-jose/v4 v4.0.2/go.mod h1:WVf9LFMHh/QVrmqrOfqun0C45tMe3RoiKJMPvgWwLfY=
 github.com/go-logr/logr v0.1.0/go.mod h1:ixOQHD9gLJUVQQ2ZOR7zLEifBX6tGkNJF4QyIY7sIas=
