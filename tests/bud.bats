@@ -2468,18 +2468,33 @@ _EOF
   skip_if_no_runtime
 
   _prefetch alpine
-  target=volume-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} --compat-volumes $BUDFILES/preserve-volumes
-  run_buildah from --quiet ${target}
-  cid=$output
-  run_buildah mount ${cid}
-  root=$output
-  test -s $root/vol/subvol/subsubvol/subsubvolfile
-  test ! -s $root/vol/subvol/subvolfile
-  test -s $root/vol/volfile
-  test -s $root/vol/Dockerfile
-  test -s $root/vol/Dockerfile2
-  test ! -s $root/vol/anothervolfile
+  for layers in "" --layers ; do
+    for compat in "" --compat-volumes ; do
+      target=volume-image$compat$layers
+      run_buildah build $WITH_POLICY_JSON -t ${target} ${layers} ${compat} $BUDFILES/preserve-volumes
+      run_buildah from --quiet ${target}
+      cid=$output
+      run_buildah mount ${cid}
+      root=$output
+      # these files were created before VOLUME instructions froze the directories that contained them
+      test -s $root/vol/subvol/subsubvol/subsubvolfile
+      test -s $root/vol/volfile
+      if test "$compat" != "" ; then
+        # true, these files should have been discarded after they were created by RUN instructions
+        test ! -s $root/vol/subvol/subvolfile
+        test ! -s $root/vol/anothervolfile
+      else
+        # false, these files should not have been discarded, despite being created by RUN instructions
+        test -s $root/vol/subvol/subvolfile
+        test -s $root/vol/anothervolfile
+      fi
+      # and these were ADDed
+      test -s $root/vol/Dockerfile
+      test -s $root/vol/Dockerfile2
+      run_buildah rm ${cid}
+      run_buildah rmi ${target}
+    done
+  done
 }
 
 # Helper function for several of the tests which pull from http.
@@ -2701,16 +2716,33 @@ function validate_instance_compression {
   skip_if_no_runtime
 
   _prefetch alpine
-  target=volume-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} --compat-volumes=true $BUDFILES/volume-perms
-  run_buildah from --quiet $WITH_POLICY_JSON ${target}
-  cid=$output
-  run_buildah mount ${cid}
-  root=$output
-  test ! -s $root/vol/subvol/subvolfile
-  run stat -c %f $root/vol/subvol
-  assert "$status" -eq 0 "status code from stat $root/vol/subvol"
-  expect_output "41ed" "stat($root/vol/subvol) [0x41ed = 040755]"
+  for layers in "" --layers ; do
+    for compat in "" --compat-volumes ; do
+      target=volume-image$compat$layers
+      run_buildah build $WITH_POLICY_JSON -t ${target} ${layers} ${compat} $BUDFILES/volume-perms
+      run_buildah from --quiet $WITH_POLICY_JSON ${target}
+      cid=$output
+      run_buildah mount ${cid}
+      root=$output
+      if test "$compat" != "" ; then
+        # true, /vol/subvol should not have contents, and its permissions should be the default 0755
+        test -d $root/vol/subvol
+        test ! -s $root/vol/subvol/subvolfile
+        run stat -c %a $root/vol/subvol
+        assert "$status" -eq 0 "status code from stat $root/vol/subvol"
+        expect_output "755" "stat($root/vol/subvol)"
+      else
+        # true, /vol/subvol should have contents, and its permissions should be the changed 0711
+        test -d $root/vol/subvol
+        test -s $root/vol/subvol/subvolfile
+        run stat -c %a $root/vol/subvol
+        assert "$status" -eq 0 "status code from stat $root/vol/subvol"
+        expect_output "711" "stat($root/vol/subvol)"
+      fi
+      run_buildah rm ${cid}
+      run_buildah rmi ${target}
+    done
+  done
 }
 
 @test "bud-volume-ownership" {
