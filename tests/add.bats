@@ -321,3 +321,16 @@ stuff/mystuff"
   run_buildah 125 add --retry-delay=0.142857s --retry=14 --cert-dir ${TEST_SCRATCH_DIR} $cid https://localhost:${HTTP_SERVER_PORT}/randomfile
   assert "$output" =~ "retrying in 142.*ms .*14/14.*"
 }
+
+@test "add file with IMA xattr" {
+    if ! getfattr -d -n 'security.ima' /usr/libexec/catatonit/catatonit | grep -q ima; then
+	skip "catatonit does not have IMA xattr, cannot perform test"
+    fi
+
+    run_buildah from --quiet scratch
+    cid=$output
+
+    # We do not care if the attribute was actually added, as rootless is allowed to discard it.
+    # Only that the add was actually successful.
+    run_buildah add $cid /usr/libexec/catatonit/catatonit /catatonit
+}
