@@ -757,7 +757,7 @@ func GetConfidentialWorkloadOptions(arg string) (define.ConfidentialWorkloadOpti
 			if options.AttestationURL == option {
 				options.AttestationURL = strings.TrimPrefix(option, "attestation-url=")
 			}
-		case strings.HasPrefix(option, "passphrase="), strings.HasPrefix(option, "passphrase="):
+		case strings.HasPrefix(option, "passphrase="):
 			options.Convert = true
 			options.DiskEncryptionPassphrase = strings.TrimPrefix(option, "passphrase=")
 		case strings.HasPrefix(option, "workload_id="), strings.HasPrefix(option, "workload-id="):
