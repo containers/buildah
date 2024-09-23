@@ -142,7 +142,7 @@ func before(cmd *cobra.Command) error {
 	}
 
 	switch cmd.Use {
-	case "", "help", "version", "mount":
+	case "", "help", "login", "logout", "manifest", "mount", "source", "unmount", "version":
 		return nil
 	}
 	debugCapabilities()
