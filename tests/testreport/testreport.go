@@ -12,9 +12,9 @@ import (
 
 	"github.com/containers/buildah/tests/testreport/types"
 	"github.com/containers/storage/pkg/mount"
+	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
@@ -107,7 +107,7 @@ func getProcessCapabilities(r *types.TestReport) error {
 		capability.AMBIENT:     &r.Spec.Process.Capabilities.Ambient,
 	}
 	for capType, capList := range caplistMap {
-		for _, cap := range capability.List() {
+		for _, cap := range capability.ListKnown() {
 			if capabilities.Get(capType, cap) {
 				*capList = append(*capList, strings.ToUpper("cap_"+cap.String()))
 			}
