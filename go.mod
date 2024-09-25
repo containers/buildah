@@ -21,6 +21,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.16.0
+	github.com/moby/sys/capability v0.3.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.2.0-rc.3
@@ -33,7 +34,6 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
-	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.11
 	golang.org/x/crypto v0.27.0
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
@@ -128,6 +128,7 @@ require (
 	github.com/sigstore/sigstore v1.8.4 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 // indirect
 	github.com/sylabs/sif/v2 v2.18.0 // indirect
+	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
