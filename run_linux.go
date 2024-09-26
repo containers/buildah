@@ -1880,9 +1880,6 @@ func setupCapAdd(g *generate.Generator, caps ...string) error {
 		if err := g.AddProcessCapabilityPermitted(cap); err != nil {
 			return errors.Wrapf(err, "error adding %q to the permitted capability set", cap)
 		}
-		if err := g.AddProcessCapabilityAmbient(cap); err != nil {
-			return errors.Wrapf(err, "error adding %q to the ambient capability set", cap)
-		}
 	}
 	return nil
 }
@@ -1897,9 +1894,6 @@ func setupCapDrop(g *generate.Generator, caps ...string) error {
 		}
 		if err := g.DropProcessCapabilityPermitted(cap); err != nil {
 			return errors.Wrapf(err, "error removing %q from the permitted capability set", cap)
-		}
-		if err := g.DropProcessCapabilityAmbient(cap); err != nil {
-			return errors.Wrapf(err, "error removing %q from the ambient capability set", cap)
 		}
 	}
 	return nil
