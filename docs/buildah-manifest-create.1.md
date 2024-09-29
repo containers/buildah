@@ -1,4 +1,4 @@
-# buildah-manifest-create "16" "August 2022" "buildah"
+# buildah-manifest-create "1" "August 2022" "buildah"
 
 ## NAME
 
