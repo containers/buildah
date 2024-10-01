@@ -6661,3 +6661,28 @@ _EOF
   assert "$status" -eq 2 "exit code from ls"
   expect_output --substring "No such file or directory"
 }
+
+@test "build-validates-bind-bind-propagation" {
+  _prefetch alpine
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine as base
+FROM alpine
+RUN --mount=type=bind,from=base,source=/,destination=/var/empty,rw,bind-propagation=suid pwd
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "invalid mount option"
+}
+
+@test "build-validates-cache-bind-propagation" {
+  _prefetch alpine
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=cache,destination=/var/empty,rw,bind-propagation=suid pwd
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "invalid mount option"
+}
