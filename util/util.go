@@ -17,6 +17,7 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/pkg/shortnames"
 	"github.com/containers/image/v5/signature"
+	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -45,6 +46,31 @@ var RegistryDefaultPathPrefix = map[string]string{
 // StringInSlice is deprecated, use golang.org/x/exp/slices.Contains
 func StringInSlice(s string, slice []string) bool {
 	return slices.Contains(slice, s)
+}
+
+func ImageStringToImageReference(image string) (types.ImageReference, error) {
+	dest, err := alltransports.ParseImageName(image)
+	// add the docker:// transport to see if they neglected it.
+	if err != nil {
+		destTransport := strings.Split(image, ":")[0]
+		if t := transports.Get(destTransport); t != nil {
+			return nil, err
+		}
+
+		if strings.Contains(image, "://") {
+			return nil, err
+		}
+
+		image = "docker://" + image
+		dest2, err2 := alltransports.ParseImageName(image)
+		if err2 != nil {
+			return nil, err
+		}
+		dest = dest2
+		logrus.Debugf("Assuming docker:// as the transport method for DESTINATION: %s", image)
+	}
+
+	return dest, nil
 }
 
 // resolveName checks if name is a valid image name, and if that name doesn't

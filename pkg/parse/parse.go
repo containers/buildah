@@ -656,29 +656,34 @@ func AuthConfig(creds string) (*types.DockerAuthConfig, error) {
 
 // GetBuildOutput is responsible for parsing custom build output argument i.e `build --output` flag.
 // Takes `buildOutput` as string and returns BuildOutputOption
-func GetBuildOutput(buildOutput string) (define.BuildOutputOption, error) {
+func GetBuildOutput(buildOutput, image string) (define.BuildOutputOption, error) {
 	if len(buildOutput) == 1 && buildOutput == "-" {
 		// Feature parity with buildkit, output tar to stdout
 		// Read more here: https://docs.docker.com/engine/reference/commandline/build/#custom-build-outputs
 		return define.BuildOutputOption{
 			Path:     "",
-			IsDir:    false,
 			IsStdout: true,
+			Type:     define.BuildOutputTar,
 		}, nil
 	}
-	if !strings.Contains(buildOutput, ",") {
-		// expect default --output <dirname>
-		return define.BuildOutputOption{
-			Path:     buildOutput,
-			IsDir:    true,
-			IsStdout: false,
-		}, nil
+
+	// TODO: breaking change if we remove this; flag syntax change
+	// see: https://github.com/containers/buildah/pull/4677/files#r1267278612
+	// if !strings.Contains(buildOutput, ",") {
+	// 	// expect default --output <dirname>
+	// 	return define.BuildOutputOption{
+	// 		Path:     buildOutput,
+	// 		IsDir:    true,
+	// 		IsStdout: false,
+	// 	}, nil
+	// }
+
+	out := define.BuildOutputOption{
+		IsStdout: false,
 	}
-	isDir := true
-	isStdout := false
+
 	typeSelected := false
 	pathSelected := false
-	path := ""
 	tokens := strings.Split(buildOutput, ",")
 	for _, option := range tokens {
 		arr := strings.SplitN(option, "=", 2)
@@ -691,40 +696,54 @@ func GetBuildOutput(buildOutput string) (define.BuildOutputOption, error) {
 				return define.BuildOutputOption{}, fmt.Errorf("duplicate %q not supported", arr[0])
 			}
 			typeSelected = true
-			if arr[1] == "local" {
-				isDir = true
-			} else if arr[1] == "tar" {
-				isDir = false
-			} else {
-				return define.BuildOutputOption{}, fmt.Errorf("invalid type %q selected for build output options %q", arr[1], buildOutput)
+			switch exportType := arr[1]; exportType {
+			case "local":
+				out.Type = define.BuildOutputLocal
+			case "tar":
+				out.Type = define.BuildOutputTar
+			case "image", "registry":
+				// --type=registry ==> --type=image,push=true
+				out.Type = define.BuildOutputImage
+				out.Image = image
+
+				if exportType == "registry" {
+					out.Push = true
+				}
+			default:
+				return define.BuildOutputOption{}, fmt.Errorf("invalid type %q selected for build output options %q", exportType, buildOutput)
 			}
 		case "dest":
 			if pathSelected {
 				return define.BuildOutputOption{}, fmt.Errorf("duplicate %q not supported", arr[0])
 			}
 			pathSelected = true
-			path = arr[1]
+			out.Path = arr[1]
+		case "push":
+			if out.Type != define.BuildOutputImage {
+				return define.BuildOutputOption{}, fmt.Errorf("push can only be used with type=image")
+			}
+			out.Push = true
 		default:
 			return define.BuildOutputOption{}, fmt.Errorf("unrecognized key %q in build output option: %q", arr[0], buildOutput)
 		}
 	}
 
-	if !typeSelected || !pathSelected {
-		return define.BuildOutputOption{}, fmt.Errorf("invalid build output option %q, accepted keys are type and dest must be present", buildOutput)
+	if !typeSelected && !pathSelected {
+		return define.BuildOutputOption{}, fmt.Errorf("invalid build output option %q, accepted keys type and dest must be present", buildOutput)
 	}
 
-	if path == "-" {
-		if isDir {
+	if out.Path == "-" {
+		if out.Type == define.BuildOutputLocal {
 			return define.BuildOutputOption{}, fmt.Errorf("invalid build output option %q, type=local and dest=- is not supported", buildOutput)
 		}
 		return define.BuildOutputOption{
 			Path:     "",
-			IsDir:    false,
 			IsStdout: true,
+			Type:     define.BuildOutputTar,
 		}, nil
 	}
 
-	return define.BuildOutputOption{Path: path, IsDir: isDir, IsStdout: isStdout}, nil
+	return out, nil
 }
 
 // TeeType parses a string value and returns a TeeType
