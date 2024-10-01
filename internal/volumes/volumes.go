@@ -102,6 +102,12 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 			if len(kv) == 1 {
 				return newMount, "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
+			switch kv[1] {
+			default:
+				return newMount, "", fmt.Errorf("%v: %q: %w", kv[0], kv[1], errBadMntOption)
+			case "shared", "rshared", "private", "rprivate", "slave", "rslave":
+				// this should be the relevant parts of the same list of options we accepted above
+			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "src", "source":
 			if len(kv) == 1 {
@@ -276,6 +282,12 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		case "bind-propagation":
 			if len(kv) == 1 {
 				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+			}
+			switch kv[1] {
+			default:
+				return newMount, nil, fmt.Errorf("%v: %q: %w", kv[0], kv[1], errBadMntOption)
+			case "shared", "rshared", "private", "rprivate", "slave", "rslave":
+				// this should be the relevant parts of the same list of options we accepted above
 			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "id":
