@@ -15,10 +15,10 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/unshare"
+	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
 
@@ -180,9 +180,9 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 		capability.EFFECTIVE:   spec.Process.Capabilities.Effective,
 		capability.INHERITABLE: {},
 		capability.PERMITTED:   spec.Process.Capabilities.Permitted,
-		capability.AMBIENT:     spec.Process.Capabilities.Ambient,
+		capability.AMBIENT:     {},
 	}
-	knownCaps := capability.List()
+	knownCaps := capability.ListKnown()
 	noCap := capability.Cap(-1)
 	for capType, capList := range capMap {
 		for _, capSpec := range capList {
