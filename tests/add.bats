@@ -307,7 +307,7 @@ stuff/mystuff"
   expect_output --substring "checksum flag is not supported for local sources"
 }
 
-@test add-https-retry-ca {
+@test "add https retry ca" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   mkdir -p ${TEST_SCRATCH_DIR}/private
   starthttpd ${TEST_SCRATCH_DIR} "" ${TEST_SCRATCH_DIR}/localhost.crt ${TEST_SCRATCH_DIR}/private/localhost.key
