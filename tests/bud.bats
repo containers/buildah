@@ -6905,7 +6905,7 @@ _EOF
   expect_output --substring "\-\-platform=$platform"
 }
 
-@test build-add-https-retry-ca {
+@test "build add https retry ca" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   mkdir -p ${TEST_SCRATCH_DIR}/private
   starthttpd ${TEST_SCRATCH_DIR} "" ${TEST_SCRATCH_DIR}/localhost.crt ${TEST_SCRATCH_DIR}/private/localhost.key
