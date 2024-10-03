@@ -30,7 +30,7 @@ original instance.
 **--all**
 
 Push the images mentioned in the manifest list or image index, in addition to
-the list or index itself.
+the list or index itself. (Default true)
 
 **--authfile** *path*
 

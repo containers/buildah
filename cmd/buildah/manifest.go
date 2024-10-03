@@ -246,7 +246,7 @@ func init() {
 	manifestPushCommand.SetUsageTemplate(UsageTemplate())
 	flags = manifestPushCommand.Flags()
 	flags.BoolVar(&manifestPushOpts.rm, "rm", false, "remove the manifest list if push succeeds")
-	flags.BoolVar(&manifestPushOpts.all, "all", false, "also push the images in the list")
+	flags.BoolVar(&manifestPushOpts.all, "all", true, "also push the images in the list")
 	flags.StringVar(&manifestPushOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&manifestPushOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&manifestPushOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")

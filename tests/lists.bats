@@ -226,6 +226,11 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     expect_output --substring ${IMAGE_LIST_S390X_INSTANCE_DIGEST##sha256:}
 }
 
+@test "manifest-push-all-default-true" {
+    run_buildah manifest push --help
+    expect_output --substring "all.*\(default true\).*authfile"
+}
+
 @test "manifest-push-purge" {
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST}
