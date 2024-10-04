@@ -35,11 +35,11 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	go.etcd.io/bbolt v1.3.11
-	golang.org/x/crypto v0.27.0
+	golang.org/x/crypto v0.28.0
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
 	golang.org/x/sync v0.8.0
-	golang.org/x/sys v0.25.0
-	golang.org/x/term v0.24.0
+	golang.org/x/sys v0.26.0
+	golang.org/x/term v0.25.0
 	sigs.k8s.io/yaml v1.4.0
 	tags.cncf.io/container-device-interface v0.8.0
 )
@@ -108,7 +108,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
-	github.com/moby/sys/capability v0.3.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect
@@ -146,7 +145,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
