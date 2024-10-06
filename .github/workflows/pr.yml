@@ -4,7 +4,7 @@ on:
 
 jobs:
   commit:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # Only check commits on pull requests.
     if: github.event_name == 'pull_request'
     steps:

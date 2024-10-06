@@ -223,7 +223,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 					})
 				}
 			}
-			err = b.addHostsEntries(hostsFile, mountPoint, entries, nil)
+			err = b.addHostsEntries(hostsFile, mountPoint, entries, nil, "")
 			if err != nil {
 				return err
 			}

@@ -246,7 +246,7 @@ func init() {
 	manifestPushCommand.SetUsageTemplate(UsageTemplate())
 	flags = manifestPushCommand.Flags()
 	flags.BoolVar(&manifestPushOpts.rm, "rm", false, "remove the manifest list if push succeeds")
-	flags.BoolVar(&manifestPushOpts.all, "all", false, "also push the images in the list")
+	flags.BoolVar(&manifestPushOpts.all, "all", true, "also push the images in the list")
 	flags.StringVar(&manifestPushOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&manifestPushOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&manifestPushOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
@@ -432,24 +432,21 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	switch len(args) {
 	case 0, 1:
 		return errors.New("At least a list image and an image or artifact to add must be specified")
-	case 2:
+	default:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return fmt.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf("Invalid image name %q", args[0])
 		}
 		if opts.artifact {
 			artifactSpec = args[1:]
 		} else {
+			if len(args) > 2 {
+				return errors.New("Too many arguments: expected list and image add to list")
+			}
 			imageSpec = args[1]
 			if imageSpec == "" {
-				return fmt.Errorf(`Invalid image name "%s"`, args[1])
+				return fmt.Errorf("Invalid image name %q", args[1])
 			}
-		}
-	default:
-		if opts.artifact {
-			artifactSpec = args[1:]
-		} else {
-			return errors.New("Too many arguments: expected list and image add to list")
 		}
 	}
 

@@ -2,7 +2,7 @@
 
 load helpers
 
-@test chroot-mount-flags {
+@test "chroot mount flags" {
   skip_if_no_unshare
   if ! test -e /etc/subuid ; then
     skip "we can't bind mount over /etc/subuid during the test if there is no /etc/subuid file"

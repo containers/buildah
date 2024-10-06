@@ -2468,18 +2468,33 @@ _EOF
   skip_if_no_runtime
 
   _prefetch alpine
-  target=volume-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} --compat-volumes $BUDFILES/preserve-volumes
-  run_buildah from --quiet ${target}
-  cid=$output
-  run_buildah mount ${cid}
-  root=$output
-  test -s $root/vol/subvol/subsubvol/subsubvolfile
-  test ! -s $root/vol/subvol/subvolfile
-  test -s $root/vol/volfile
-  test -s $root/vol/Dockerfile
-  test -s $root/vol/Dockerfile2
-  test ! -s $root/vol/anothervolfile
+  for layers in "" --layers ; do
+    for compat in "" --compat-volumes ; do
+      target=volume-image$compat$layers
+      run_buildah build $WITH_POLICY_JSON -t ${target} ${layers} ${compat} $BUDFILES/preserve-volumes
+      run_buildah from --quiet ${target}
+      cid=$output
+      run_buildah mount ${cid}
+      root=$output
+      # these files were created before VOLUME instructions froze the directories that contained them
+      test -s $root/vol/subvol/subsubvol/subsubvolfile
+      test -s $root/vol/volfile
+      if test "$compat" != "" ; then
+        # true, these files should have been discarded after they were created by RUN instructions
+        test ! -s $root/vol/subvol/subvolfile
+        test ! -s $root/vol/anothervolfile
+      else
+        # false, these files should not have been discarded, despite being created by RUN instructions
+        test -s $root/vol/subvol/subvolfile
+        test -s $root/vol/anothervolfile
+      fi
+      # and these were ADDed
+      test -s $root/vol/Dockerfile
+      test -s $root/vol/Dockerfile2
+      run_buildah rm ${cid}
+      run_buildah rmi ${target}
+    done
+  done
 }
 
 # Helper function for several of the tests which pull from http.
@@ -2701,16 +2716,33 @@ function validate_instance_compression {
   skip_if_no_runtime
 
   _prefetch alpine
-  target=volume-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} --compat-volumes=true $BUDFILES/volume-perms
-  run_buildah from --quiet $WITH_POLICY_JSON ${target}
-  cid=$output
-  run_buildah mount ${cid}
-  root=$output
-  test ! -s $root/vol/subvol/subvolfile
-  run stat -c %f $root/vol/subvol
-  assert "$status" -eq 0 "status code from stat $root/vol/subvol"
-  expect_output "41ed" "stat($root/vol/subvol) [0x41ed = 040755]"
+  for layers in "" --layers ; do
+    for compat in "" --compat-volumes ; do
+      target=volume-image$compat$layers
+      run_buildah build $WITH_POLICY_JSON -t ${target} ${layers} ${compat} $BUDFILES/volume-perms
+      run_buildah from --quiet $WITH_POLICY_JSON ${target}
+      cid=$output
+      run_buildah mount ${cid}
+      root=$output
+      if test "$compat" != "" ; then
+        # true, /vol/subvol should not have contents, and its permissions should be the default 0755
+        test -d $root/vol/subvol
+        test ! -s $root/vol/subvol/subvolfile
+        run stat -c %a $root/vol/subvol
+        assert "$status" -eq 0 "status code from stat $root/vol/subvol"
+        expect_output "755" "stat($root/vol/subvol)"
+      else
+        # true, /vol/subvol should have contents, and its permissions should be the changed 0711
+        test -d $root/vol/subvol
+        test -s $root/vol/subvol/subvolfile
+        run stat -c %a $root/vol/subvol
+        assert "$status" -eq 0 "status code from stat $root/vol/subvol"
+        expect_output "711" "stat($root/vol/subvol)"
+      fi
+      run_buildah rm ${cid}
+      run_buildah rmi ${target}
+    done
+  done
 }
 
 @test "bud-volume-ownership" {
@@ -6157,6 +6189,18 @@ _EOF
   assert "$manifests" = "amd64 arm64 ppc64le s390x" "arch list in manifest"
 }
 
+@test "bud-targetplatform-as-build-arg" {
+  outputlist=localhost/testlist
+  for targetplatform in linux/arm64 linux/amd64 ; do
+    run_buildah build $WITH_POLICY_JSON \
+              --build-arg SAFEIMAGE=$SAFEIMAGE \
+              --build-arg TARGETPLATFORM=$targetplatform \
+              -f $BUDFILES/multiarch/Dockerfile.built-in-args \
+              $BUDFILES/multiarch
+    expect_output --substring "I'm compiling for $targetplatform"
+  done
+}
+
 # * Performs multi-stage build with label1=value1 and verifies
 # * Relabels build with label1=value2 and verifies
 # * Rebuild with label1=value1 and makes sure everything is used from cache
@@ -6861,7 +6905,7 @@ _EOF
   expect_output --substring "\-\-platform=$platform"
 }
 
-@test build-add-https-retry-ca {
+@test "build add https retry ca" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   mkdir -p ${TEST_SCRATCH_DIR}/private
   starthttpd ${TEST_SCRATCH_DIR} "" ${TEST_SCRATCH_DIR}/localhost.crt ${TEST_SCRATCH_DIR}/private/localhost.key
@@ -6874,4 +6918,56 @@ _EOF
   stophttpd
   run_buildah 125 build --retry-delay=0.142857s --retry=14 --cert-dir ${TEST_SCRATCH_DIR} $cid ${TEST_SCRATCH_DIR}
   assert "$output" =~ "retrying in 142.*ms .*14/14.*"
+}
+
+@test "bud with ADD with git repository source" {
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/add-git
+  mkdir -p $contextdir
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+RUN apk add git
+
+ADD https://github.com/containers/podman.git#v5.0 /podman-branch
+ADD https://github.com/containers/podman.git#v5.0.0 /podman-tag
+_EOF
+
+  run_buildah build -f $contextdir/Dockerfile -t git-image $contextdir
+  run_buildah from --quiet $WITH_POLICY_JSON --name testctr git-image
+
+  run_buildah run testctr -- sh -c 'cd podman-branch && git rev-parse HEAD'
+  local_head_hash=$output
+  run_buildah run testctr -- sh -c 'cd podman-branch && git ls-remote origin v5.0 | cut -f1'
+  assert "$output" = "$local_head_hash"
+
+  run_buildah run testctr -- sh -c 'cd podman-tag && git rev-parse HEAD'
+  local_head_hash=$output
+  run_buildah run testctr -- sh -c 'cd podman-tag && git ls-remote --tags origin v5.0.0^{} | cut -f1'
+  assert "$output" = "$local_head_hash"
+}
+
+@test "build-validates-bind-bind-propagation" {
+  _prefetch alpine
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine as base
+FROM alpine
+RUN --mount=type=bind,from=base,source=/,destination=/var/empty,rw,bind-propagation=suid pwd
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "invalid mount option"
+}
+
+@test "build-validates-cache-bind-propagation" {
+  _prefetch alpine
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=cache,destination=/var/empty,rw,bind-propagation=suid pwd
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "invalid mount option"
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/containers/buildah/bind"
@@ -18,6 +19,7 @@ import (
 	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/internal/volumes"
+	"github.com/containers/buildah/pkg/binfmt"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	butil "github.com/containers/buildah/pkg/util"
@@ -49,14 +51,19 @@ import (
 	"tags.cncf.io/container-device-interface/pkg/parser"
 )
 
-// We dont want to remove destinations with /etc, /dev, /sys,
-// /proc as rootfs already contains these files and unionfs
-// will create a `whiteout` i.e `.wh` files on removal of
-// overlapping files from these directories.  everything other
-// than these will be cleaned up
-var nonCleanablePrefixes = []string{
-	"/etc", "/dev", "/sys", "/proc",
-}
+var (
+	// We dont want to remove destinations with /etc, /dev, /sys,
+	// /proc as rootfs already contains these files and unionfs
+	// will create a `whiteout` i.e `.wh` files on removal of
+	// overlapping files from these directories.  everything other
+	// than these will be cleaned up
+	nonCleanablePrefixes = []string{
+		"/etc", "/dev", "/sys", "/proc",
+	}
+	// binfmtRegistered makes sure we only try to register binfmt_misc
+	// interpreters once, the first time we handle a RUN instruction.
+	binfmtRegistered sync.Once
+)
 
 func setChildProcess() error {
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
@@ -158,6 +165,21 @@ func separateDevicesFromRuntimeSpec(g *generate.Generator) define.ContainerDevic
 
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
+	if os.Getenv("container") != "" {
+		os, arch, variant, err := parse.Platform("")
+		if err != nil {
+			return fmt.Errorf("reading the current default platform")
+		}
+		platform := b.OCIv1.Platform
+		if os != platform.OS || arch != platform.Architecture || variant != platform.Variant {
+			binfmtRegistered.Do(func() {
+				if err := binfmt.Register(nil); err != nil {
+					logrus.Warnf("registering binfmt_misc interpreters: %v", err)
+				}
+			})
+		}
+	}
+
 	p, err := os.MkdirTemp(tmpdir.GetTempDir(), define.Package)
 	if err != nil {
 		return err
@@ -393,7 +415,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 					})
 				}
 			}
-			err = b.addHostsEntries(hostsFile, mountPoint, entries, nil)
+			err = b.addHostsEntries(hostsFile, mountPoint, entries, nil, "")
 			if err != nil {
 				return err
 			}
@@ -652,7 +674,7 @@ func setupSlirp4netnsNetwork(config *config.Config, netns, cid string, options, 
 }
 
 func setupPasta(config *config.Config, netns string, options, hostnames []string) (func(), *netResult, error) {
-	res, err := pasta.Setup2(&pasta.SetupOptions{
+	res, err := pasta.Setup(&pasta.SetupOptions{
 		Config:       config,
 		Netns:        netns,
 		ExtraOptions: options,
@@ -666,12 +688,18 @@ func setupPasta(config *config.Config, netns string, options, hostnames []string
 		entries = etchosts.HostEntries{{IP: res.IPAddresses[0].String(), Names: hostnames}}
 	}
 
+	mappedIP := ""
+	if len(res.MapGuestAddrIPs) > 0 {
+		mappedIP = res.MapGuestAddrIPs[0]
+	}
+
 	result := &netResult{
-		entries:           entries,
-		dnsServers:        res.DNSForwardIPs,
-		excludeIPs:        res.IPAddresses,
-		ipv6:              res.IPv6,
-		keepHostResolvers: true,
+		entries:                           entries,
+		dnsServers:                        res.DNSForwardIPs,
+		excludeIPs:                        res.IPAddresses,
+		ipv6:                              res.IPv6,
+		keepHostResolvers:                 true,
+		preferredHostContainersInternalIP: mappedIP,
 	}
 
 	return nil, result, nil
@@ -1190,9 +1218,6 @@ func setupCapAdd(g *generate.Generator, caps ...string) error {
 		if err := g.AddProcessCapabilityPermitted(cap); err != nil {
 			return fmt.Errorf("adding %q to the permitted capability set: %w", cap, err)
 		}
-		if err := g.AddProcessCapabilityAmbient(cap); err != nil {
-			return fmt.Errorf("adding %q to the ambient capability set: %w", cap, err)
-		}
 	}
 	return nil
 }
@@ -1207,9 +1232,6 @@ func setupCapDrop(g *generate.Generator, caps ...string) error {
 		}
 		if err := g.DropProcessCapabilityPermitted(cap); err != nil {
 			return fmt.Errorf("removing %q from the permitted capability set: %w", cap, err)
-		}
-		if err := g.DropProcessCapabilityAmbient(cap); err != nil {
-			return fmt.Errorf("removing %q from the ambient capability set: %w", cap, err)
 		}
 	}
 	return nil

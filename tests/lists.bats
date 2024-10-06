@@ -75,6 +75,14 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest rm foo
 }
 
+@test "manifest-add-multiple-artifacts" {
+    run_buildah manifest create foo
+    createrandom $TEST_SCRATCH_DIR/randomfile4
+    createrandom $TEST_SCRATCH_DIR/randomfile3
+    run_buildah manifest add --artifact foo $TEST_SCRATCH_DIR/randomfile3 $TEST_SCRATCH_DIR/randomfile4
+    run_buildah manifest push --all foo oci:$TEST_SCRATCH_DIR/pushed
+}
+
 @test "manifest-add local image" {
     target=scratch-image
     run_buildah bud $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
@@ -216,6 +224,11 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST##sha256:}
     expect_output --substring ${IMAGE_LIST_PPC64LE_INSTANCE_DIGEST##sha256:}
     expect_output --substring ${IMAGE_LIST_S390X_INSTANCE_DIGEST##sha256:}
+}
+
+@test "manifest-push-all-default-true" {
+    run_buildah manifest push --help
+    expect_output --substring "all.*\(default true\).*authfile"
 }
 
 @test "manifest-push-purge" {
