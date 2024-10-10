@@ -10,6 +10,24 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+// Consumes mount flag in format of `--mount=type=bind,src=/path,from=image` and
+// return values of `src` and `from`, values are empty if keys are not present in the option.
+func GetFromAndSourceKeysFromMountFlag(mount string) (string, string) {
+	tokens := strings.Split(mount, ",")
+	source := ""
+	from := ""
+	for _, option := range tokens {
+		optionSplit := strings.Split(option, "=")
+		if optionSplit[0] == "src" || optionSplit[0] == "source" {
+			source = optionSplit[1]
+		}
+		if optionSplit[0] == "from" {
+			from = optionSplit[1]
+		}
+	}
+	return source, from
+}
+
 // ValidateVolumeMountHostDir validates the host path of buildah --volume
 func ValidateVolumeMountHostDir(hostDir string) error {
 	if !filepath.IsAbs(hostDir) {
