@@ -1,0 +1,101 @@
+#!/bin/bash
+#
+# bats wrapper - invokes bats, root & rootless, on buildah system tests
+#
+
+###############################################################################
+# BEGIN usage message
+
+usage="Usage: $0 [--root] [--rootless] [FILENAME-PATTERN[:TEST-PATTERN]]
+
+$0 is a wrapper for invoking buildah system tests.
+
+   FILENAME-PATTERN Run only test files that match 'test/system/*name*',
+                    e.g. '500' or 'net' will match 500-networking.bats.
+
+   TEST-PATTERN     When appended to a filename-pattern, and you have a
+                    modern-enough version of bats installed (i.e. Fedora
+                    but not RHEL), runs with '--filter TEST-PATTERN' which
+                    runs only subtests within FILENAME-PATTERH whose names
+                    match that string.
+
+   -P             Parallel. Passes \"-j 4\" to bats.
+   -T             Passed on to bats, which will then show timing data
+
+   --help         display usage message
+
+By default, tests ./bin/buildah. To test a different buildah, do:
+
+    \$ BUILDAH=/abs/path/to/buildah $0 ....
+
+$0 also passes through \$OCI_RUNTIME, should you need to test that.
+"
+
+# END   usage message
+###############################################################################
+# BEGIN initialization and command-line arg checking
+
+export TMPDIR=/var/tmp
+export BUILDAH_BINARY=${BUILDAH_BINARY:-$(pwd)/bin/buildah}
+export IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(pwd)/bin/imgtype}
+export COPY_BINARY=${COPY_BINARY:-$(pwd)/bin/copy}
+
+TESTS=tests
+
+ROOT_ONLY=
+ROOTLESS_ONLY=
+
+declare -a bats_opts=()
+declare -a bats_filter=()
+
+for i;do
+    value=`expr "$i" : '[^=]*=\(.*\)'`
+    case "$i" in
+        -h|--help)  echo "$usage"; exit 0;;
+        --root)     ROOT_ONLY=1 ;;
+        --rootless) ROOTLESS_ONLY=1 ;;
+        --ts|-T)    bats_opts+=("-T") ;;
+        --parallel|-P) bats_opts+=("-j" "4") ;;
+        */*.bats)   TESTS=$i ;;
+        *)
+            if [[ $i =~ : ]]; then
+                tname=${i%:*}
+                filt=${i#*:}
+                TESTS=$TESTS/*$tname*.bats
+                bats_filter=("--filter" "$filt")
+            else
+                TESTS=$TESTS/*$i*.bats
+            fi
+            ;;
+    esac
+done
+
+# END   initialization and command-line arg checking
+###############################################################################
+
+rc=0
+
+if [ -z "$ROOTLESS_ONLY" ]; then
+    echo "# bats ${bats_filter[@]} $TESTS"
+    sudo    --preserve-env=BUILDAH_BINARY \
+	    --preserve-env=IMGTYPE_BINARY \
+	    --preserve-env=COPY_BINARY \
+            --preserve-env=OCI_RUNTIME \
+	    bats "${bats_opts[@]}" "${bats_filter[@]}" $TESTS
+    rc=$?
+fi
+
+# FIXME: no rootless buildah tests for now
+#exit $rc
+
+#
+# Nonroot
+#
+echo "--------------------------------------------------"
+if [ -z "$ROOT_ONLY" ]; then
+    echo "\$ bats ${bats_filter[@]} $TESTS"
+    bats "${bats_opts[@]}" "${bats_filter[@]}" $TESTS
+    rc=$((rc | $?))
+fi
+
+exit $rc
