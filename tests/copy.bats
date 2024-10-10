@@ -359,6 +359,31 @@ stuff/mystuff"
   expect_output --from="$filelist" "$expect" "container file list"
 }
 
+@test "copy --exclude" {
+  mytest=${TEST_SCRATCH_DIR}/mytest
+  mkdir -p ${mytest}
+  touch ${mytest}/mystuff
+  touch ${mytest}/source.go
+  mkdir -p ${mytest}/notmystuff
+  touch ${mytest}/notmystuff/notmystuff
+
+expect="
+stuff
+stuff/mystuff"
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah copy --exclude=**/*.go --exclude=.ignore --exclude=**/notmystuff $cid ${mytest} /stuff
+
+  run_buildah mount $cid
+  mnt=$output
+  run find $mnt -printf "%P\n"
+  filelist=$(LC_ALL=C sort <<<"$output")
+  run_buildah umount $cid
+  expect_output --from="$filelist" "$expect" "container file list"
+}
+
 @test "copy-quiet" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   _prefetch alpine
