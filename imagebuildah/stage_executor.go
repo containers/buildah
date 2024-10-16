@@ -674,7 +674,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 								mountPoint = additionalBuildContext.DownloadedCache
 							}
 						}
-						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: true, MountPoint: mountPoint}
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: false, DidExecute: true, MountPoint: mountPoint}
 						break
 					}
 					// If the source's name corresponds to the
@@ -1477,7 +1477,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			return "", nil, false, err
 		}
 		for _, mountPoint := range stageMountPoints {
-			if mountPoint.DidExecute {
+			if mountPoint.DidExecute && mountPoint.IsStage {
 				avoidLookingCache = true
 			}
 		}
