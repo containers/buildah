@@ -6006,7 +6006,7 @@ _EOF
 SOMESECRETDATA
 _EOF
 
-  run_buildah bud --secret=id=mysecret,src=${mytmpdir}/mysecret $WITH_POLICY_JSON  -t secretmode -f $BUDFILES/run-mounts/Dockerfile.secret-mode $BUDFILES/run-mounts
+  run_buildah bud --secret=id=mysecret,src=${mytmpdir}/mysecret,type=file $WITH_POLICY_JSON  -t secretmode -f $BUDFILES/run-mounts/Dockerfile.secret-mode $BUDFILES/run-mounts
   expect_output --substring "400"
 }
 
@@ -6037,11 +6037,11 @@ _EOF
   _prefetch alpine
 
   run_buildah 125 build $WITH_POLICY_JSON  -t secretreq -f $BUDFILES/run-mounts/Dockerfile.secret-required $BUDFILES/run-mounts
-  expect_output --substring "secret required but no secret with id mysecret found"
+  expect_output --substring 'secret required but no secret with id "mysecret" found'
 
   # Also test secret required without value
   run_buildah 125 build $WITH_POLICY_JSON  -t secretreq -f $BUDFILES/run-mounts/Dockerfile.secret-required-wo-value $BUDFILES/run-mounts
-  expect_output --substring "secret required but no secret with id mysecret found"
+  expect_output --substring 'secret required but no secret with id "mysecret" found'
 }
 
 @test "bud with containerfile env secret" {
@@ -6061,6 +6061,10 @@ _EOF
   run_buildah from secretimg
   run_buildah 1 run secretimg-working-container cat /run/secrets/mysecret
   expect_output --substring "cat: can't open '/run/secrets/mysecret': No such file or directory"
+
+  run_buildah 125 build --secret=id=mysecret2,env=MYSECRET,true=false $WITH_POLICY_JSON -f $BUDFILES/run-mounts/Dockerfile.secret $BUDFILES/run-mounts
+  expect_output --substring "incorrect secret flag format"
+
   run_buildah rm -a
 }
 
