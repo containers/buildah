@@ -37,6 +37,7 @@ type addCopyResults struct {
 	certDir          string
 	retry            int
 	retryDelay       string
+	excludes         []string
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -78,6 +79,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	if err := flags.MarkHidden("decryption-key"); err != nil {
 		panic(fmt.Sprintf("error marking decryption-key as hidden: %v", err))
 	}
+	flags.StringSliceVar(&opts.excludes, "exclude", nil, "exclude pattern when copying files")
 	flags.StringVar(&opts.ignoreFile, "ignorefile", "", "path to .containerignore file")
 	flags.StringVar(&opts.contextdir, "contextdir", "", "context directory path")
 	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
@@ -237,6 +239,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		PreserveOwnership: preserveOwnership,
 		Checksum:          iopts.checksum,
 		ContextDir:        contextdir,
+		Excludes:          iopts.excludes,
 		IDMappingOptions:  idMappingOptions,
 		// These next two fields are set based on command line flags
 		// with more generic-sounding names.
@@ -251,7 +254,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		if err != nil {
 			return err
 		}
-		options.Excludes = excludes
+		options.Excludes = append(excludes, options.Excludes...)
 	}
 	if iopts.retryDelay != "" {
 		retryDelay, err := time.ParseDuration(iopts.retryDelay)

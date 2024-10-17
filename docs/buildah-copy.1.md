@@ -48,6 +48,11 @@ Build context directory. Specifying a context directory causes Buildah to
 chroot into the context directory. This means copying files pointed at
 by symbolic links outside of the chroot will fail.
 
+**--exclude** *pattern*
+
+Exclude copying files matching the specified pattern. Option can be specified
+multiple times. See containerignore(5) for supported formats.
+
 **--from** *containerOrImage*
 
 Use the root directory of the specified working container or image as the root
@@ -85,6 +90,8 @@ talking to an insecure registry.
 ## EXAMPLE
 
 buildah copy containerID '/myapp/app.conf' '/myapp/app.conf'
+
+buildah copy --exclude=**/*.md docs containerID 'docs' '/docs'
 
 buildah copy --chown myuser:mygroup containerID '/myapp/app.conf' '/myapp/app.conf'
 
