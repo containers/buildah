@@ -1456,31 +1456,6 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		return "", err
 	}
 
-	// user namespace requires this to move a directory from lower to upper.
-	rootUID, rootGID, err := idtools.GetRootUIDGID(options.UidMaps, options.GidMaps)
-	if err != nil {
-		return "", err
-	}
-
-	mergedDir := d.getMergedDir(id, dir, inAdditionalStore)
-	// Attempt to create the merged dir if it doesn't exist, but don't chown an already existing directory (it might be in an additional store)
-	if err := idtools.MkdirAllAndChownNew(mergedDir, 0o700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil && !os.IsExist(err) {
-		return "", err
-	}
-
-	if count := d.ctr.Increment(mergedDir); count > 1 {
-		return mergedDir, nil
-	}
-	defer func() {
-		if retErr != nil {
-			if c := d.ctr.Decrement(mergedDir); c <= 0 {
-				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
-					logrus.Errorf("Unmounting %v: %v", mergedDir, mntErr)
-				}
-			}
-		}
-	}()
-
 	readWrite := !inAdditionalStore
 
 	if !d.SupportsShifting() || options.DisableShifting {
@@ -1517,7 +1492,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 				if err := unix.Uname(&uts); err == nil {
 					release = " " + string(uts.Release[:]) + " " + string(uts.Version[:])
 				}
-				logrus.StandardLogger().Logf(logLevel, "Ignoring global metacopy option, not supported with booted kernel %s", release)
+				logrus.StandardLogger().Logf(logLevel, "Ignoring global metacopy option, not supported with booted kernel"+release)
 			} else {
 				logrus.Debugf("Ignoring global metacopy option, the mount program doesn't support it")
 			}
@@ -1600,7 +1575,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 			return "", fmt.Errorf("cannot mount a composefs layer as writeable")
 		}
 
-		dest := filepath.Join(composeFsLayersDir, strconv.Itoa(i))
+		dest := filepath.Join(composeFsLayersDir, fmt.Sprintf("%d", i))
 		if err := os.MkdirAll(dest, 0o700); err != nil {
 			return "", err
 		}
@@ -1708,6 +1683,12 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		optsList = append(optsList, "metacopy=on", "redirect_dir=on")
 	}
 
+	// user namespace requires this to move a directory from lower to upper.
+	rootUID, rootGID, err := idtools.GetRootUIDGID(options.UidMaps, options.GidMaps)
+	if err != nil {
+		return "", err
+	}
+
 	if len(absLowers) == 0 {
 		absLowers = append(absLowers, path.Join(dir, "empty"))
 	}
@@ -1721,6 +1702,26 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 			return "", err
 		}
 	}
+
+	mergedDir := d.getMergedDir(id, dir, inAdditionalStore)
+	// Attempt to create the merged dir only if it doesn't exist.
+	if err := fileutils.Exists(mergedDir); err != nil && os.IsNotExist(err) {
+		if err := idtools.MkdirAllAs(mergedDir, 0o700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+			return "", err
+		}
+	}
+	if count := d.ctr.Increment(mergedDir); count > 1 {
+		return mergedDir, nil
+	}
+	defer func() {
+		if retErr != nil {
+			if c := d.ctr.Decrement(mergedDir); c <= 0 {
+				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
+					logrus.Errorf("Unmounting %v: %v", mergedDir, mntErr)
+				}
+			}
+		}
+	}()
 
 	workdir := path.Join(dir, "work")
 
@@ -1933,7 +1934,7 @@ func (d *Driver) Put(id string) error {
 		// If fusermount|fusermount3 failed to unmount the FUSE file system, make sure all
 		// pending changes are propagated to the file system
 		if !unmounted {
-			fd, err := unix.Open(mountpoint, unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+			fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
 			if err == nil {
 				if err := unix.Syncfs(fd); err != nil {
 					logrus.Debugf("Error Syncfs(%s) - %v", mountpoint, err)
@@ -2127,16 +2128,24 @@ func (d *Driver) DiffGetter(id string) (_ graphdriver.FileGetCloser, Err error) 
 	for _, diffDir := range diffDirs {
 		// diffDir has the form $GRAPH_ROOT/overlay/$ID/diff, so grab the $ID from the parent directory
 		id := path.Base(path.Dir(diffDir))
-		composefsData := d.getComposefsData(id)
-		if fileutils.Exists(composefsData) != nil {
+		composefsBlob := d.getComposefsData(id)
+		if fileutils.Exists(composefsBlob) != nil {
 			// not a composefs layer, ignore it
 			continue
 		}
-		fd, err := openComposefsMount(composefsData)
+		dir, err := os.MkdirTemp(d.runhome, "composefs-mnt")
 		if err != nil {
 			return nil, err
 		}
-		composefsMounts[diffDir] = os.NewFile(uintptr(fd), composefsData)
+		if err := mountComposefsBlob(composefsBlob, dir); err != nil {
+			return nil, err
+		}
+		fd, err := os.Open(dir)
+		if err != nil {
+			return nil, err
+		}
+		composefsMounts[diffDir] = fd
+		_ = unix.Unmount(dir, unix.MNT_DETACH)
 	}
 	return &overlayFileGetter{diffDirs: diffDirs, composefsMounts: composefsMounts}, nil
 }
