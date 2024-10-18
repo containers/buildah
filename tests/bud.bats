@@ -6558,3 +6558,37 @@ _EOF
   assert "$status" -eq 2 "exit code from ls"
   expect_output --substring "No such file or directory"
 }
+
+@test "build-check-cve-2024-9675" {
+  _prefetch alpine
+
+  touch ${TEST_SCRATCH_DIR}/file.txt
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile <<EOF
+FROM alpine
+RUN --mount=type=cache,id=../../../../../../../../../../../$TEST_SCRATCH_DIR,target=/var/tmp \
+ls -l /var/tmp && cat /var/tmp/file.txt
+EOF
+
+  run_buildah 1 build --no-cache ${TEST_SCRATCH_DIR}
+  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile <<EOF
+FROM alpine
+RUN --mount=type=cache,source=../../../../../../../../../../../$TEST_SCRATCH_DIR,target=/var/tmp \
+ls -l /var/tmp && cat /var/tmp/file.txt
+EOF
+
+  run_buildah 1 build --no-cache ${TEST_SCRATCH_DIR}
+  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+
+  mkdir ${TEST_SCRATCH_DIR}/cve20249675
+  cat > ${TEST_SCRATCH_DIR}/cve20249675/Containerfile <<EOF
+FROM alpine
+RUN --mount=type=cache,from=testbuild,source=../,target=/var/tmp \
+ls -l /var/tmp && cat /var/tmp/file.txt
+EOF
+
+  run_buildah 1 build --security-opt label=disable --build-context testbuild=${TEST_SCRATCH_DIR}/cve20249675/ --no-cache ${TEST_SCRATCH_DIR}/cve20249675/
+  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+}
