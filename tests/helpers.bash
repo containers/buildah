@@ -7,6 +7,7 @@ BUILDAH_BINARY=${BUILDAH_BINARY:-$TEST_SOURCES/../bin/buildah}
 IMGTYPE_BINARY=${IMGTYPE_BINARY:-$TEST_SOURCES/../bin/imgtype}
 COPY_BINARY=${COPY_BINARY:-$TEST_SOURCES/../bin/copy}
 TUTORIAL_BINARY=${TUTORIAL_BINARY:-$TEST_SOURCES/../bin/tutorial}
+INET_BINARY=${INET_BINARY:-$TEST_SOURCES/../bin/inet}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=${CI_DESIRED_RUNTIME:-$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)}
@@ -683,8 +684,17 @@ function start_git_daemon() {
       chown -R root:root ${daemondir}/repo
   fi
 
-  GITPORT=$(($RANDOM + 32768))
-  git daemon --detach --pid-file=${TEST_SCRATCH_DIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
+  ${INET_BINARY} -port-file ${TEST_SCRATCH_DIR}/git-daemon/port -pid-file=${TEST_SCRATCH_DIR}/git-daemon/pid -- git daemon --inetd --base-path=${daemondir} ${daemondir} &
+
+  local waited=0
+  while ! test -s ${TEST_SCRATCH_DIR}/git-daemon/pid ; do
+    sleep 0.1
+    if test $((++waited)) -ge 300 ; then
+      echo test git server did not write pid file within timeout
+      exit 1
+    fi
+  done
+  GITPORT=$(cat ${TEST_SCRATCH_DIR}/git-daemon/port)
 }
 
 function stop_git_daemon() {
