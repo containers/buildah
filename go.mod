@@ -153,5 +153,3 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.8.0 // indirect
 )
-
-replace github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.2.0
