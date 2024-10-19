@@ -12,19 +12,24 @@ load helpers
       # clear out one file that we might need to overwrite, but leave the other to
       # ensure that we don't accidentally append content to files that are already
       # present
-      rm -f localpurl.json
+      rm -f ${TEST_SCRATCH_DIR}/localpurl.json
       # write to both the image and the local filesystem
-      run_buildah commit $WITH_POLICY_JSON --sbom ${sbomtype} --sbom-output=localsbom.json --sbom-purl-output=localpurl.json --sbom-image-output=/root/sbom.json --sbom-image-purl-output=/root/purl.json $squash $cid alpine-derived-image
+      run_buildah commit $WITH_POLICY_JSON --sbom ${sbomtype} \
+                  --sbom-output=${TEST_SCRATCH_DIR}/localsbom.json \
+                  --sbom-purl-output=${TEST_SCRATCH_DIR}/localpurl.json \
+                  --sbom-image-output=/root/sbom.json \
+                  --sbom-image-purl-output=/root/purl.json \
+                  $squash $cid alpine-derived-image
       # both files should exist now, and neither should be empty
-      test -s localsbom.json
-      test -s localpurl.json
+      test -s ${TEST_SCRATCH_DIR}/localsbom.json
+      test -s ${TEST_SCRATCH_DIR}/localpurl.json
       # compare them to their equivalents in the image
       run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine-derived-image
       dcid=$output
       run_buildah mount $dcid
       mountpoint=$output
-      cmp $mountpoint/root/purl.json localpurl.json
-      cmp $mountpoint/root/sbom.json localsbom.json
+      cmp $mountpoint/root/purl.json ${TEST_SCRATCH_DIR}/localpurl.json
+      cmp $mountpoint/root/sbom.json ${TEST_SCRATCH_DIR}/localsbom.json
     done
   done
 }
@@ -37,19 +42,24 @@ load helpers
       # clear out one file that we might need to overwrite, but leave the other to
       # ensure that we don't accidentally append content to files that are already
       # present
-      rm -f localpurl.json
+      rm -f ${TEST_SCRATCH_DIR}/localpurl.json
       # write to both the image and the local filesystem
-      run_buildah build $WITH_POLICY_JSON --sbom ${sbomtype} --sbom-output=localsbom.json --sbom-purl-output=localpurl.json --sbom-image-output=/root/sbom.json --sbom-image-purl-output=/root/purl.json $layers -t alpine-derived-image $BUDFILES/simple-multi-step
+      run_buildah build $WITH_POLICY_JSON --sbom ${sbomtype} \
+                  --sbom-output=${TEST_SCRATCH_DIR}/localsbom.json \
+                  --sbom-purl-output=${TEST_SCRATCH_DIR}/localpurl.json \
+                  --sbom-image-output=/root/sbom.json \
+                  --sbom-image-purl-output=/root/purl.json \
+                  $layers -t alpine-derived-image $BUDFILES/simple-multi-step
       # both files should exist now, and neither should be empty
-      test -s localsbom.json
-      test -s localpurl.json
+      test -s ${TEST_SCRATCH_DIR}/localsbom.json
+      test -s ${TEST_SCRATCH_DIR}/localpurl.json
       # compare them to their equivalents in the image
       run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine-derived-image
       dcid=$output
       run_buildah mount $dcid
       mountpoint=$output
-      cmp $mountpoint/root/purl.json localpurl.json
-      cmp $mountpoint/root/sbom.json localsbom.json
+      cmp $mountpoint/root/purl.json ${TEST_SCRATCH_DIR}/localpurl.json
+      cmp $mountpoint/root/sbom.json ${TEST_SCRATCH_DIR}/localsbom.json
     done
   done
 }
@@ -58,10 +68,15 @@ load helpers
   _prefetch alpine ghcr.io/anchore/syft ghcr.io/aquasecurity/trivy
   for sbomtype in syft syft-cyclonedx syft-spdx trivy trivy-cyclonedx trivy-spdx; do
     echo "[sbom type $sbomtype with $layers]"
-    run_buildah build $WITH_POLICY_JSON --sbom ${sbomtype} --sbom-output=localsbom.json --sbom-purl-output=localpurl.json --sbom-image-output=/root/sbom.json --sbom-image-purl-output=/root/purl.json -t busybox-derived-image $BUDFILES/pull
+    run_buildah build $WITH_POLICY_JSON --sbom ${sbomtype} \
+                --sbom-output=${TEST_SCRATCH_DIR}/localsbom.json \
+                --sbom-purl-output=${TEST_SCRATCH_DIR}/localpurl.json \
+                --sbom-image-output=/root/sbom.json \
+                --sbom-image-purl-output=/root/purl.json \
+                -t busybox-derived-image $BUDFILES/pull
     # both files should exist now, and neither should be empty
-    test -s localsbom.json
-    test -s localpurl.json
+    test -s ${TEST_SCRATCH_DIR}/localsbom.json
+    test -s ${TEST_SCRATCH_DIR}/localpurl.json
   done
 }
 
@@ -73,19 +88,33 @@ load helpers
       # clear out one file that we might need to overwrite, but leave the other to
       # ensure that we don't accidentally append content to files that are already
       # present
-      rm -f localpurl.json
-      run_buildah build $WITH_POLICY_JSON --sbom ${sbomtype} --sbom-output=localsbom.json --sbom-purl-output=localpurl.json --sbom-image-output=/root/sbom.json --sbom-image-purl-output=/root/purl.json $layers -t alpine-derived-image -f $BUDFILES/env/Dockerfile.check-env $BUDFILES/env
+      rm -f ${TEST_SCRATCH_DIR}/localpurl.json
+      run_buildah build $WITH_POLICY_JSON --sbom ${sbomtype} \
+                  --sbom-output=${TEST_SCRATCH_DIR}/localsbom.json \
+                  --sbom-purl-output=${TEST_SCRATCH_DIR}/localpurl.json \
+                  --sbom-image-output=/root/sbom.json \
+                  --sbom-image-purl-output=/root/purl.json \
+                  $layers -t alpine-derived-image -f $BUDFILES/env/Dockerfile.check-env $BUDFILES/env
       # both files should exist now, and neither should be empty
-      test -s localsbom.json
-      test -s localpurl.json
+      test -s ${TEST_SCRATCH_DIR}/localsbom.json
+      test -s ${TEST_SCRATCH_DIR}/localpurl.json
     done
   done
 }
 
 @test "bud-sbom-with-non-presets" {
   _prefetch alpine busybox
-  run_buildah build --debug $WITH_POLICY_JSON --sbom-output=localsbom.txt --sbom-purl-output=localpurl.txt --sbom-image-output=/root/sbom.txt --sbom-image-purl-output=/root/purl.txt --sbom-scanner-image=alpine --sbom-scanner-command='echo SCANNED ROOT {ROOTFS} > {OUTPUT}' --sbom-scanner-command='echo SCANNED BUILD CONTEXT {CONTEXT} > {OUTPUT}' --sbom-merge-strategy=cat -t busybox-derived-image $BUDFILES/pull
+  run_buildah build --debug $WITH_POLICY_JSON \
+              --sbom-output=${TEST_SCRATCH_DIR}/localsbom.txt \
+              --sbom-purl-output=${TEST_SCRATCH_DIR}/localpurl.txt \
+              --sbom-image-output=/root/sbom.txt \
+              --sbom-image-purl-output=/root/purl.txt \
+              --sbom-scanner-image=alpine \
+              --sbom-scanner-command='echo SCANNED ROOT {ROOTFS} > {OUTPUT}' \
+              --sbom-scanner-command='echo SCANNED BUILD CONTEXT {CONTEXT} > {OUTPUT}' \
+              --sbom-merge-strategy=cat \
+              -t busybox-derived-image $BUDFILES/pull
   # both files should exist now, and neither should be empty
-  test -s localsbom.json
-  test -s localpurl.json
+  test -s ${TEST_SCRATCH_DIR}/localsbom.txt
+  test -s ${TEST_SCRATCH_DIR}/localpurl.txt
 }
