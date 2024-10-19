@@ -1028,10 +1028,26 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
 	}
 	if !nofileSet {
-		max := define.RLimitDefaultValue
+		// For nofile, podman first tries to set both the hard and soft limits for the current
+		// process to RLimitDefaultValue - this will be successful in most (but not all)
+		// non-rootless environments. If this fails (e.g. in a rootless environment) it will ensure
+		// that the soft limit for the current process is increased to match the hard limit (see
+		// cmd/podman/early_init_linux.go).
 		var rlimit unix.Rlimit
+		rlimit.Cur = define.RLimitDefaultValue
+		rlimit.Max = define.RLimitDefaultValue
+		err := unix.Setrlimit(unix.RLIMIT_NOFILE, &rlimit)
+		if err != nil {
+			// We don't really care whether there's an error here, because if it fails we
+			// effectively handle setting soft to hard in the call to AddProcessRlimits() later on.
+			logrus.Debugf("Failed to set RLIMIT_NOFILE ulimit %q", err)
+		}
+
+		// Set both hard and soft limits to min(hard limit, RLimitDefaultValue) regardless of
+		// rootlessness.
+		max := define.RLimitDefaultValue
 		if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
-			if max < rlimit.Max || unshare.IsRootless() {
+			if rlimit.Max < max {
 				max = rlimit.Max
 			}
 		} else {
@@ -1039,17 +1055,23 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 		}
 		g.AddProcessRlimits("RLIMIT_NOFILE", max, max)
 	}
-	if !nprocSet {
+	if !nprocSet && unshare.IsRootless() {
+		// For nproc, podman only sets limits for rootless containers (handling hard and soft limits
+		// independently). As before, these are set to min(soft/hard limit, RLimitDefaultValue).
+		current := define.RLimitDefaultValue
 		max := define.RLimitDefaultValue
 		var rlimit unix.Rlimit
 		if err := unix.Getrlimit(unix.RLIMIT_NPROC, &rlimit); err == nil {
-			if max < rlimit.Max || unshare.IsRootless() {
+			if rlimit.Max < max {
 				max = rlimit.Max
+			}
+			if rlimit.Cur < current {
+				current = rlimit.Cur
 			}
 		} else {
 			logrus.Warnf("Failed to return RLIMIT_NPROC ulimit %q", err)
 		}
-		g.AddProcessRlimits("RLIMIT_NPROC", max, max)
+		g.AddProcessRlimits("RLIMIT_NPROC", max, current)
 	}
 
 	return nil
