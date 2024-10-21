@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.26.7
+Version:        1.26.8
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Oct 21 2024 David Shea <dshea@redhat.com> 1.26.8-1
+- Properly validate cache IDs and sources
+
 * Mon Apr 1 2024 Tom Sweeney <tsweeney@redhat.com> 1.26.7-1
 - [release-1.26] conformance tests: don't break on trailing zeroes
 - [release-1.26] CVE-2024-1753 container escape fix
