@@ -133,6 +133,7 @@ export BUILDTAGS+=" btrfs_noversion exclude_graphdriver_btrfs"
 %gobuild -o bin/imgtype ./tests/imgtype
 %gobuild -o bin/copy ./tests/copy
 %gobuild -o bin/tutorial ./tests/tutorial
+%gobuild -o bin/inet ./tests/inet
 %{__make} docs
 
 %install
@@ -143,6 +144,7 @@ cp -pav tests/. %{buildroot}/%{_datadir}/%{name}/test/system
 cp bin/imgtype %{buildroot}/%{_bindir}/%{name}-imgtype
 cp bin/copy    %{buildroot}/%{_bindir}/%{name}-copy
 cp bin/tutorial %{buildroot}/%{_bindir}/%{name}-tutorial
+cp bin/inet     %{buildroot}/%{_bindir}/%{name}-inet
 
 rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 
@@ -163,6 +165,7 @@ rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 %{_bindir}/%{name}-imgtype
 %{_bindir}/%{name}-copy
 %{_bindir}/%{name}-tutorial
+%{_bindir}/%{name}-inet
 %{_datadir}/%{name}/test
 
 %changelog
