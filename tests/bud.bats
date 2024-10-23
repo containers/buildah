@@ -3113,7 +3113,7 @@ EOM
   skip_if_no_runtime
 
   ${OCI} --version
-  _prefetch alpine
+  _prefetch alpine busybox
   _prefetch debian
 
   run_buildah build --build-arg base=alpine --build-arg toolchainname=busybox --build-arg destinationpath=/tmp --pull=false $WITH_POLICY_JSON -f $BUDFILES/from-with-arg/Containerfile .
