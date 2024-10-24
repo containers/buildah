@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.26.8 (2024-10-21)
+
+    Properly validate cache IDs and sources
+
 ## v1.26.7 (2024-04-01)
 
     [release-1.26] conformance tests: don't break on trailing zeroes
