@@ -61,10 +61,10 @@ github.com/containernetworking/cni v1.1.2 h1:wtRGZVv7olUHMOqouPpn3cXJWpJgM6+EUl3
 github.com/containernetworking/cni v1.1.2/go.mod h1:sDpYKmGVENF3s6uvMvGgldDWeG8dMxakj/u+i9ht9vw=
 github.com/containernetworking/plugins v1.5.0 h1:P09DMlfvvsLSskDoftnuwXY7lwa7IAhTGznZxA5E8fk=
 github.com/containernetworking/plugins v1.5.0/go.mod h1:bcXMvG9gWGc6jVXeodmMzuXmXqpqMguZm6Zu/oIr7AA=
-github.com/containers/common v0.59.0 h1:fy9Jz0B7Qs1C030bm73YJtVddaiFSZD3558EV1tgN2g=
-github.com/containers/common v0.59.0/go.mod h1:53VicJCZ2AD0O+Br7VVoyrS7viXF4YmwlTIocWUT8XE=
-github.com/containers/image/v5 v5.31.0 h1:eDFVlz5XaYICxe9dXpf23htEKvyosgkl62mJlIATXE4=
-github.com/containers/image/v5 v5.31.0/go.mod h1:5QfOqSackPkSbF7Qxc1DnVNnPJKQ+KWLkfEfDpK590Q=
+github.com/containers/common v0.59.2 h1:FcURZzlMYMVZXqjMEop6C0A3yWilrfmWUPUw09APHvI=
+github.com/containers/common v0.59.2/go.mod h1:/PHpbapKSHQU29Jmjn3Ld3jekoHvX0zx7qQxxyPqSTM=
+github.com/containers/image/v5 v5.31.1 h1:3x9soI6Biml/GiDLpkSmKrkRSwVGctxu/vONpoUdklA=
+github.com/containers/image/v5 v5.31.1/go.mod h1:5QfOqSackPkSbF7Qxc1DnVNnPJKQ+KWLkfEfDpK590Q=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/luksy v0.0.0-20240506205542-84b50f50f3ee h1:QU6XNrPcxyGejcEYJfpIH7LwB+yXVbb0tWxf7mZxfN4=
