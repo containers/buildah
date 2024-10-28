@@ -13,4 +13,4 @@ function execute() {
 }
 
 # Run the tests.
-execute time bats -j 4 --tap "${@:-.}"
+execute time bats -j $(nproc) --tap "${@:-.}"
