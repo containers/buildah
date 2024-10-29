@@ -58,6 +58,8 @@ function _check_matches() {
 # Integration test for https://github.com/containers/image/pull/1645
 @test "blobcache: blobs must be reused when pushing across registry" {
 	start_registry
+
+	imgname=blobimg-$(random_string | tr A-Z a-z)
 	run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
 	outputdir=${TEST_SCRATCH_DIR}/outputdir
 	mkdir -p ${outputdir}
@@ -66,26 +68,26 @@ function _check_matches() {
 	run_buildah pull dir:${outputdir}
 	run_buildah images -a --format '{{.ID}}'
 	cid=$output
-	run_buildah --log-level debug push --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/test
+	run_buildah --log-level debug push --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/$imgname
 	# must not contain "Skipping blob" since push must happen
 	assert "$output" !~ "Skipping blob"
 
 	# Clear local image and c/image's blob-info-cache
 	run_buildah rmi --all -f
+	cachedir=/var/lib
 	if is_rootless;
 	then
-		run rm $HOME/.local/share/containers/cache/blob-info-cache-v1.sqlite
-		assert "$status" -eq 0 "status of `run rm $HOME/.local/share/containers/cache/blob-info-cache-v1.sqlite` must be 0"
-	else
-		run rm /var/lib/containers/cache/blob-info-cache-v1.sqlite
-		assert "$status" -eq 0 "status of `run rm /var/lib/containers/cache/blob-info-cache-v1.sqlite` must be 0"
+		cachedir=$HOME/.local/share
 	fi
+	cachefile=$cachedir/containers/cache/blob-info-cache-v1.sqlite
+	run rm $cachefile
+	assert "$status" -eq 0 "status of `run rm $cachefile` must be 0"
 
 	# In first push blob must be skipped after vendoring https://github.com/containers/image/pull/1645
 	run_buildah pull dir:${outputdir}
 	run_buildah images -a --format '{{.ID}}'
 	cid=$output
-	run_buildah --log-level debug push --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/test
+	run_buildah --log-level debug push --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/$imgname
 	expect_output --substring "Skipping blob"
 }
 
