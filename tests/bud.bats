@@ -7017,3 +7017,17 @@ EOF
   run_buildah 1 build --security-opt label=disable --build-context testbuild=${TEST_SCRATCH_DIR}/cve20249675/ --no-cache ${TEST_SCRATCH_DIR}/cve20249675/
   expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
 }
+
+@test "build-mounts-implicit-workdir" {
+  base=busybox
+  _prefetch $base
+  run_buildah inspect --format '{{.Docker.Config.WorkingDir}}' --type=image $base
+  expect_output "" "test base image needs to not have a default working directory defined in its configuration"
+  # check that the target for a bind mount can be specified as a relative path even when there's no WorkingDir defined for it to be relative to
+  echo FROM $base > ${TEST_SCRATCH_DIR}/Containerfile
+  echo RUN --mount=type=bind,src=Containerfile,target=Containerfile test -s Containerfile >> ${TEST_SCRATCH_DIR}/Containerfile
+  echo RUN --mount=type=cache,id=cash,target=cachesubdir truncate -s 1024 cachesubdir/cachefile >> ${TEST_SCRATCH_DIR}/Containerfile
+  echo RUN --mount=type=cache,id=cash,target=cachesubdir2 test -s cachesubdir2/cachefile >> ${TEST_SCRATCH_DIR}/Containerfile
+  echo RUN --mount=type=tmpfs,target=tmpfssubdir test '`stat -f -c %i .`' '!=' '`stat -f -c %i tmpfssubdir`' >> ${TEST_SCRATCH_DIR}/Containerfile
+  run_buildah build --security-opt label=disable ${TEST_SCRATCH_DIR}
+}
