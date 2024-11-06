@@ -99,7 +99,7 @@ BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
 Attach a filesystem mount to the container
 
-Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Footnote1)</sup>
+Current supported mount TYPES are bind, cache, secret and tmpfs. Writes to `bind` and `tmpfs` mounts are discarded after the command finishes, while changes to `cache` mounts persist across uses. <sup>[[1]](#Footnote1)</sup>
 
        e.g.
 
@@ -111,11 +111,11 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
        Common Options:
 
-              · src, source: mount source spec for bind and volume. Mandatory for bind. If `from` is specified, `src` is the subpath in the `from` field.
+              · src, source: mount source spec for bind and cache. Mandatory for bind. If `from` is specified, `src` is the subpath in the `from` field.
 
-              · dst, destination, target: mount destination spec.
+              · dst, destination, target: location where the command being run should see the content being mounted.
 
-              · ro, read-only: true or false (default).
+              · ro, read-only: (default true for `type=bind`, false for `type=tmpfs`, `type=cache`).
 
        Options specific to bind:
 
@@ -123,7 +123,7 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
               . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
 
-              · from: stage or image name for the root of the source. Defaults to the build context.
+              · from: image name for the root of the source. Defaults to **--contextdir**, mandatory if **--contextdir** was not specified.
 
               · z: Set shared SELinux label on mounted destination. Use if SELinux is enabled on host machine.
 
@@ -143,7 +143,7 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
        Options specific to cache:
 
-              · id: Create a separate cache directory for a particular id.
+              · id: Distinguish this cache from other caches using this ID rather than the target mount path.
 
               · mode: File mode for new cache directory in octal. Default 0755.
 
@@ -154,6 +154,8 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
               · gid: gid for cache directory.
 
               · from: stage name for the root of the source. Defaults to host cache directory.
+
+              · sharing: Whether other users of this cache need to wait for this command to complete (`sharing=locked`) or not (`sharing=shared`, which is the default).
 
               · z: Set shared SELinux label on mounted destination. Use if SELinux is enabled on host machine.
 
