@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/internal/volumes"
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -108,6 +110,16 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		return errors.New("command must be specified")
 	}
 
+	tmpDir, err := os.MkdirTemp(tmpdir.GetTempDir(), "buildahvolume")
+	if err != nil {
+		return fmt.Errorf("creating temporary directory: %w", err)
+	}
+	defer func() {
+		if err := os.Remove(tmpDir); err != nil {
+			logrus.Debugf("removing should-be-empty temporary directory %q: %v", tmpDir, err)
+		}
+	}()
+
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -179,14 +191,22 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
-	mounts, mountedImages, targetLocks, err := volumes.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir, iopts.workingDir)
+	mounts, mountedImages, _, targetLocks, err := volumes.GetVolumes(systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, iopts.workingDir, tmpDir)
 	if err != nil {
 		return err
 	}
-	defer volumes.UnlockLockArray(targetLocks)
+	defer func() {
+		if err := overlay.CleanupContent(tmpDir); err != nil {
+			logrus.Debugf("unmounting overlay mounts under %q: %v", tmpDir, err)
+		}
+		for _, mountedImage := range mountedImages {
+			if _, err := store.UnmountImage(mountedImage, false); err != nil {
+				logrus.Debugf("unmounting image %q: %v", mountedImage, err)
+			}
+		}
+		volumes.UnlockLockArray(targetLocks)
+	}()
 	options.Mounts = mounts
-	// Run() will automatically clean them up.
-	options.ExternalImageMounts = mountedImages
 	options.CgroupManager = globalFlagResults.CgroupManager
 
 	runerr := builder.Run(args, options)
