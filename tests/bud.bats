@@ -7073,3 +7073,28 @@ EOF
   echo RUN --mount=type=tmpfs,target=tmpfssubdir test '`stat -f -c %i .`' '!=' '`stat -f -c %i tmpfssubdir`' >> ${TEST_SCRATCH_DIR}/Containerfile
   run_buildah build --security-opt label=disable ${TEST_SCRATCH_DIR}
 }
+
+@test "build-mounts-build-context-rw" {
+  zflag=
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+    if selinuxenabled ; then
+      zflag=,z
+    fi
+  fi
+  base=busybox
+  _prefetch $base
+  mkdir -p ${TEST_SCRATCH_DIR}/buildcontext
+  cat > ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile << EOF
+  FROM $base
+  RUN --mount=type=bind,dst=/dst,source=/,rw${zflag} \
+    mkdir /dst/subdir ; \
+    chown 1000:1000 /dst/subdir ; \
+    chmod 777 /dst/subdir ; \
+    touch /dst/subdir/file-suid ; \
+    chmod 4777 /dst/subdir/file-suid
+EOF
+  run_buildah build ${TEST_SCRATCH_DIR}/buildcontext
+  run find ${TEST_SCRATCH_DIR}/buildcontext -name file-suid -ls
+  find ${TEST_SCRATCH_DIR}/buildcontext -ls
+  expect_output "" "build should not be able to write to build context"
+}
