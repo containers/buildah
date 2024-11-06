@@ -1,15 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/containers/buildah"
 	internalParse "github.com/containers/buildah/internal/parse"
+	internalUtil "github.com/containers/buildah/internal/util"
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
-	"github.com/containers/storage/pkg/lockfile"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -100,6 +102,16 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		return errors.Errorf("command must be specified")
 	}
 
+	tmpDir, err := os.MkdirTemp(internalUtil.GetTempDir(), "buildahvolume")
+	if err != nil {
+		return fmt.Errorf("creating temporary directory: %w", err)
+	}
+	defer func() {
+		if err := os.Remove(tmpDir); err != nil {
+			logrus.Debugf("removing should-be-empty temporary directory %q: %v", tmpDir, err)
+		}
+	}()
+
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -158,13 +170,23 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-	mounts, mountedImages, lockedTargets, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir)
+	mounts, mountedImages, _, lockedTargets, err := internalParse.GetVolumes(systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, tmpDir)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := overlay.CleanupContent(tmpDir); err != nil {
+			logrus.Debugf("unmounting overlay mounts under %q: %v", tmpDir, err)
+		}
+		for _, mountedImage := range mountedImages {
+			if _, err := store.UnmountImage(mountedImage, false); err != nil {
+				logrus.Debugf("unmounting image %q: %v", mountedImage, err)
+			}
+		}
+		// unlock if any locked files from this RUN statement
+		internalParse.UnlockLockArray(lockedTargets)
+	}()
 	options.Mounts = mounts
-	// Run() will automatically clean them up.
-	options.ExternalImageMounts = mountedImages
 	options.CgroupManager = globalFlagResults.CgroupManager
 
 	runerr := builder.Run(args, options)
@@ -179,32 +201,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		}
 		conditionallyAddHistory(builder, c, "%s %s", shell, strings.Join(args, " "))
 		return builder.Save()
-	}
-	// unlock if any locked files from this RUN statement
-	for _, path := range lockedTargets {
-		_, err := os.Stat(path)
-		if err != nil {
-			// Lockfile not found this might be a problem,
-			// since LockedTargets must contain list of all locked files
-			// don't break here since we need to unlock other files but
-			// log so user can take a look
-			logrus.Warnf("Lockfile %q was expected here, stat failed with %v", path, err)
-			continue
-		}
-		lockfile, err := lockfile.GetLockfile(path)
-		if err != nil {
-			// unable to get lockfile
-			// lets log error and continue
-			// unlocking other files
-			logrus.Warn(err)
-			continue
-		}
-		if lockfile.Locked() {
-			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
-			continue
-		}
 	}
 	return runerr
 }

@@ -28,7 +28,6 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
 	internalParse "github.com/containers/buildah/internal/parse"
-	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
@@ -48,7 +47,6 @@ import (
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/containers/storage/pkg/unshare"
-	storagetypes "github.com/containers/storage/types"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -338,7 +336,7 @@ rootless=%d
 	}
 
 	defer func() {
-		if err := b.cleanupRunMounts(options.SystemContext, mountPoint, runArtifacts); err != nil {
+		if err := b.cleanupRunMounts(mountPoint, runArtifacts); err != nil {
 			options.Logger.Errorf("unable to cleanup run mounts %v", err)
 		}
 	}()
@@ -523,10 +521,18 @@ func (b *Builder) setupMounts(context *imagetypes.SystemContext, mountPoint stri
 
 	// Get the list of mounts that are just for this Run() call.
 	// TODO: acui: de-spaghettify run mounts
-	runMounts, mountArtifacts, err := b.runSetupRunMounts(context, runFileMounts, secrets, stageMountPoints, sshSources, cdir, contextDir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, int(rootUID), int(rootGID), int(processUID), int(processGID))
+	runMounts, mountArtifacts, err := b.runSetupRunMounts(context, bundlePath, runFileMounts, secrets, stageMountPoints, sshSources, cdir, contextDir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, int(rootUID), int(rootGID), int(processUID), int(processGID))
 	if err != nil {
 		return nil, err
 	}
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			if err := b.cleanupRunMounts(mountPoint, mountArtifacts); err != nil {
+				b.Logger.Debugf("cleaning up run mounts: %v", err)
+			}
+		}
+	}()
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
 	builtins, err := runSetupBuiltinVolumes(b.MountLabel, mountPoint, cdir, builtinVolumes, int(rootUID), int(rootGID))
@@ -558,6 +564,7 @@ func (b *Builder) setupMounts(context *imagetypes.SystemContext, mountPoint stri
 
 	// Set the list in the spec.
 	spec.Mounts = mounts
+	succeeded = true
 	return mountArtifacts, nil
 }
 
@@ -1880,11 +1887,14 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 				return specs.Mount{}, errors.Wrapf(err, "failed to create TempDir in the %s directory", containerDir)
 			}
 
+			graphOptions := b.store.GraphOptions()
+			graphOptsCopy := make([]string, len(graphOptions))
+			copy(graphOptsCopy, graphOptions)
 			overlayOpts := overlay.Options{RootUID: rootUID,
 				RootGID:                rootGID,
 				UpperDirOptionFragment: upperDir,
 				WorkDirOptionFragment:  workDir,
-				GraphOpts:              b.store.GraphOptions(),
+				GraphOpts:              graphOptsCopy,
 			}
 
 			overlayMount, err := overlay.MountWithOptions(contentDir, host, container, &overlayOpts)
@@ -1893,7 +1903,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			}
 
 			// If chown true, add correct ownership to the overlay temp directories.
-			if foundU {
+			if err == nil && foundU {
 				if err := chown.ChangeHostPathOwnership(contentDir, true, processUID, processGID); err != nil {
 					return specs.Mount{}, err
 				}
@@ -2514,17 +2524,45 @@ func init() {
 }
 
 // runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
-func (b *Builder) runSetupRunMounts(context *imagetypes.SystemContext, mounts []string, secrets map[string]define.Secret, stageMountPoints map[string]internal.StageMountDetails, sshSources map[string]*sshagent.Source, containerWorkingDir string, contextDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, rootUID int, rootGID int, processUID int, processGID int) ([]spec.Mount, *runMountArtifacts, error) {
-	mountTargets := make([]string, 0, 10)
+func (b *Builder) runSetupRunMounts(context *imagetypes.SystemContext, bundlePath string, mounts []string, secrets map[string]define.Secret, stageMountPoints map[string]internal.StageMountDetails, sshSources map[string]*sshagent.Source, containerWorkingDir string, contextDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, rootUID int, rootGID int, processUID int, processGID int) ([]spec.Mount, *runMountArtifacts, error) {
+	mountTargets := make([]string, 0, len(mounts))
 	tmpFiles := make([]string, 0, len(mounts))
-	mountImages := make([]string, 0, 10)
+	mountImages := make([]string, 0, len(mounts))
 	finalMounts := make([]specs.Mount, 0, len(mounts))
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
-	sshCount := 0
 	defaultSSHSock := ""
 	tokens := []string{}
 	lockedTargets := []string{}
+	var overlayDirs []string
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			for _, agent := range agents {
+				servePath := agent.ServePath()
+				if err := agent.Shutdown(); err != nil {
+					b.Logger.Errorf("shutting down SSH agent at %q: %v", servePath, err)
+				}
+			}
+			for _, overlayDir := range overlayDirs {
+				if err := overlay.RemoveTemp(overlayDir); err != nil {
+					b.Logger.Error(err.Error())
+				}
+			}
+			for _, mountImage := range mountImages {
+				if _, err := b.store.UnmountImage(mountImage, false); err != nil {
+					b.Logger.Error(err.Error())
+				}
+			}
+			for _, tmpFile := range tmpFiles {
+				if err := os.Remove(tmpFile); err != nil && !errors.Is(err, os.ErrNotExist) {
+					b.Logger.Error(err.Error())
+				}
+			}
+		}
+	}()
 	for _, mount := range mounts {
+		var err error
+		var image, bundleMountsDir, overlayDir string
 		arr := strings.SplitN(mount, ",", 2)
 
 		kv := strings.Split(arr[0], "=")
@@ -2549,31 +2587,37 @@ func (b *Builder) runSetupRunMounts(context *imagetypes.SystemContext, mounts []
 				}
 			}
 		case "ssh":
-			mount, agent, err := b.getSSHMount(tokens, sshCount, sshSources, b.MountLabel, uidmap, gidmap, b.ProcessLabel)
+			mount, agent, err := b.getSSHMount(tokens, len(agents), sshSources, b.MountLabel, uidmap, gidmap, b.ProcessLabel)
 			if err != nil {
 				return nil, nil, err
 			}
 			if mount != nil {
 				finalMounts = append(finalMounts, *mount)
 				mountTargets = append(mountTargets, mount.Destination)
-				agents = append(agents, agent)
-				if sshCount == 0 {
+				if len(agents) == 0 {
 					defaultSSHSock = mount.Destination
 				}
-				// Count is needed as the default destination of the ssh sock inside the container is  /run/buildkit/ssh_agent.{i}
-				sshCount++
+				agents = append(agents, agent)
 			}
 		case "bind":
-			mount, image, err := b.getBindMount(context, tokens, contextDir, rootUID, rootGID, processUID, processGID, stageMountPoints)
+			if bundleMountsDir == "" {
+				if bundleMountsDir, err = os.MkdirTemp(bundlePath, "mounts"); err != nil {
+					return nil, nil, err
+				}
+			}
+			var mount *spec.Mount
+			mount, image, overlayDir, err = b.getBindMount(context, tokens, contextDir, rootUID, rootGID, processUID, processGID, stageMountPoints, bundleMountsDir)
 			if err != nil {
 				return nil, nil, err
 			}
-			finalMounts = append(finalMounts, *mount)
 			mountTargets = append(mountTargets, mount.Destination)
-			// only perform cleanup if image was mounted ignore everything else
 			if image != "" {
 				mountImages = append(mountImages, image)
 			}
+			if overlayDir != "" {
+				overlayDirs = append(overlayDirs, overlayDir)
+			}
+			finalMounts = append(finalMounts, *mount)
 		case "tmpfs":
 			mount, err := b.getTmpfsMount(tokens, rootUID, rootGID, processUID, processGID)
 			if err != nil {
@@ -2595,30 +2639,32 @@ func (b *Builder) runSetupRunMounts(context *imagetypes.SystemContext, mounts []
 	}
 	artifacts := &runMountArtifacts{
 		RunMountTargets: mountTargets,
+		RunOverlayDirs:  overlayDirs,
 		TmpFiles:        tmpFiles,
 		Agents:          agents,
 		MountedImages:   mountImages,
 		SSHAuthSock:     defaultSSHSock,
 		LockedTargets:   lockedTargets,
 	}
+	succeeded = true
 	return finalMounts, artifacts, nil
 }
 
-func (b *Builder) getBindMount(context *imagetypes.SystemContext, tokens []string, contextDir string, rootUID, rootGID, processUID, processGID int, stageMountPoints map[string]internal.StageMountDetails) (*spec.Mount, string, error) {
+func (b *Builder) getBindMount(sys *imagetypes.SystemContext, tokens []string, contextDir string, rootUID, rootGID, processUID, processGID int, stageMountPoints map[string]internal.StageMountDetails, tmpDir string) (*spec.Mount, string, string, error) {
 	if contextDir == "" {
-		return nil, "", errors.New("Context Directory for current run invocation is not configured")
+		return nil, "", "", errors.New("Context Directory for current run invocation is not configured")
 	}
 	var optionMounts []specs.Mount
-	mount, image, err := internalParse.GetBindMount(context, tokens, contextDir, b.store, b.MountLabel, stageMountPoints)
+	mount, image, overlayDir, err := internalParse.GetBindMount(sys, tokens, contextDir, b.store, b.MountLabel, stageMountPoints, tmpDir)
 	if err != nil {
-		return nil, image, err
+		return nil, image, overlayDir, err
 	}
 	optionMounts = append(optionMounts, mount)
 	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, rootUID, rootGID, processUID, processGID)
 	if err != nil {
-		return nil, image, err
+		return nil, image, overlayDir, err
 	}
-	return &volumes[0], image, nil
+	return &volumes[0], image, overlayDir, nil
 }
 
 func (b *Builder) getTmpfsMount(tokens []string, rootUID, rootGID, processUID, processGID int) (*spec.Mount, error) {
@@ -2878,7 +2924,7 @@ func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]
 }
 
 // cleanupRunMounts cleans up run mounts so they only appear in this run.
-func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint string, artifacts *runMountArtifacts) error {
+func (b *Builder) cleanupRunMounts(mountpoint string, artifacts *runMountArtifacts) error {
 	for _, agent := range artifacts.Agents {
 		err := agent.Shutdown()
 		if err != nil {
@@ -2886,45 +2932,38 @@ func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint
 		}
 	}
 
-	//cleanup any mounted images for this run
-	for _, image := range artifacts.MountedImages {
-		if image != "" {
-			// if flow hits here some image was mounted for this run
-			i, err := internalUtil.LookupImage(context, b.store, image)
-			if err == nil {
-				// silently try to unmount and do nothing
-				// if image is being used by something else
-				_ = i.Unmount(false)
-			}
-			if errors.Is(errors.Cause(err), storagetypes.ErrImageUnknown) {
-				// Ignore only if ErrImageUnknown
-				// Reason: Image is already unmounted do nothing
-				continue
-			}
+	// clean up any overlays we mounted
+	for _, overlayDirectory := range artifacts.RunOverlayDirs {
+		if err := overlay.RemoveTemp(overlayDirectory); err != nil {
 			return err
 		}
 	}
+	// unmount any images we mounted for this run
+	for _, image := range artifacts.MountedImages {
+		if _, err := b.store.UnmountImage(image, false); err != nil {
+			logrus.Debugf("unmounting image %q: %v", image, err)
+		}
+	}
 
+	// remove mount targets that were created for this run
 	opts := copier.RemoveOptions{
 		All: true,
 	}
 	for _, path := range artifacts.RunMountTargets {
-		err := copier.Remove(mountpoint, path, opts)
-		if err != nil {
-			return err
+		if err := copier.Remove(mountpoint, path, opts); err != nil {
+			return fmt.Errorf("removing mount target %q %q: %w", mountpoint, path, err)
 		}
 	}
 	var prevErr error
 	for _, path := range artifacts.TmpFiles {
-		err := os.Remove(path)
-		if !os.IsNotExist(err) {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			if prevErr != nil {
 				logrus.Error(prevErr)
 			}
-			prevErr = err
+			prevErr = fmt.Errorf("removing temporary file: %w", err)
 		}
 	}
-	// unlock if any locked files from this RUN statement
+	// unlock locks we took, most likely for cache mounts
 	for _, path := range artifacts.LockedTargets {
 		_, err := os.Stat(path)
 		if err != nil {
