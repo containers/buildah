@@ -386,7 +386,7 @@ rootless=%d
 	}
 
 	defer func() {
-		if err := b.cleanupRunMounts(options.SystemContext, mountPoint, runArtifacts); err != nil {
+		if err := b.cleanupRunMounts(mountPoint, runArtifacts); err != nil {
 			options.Logger.Errorf("unable to cleanup run mounts %v", err)
 		}
 	}()
@@ -1006,7 +1006,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 				RootGID:                idMaps.rootGID,
 				UpperDirOptionFragment: upperDir,
 				WorkDirOptionFragment:  workDir,
-				GraphOpts:              b.store.GraphOptions(),
+				GraphOpts:              slices.Clone(b.store.GraphOptions()),
 			}
 
 			overlayMount, err := overlay.MountWithOptions(contentDir, host, container, &overlayOpts)
@@ -1015,7 +1015,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			}
 
 			// If chown true, add correct ownership to the overlay temp directories.
-			if foundU {
+			if err == nil && foundU {
 				if err := chown.ChangeHostPathOwnership(contentDir, true, idMaps.processUID, idMaps.processGID); err != nil {
 					return specs.Mount{}, err
 				}
