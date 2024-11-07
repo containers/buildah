@@ -6889,9 +6889,7 @@ _EOF
 
 @test "build test default ulimits" {
   skip_if_no_runtime
-  if grep -qi debian /etc/os-release; then
-      skip "FIXME: 2024-05-29 something broken in debian ulimits"
-  fi
+  skip "FIXME: we cannot rely on podman-run ulimits matching buildah-bud (see #5820)"
   _prefetch alpine
 
   run podman --events-backend=none run --rm alpine sh -c "echo -n Files=; awk '/open files/{print \$4 \"/\" \$5}' /proc/self/limits"
