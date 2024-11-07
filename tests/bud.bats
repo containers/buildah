@@ -165,6 +165,7 @@ _EOF
   # Helper function. push our image with the given options, and run skopeo inspect
   function _test_buildah_push() {
     run_buildah push \
+                --log-level=debug \
                 $WITH_POLICY_JSON \
                 --authfile ${TEST_SCRATCH_DIR}/test.auth \
                 --tls-verify=false \
