@@ -283,9 +283,9 @@ func reportUnwrapped(
 	}
 
 	// Check if the underlying type of the "x" in x.y.z is an interface, as
-	// errors returned from interface types should be wrapped, unless ignored
-	// as per `ignoreInterfaceRegexps`
-	if isInterface(pass, sel) {
+	// errors returned from exported interface types should be wrapped, unless
+	// ignored as per `ignoreInterfaceRegexps`
+	if sel.Sel.IsExported() && isInterface(pass, sel) {
 		pkgPath := pass.TypesInfo.ObjectOf(sel.Sel).Pkg().Path()
 		name := types.TypeString(pass.TypesInfo.TypeOf(sel.X), func(p *types.Package) string { return p.Name() })
 		if !containsMatch(regexpsInter, name) && !containsMatchGlob(pkgGlobs, pkgPath) {

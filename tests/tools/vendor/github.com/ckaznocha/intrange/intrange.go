@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
@@ -23,7 +24,10 @@ var (
 	errFailedAnalysis = errors.New("failed analysis")
 )
 
-const msg = "for loop can be changed to use an integer range (Go 1.22+)"
+const (
+	msg         = "for loop can be changed to use an integer range (Go 1.22+)"
+	msgLenRange = "for loop can be changed to `i := range %s`"
+)
 
 func run(pass *analysis.Pass) (any, error) {
 	result, ok := pass.ResultOf[inspect.Analyzer]
@@ -44,90 +48,113 @@ func run(pass *analysis.Pass) (any, error) {
 		)
 	}
 
-	resultInspector.Preorder([]ast.Node{(*ast.ForStmt)(nil)}, check(pass))
+	resultInspector.Preorder([]ast.Node{(*ast.ForStmt)(nil), (*ast.RangeStmt)(nil)}, check(pass))
 
 	return nil, nil
 }
 
 func check(pass *analysis.Pass) func(node ast.Node) {
 	return func(node ast.Node) {
-		forStmt, ok := node.(*ast.ForStmt)
-		if !ok {
-			return
-		}
-
-		if forStmt.Init == nil || forStmt.Cond == nil || forStmt.Post == nil {
-			return
-		}
-
-		// i := 0;;
-		init, ok := forStmt.Init.(*ast.AssignStmt)
-		if !ok {
-			return
-		}
-
-		if len(init.Lhs) != 1 || len(init.Rhs) != 1 {
-			return
-		}
-
-		initIdent, ok := init.Lhs[0].(*ast.Ident)
-		if !ok {
-			return
-		}
-
-		if !compareNumberLit(init.Rhs[0], 0) {
-			return
-		}
-
-		cond, ok := forStmt.Cond.(*ast.BinaryExpr)
-		if !ok {
-			return
-		}
-
-		var nExpr ast.Expr
-
-		switch cond.Op {
-		case token.LSS: // ;i < n;
-			if isBenchmark(cond.Y) {
-				return
-			}
-
-			nExpr = findNExpr(cond.Y)
-
-			x, ok := cond.X.(*ast.Ident)
-			if !ok {
-				return
-			}
-
-			if x.Name != initIdent.Name {
-				return
-			}
-		case token.GTR: // ;n > i;
-			if isBenchmark(cond.X) {
-				return
-			}
-
-			nExpr = findNExpr(cond.X)
-
-			y, ok := cond.Y.(*ast.Ident)
-			if !ok {
-				return
-			}
-
-			if y.Name != initIdent.Name {
-				return
-			}
+		switch stmt := node.(type) {
+		case *ast.ForStmt:
+			checkForStmt(pass, stmt)
+		case *ast.RangeStmt:
+			checkRangeStmt(pass, stmt)
 		default:
 			return
 		}
+	}
+}
 
-		switch post := forStmt.Post.(type) {
-		case *ast.IncDecStmt: // ;;i++
-			if post.Tok != token.INC {
+func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
+	// Existing checks for other patterns
+	if forStmt.Init == nil || forStmt.Cond == nil || forStmt.Post == nil {
+		return
+	}
+
+	// i := 0;;
+	init, ok := forStmt.Init.(*ast.AssignStmt)
+	if !ok {
+		return
+	}
+
+	if len(init.Lhs) != 1 || len(init.Rhs) != 1 {
+		return
+	}
+
+	initIdent, ok := init.Lhs[0].(*ast.Ident)
+	if !ok {
+		return
+	}
+
+	if !compareNumberLit(init.Rhs[0], 0) {
+		return
+	}
+
+	cond, ok := forStmt.Cond.(*ast.BinaryExpr)
+	if !ok {
+		return
+	}
+
+	var nExpr ast.Expr
+
+	switch cond.Op {
+	case token.LSS: // ;i < n;
+		if isBenchmark(cond.Y) {
+			return
+		}
+
+		nExpr = findNExpr(cond.Y)
+
+		x, ok := cond.X.(*ast.Ident)
+		if !ok {
+			return
+		}
+
+		if x.Name != initIdent.Name {
+			return
+		}
+	case token.GTR: // ;n > i;
+		if isBenchmark(cond.X) {
+			return
+		}
+
+		nExpr = findNExpr(cond.X)
+
+		y, ok := cond.Y.(*ast.Ident)
+		if !ok {
+			return
+		}
+
+		if y.Name != initIdent.Name {
+			return
+		}
+	default:
+		return
+	}
+
+	switch post := forStmt.Post.(type) {
+	case *ast.IncDecStmt: // ;;i++
+		if post.Tok != token.INC {
+			return
+		}
+
+		ident, ok := post.X.(*ast.Ident)
+		if !ok {
+			return
+		}
+
+		if ident.Name != initIdent.Name {
+			return
+		}
+	case *ast.AssignStmt:
+		switch post.Tok {
+		case token.ADD_ASSIGN: // ;;i += 1
+			if len(post.Lhs) != 1 {
 				return
 			}
 
-			ident, ok := post.X.(*ast.Ident)
+			ident, ok := post.Lhs[0].(*ast.Ident)
 			if !ok {
 				return
 			}
@@ -135,75 +162,57 @@ func check(pass *analysis.Pass) func(node ast.Node) {
 			if ident.Name != initIdent.Name {
 				return
 			}
-		case *ast.AssignStmt:
-			switch post.Tok {
-			case token.ADD_ASSIGN: // ;;i += 1
-				if len(post.Lhs) != 1 {
+
+			if len(post.Rhs) != 1 {
+				return
+			}
+
+			if !compareNumberLit(post.Rhs[0], 1) {
+				return
+			}
+		case token.ASSIGN: // ;;i = i + 1 && ;;i = 1 + i
+			if len(post.Lhs) != 1 || len(post.Rhs) != 1 {
+				return
+			}
+
+			ident, ok := post.Lhs[0].(*ast.Ident)
+			if !ok {
+				return
+			}
+
+			if ident.Name != initIdent.Name {
+				return
+			}
+
+			bin, ok := post.Rhs[0].(*ast.BinaryExpr)
+			if !ok {
+				return
+			}
+
+			if bin.Op != token.ADD {
+				return
+			}
+
+			switch x := bin.X.(type) {
+			case *ast.Ident: // ;;i = i + 1
+				if x.Name != initIdent.Name {
 					return
 				}
 
-				ident, ok := post.Lhs[0].(*ast.Ident)
+				if !compareNumberLit(bin.Y, 1) {
+					return
+				}
+			case *ast.BasicLit: // ;;i = 1 + i
+				if !compareNumberLit(x, 1) {
+					return
+				}
+
+				ident, ok := bin.Y.(*ast.Ident)
 				if !ok {
 					return
 				}
 
 				if ident.Name != initIdent.Name {
-					return
-				}
-
-				if len(post.Rhs) != 1 {
-					return
-				}
-
-				if !compareNumberLit(post.Rhs[0], 1) {
-					return
-				}
-			case token.ASSIGN: // ;;i = i + 1 && ;;i = 1 + i
-				if len(post.Lhs) != 1 || len(post.Rhs) != 1 {
-					return
-				}
-
-				ident, ok := post.Lhs[0].(*ast.Ident)
-				if !ok {
-					return
-				}
-
-				if ident.Name != initIdent.Name {
-					return
-				}
-
-				bin, ok := post.Rhs[0].(*ast.BinaryExpr)
-				if !ok {
-					return
-				}
-
-				if bin.Op != token.ADD {
-					return
-				}
-
-				switch x := bin.X.(type) {
-				case *ast.Ident: // ;;i = i + 1
-					if x.Name != initIdent.Name {
-						return
-					}
-
-					if !compareNumberLit(bin.Y, 1) {
-						return
-					}
-				case *ast.BasicLit: // ;;i = 1 + i
-					if !compareNumberLit(x, 1) {
-						return
-					}
-
-					ident, ok := bin.Y.(*ast.Ident)
-					if !ok {
-						return
-					}
-
-					if ident.Name != initIdent.Name {
-						return
-					}
-				default:
 					return
 				}
 			default:
@@ -212,23 +221,97 @@ func check(pass *analysis.Pass) func(node ast.Node) {
 		default:
 			return
 		}
-
-		bc := &bodyChecker{
-			initIdent: initIdent,
-			nExpr:     nExpr,
-		}
-
-		ast.Inspect(forStmt.Body, bc.check)
-
-		if bc.modified {
-			return
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:     forStmt.Pos(),
-			Message: msg,
-		})
+	default:
+		return
 	}
+
+	bc := &bodyChecker{
+		initIdent: initIdent,
+		nExpr:     nExpr,
+	}
+
+	ast.Inspect(forStmt.Body, bc.check)
+
+	if bc.modified {
+		return
+	}
+
+	pass.Report(analysis.Diagnostic{
+		Pos:     forStmt.Pos(),
+		Message: msg,
+	})
+}
+
+func checkRangeStmt(pass *analysis.Pass, rangeStmt *ast.RangeStmt) {
+	if rangeStmt.Key == nil {
+		return
+	}
+
+	ident, ok := rangeStmt.Key.(*ast.Ident)
+	if !ok {
+		return
+	}
+
+	if ident.Name == "_" {
+		return
+	}
+
+	if rangeStmt.Value != nil {
+		return
+	}
+
+	if rangeStmt.X == nil {
+		return
+	}
+
+	x, ok := rangeStmt.X.(*ast.CallExpr)
+	if !ok {
+		return
+	}
+
+	fn, ok := x.Fun.(*ast.Ident)
+	if !ok {
+		return
+	}
+
+	if fn.Name != "len" || len(x.Args) != 1 {
+		return
+	}
+
+	arg, ok := x.Args[0].(*ast.Ident)
+	if !ok {
+		return
+	}
+
+	// make sure arg is a slice or array
+	obj := pass.TypesInfo.ObjectOf(arg)
+	if obj == nil {
+		return
+	}
+
+	switch obj.Type().Underlying().(type) {
+	case *types.Slice, *types.Array:
+	default:
+		return
+	}
+
+	pass.Report(analysis.Diagnostic{
+		Pos:     ident.Pos(),
+		End:     x.End(),
+		Message: fmt.Sprintf(msgLenRange, arg.Name),
+		SuggestedFixes: []analysis.SuggestedFix{
+			{
+				Message: fmt.Sprintf("Replace `len(%s)` with `%s`", arg.Name, arg.Name),
+				TextEdits: []analysis.TextEdit{
+					{
+						Pos:     x.Pos(),
+						End:     x.End(),
+						NewText: []byte(arg.Name),
+					},
+				},
+			},
+		},
+	})
 }
 
 func findNExpr(expr ast.Expr) ast.Expr {

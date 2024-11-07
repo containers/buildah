@@ -242,21 +242,24 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		if typ == nil {
 			continue
 		}
+
 		switch typ.String() {
 		case "string":
 			keys = append(keys, args[i])
 			i++ // skip the value.
 		case "log/slog.Attr":
 			attrs = append(attrs, args[i])
+		case "[]any", "[]log/slog.Attr":
+			continue // the last argument may be an unpacked slice, skip it.
 		}
 	}
 
 	switch {
 	case opts.KVOnly && len(attrs) > 0:
 		pass.Reportf(call.Pos(), "attributes should not be used")
-	case opts.AttrOnly && len(attrs) < len(args):
+	case opts.AttrOnly && len(keys) > 0:
 		pass.Reportf(call.Pos(), "key-value pairs should not be used")
-	case opts.NoMixedArgs && 0 < len(attrs) && len(attrs) < len(args):
+	case opts.NoMixedArgs && len(attrs) > 0 && len(keys) > 0:
 		pass.Reportf(call.Pos(), "key-value pairs and attributes should not be mixed")
 	}
 

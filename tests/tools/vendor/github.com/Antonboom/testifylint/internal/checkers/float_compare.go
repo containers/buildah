@@ -7,7 +7,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// FloatCompare detects situation like
+// FloatCompare detects situations like
 //
 //	assert.Equal(t, 42.42, result)
 //	assert.EqualValues(t, 42.42, result)

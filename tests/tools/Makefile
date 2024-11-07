@@ -3,6 +3,8 @@ GO_BUILD=$(GO) build
 
 BUILDDIR := build
 
+SOURCES = go.mod go.sum
+
 all: $(BUILDDIR)
 
 .PHONY: vendor
@@ -28,8 +30,8 @@ $(BUILDDIR): \
 	$(BUILDDIR)/go-md2man \
 	$(BUILDDIR)/golangci-lint
 
-$(BUILDDIR)/go-md2man:
+$(BUILDDIR)/go-md2man: $(SOURCES)
 	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man/v2
 
-$(BUILDDIR)/golangci-lint:
+$(BUILDDIR)/golangci-lint: $(SOURCES)
 	$(GO_BUILD) -o $@ ./vendor/github.com/golangci/golangci-lint/cmd/golangci-lint

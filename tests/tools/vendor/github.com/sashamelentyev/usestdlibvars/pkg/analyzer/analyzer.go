@@ -117,8 +117,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		case *ast.BinaryExpr:
 			switch n.Op {
-			case token.LSS, token.GTR, token.LEQ, token.GEQ:
+			case token.LSS, token.GTR, token.LEQ, token.GEQ, token.QUO, token.ADD, token.SUB, token.MUL:
 				return
+			default:
 			}
 
 			x, ok := n.X.(*ast.SelectorExpr)
@@ -138,7 +139,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if ok {
 				switchStmt(pass, x, n.Body.List)
 			}
-
 		}
 	})
 

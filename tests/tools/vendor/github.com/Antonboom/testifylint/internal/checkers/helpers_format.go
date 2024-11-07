@@ -9,10 +9,18 @@ import (
 	"github.com/Antonboom/testifylint/internal/analysisutil"
 )
 
-// formatAsCallArgs joins a and b and return bytes like `a, b`.
-func formatAsCallArgs(pass *analysis.Pass, a, b ast.Node) []byte {
-	return bytes.Join([][]byte{
-		analysisutil.NodeBytes(pass.Fset, a),
-		analysisutil.NodeBytes(pass.Fset, b),
-	}, []byte(", "))
+// formatAsCallArgs joins a, b and c and returns bytes like `a, b, c`.
+func formatAsCallArgs(pass *analysis.Pass, args ...ast.Expr) []byte {
+	if len(args) == 0 {
+		return []byte("")
+	}
+
+	var buf bytes.Buffer
+	for i, arg := range args {
+		buf.Write(analysisutil.NodeBytes(pass.Fset, arg))
+		if i != len(args)-1 {
+			buf.WriteString(", ")
+		}
+	}
+	return buf.Bytes()
 }

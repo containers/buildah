@@ -356,8 +356,8 @@ func (s *Send) String() string {
 
 func (s *Defer) String() string {
 	prefix := "defer "
-	if s._DeferStack != nil {
-		prefix += "[" + relName(s._DeferStack, s) + "] "
+	if s.DeferStack != nil {
+		prefix += "[" + relName(s.DeferStack, s) + "] "
 	}
 	c := printCall(&s.Call, prefix, s)
 	return c

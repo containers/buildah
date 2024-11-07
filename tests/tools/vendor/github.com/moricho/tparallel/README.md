@@ -10,7 +10,7 @@ It detects the following:
 - `t.Parallel()` is called in either a top-level test function or a sub-test function only
 - Although `t.Parallel()` is called in the sub-test function, it is post-processed by `defer` instead of `t.Cleanup()`
 
-This tool was inspired by this blog: [Go 言語でのテストの並列化 〜t.Parallel()メソッドを理解する〜](https://engineering.mercari.com/blog/entry/how_to_use_t_parallel/)
+This tool was inspired by this blog: [Test parallelization in Go: Understanding the t.Parallel() method](https://engineering.mercari.com/en/blog/entry/20220408-how_to_use_t_parallel/)
 
 ## Installation
 

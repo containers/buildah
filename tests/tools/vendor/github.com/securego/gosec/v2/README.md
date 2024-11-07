@@ -139,6 +139,7 @@ directory you can supply `./...` as the input argument.
 - G112: Potential slowloris attack
 - G113: Usage of Rat.SetString in math/big with an overflow (CVE-2022-23772)
 - G114: Use of net/http serve function that has no support for setting timeouts
+- G115: Potential integer overflow when converting between integer types
 - G201: SQL query construction using format string
 - G202: SQL query construction using string concatenation
 - G203: Use of unescaped data in HTML templates
@@ -150,15 +151,20 @@ directory you can supply `./...` as the input argument.
 - G305: File traversal when extracting zip/tar archive
 - G306: Poor file permissions used when writing to a new file
 - G307: Poor file permissions used when creating a file with os.Create
-- G401: Detect the usage of DES, RC4, MD5 or SHA1
+- G401: Detect the usage of MD5 or SHA1
 - G402: Look for bad TLS connection settings
 - G403: Ensure minimum RSA key length of 2048 bits
 - G404: Insecure random number source (rand)
+- G405: Detect the usage of DES or RC4
+- G406: Detect the usage of MD4 or RIPEMD160
+- G407: Detect the usage of hardcoded Initialization Vector(IV)/Nonce
 - G501: Import blocklist: crypto/md5
 - G502: Import blocklist: crypto/des
 - G503: Import blocklist: crypto/rc4
 - G504: Import blocklist: net/http/cgi
 - G505: Import blocklist: crypto/sha1
+- G506: Import blocklist: golang.org/x/crypto/md4
+- G507: Import blocklist: golang.org/x/crypto/ripemd160
 - G601: Implicit memory aliasing of items from a range statement (only for Go 1.21 or lower)
 - G602: Slice access out of bounds
 
@@ -269,6 +275,19 @@ gosec can ignore generated go files with default generated code comment.
 gosec -exclude-generated ./...
 ```
 
+### Auto fixing vulnerabilities
+gosec can suggest fixes based on AI recommendation. It will call an AI API to receive a suggestion for a security finding.
+
+You can enable this feature by providing the following command line arguments:
+- `ai-api-provider`: the name of the AI API provider, currently only `gemini`is supported.
+- `ai-api-key` or set the environment variable `GOSEC_AI_API_KEY`: the key to access the AI API,
+For gemini, you can create an API key following [these instructions](https://ai.google.dev/gemini-api/docs/api-key).
+- `ai-endpoint`: the endpoint of the AI provider, this is optional argument.
+
+
+```bash
+gosec -ai-api-provider="gemini" -ai-api-key="your_key" ./...
+```
 
 ### Annotating code
 
@@ -354,7 +373,7 @@ file. The output format is controlled by the `-fmt` flag, and the output file is
 $ gosec -fmt=json -out=results.json *.go
 ```
 
-Results will be reported to stdout as well as to the provided output file by `-stdout` flag. The `-verbose` flag overrides the 
+Results will be reported to stdout as well as to the provided output file by `-stdout` flag. The `-verbose` flag overrides the
 output format when stdout the results while saving them in the output file
 ```bash
 # Write output in json format to results.json as well as stdout
@@ -413,14 +432,14 @@ git push origin v1.0.0
 The GitHub [release workflow](.github/workflows/release.yml) triggers immediately after the tag is pushed upstream. This flow will
 release the binaries using the [goreleaser](https://goreleaser.com/actions/) action and then it will build and publish the docker image into Docker Hub.
 
-The released artifacts are signed using [cosign](https://docs.sigstore.dev/). You can use the public key from [cosign.pub](cosign.pub) 
+The released artifacts are signed using [cosign](https://docs.sigstore.dev/). You can use the public key from [cosign.pub](cosign.pub)
 file to verify the signature of docker image and binaries files.
 
 The docker image signature can be verified with the following command:
 ```
 cosign verify --key cosign.pub securego/gosec:<TAG>
 ```
- 
+
 The binary files signature can be verified with the following command:
 ```
 cosign verify-blob --key cosign.pub --signature gosec_<VERSION>_darwin_amd64.tar.gz.sig  gosec_<VERSION>_darwin_amd64.tar.gz

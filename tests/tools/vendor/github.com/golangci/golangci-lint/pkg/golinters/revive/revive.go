@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+	hcversion "github.com/hashicorp/go-version"
 	reviveConfig "github.com/mgechev/revive/config"
 	"github.com/mgechev/revive/lint"
 	"github.com/mgechev/revive/rule"
@@ -49,8 +50,14 @@ func New(settings *config.ReviveSettings) *goanalysis.Linter {
 		[]*analysis.Analyzer{analyzer},
 		nil,
 	).WithContextSetter(func(lintCtx *linter.Context) {
+		w, err := newWrapper(settings)
+		if err != nil {
+			lintCtx.Log.Errorf("setup revive: %v", err)
+			return
+		}
+
 		analyzer.Run = func(pass *analysis.Pass) (any, error) {
-			issues, err := runRevive(lintCtx, pass, settings)
+			issues, err := w.run(lintCtx, pass)
 			if err != nil {
 				return nil, err
 			}
@@ -70,10 +77,20 @@ func New(settings *config.ReviveSettings) *goanalysis.Linter {
 	}).WithLoadMode(goanalysis.LoadModeSyntax)
 }
 
-func runRevive(lintCtx *linter.Context, pass *analysis.Pass, settings *config.ReviveSettings) ([]goanalysis.Issue, error) {
-	packages := [][]string{internal.GetFileNames(pass)}
+type wrapper struct {
+	revive       lint.Linter
+	formatter    lint.Formatter
+	lintingRules []lint.Rule
+	conf         *lint.Config
+}
 
-	conf, err := getReviveConfig(settings)
+func newWrapper(settings *config.ReviveSettings) (*wrapper, error) {
+	conf, err := getConfig(settings)
+	if err != nil {
+		return nil, err
+	}
+
+	conf.GoVersion, err = hcversion.NewVersion(settings.Go)
 	if err != nil {
 		return nil, err
 	}
@@ -83,14 +100,23 @@ func runRevive(lintCtx *linter.Context, pass *analysis.Pass, settings *config.Re
 		return nil, err
 	}
 
-	revive := lint.New(os.ReadFile, settings.MaxOpenFiles)
-
 	lintingRules, err := reviveConfig.GetLintingRules(conf, []lint.Rule{})
 	if err != nil {
 		return nil, err
 	}
 
-	failures, err := revive.Lint(packages, lintingRules, *conf)
+	return &wrapper{
+		revive:       lint.New(os.ReadFile, settings.MaxOpenFiles),
+		formatter:    formatter,
+		lintingRules: lintingRules,
+		conf:         conf,
+	}, nil
+}
+
+func (w *wrapper) run(lintCtx *linter.Context, pass *analysis.Pass) ([]goanalysis.Issue, error) {
+	packages := [][]string{internal.GetFileNames(pass)}
+
+	failures, err := w.revive.Lint(packages, w.lintingRules, *w.conf)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +126,7 @@ func runRevive(lintCtx *linter.Context, pass *analysis.Pass, settings *config.Re
 
 	var output string
 	go func() {
-		output, err = formatter.Format(formatChan, *conf)
+		output, err = w.formatter.Format(formatChan, *w.conf)
 		if err != nil {
 			lintCtx.Log.Errorf("Format error: %v", err)
 		}
@@ -108,7 +134,7 @@ func runRevive(lintCtx *linter.Context, pass *analysis.Pass, settings *config.Re
 	}()
 
 	for f := range failures {
-		if f.Confidence < conf.Confidence {
+		if f.Confidence < w.conf.Confidence {
 			continue
 		}
 
@@ -126,13 +152,13 @@ func runRevive(lintCtx *linter.Context, pass *analysis.Pass, settings *config.Re
 
 	var issues []goanalysis.Issue
 	for i := range results {
-		issues = append(issues, reviveToIssue(pass, &results[i]))
+		issues = append(issues, toIssue(pass, &results[i]))
 	}
 
 	return issues, nil
 }
 
-func reviveToIssue(pass *analysis.Pass, object *jsonObject) goanalysis.Issue {
+func toIssue(pass *analysis.Pass, object *jsonObject) goanalysis.Issue {
 	lineRangeTo := object.Position.End.Line
 	if object.RuleName == (&rule.ExportedRule{}).Name() {
 		lineRangeTo = object.Position.Start.Line
@@ -160,10 +186,13 @@ func reviveToIssue(pass *analysis.Pass, object *jsonObject) goanalysis.Issue {
 // https://github.com/golangci/golangci-lint/issues/1745
 // https://github.com/mgechev/revive/blob/v1.3.7/config/config.go#L217
 // https://github.com/mgechev/revive/blob/v1.3.7/config/config.go#L169-L174
-func getReviveConfig(cfg *config.ReviveSettings) (*lint.Config, error) {
+func getConfig(cfg *config.ReviveSettings) (*lint.Config, error) {
 	conf := defaultConfig()
 
-	if !reflect.DeepEqual(cfg, &config.ReviveSettings{}) {
+	// Since the Go version is dynamic, this value must be neutralized in order to compare with a "zero value" of the configuration structure.
+	zero := &config.ReviveSettings{Go: cfg.Go}
+
+	if !reflect.DeepEqual(cfg, zero) {
 		rawRoot := createConfigMap(cfg)
 		buf := bytes.NewBuffer(nil)
 
@@ -255,7 +284,7 @@ func safeTomlSlice(r []any) []any {
 }
 
 // This element is not exported by revive, so we need copy the code.
-// Extracted from https://github.com/mgechev/revive/blob/v1.3.7/config/config.go#L15
+// Extracted from https://github.com/mgechev/revive/blob/v1.3.9/config/config.go#L15
 var defaultRules = []lint.Rule{
 	&rule.VarDeclarationsRule{},
 	&rule.PackageCommentsRule{},
@@ -338,6 +367,7 @@ var allRules = append([]lint.Rule{
 	&rule.EnforceRepeatedArgTypeStyleRule{},
 	&rule.EnforceSliceStyleRule{},
 	&rule.MaxControlNestingRule{},
+	&rule.CommentsDensityRule{},
 }, defaultRules...)
 
 const defaultConfidence = 0.8

@@ -2,6 +2,7 @@ package checkers
 
 import (
 	"fmt"
+	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -19,6 +20,25 @@ func newUseFunctionDiagnostic(
 	msg := fmt.Sprintf("use %s.%s", call.SelectorXStr, f)
 
 	return newDiagnostic(checker, call, msg, fix)
+}
+
+func newRemoveSprintfDiagnostic(
+	pass *analysis.Pass,
+	checker string,
+	call *CallMeta,
+	sprintfPos analysis.Range,
+	sprintfArgs []ast.Expr,
+) *analysis.Diagnostic {
+	return newDiagnostic(checker, call, "remove unnecessary fmt.Sprintf", &analysis.SuggestedFix{
+		Message: "Remove `fmt.Sprintf`",
+		TextEdits: []analysis.TextEdit{
+			{
+				Pos:     sprintfPos.Pos(),
+				End:     sprintfPos.End(),
+				NewText: formatAsCallArgs(pass, sprintfArgs...),
+			},
+		},
+	})
 }
 
 func newDiagnostic(

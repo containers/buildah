@@ -16,6 +16,8 @@ import (
 
 	"honnef.co/go/tools/go/ast/astutil"
 	"honnef.co/go/tools/go/types/typeutil"
+
+	"golang.org/x/exp/typeparams"
 )
 
 //// AST utilities
@@ -42,14 +44,15 @@ func isPointer(typ types.Type) bool {
 	return ok
 }
 
-func isInterface(T types.Type) bool { return types.IsInterface(T) }
-
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
 	orig := typ
+	typ = types.Unalias(typ)
 
 	if t, ok := typ.(*types.TypeParam); ok {
 		if ctyp := typeutil.CoreType(t); ctyp != nil {
+			// This can happen, for example, with len(T) where T is a
+			// type parameter whose core type is a pointer to array.
 			typ = ctyp
 		}
 	}
@@ -146,3 +149,14 @@ func assert(x bool) {
 
 // BlockMap is a mapping from basic blocks (identified by their indices) to values.
 type BlockMap[T any] []T
+
+// isBasic reports whether t is a basic type.
+func isBasic(t types.Type) bool {
+	_, ok := t.(*types.Basic)
+	return ok
+}
+
+// isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
+func isNonTypeParamInterface(t types.Type) bool {
+	return !typeparams.IsTypeParam(t) && types.IsInterface(t)
+}

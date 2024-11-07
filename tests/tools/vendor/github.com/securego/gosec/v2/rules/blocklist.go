@@ -93,3 +93,17 @@ func NewBlocklistedImportSHA1(id string, conf gosec.Config) (gosec.Rule, []ast.N
 		"crypto/sha1": "Blocklisted import crypto/sha1: weak cryptographic primitive",
 	})
 }
+
+// NewBlocklistedImportMD4 fails if MD4 is imported
+func NewBlocklistedImportMD4(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+	return NewBlocklistedImports(id, conf, map[string]string{
+		"golang.org/x/crypto/md4": "Blocklisted import golang.org/x/crypto/md4: deprecated and weak cryptographic primitive",
+	})
+}
+
+// NewBlocklistedImportRIPEMD160 fails if RIPEMD160 is imported
+func NewBlocklistedImportRIPEMD160(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+	return NewBlocklistedImports(id, conf, map[string]string{
+		"golang.org/x/crypto/ripemd160": "Blocklisted import golang.org/x/crypto/ripemd160: deprecated and weak cryptographic primitive",
+	})
+}

@@ -20,10 +20,13 @@ var registry = checkersRegistry{
 	{factory: asCheckerFactory(NewSuiteExtraAssertCall), enabledByDefault: true},
 	{factory: asCheckerFactory(NewSuiteDontUsePkg), enabledByDefault: true},
 	{factory: asCheckerFactory(NewUselessAssert), enabledByDefault: true},
+	{factory: asCheckerFactory(NewFormatter), enabledByDefault: true},
 	// Advanced checkers.
 	{factory: asCheckerFactory(NewBlankImport), enabledByDefault: true},
 	{factory: asCheckerFactory(NewGoRequire), enabledByDefault: true},
 	{factory: asCheckerFactory(NewRequireError), enabledByDefault: true},
+	{factory: asCheckerFactory(NewSuiteBrokenParallel), enabledByDefault: true},
+	{factory: asCheckerFactory(NewSuiteSubtestRun), enabledByDefault: true},
 	{factory: asCheckerFactory(NewSuiteTHelper), enabledByDefault: false},
 }
 

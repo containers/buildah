@@ -21,11 +21,16 @@ import (
 //	assert.Greater(t, 0, len(arr))
 //	assert.Less(t, len(arr), 1)
 //	assert.Greater(t, 1, len(arr))
+//	assert.Zero(t, len(arr))
+//	assert.Empty(t, len(arr))
 //
 //	assert.NotEqual(t, 0, len(arr))
 //	assert.NotEqualValues(t, 0, len(arr))
 //	assert.Less(t, 0, len(arr))
 //	assert.Greater(t, len(arr), 0)
+//	assert.Positive(t, len(arr))
+//	assert.NotZero(t, len(arr))
+//	assert.NotEmpty(t, len(arr))
 //
 // and requires
 //
@@ -56,10 +61,23 @@ func (checker Empty) checkEmpty(pass *analysis.Pass, call *CallMeta) *analysis.D
 		)
 	}
 
+	if len(call.Args) == 0 {
+		return nil
+	}
+
+	a := call.Args[0]
+	switch call.Fn.NameFTrimmed {
+	case "Zero", "Empty":
+		lenArg, ok := isBuiltinLenCall(pass, a)
+		if ok {
+			return newUseEmptyDiagnostic(a.Pos(), a.End(), lenArg)
+		}
+	}
+
 	if len(call.Args) < 2 {
 		return nil
 	}
-	a, b := call.Args[0], call.Args[1]
+	b := call.Args[1]
 
 	switch call.Fn.NameFTrimmed {
 	case "Len":
@@ -110,10 +128,23 @@ func (checker Empty) checkNotEmpty(pass *analysis.Pass, call *CallMeta) *analysi
 		)
 	}
 
+	if len(call.Args) == 0 {
+		return nil
+	}
+
+	a := call.Args[0]
+	switch call.Fn.NameFTrimmed {
+	case "NotZero", "NotEmpty", "Positive":
+		lenArg, ok := isBuiltinLenCall(pass, a)
+		if ok {
+			return newUseNotEmptyDiagnostic(a.Pos(), a.End(), lenArg)
+		}
+	}
+
 	if len(call.Args) < 2 {
 		return nil
 	}
-	a, b := call.Args[0], call.Args[1]
+	b := call.Args[1]
 
 	switch call.Fn.NameFTrimmed {
 	case "NotEqual", "NotEqualValues":

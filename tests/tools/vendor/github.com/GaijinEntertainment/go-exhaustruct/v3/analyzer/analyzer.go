@@ -100,12 +100,9 @@ func (a *analyzer) newVisitor(pass *analysis.Pass) func(n ast.Node, push bool, s
 
 		if len(lit.Elts) == 0 {
 			if ret, ok := stackParentIsReturn(stack); ok {
-				if returnContainsNonNilError(pass, ret) {
+				if returnContainsNonNilError(pass, ret, n) {
 					// it is okay to return uninitialized structure in case struct's direct parent is
 					// a return statement containing non-nil error
-					//
-					// we're unable to check if returned error is custom, but at least we're able to
-					// cover str [error] type.
 					return true
 				}
 			}
@@ -184,17 +181,47 @@ func getStructType(pass *analysis.Pass, lit *ast.CompositeLit) (*types.Struct, *
 
 func stackParentIsReturn(stack []ast.Node) (*ast.ReturnStmt, bool) {
 	// it is safe to skip boundary check, since stack always has at least one element
-	// - whole file.
-	ret, ok := stack[len(stack)-2].(*ast.ReturnStmt)
+	// we also have no reason to check the first element, since it is always a file
+	for i := len(stack) - 2; i > 0; i-- {
+		switch st := stack[i].(type) {
+		case *ast.ReturnStmt:
+			return st, true
 
-	return ret, ok
+		case *ast.UnaryExpr:
+			// in case we're dealing with pointers - it is still viable to check pointer's
+			// parent for return statement
+			continue
+
+		default:
+			return nil, false
+		}
+	}
+
+	return nil, false
 }
 
-func returnContainsNonNilError(pass *analysis.Pass, ret *ast.ReturnStmt) bool {
+// errorIface is a type that represents [error] interface and all types will be
+// compared against.
+var errorIface = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+func returnContainsNonNilError(pass *analysis.Pass, ret *ast.ReturnStmt, except ast.Node) bool {
 	// errors are mostly located at the end of return statement, so we're starting
 	// from the end.
 	for i := len(ret.Results) - 1; i >= 0; i-- {
-		if pass.TypesInfo.TypeOf(ret.Results[i]).String() == "error" {
+		ri := ret.Results[i]
+
+		// skip current node
+		if ri == except {
+			continue
+		}
+
+		if un, ok := ri.(*ast.UnaryExpr); ok {
+			if un.X == except {
+				continue
+			}
+		}
+
+		if types.Implements(pass.TypesInfo.TypeOf(ri), errorIface) {
 			return true
 		}
 	}

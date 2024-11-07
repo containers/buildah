@@ -16,3 +16,12 @@ func (t *Iterator) Elem() types.Type       { return t.elem }
 func NewIterator(elem types.Type) *Iterator {
 	return &Iterator{elem: elem}
 }
+
+type DeferStack struct{}
+
+func (t *DeferStack) Underlying() types.Type { return t }
+func (t *DeferStack) String() string         { return "deferStack" }
+
+func NewDeferStack() *DeferStack {
+	return &DeferStack{}
+}

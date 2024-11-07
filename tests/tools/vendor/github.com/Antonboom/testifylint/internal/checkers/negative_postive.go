@@ -29,6 +29,8 @@ import (
 //
 //	assert.Negative(t, value)
 //	assert.Positive(t, value)
+//
+// Typed zeros (like `int8(0)`, ..., `uint64(0)`) are also supported.
 type NegativePositive struct{}
 
 // NewNegativePositive constructs NegativePositive checker.
@@ -54,6 +56,8 @@ func (checker NegativePositive) checkNegative(pass *analysis.Pass, call *CallMet
 		)
 	}
 
+	// NOTE(a.telyshev): We ignore uint-asserts as being no sense for assert.Negative.
+
 	switch call.Fn.NameFTrimmed {
 	case "Less":
 		if len(call.Args) < 2 {
@@ -61,8 +65,8 @@ func (checker NegativePositive) checkNegative(pass *analysis.Pass, call *CallMet
 		}
 		a, b := call.Args[0], call.Args[1]
 
-		if isNotZero(a) && isZero(b) {
-			return newUseNegativeDiagnostic(a.Pos(), b.End(), a)
+		if isSignedNotZero(pass, a) && isZeroOrSignedZero(b) {
+			return newUseNegativeDiagnostic(a.Pos(), b.End(), untype(a))
 		}
 
 	case "Greater":
@@ -71,8 +75,8 @@ func (checker NegativePositive) checkNegative(pass *analysis.Pass, call *CallMet
 		}
 		a, b := call.Args[0], call.Args[1]
 
-		if isZero(a) && isNotZero(b) {
-			return newUseNegativeDiagnostic(a.Pos(), b.End(), b)
+		if isZeroOrSignedZero(a) && isSignedNotZero(pass, b) {
+			return newUseNegativeDiagnostic(a.Pos(), b.End(), untype(b))
 		}
 
 	case "True":
@@ -81,12 +85,12 @@ func (checker NegativePositive) checkNegative(pass *analysis.Pass, call *CallMet
 		}
 		expr := call.Args[0]
 
-		a, _, ok1 := isStrictComparisonWith(pass, expr, p(isNotZero), token.LSS, p(isZero)) // a < 0
-		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isZero), token.GTR, p(isNotZero)) // 0 > a
+		a, _, ok1 := isStrictComparisonWith(pass, expr, isSignedNotZero, token.LSS, p(isZeroOrSignedZero)) // a < 0
+		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isZeroOrSignedZero), token.GTR, isSignedNotZero) // 0 > a
 
 		survivingArg, ok := anyVal([]bool{ok1, ok2}, a, b)
 		if ok {
-			return newUseNegativeDiagnostic(expr.Pos(), expr.End(), survivingArg)
+			return newUseNegativeDiagnostic(expr.Pos(), expr.End(), untype(survivingArg))
 		}
 
 	case "False":
@@ -95,12 +99,12 @@ func (checker NegativePositive) checkNegative(pass *analysis.Pass, call *CallMet
 		}
 		expr := call.Args[0]
 
-		a, _, ok1 := isStrictComparisonWith(pass, expr, p(isNotZero), token.GEQ, p(isZero)) // a >= 0
-		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isZero), token.LEQ, p(isNotZero)) // 0 <= a
+		a, _, ok1 := isStrictComparisonWith(pass, expr, isSignedNotZero, token.GEQ, p(isZeroOrSignedZero)) // a >= 0
+		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isZeroOrSignedZero), token.LEQ, isSignedNotZero) // 0 <= a
 
 		survivingArg, ok := anyVal([]bool{ok1, ok2}, a, b)
 		if ok {
-			return newUseNegativeDiagnostic(expr.Pos(), expr.End(), survivingArg)
+			return newUseNegativeDiagnostic(expr.Pos(), expr.End(), untype(survivingArg))
 		}
 	}
 	return nil
@@ -125,8 +129,8 @@ func (checker NegativePositive) checkPositive(pass *analysis.Pass, call *CallMet
 		}
 		a, b := call.Args[0], call.Args[1]
 
-		if isNotZero(a) && isZero(b) {
-			return newUsePositiveDiagnostic(a.Pos(), b.End(), a)
+		if isNotAnyZero(a) && isAnyZero(b) {
+			return newUsePositiveDiagnostic(a.Pos(), b.End(), untype(a))
 		}
 
 	case "Less":
@@ -135,8 +139,8 @@ func (checker NegativePositive) checkPositive(pass *analysis.Pass, call *CallMet
 		}
 		a, b := call.Args[0], call.Args[1]
 
-		if isZero(a) && isNotZero(b) {
-			return newUsePositiveDiagnostic(a.Pos(), b.End(), b)
+		if isAnyZero(a) && isNotAnyZero(b) {
+			return newUsePositiveDiagnostic(a.Pos(), b.End(), untype(b))
 		}
 
 	case "True":
@@ -145,12 +149,12 @@ func (checker NegativePositive) checkPositive(pass *analysis.Pass, call *CallMet
 		}
 		expr := call.Args[0]
 
-		a, _, ok1 := isStrictComparisonWith(pass, expr, p(isNotZero), token.GTR, p(isZero)) // a > 0
-		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isZero), token.LSS, p(isNotZero)) // 0 < a
+		a, _, ok1 := isStrictComparisonWith(pass, expr, p(isNotAnyZero), token.GTR, p(isAnyZero)) // a > 0
+		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isAnyZero), token.LSS, p(isNotAnyZero)) // 0 < a
 
 		survivingArg, ok := anyVal([]bool{ok1, ok2}, a, b)
 		if ok {
-			return newUsePositiveDiagnostic(expr.Pos(), expr.End(), survivingArg)
+			return newUsePositiveDiagnostic(expr.Pos(), expr.End(), untype(survivingArg))
 		}
 
 	case "False":
@@ -159,12 +163,12 @@ func (checker NegativePositive) checkPositive(pass *analysis.Pass, call *CallMet
 		}
 		expr := call.Args[0]
 
-		a, _, ok1 := isStrictComparisonWith(pass, expr, p(isNotZero), token.LEQ, p(isZero)) // a <= 0
-		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isZero), token.GEQ, p(isNotZero)) // 0 >= a
+		a, _, ok1 := isStrictComparisonWith(pass, expr, p(isNotAnyZero), token.LEQ, p(isAnyZero)) // a <= 0
+		_, b, ok2 := isStrictComparisonWith(pass, expr, p(isAnyZero), token.GEQ, p(isNotAnyZero)) // 0 >= a
 
 		survivingArg, ok := anyVal([]bool{ok1, ok2}, a, b)
 		if ok {
-			return newUsePositiveDiagnostic(expr.Pos(), expr.End(), survivingArg)
+			return newUsePositiveDiagnostic(expr.Pos(), expr.End(), untype(survivingArg))
 		}
 	}
 	return nil

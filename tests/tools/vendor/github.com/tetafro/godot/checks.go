@@ -171,7 +171,7 @@ func checkCapital(c comment) []Issue {
 		if state == endOfSentence && unicode.IsLower(r) {
 			pp = append(pp, position{
 				line:   pos.line,
-				column: runeToByteColumn(c.text, pos.column),
+				column: runeToByteColumn(c.lines[pos.line-1], pos.column),
 			})
 		}
 		state = empty
@@ -230,7 +230,8 @@ func isSpecialBlock(comment string) bool {
 		strings.Contains(comment, "#define")) {
 		return true
 	}
-	if strings.HasPrefix(comment, "// Output: ") {
+	if strings.HasPrefix(comment, "// Output:") ||
+		strings.HasPrefix(comment, "// Unordered output:") {
 		return true
 	}
 	return false

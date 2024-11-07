@@ -1,4 +1,6 @@
-[![GoDoc](https://godoc.org/github.com/uudashr/gocognit?status.svg)](https://godoc.org/github.com/uudashr/gocognit)
+[![Go Reference](https://pkg.go.dev/badge/github.com/uudashr/gocognit.svg)](https://pkg.go.dev/github.com/uudashr/gocognit)
+[![go-recipes](https://raw.githubusercontent.com/nikolaydubina/go-recipes/main/badge.svg?raw=true)](https://github.com/nikolaydubina/go-recipes)
+
 # Gocognit
 Gocognit calculates cognitive complexities of functions (and methods) in Go source code. A measurement of how hard does the code is intuitively to understand.
 

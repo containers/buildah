@@ -26,11 +26,11 @@ dockerrun: dockerbuild
 
 .PHONY: snapshot
 snapshot:
-	goreleaser --rm-dist --snapshot
+	goreleaser --clean --snapshot
 
 .PHONY: release
 release:
-	goreleaser --rm-dist
+	goreleaser --clean
 
 .PHONY: clean
 clean:
@@ -43,4 +43,4 @@ install-tools-mac:
 
 .PHONY: install-go-tools
 install-go-tools:
-	go install -v github.com/t-yuki/gocover-cobertura
+	go install -v github.com/t-yuki/gocover-cobertura@latest

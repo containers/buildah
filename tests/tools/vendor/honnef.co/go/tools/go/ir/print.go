@@ -14,6 +14,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 
 	"honnef.co/go/tools/go/types/typeutil"
 )
@@ -40,6 +41,14 @@ func relName(v Value, i Instruction) string {
 
 func relType(t types.Type, from *types.Package) string {
 	return types.TypeString(t, types.RelativeTo(from))
+}
+
+func relTerm(term *types.Term, from *types.Package) string {
+	s := relType(term.Type(), from)
+	if term.Tilde() {
+		return "~" + s
+	}
+	return s
 }
 
 func relString(m Member, from *types.Package) string {
@@ -398,7 +407,12 @@ func (recv *Recv) String() string {
 }
 
 func (s *Defer) String() string {
-	return printCall(&s.Call, "Defer", s)
+	prefix := "Defer "
+	if s._DeferStack != nil {
+		prefix += "[" + relName(s._DeferStack, s) + "] "
+	}
+	c := printCall(&s.Call, prefix, s)
+	return c
 }
 
 func (s *Select) String() string {
@@ -504,4 +518,22 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 	}
 
 	fmt.Fprintf(buf, "\n")
+}
+
+func (v *MultiConvert) String() string {
+	from := v.Parent().Pkg.Pkg
+
+	var b strings.Builder
+	b.WriteString(printConv("MultiConvert", v, v.X))
+	b.WriteString(" [")
+	for i, s := range v.from.Terms {
+		for j, d := range v.to.Terms {
+			if i != 0 || j != 0 {
+				b.WriteString(" | ")
+			}
+			fmt.Fprintf(&b, "%s -> %s", relTerm(s, from), relTerm(d, from))
+		}
+	}
+	b.WriteString("]")
+	return b.String()
 }

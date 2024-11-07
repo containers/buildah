@@ -465,6 +465,7 @@ type GciSettings struct {
 	Sections      []string `mapstructure:"sections"`
 	SkipGenerated bool     `mapstructure:"skip-generated"`
 	CustomOrder   bool     `mapstructure:"custom-order"`
+	NoLexOrder    bool     `mapstructure:"no-lex-order"`
 
 	// Deprecated: use Sections instead.
 	LocalPrefixes string `mapstructure:"local-prefixes"`
@@ -716,7 +717,7 @@ type MustTagSettings struct {
 }
 
 type NakedretSettings struct {
-	MaxFuncLines int `mapstructure:"max-func-lines"`
+	MaxFuncLines uint `mapstructure:"max-func-lines"`
 }
 
 type NestifSettings struct {
@@ -791,8 +792,9 @@ type ReassignSettings struct {
 }
 
 type ReviveSettings struct {
-	MaxOpenFiles          int  `mapstructure:"max-open-files"`
-	IgnoreGeneratedHeader bool `mapstructure:"ignore-generated-header"`
+	Go                    string `mapstructure:"-"`
+	MaxOpenFiles          int    `mapstructure:"max-open-files"`
+	IgnoreGeneratedHeader bool   `mapstructure:"ignore-generated-header"`
 	Confidence            float64
 	Severity              string
 	EnableAllRules        bool `mapstructure:"enable-all-rules"`
@@ -879,6 +881,11 @@ type TestifylintSettings struct {
 		ExpVarPattern string `mapstructure:"pattern"`
 	} `mapstructure:"expected-actual"`
 
+	Formatter struct {
+		CheckFormatString *bool `mapstructure:"check-format-string"`
+		RequireFFuncs     bool  `mapstructure:"require-f-funcs"`
+	} `mapstructure:"formatter"`
+
 	GoRequire struct {
 		IgnoreHTTPHandlers bool `mapstructure:"ignore-http-handlers"`
 	} `mapstructure:"go-require"`
@@ -942,7 +949,7 @@ type UnparamSettings struct {
 type UnusedSettings struct {
 	FieldWritesAreUses     bool `mapstructure:"field-writes-are-uses"`
 	PostStatementsAreReads bool `mapstructure:"post-statements-are-reads"`
-	ExportedIsUsed         bool `mapstructure:"exported-is-used"`
+	ExportedIsUsed         bool `mapstructure:"exported-is-used"` // Deprecated
 	ExportedFieldsAreUsed  bool `mapstructure:"exported-fields-are-used"`
 	ParametersAreUsed      bool `mapstructure:"parameters-are-used"`
 	LocalVariablesAreUsed  bool `mapstructure:"local-variables-are-used"`

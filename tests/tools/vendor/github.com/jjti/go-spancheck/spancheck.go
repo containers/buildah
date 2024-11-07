@@ -389,7 +389,7 @@ func usesCall(
 				// Selector (End, SetStatus, RecordError) hit.
 				if n.Sel.Name == selName {
 					id, ok := n.X.(*ast.Ident)
-					found = ok && id.Obj.Decl == sv.id.Obj.Decl
+					found = ok && id.Obj != nil && id.Obj.Decl == sv.id.Obj.Decl
 				}
 
 				// Check if an ignore signature matches.

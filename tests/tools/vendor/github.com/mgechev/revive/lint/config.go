@@ -1,5 +1,9 @@
 package lint
 
+import (
+	goversion "github.com/hashicorp/go-version"
+)
+
 // Arguments is type used for the arguments of a rule.
 type Arguments = []interface{}
 
@@ -61,4 +65,7 @@ type Config struct {
 	WarningCode           int              `toml:"warningCode"`
 	Directives            DirectivesConfig `toml:"directive"`
 	Exclude               []string         `toml:"exclude"`
+	// If set, overrides the go language version specified in go.mod of
+	// packages being linted, and assumes this specific language version.
+	GoVersion *goversion.Version
 }
