@@ -3,16 +3,13 @@
 package lint
 
 import (
-	"flag"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/token"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
+	"honnef.co/go/tools/analysis/facts/tokenfile"
 )
 
 // Analyzer wraps a go/analysis.Analyzer and provides structured documentation.
@@ -20,33 +17,15 @@ type Analyzer struct {
 	// The analyzer's documentation. Unlike go/analysis.Analyzer.Doc,
 	// this field is structured, providing access to severity, options
 	// etc.
-	Doc      *Documentation
+	Doc      *RawDocumentation
 	Analyzer *analysis.Analyzer
 }
 
-func (a *Analyzer) initialize() {
-	a.Analyzer.Doc = a.Doc.String()
-	if a.Analyzer.Flags.Usage == nil {
-		fs := flag.NewFlagSet("", flag.PanicOnError)
-		fs.Var(newVersionFlag(), "go", "Target Go version")
-		a.Analyzer.Flags = *fs
-	}
-}
-
-// InitializeAnalyzers takes a map of documentation and a map of go/analysis.Analyzers and returns a slice of Analyzers.
-// The map keys are the analyzer names.
-func InitializeAnalyzers(docs map[string]*Documentation, analyzers map[string]*analysis.Analyzer) []*Analyzer {
-	out := make([]*Analyzer, 0, len(analyzers))
-	for k, v := range analyzers {
-		v.Name = k
-		a := &Analyzer{
-			Doc:      docs[k],
-			Analyzer: v,
-		}
-		a.initialize()
-		out = append(out, a)
-	}
-	return out
+func InitializeAnalyzer(a *Analyzer) *Analyzer {
+	a.Analyzer.Doc = a.Doc.Compile().String()
+	a.Analyzer.URL = "https://staticcheck.dev/docs/checks/#" + a.Analyzer.Name
+	a.Analyzer.Requires = append(a.Analyzer.Requires, tokenfile.Analyzer)
+	return a
 }
 
 // Severity describes the severity of diagnostics reported by an analyzer.
@@ -97,26 +76,22 @@ type Documentation struct {
 	MergeIf    MergeStrategy
 }
 
-func Markdownify(m map[string]*RawDocumentation) map[string]*Documentation {
-	out := make(map[string]*Documentation, len(m))
-	for k, v := range m {
-		out[k] = &Documentation{
-			Title: strings.TrimSpace(stripMarkdown(v.Title)),
-			Text:  strings.TrimSpace(stripMarkdown(v.Text)),
+func (doc RawDocumentation) Compile() *Documentation {
+	return &Documentation{
+		Title: strings.TrimSpace(stripMarkdown(doc.Title)),
+		Text:  strings.TrimSpace(stripMarkdown(doc.Text)),
 
-			TitleMarkdown: strings.TrimSpace(toMarkdown(v.Title)),
-			TextMarkdown:  strings.TrimSpace(toMarkdown(v.Text)),
+		TitleMarkdown: strings.TrimSpace(toMarkdown(doc.Title)),
+		TextMarkdown:  strings.TrimSpace(toMarkdown(doc.Text)),
 
-			Before:     strings.TrimSpace(v.Before),
-			After:      strings.TrimSpace(v.After),
-			Since:      v.Since,
-			NonDefault: v.NonDefault,
-			Options:    v.Options,
-			Severity:   v.Severity,
-			MergeIf:    v.MergeIf,
-		}
+		Before:     strings.TrimSpace(doc.Before),
+		After:      strings.TrimSpace(doc.After),
+		Since:      doc.Since,
+		NonDefault: doc.NonDefault,
+		Options:    doc.Options,
+		Severity:   doc.Severity,
+		MergeIf:    doc.MergeIf,
 	}
-	return out
 }
 
 func toMarkdown(s string) string {
@@ -189,51 +164,6 @@ func (doc *Documentation) format(markdown bool, metadata bool) string {
 
 func (doc *Documentation) String() string {
 	return doc.Format(true)
-}
-
-func newVersionFlag() flag.Getter {
-	tags := build.Default.ReleaseTags
-	v := tags[len(tags)-1][2:]
-	version := new(VersionFlag)
-	if err := version.Set(v); err != nil {
-		panic(fmt.Sprintf("internal error: %s", err))
-	}
-	return version
-}
-
-type VersionFlag int
-
-func (v *VersionFlag) String() string {
-	return fmt.Sprintf("1.%d", *v)
-}
-
-var goVersionRE = regexp.MustCompile(`^(?:go)?1.(\d+).*$`)
-
-// ParseGoVersion parses Go versions of the form 1.M, 1.M.N, or 1.M.NrcR, with an optional "go" prefix. It assumes that
-// versions have already been verified and are valid.
-func ParseGoVersion(s string) (int, bool) {
-	m := goVersionRE.FindStringSubmatch(s)
-	if m == nil {
-		return 0, false
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0, false
-	}
-	return n, true
-}
-
-func (v *VersionFlag) Set(s string) error {
-	n, ok := ParseGoVersion(s)
-	if !ok {
-		return fmt.Errorf("invalid Go version: %q", s)
-	}
-	*v = VersionFlag(n)
-	return nil
-}
-
-func (v *VersionFlag) Get() interface{} {
-	return int(*v)
 }
 
 // ExhaustiveTypeSwitch panics when called. It can be used to ensure

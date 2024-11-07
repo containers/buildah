@@ -27,7 +27,7 @@ func (prog *Program) MethodValue(sel *types.Selection) *Function {
 		panic(fmt.Sprintf("MethodValue(%s) kind != MethodVal", sel))
 	}
 	T := sel.Recv()
-	if isInterface(T) {
+	if types.IsInterface(T) {
 		return nil // abstract method
 	}
 	if prog.mode&LogSource != 0 {
@@ -165,7 +165,7 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 
 	tmset := prog.MethodSets.MethodSet(T)
 
-	if !skip && !isInterface(T) && tmset.Len() > 0 {
+	if !skip && !types.IsInterface(T) && tmset.Len() > 0 {
 		// Create methods of T.
 		mset := prog.createMethodSet(T)
 		if !mset.complete {
@@ -234,6 +234,9 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 		for i, n := 0, t.Len(); i < n; i++ {
 			prog.needMethods(t.At(i).Type(), false)
 		}
+
+	case *types.Alias:
+		prog.needMethods(types.Unalias(t), false)
 
 	default:
 		lint.ExhaustiveTypeSwitch(T)

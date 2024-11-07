@@ -22,6 +22,8 @@ import (
 	"golang.org/x/tools/internal/typesinternal"
 )
 
+type unit struct{}
+
 //// Sanity checking utilities
 
 // assert panics with the mesage msg if p is false.
@@ -147,6 +149,26 @@ func isUntyped(typ types.Type) bool {
 	// No Underlying/Unalias: untyped constant types cannot be Named or Alias.
 	b, ok := typ.(*types.Basic)
 	return ok && b.Info()&types.IsUntyped != 0
+}
+
+// declaredWithin reports whether an object is declared within a function.
+//
+// obj must not be a method or a field.
+func declaredWithin(obj types.Object, fn *types.Func) bool {
+	if obj.Pos() != token.NoPos {
+		return fn.Scope().Contains(obj.Pos()) // trust the positions if they exist.
+	}
+	if fn.Pkg() != obj.Pkg() {
+		return false // fast path for different packages
+	}
+
+	// Traverse Parent() scopes for fn.Scope().
+	for p := obj.Parent(); p != nil; p = p.Parent() {
+		if p == fn.Scope() {
+			return true
+		}
+	}
+	return false
 }
 
 // logStack prints the formatted "start" message to stderr and

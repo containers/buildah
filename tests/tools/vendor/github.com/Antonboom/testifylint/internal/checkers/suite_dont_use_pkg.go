@@ -7,7 +7,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// SuiteDontUsePkg detects situation like
+// SuiteDontUsePkg detects situations like
 //
 //	func (s *MySuite) TestSomething() {
 //		assert.Equal(s.T(), 42, value)

@@ -69,7 +69,7 @@ type Package struct {
 	ninit       int32               // number of init functions
 	info        *types.Info         // package type information
 	files       []*ast.File         // package ASTs
-	created     creator             // members created as a result of building this package (includes declared functions, wrappers)
+	created     []*Function         // members created as a result of building this package (includes declared functions, wrappers)
 	initVersion map[ast.Expr]string // goversion to use for each global var init expr
 }
 
@@ -347,6 +347,8 @@ type Function struct {
 	parent *Function // enclosing function if anon; nil if global
 	Pkg    *Package  // enclosing package; nil for shared funcs (wrappers and error.Error)
 	Prog   *Program  // enclosing program
+
+	buildshared *task // wait for a shared function to be done building (may be nil if <=1 builder ever needs to wait)
 
 	// These fields are populated only when the function body is built:
 
@@ -1255,10 +1257,10 @@ type Go struct {
 // The Defer instruction pushes the specified call onto a stack of
 // functions to be called by a RunDefers instruction or by a panic.
 //
-// If _DeferStack != nil, it indicates the defer list that the defer is
+// If DeferStack != nil, it indicates the defer list that the defer is
 // added to. Defer list values come from the Builtin function
 // ssa:deferstack. Calls to ssa:deferstack() produces the defer stack
-// of the current function frame. _DeferStack allows for deferring into an
+// of the current function frame. DeferStack allows for deferring into an
 // alternative function stack than the current function.
 //
 // See CallCommon for generic function call documentation.
@@ -1272,11 +1274,9 @@ type Go struct {
 //	defer invoke t5.Println(...t6)
 type Defer struct {
 	anInstruction
-	Call        CallCommon
-	_DeferStack Value // stack (from ssa:deferstack() intrinsic) onto which this function is pushed
-	pos         token.Pos
-
-	// TODO: Exporting _DeferStack and possibly making _DeferStack != nil awaits proposal https://github.com/golang/go/issues/66601.
+	Call       CallCommon
+	DeferStack Value // stack of deferred functions (from ssa:deferstack() intrinsic) onto which this function is pushed
+	pos        token.Pos
 }
 
 // The Send instruction sends X on channel Chan.
@@ -1718,7 +1718,7 @@ func (s *Call) Operands(rands []*Value) []*Value {
 }
 
 func (s *Defer) Operands(rands []*Value) []*Value {
-	return append(s.Call.Operands(rands), &s._DeferStack)
+	return append(s.Call.Operands(rands), &s.DeferStack)
 }
 
 func (v *ChangeInterface) Operands(rands []*Value) []*Value {
@@ -1869,7 +1869,3 @@ func (v *Const) Operands(rands []*Value) []*Value     { return rands }
 func (v *Function) Operands(rands []*Value) []*Value  { return rands }
 func (v *Global) Operands(rands []*Value) []*Value    { return rands }
 func (v *Parameter) Operands(rands []*Value) []*Value { return rands }
-
-// Exposed to interp using the linkname hack
-// TODO(taking): Remove some form of https://go.dev/issue/66601 is accepted.
-func deferStack(i *Defer) Value { return i._DeferStack }

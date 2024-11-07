@@ -128,7 +128,12 @@ func (a *analyzer) run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func (a *analyzer) fixDuplicateWordInComment(pass *analysis.Pass, f *ast.File) {
+	isTestFile := strings.HasSuffix(pass.Fset.File(f.FileStart).Name(), "_test.go")
 	for _, cg := range f.Comments {
+		// avoid checking example outputs for duplicate words
+		if isTestFile && isExampleOutputStart(cg.List[0].Text) {
+			continue
+		}
 		var preLine *ast.Comment
 		for _, c := range cg.List {
 			update, keyword, find := a.Check(c.Text)
@@ -328,4 +333,11 @@ func ExcludeWords(word string) (exclude bool) {
 		return true
 	}
 	return false
+}
+
+func isExampleOutputStart(comment string) bool {
+	return strings.HasPrefix(comment, "// Output:") ||
+		strings.HasPrefix(comment, "// output:") ||
+		strings.HasPrefix(comment, "// Unordered output:") ||
+		strings.HasPrefix(comment, "// unordered output:")
 }

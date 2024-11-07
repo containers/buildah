@@ -57,6 +57,8 @@ func setDefaultAllowedErrors() {
 		{Err: "io.ErrUnexpectedEOF", Fun: "io.ReadAtLeast"},
 		{Err: "io.EOF", Fun: "io.ReadFull"},
 		{Err: "io.ErrUnexpectedEOF", Fun: "io.ReadFull"},
+		// pkg/mime
+		{Err: "mime.ErrInvalidMediaParameter", Fun: "mime.ParseMediaType"},
 		// pkg/net/http
 		{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ListenAndServe"},
 		{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ListenAndServeTLS"},

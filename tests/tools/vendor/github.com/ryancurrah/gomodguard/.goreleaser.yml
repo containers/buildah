@@ -1,3 +1,4 @@
+version: 2
 builds:
 - main: ./cmd/gomodguard/main.go
   env:
@@ -9,6 +10,14 @@ archives:
     {{- if eq .Arch "amd64" }}x86_64
     {{- else if eq .Arch "386" }}i386
     {{- else }}{{ .Arch }}{{ end }}
+  wrap_in_directory: true
+  format_overrides:
+    - goos: windows
+      format: zip
+    - goos: darwin
+      format: tar.xz
+    - goos: linux
+      format: tar.xz
 checksum:
   name_template: 'checksums.txt'
 dockers:

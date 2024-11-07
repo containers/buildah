@@ -14,6 +14,7 @@ import (
 
 	"github.com/golangci/golangci-lint/pkg/exitcodes"
 	"github.com/golangci/golangci-lint/pkg/fsutils"
+	"github.com/golangci/golangci-lint/pkg/goutil"
 	"github.com/golangci/golangci-lint/pkg/logutils"
 )
 
@@ -73,6 +74,11 @@ func (l *Loader) Load(opts LoadOptions) error {
 	}
 
 	l.handleGoVersion()
+
+	err = goutil.CheckGoVersion(l.cfg.Run.Go)
+	if err != nil {
+		return err
+	}
 
 	err = l.handleEnableOnlyOption()
 	if err != nil {
@@ -290,7 +296,9 @@ func (l *Loader) handleGoVersion() {
 		l.cfg.LintersSettings.Gofumpt.LangVersion = l.cfg.Run.Go
 	}
 
-	trimmedGoVersion := trimGoVersion(l.cfg.Run.Go)
+	trimmedGoVersion := goutil.TrimGoVersion(l.cfg.Run.Go)
+
+	l.cfg.LintersSettings.Revive.Go = trimmedGoVersion
 
 	l.cfg.LintersSettings.Gocritic.Go = trimmedGoVersion
 
@@ -429,6 +437,11 @@ func (l *Loader) handleLinterOptionDeprecations() {
 	// Deprecated since v1.47.0
 	if l.cfg.LintersSettings.Stylecheck.GoVersion != "" {
 		l.log.Warnf("The configuration option `linters.stylecheck.go` is deprecated, please use global `run.go`.")
+	}
+
+	// Deprecated since v1.60.0
+	if !l.cfg.LintersSettings.Unused.ExportedIsUsed {
+		l.log.Warnf("The configuration option `linters.unused.exported-is-used` is deprecated.")
 	}
 
 	// Deprecated since v1.58.0

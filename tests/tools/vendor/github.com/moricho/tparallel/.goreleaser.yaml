@@ -1,7 +1,9 @@
 project_name: tparallel
+
 before:
   hooks:
     - go mod tidy
+
 builds:
   - main: ./cmd/tparallel
     binary: tparallel
@@ -19,15 +21,17 @@ builds:
 archives:
   - format: tar.gz
     name_template: >-
-      {{ .ProjectName }}_
+      {{- .ProjectName }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+
     format_overrides:
-    - goos: windows
-      format: zip
+      - goos: windows
+        format: zip
+
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -38,10 +42,12 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+
 release:
   prerelease: auto
+
 brews:
-  - tap:
+  - repository:
       owner: moricho
       name: homebrew-tparallel
     homepage: https://github.com/moricho/tparallel
@@ -49,4 +55,4 @@ brews:
     install: |
       bin.install "tparallel"
     test: |
-      system "#{bin}/goreleaser -v"
+      system "#{bin}/tparallel help"

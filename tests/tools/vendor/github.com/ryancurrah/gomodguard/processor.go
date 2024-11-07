@@ -265,7 +265,7 @@ func loadGoModFile() ([]byte, error) {
 		return os.ReadFile(goModFilename)
 	}
 
-	if goEnv["GOMOD"] == "/dev/null" {
+	if goEnv["GOMOD"] == "/dev/null" || goEnv["GOMOD"] == "NUL" {
 		return nil, errors.New("current working directory must have a go.mod file")
 	}
 

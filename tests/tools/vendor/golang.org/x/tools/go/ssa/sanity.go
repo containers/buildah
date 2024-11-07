@@ -21,7 +21,7 @@ type sanity struct {
 	reporter io.Writer
 	fn       *Function
 	block    *BasicBlock
-	instrs   map[Instruction]struct{}
+	instrs   map[Instruction]unit
 	insane   bool
 }
 
@@ -461,10 +461,10 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		}
 	}
 	// Build the set of valid referrers.
-	s.instrs = make(map[Instruction]struct{})
+	s.instrs = make(map[Instruction]unit)
 	for _, b := range fn.Blocks {
 		for _, instr := range b.Instrs {
-			s.instrs[instr] = struct{}{}
+			s.instrs[instr] = unit{}
 		}
 	}
 	for i, p := range fn.Params {

@@ -586,13 +586,28 @@ func (fn Symbol) Match(m *Matcher, node interface{}) (interface{}, bool) {
 	case *types.Builtin:
 		name = obj.Name()
 	case *types.TypeName:
-		if obj.Pkg() == nil {
-			return nil, false
+		origObj := obj
+		for {
+			if obj.Parent() != obj.Pkg().Scope() {
+				return nil, false
+			}
+			name = types.TypeString(obj.Type(), nil)
+			_, ok = match(m, fn.Name, name)
+			if ok || !obj.IsAlias() {
+				return origObj, ok
+			} else {
+				// FIXME(dh): we should peel away one layer of alias at a time; this is blocked on
+				// github.com/golang/go/issues/66559
+				switch typ := types.Unalias(obj.Type()).(type) {
+				case interface{ Obj() *types.TypeName }:
+					obj = typ.Obj()
+				case *types.Basic:
+					return match(m, fn.Name, typ.Name())
+				default:
+					return nil, false
+				}
+			}
 		}
-		if obj.Parent() != obj.Pkg().Scope() {
-			return nil, false
-		}
-		name = types.TypeString(obj.Type(), nil)
 	case *types.Const, *types.Var:
 		if obj.Pkg() == nil {
 			return nil, false

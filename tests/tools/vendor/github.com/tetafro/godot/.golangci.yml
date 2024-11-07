@@ -1,9 +1,6 @@
 run:
   concurrency: 2
-  deadline: 5m
-
-skip-dirs:
-  - path: ./testdata/
+  timeout: 5m
 
 linters:
   disable-all: true
@@ -13,6 +10,7 @@ linters:
     - cyclop
     - dogsled
     - durationcheck
+    - err113
     - errcheck
     - errname
     - errorlint
@@ -25,7 +23,6 @@ linters:
     - gocritic
     - gocyclo
     - godot
-    - goerr113
     - gofmt
     - gofumpt
     - goimports
@@ -64,6 +61,8 @@ issues:
   exclude-use-default: false
   exclude:
     - "do not define dynamic errors, use wrapped static errors instead"
+  exclude-files:
+    - ./testdata/
   exclude-rules:
     - path: _test\.go
       linters:

@@ -45,9 +45,12 @@ func (t *templateCheck) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error
 // find use of templates where HTML/JS escaping is not being used
 func NewTemplateCheck(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	calls := gosec.NewCallList()
+	calls.Add("html/template", "CSS")
 	calls.Add("html/template", "HTML")
 	calls.Add("html/template", "HTMLAttr")
 	calls.Add("html/template", "JS")
+	calls.Add("html/template", "JSStr")
+	calls.Add("html/template", "Srcset")
 	calls.Add("html/template", "URL")
 	return &templateCheck{
 		calls: calls,

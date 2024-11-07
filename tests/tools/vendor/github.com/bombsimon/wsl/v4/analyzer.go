@@ -2,6 +2,7 @@ package wsl
 
 import (
 	"flag"
+	"go/ast"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -30,6 +31,7 @@ func defaultConfig() *Configuration {
 		ForceCuddleErrCheckAndAssign:     false,
 		ForceExclusiveShortDeclarations:  false,
 		StrictAppend:                     true,
+		IncludeGenerated:                 false,
 		AllowCuddleWithCalls:             []string{"Lock", "RLock"},
 		AllowCuddleWithRHS:               []string{"Unlock", "RUnlock"},
 		ErrorVariableNames:               []string{"err"},
@@ -64,6 +66,7 @@ func (wa *wslAnalyzer) flags() flag.FlagSet {
 	flags.BoolVar(&wa.config.ForceCuddleErrCheckAndAssign, "force-err-cuddling", false, "Force cuddling of error checks with error var assignment")
 	flags.BoolVar(&wa.config.ForceExclusiveShortDeclarations, "force-short-decl-cuddling", false, "Force short declarations to cuddle by themselves")
 	flags.BoolVar(&wa.config.StrictAppend, "strict-append", true, "Strict rules for append")
+	flags.BoolVar(&wa.config.IncludeGenerated, "include-generated", false, "Include generated files")
 	flags.IntVar(&wa.config.ForceCaseTrailingWhitespaceLimit, "force-case-trailing-whitespace", 0, "Force newlines for case blocks > this number.")
 
 	flags.Var(&multiStringValue{slicePtr: &wa.config.AllowCuddleWithCalls}, "allow-cuddle-with-calls", "Comma separated list of idents that can have cuddles after")
@@ -75,6 +78,10 @@ func (wa *wslAnalyzer) flags() flag.FlagSet {
 
 func (wa *wslAnalyzer) run(pass *analysis.Pass) (interface{}, error) {
 	for _, file := range pass.Files {
+		if !wa.config.IncludeGenerated && ast.IsGenerated(file) {
+			continue
+		}
+
 		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
 		if !strings.HasSuffix(filename, ".go") {
 			continue

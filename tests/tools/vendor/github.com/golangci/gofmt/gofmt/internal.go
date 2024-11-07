@@ -27,11 +27,11 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	err error,
 ) {
 
-	// START - Change related to usgae inside golangci-lint
+	// START - Change related to usage inside golangci-lint
 	parserModeMu.Lock()
 	parserMode := parserMode
 	parserModeMu.Unlock()
-	// END - Change related to usgae inside golangci-lint
+	// END - Change related to usage inside golangci-lint
 
 	// Try as whole source file.
 	file, err = parser.ParseFile(fset, filename, src, parserMode)

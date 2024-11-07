@@ -176,8 +176,12 @@ func lift(fn *Function) {
 
 	// While we're here, we also eliminate 'rundefers'
 	// instructions and ssa:deferstack() in functions that contain no
-	// 'defer' instructions. Eliminate ssa:deferstack() if it does not
-	// escape.
+	// 'defer' instructions. For now, we also eliminate
+	// 's = ssa:deferstack()' calls if s doesn't escape, replacing s
+	// with nil in Defer{DeferStack: s}. This has the same meaning,
+	// but allows eliminating the intrinsic function `ssa:deferstack()`
+	// (unless it is needed due to range-over-func instances). This gives
+	// ssa users more time to support range-over-func.
 	usesDefer := false
 	deferstackAlloc, deferstackCall := deferstackPreamble(fn)
 	eliminateDeferStack := deferstackAlloc != nil && !deferstackAlloc.Heap
@@ -205,12 +209,12 @@ func lift(fn *Function) {
 			case *Defer:
 				usesDefer = true
 				if eliminateDeferStack {
-					// Clear _DeferStack and remove references to loads
-					if instr._DeferStack != nil {
-						if refs := instr._DeferStack.Referrers(); refs != nil {
+					// Clear DeferStack and remove references to loads
+					if instr.DeferStack != nil {
+						if refs := instr.DeferStack.Referrers(); refs != nil {
 							*refs = removeInstr(*refs, instr)
 						}
-						instr._DeferStack = nil
+						instr.DeferStack = nil
 					}
 				}
 			case *RunDefers:

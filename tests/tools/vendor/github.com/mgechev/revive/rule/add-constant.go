@@ -53,7 +53,7 @@ func (r *AddConstantRule) Apply(file *lint.File, arguments lint.Arguments) []lin
 		onFailure:       onFailure,
 		strLits:         make(map[string]int),
 		strLitLimit:     r.strLitLimit,
-		allowList:        r.allowList,
+		allowList:       r.allowList,
 		ignoreFunctions: r.ignoreFunctions,
 		structTags:      make(map[*ast.BasicLit]struct{}),
 	}
@@ -72,7 +72,7 @@ type lintAddConstantRule struct {
 	onFailure       func(lint.Failure)
 	strLits         map[string]int
 	strLitLimit     int
-	allowList        allowList
+	allowList       allowList
 	ignoreFunctions []*regexp.Regexp
 	structTags      map[*ast.BasicLit]struct{}
 }
@@ -127,6 +127,11 @@ func (*lintAddConstantRule) getFuncName(expr *ast.CallExpr) string {
 		switch prefix := f.X.(type) {
 		case *ast.Ident:
 			return prefix.Name + "." + f.Sel.Name
+		case *ast.CallExpr:
+			// If the selector is an CallExpr, like `fn().Info`, we return `.Info` as function name
+			if f.Sel != nil {
+				return "." + f.Sel.Name
+			}
 		}
 	case *ast.Ident:
 		return f.Name

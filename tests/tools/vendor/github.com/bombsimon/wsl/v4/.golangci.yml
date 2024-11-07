@@ -1,24 +1,25 @@
 ---
 run:
-  deadline: 1m
+  timeout: 1m
   issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - vendor$
 
 output:
-  format: colored-line-number
   print-issued-lines: false
+  sort-results: true
+  formats:
+    - format: colored-line-number
 
 linters-settings:
   gocognit:
     min-complexity: 10
 
   depguard:
-    list-type: blacklist
-    include-go-root: false
-    packages:
-      - github.com/davecgh/go-spew/spew
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/davecgh/go-spew/spew"
+            desc: not allowed
 
   misspell:
     locale: US
@@ -70,8 +71,6 @@ linters:
     - varcheck
     - varnamelen
     - wastedassign
-  fast: false
-
 
 issues:
   exclude-use-default: true

@@ -12,14 +12,13 @@ import (
 
 	"github.com/golangci/golangci-lint/pkg/config"
 	"github.com/golangci/golangci-lint/pkg/goanalysis"
-	"github.com/golangci/golangci-lint/pkg/golinters/internal"
 	"github.com/golangci/golangci-lint/pkg/lint/linter"
 	"github.com/golangci/golangci-lint/pkg/result"
 )
 
 const linterName = "unused"
 
-func New(settings *config.UnusedSettings, scSettings *config.StaticCheckSettings) *goanalysis.Linter {
+func New(settings *config.UnusedSettings) *goanalysis.Linter {
 	var mu sync.Mutex
 	var resIssues []goanalysis.Issue
 
@@ -40,8 +39,6 @@ func New(settings *config.UnusedSettings, scSettings *config.StaticCheckSettings
 			return nil, nil
 		},
 	}
-
-	internal.SetAnalyzerGoVersion(analyzer, internal.GetGoVersion(scSettings))
 
 	return goanalysis.NewLinter(
 		linterName,
@@ -90,11 +87,13 @@ func getUnusedResults(pass *analysis.Pass, settings *config.UnusedSettings) unus
 	opts := unused.Options{
 		FieldWritesAreUses:     settings.FieldWritesAreUses,
 		PostStatementsAreReads: settings.PostStatementsAreReads,
-		ExportedIsUsed:         settings.ExportedIsUsed,
-		ExportedFieldsAreUsed:  settings.ExportedFieldsAreUsed,
-		ParametersAreUsed:      settings.ParametersAreUsed,
-		LocalVariablesAreUsed:  settings.LocalVariablesAreUsed,
-		GeneratedIsUsed:        settings.GeneratedIsUsed,
+		// Related to https://github.com/golangci/golangci-lint/issues/4218
+		// https://github.com/dominikh/go-tools/issues/1474#issuecomment-1850760813
+		ExportedIsUsed:        true,
+		ExportedFieldsAreUsed: settings.ExportedFieldsAreUsed,
+		ParametersAreUsed:     settings.ParametersAreUsed,
+		LocalVariablesAreUsed: settings.LocalVariablesAreUsed,
+		GeneratedIsUsed:       settings.GeneratedIsUsed,
 	}
 
 	// ref: https://github.com/dominikh/go-tools/blob/4ec1f474ca6c0feb8e10a8fcca4ab95f5b5b9881/internal/cmd/unused/unused.go#L68

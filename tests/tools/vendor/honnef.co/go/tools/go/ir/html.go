@@ -881,6 +881,9 @@ func valueLongHTML(v Node) string {
 	for _, a := range v.Operands(nil) {
 		s += fmt.Sprintf(" %s", valueHTML(*a))
 	}
+	if v, ok := v.(Instruction); ok {
+		s += fmt.Sprintf(" (%s)", v.Comment())
+	}
 
 	// OPT(dh): we're calling namedValues many times on the same function.
 	allNames := namedValues(v.Parent())

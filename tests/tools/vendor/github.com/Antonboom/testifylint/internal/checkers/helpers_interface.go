@@ -20,13 +20,13 @@ func isEmptyInterface(pass *analysis.Pass, expr ast.Expr) bool {
 	return ok && iface.NumMethods() == 0
 }
 
-func implementsTestifySuite(pass *analysis.Pass, rcv ast.Expr) bool {
+func implementsTestifySuite(pass *analysis.Pass, e ast.Expr) bool {
 	suiteIfaceObj := analysisutil.ObjectOf(pass.Pkg, testify.SuitePkgPath, "TestingSuite")
-	return (suiteIfaceObj != nil) && implements(pass, rcv, suiteIfaceObj)
+	return (suiteIfaceObj != nil) && implements(pass, e, suiteIfaceObj)
 }
 
-func implementsTestingT(pass *analysis.Pass, arg ast.Expr) bool {
-	return implementsAssertTestingT(pass, arg) || implementsRequireTestingT(pass, arg)
+func implementsTestingT(pass *analysis.Pass, e ast.Expr) bool {
+	return implementsAssertTestingT(pass, e) || implementsRequireTestingT(pass, e)
 }
 
 func implementsAssertTestingT(pass *analysis.Pass, e ast.Expr) bool {

@@ -12,14 +12,14 @@ package ir
 // Cited papers and resources:
 //
 // Ron Cytron et al. 1991. Efficiently computing SSA form...
-// http://doi.acm.org/10.1145/115372.115320
+// https://doi.acm.org/10.1145/115372.115320
 //
 // Cooper, Harvey, Kennedy.  2001.  A Simple, Fast Dominance Algorithm.
 // Software Practice and Experience 2001, 4:1-10.
-// http://www.hipersoft.rice.edu/grads/publications/dom14.pdf
+// https://www.hipersoft.rice.edu/grads/publications/dom14.pdf
 //
 // Daniel Berlin, llvmdev mailing list, 2012.
-// http://lists.cs.uiuc.edu/pipermail/llvmdev/2012-January/046638.html
+// https://lists.cs.uiuc.edu/pipermail/llvmdev/2012-January/046638.html
 // (Be sure to expand the whole thread.)
 //
 // C. Scott Ananian. 1997. The static single information form.
@@ -46,6 +46,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"slices"
 )
 
 // If true, show diagnostic information at each step of lifting.
@@ -135,18 +136,11 @@ func buildPostDomFrontier(fn *Function) postDomFrontier {
 }
 
 func removeInstr(refs []Instruction, instr Instruction) []Instruction {
-	i := 0
-	for _, ref := range refs {
-		if ref == instr {
-			continue
-		}
-		refs[i] = ref
-		i++
-	}
-	for j := i; j != len(refs); j++ {
-		refs[j] = nil // aid GC
-	}
-	return refs[:i]
+	return removeInstrsIf(refs, func(i Instruction) bool { return i == instr })
+}
+
+func removeInstrsIf(refs []Instruction, p func(Instruction) bool) []Instruction {
+	return slices.DeleteFunc(refs, p)
 }
 
 func clearInstrs(instrs []Instruction) {
@@ -208,9 +202,12 @@ func lift(fn *Function) bool {
 	// for the block, reusing the original array if space permits.
 
 	// While we're here, we also eliminate 'rundefers'
-	// instructions in functions that contain no 'defer'
-	// instructions.
+	// instructions and ssa:deferstack() in functions that contain no
+	// 'defer' instructions. Eliminate ssa:deferstack() if it does not
+	// escape.
 	usesDefer := false
+	deferstackAlloc, deferstackCall := deferstackPreamble(fn)
+	eliminateDeferStack := deferstackAlloc != nil && !deferstackAlloc.Heap
 
 	// Determine which allocs we can lift and number them densely.
 	// The renaming phase uses this numbering for compact maps.
@@ -262,6 +259,15 @@ func lift(fn *Function) bool {
 				numAllocs++
 			case *Defer:
 				usesDefer = true
+				if eliminateDeferStack {
+					// Clear _DeferStack and remove references to loads
+					if instr._DeferStack != nil {
+						if refs := instr._DeferStack.Referrers(); refs != nil {
+							*refs = removeInstr(*refs, instr)
+						}
+						instr._DeferStack = nil
+					}
+				}
 			case *RunDefers:
 				b.rundefers++
 			}
@@ -316,6 +322,18 @@ func lift(fn *Function) bool {
 
 		// Eliminate dead φ- and σ-nodes.
 		markLiveNodes(fn.Blocks, newPhis, newSigmas)
+
+		// Eliminate ssa:deferstack() call.
+		if eliminateDeferStack {
+			b := deferstackCall.block
+			for i, instr := range b.Instrs {
+				if instr == deferstackCall {
+					b.Instrs[i] = nil
+					b.gaps++
+					break
+				}
+			}
+		}
 	}
 
 	// Prepend remaining live φ-nodes to each block and possibly kill rundefers.
@@ -880,10 +898,10 @@ type liftInstructions struct {
 func liftable(alloc *Alloc, instructions BlockMap[liftInstructions]) bool {
 	fn := alloc.block.parent
 
-	// Don't lift named return values in functions that defer
+	// Don't lift result values in functions that defer
 	// calls that may recover from panic.
 	if fn.hasDefer {
-		for _, nr := range fn.namedResults {
+		for _, nr := range fn.results {
 			if nr == alloc {
 				return false
 			}
@@ -1225,10 +1243,26 @@ func liftAlloc(closure *closure, df domFrontier, rdf postDomFrontier, alloc *All
 
 						// Create φ-node.
 						// It will be prepended to v.Instrs later, if needed.
+						if len(y.Preds) == 0 {
+							// The exit block may be unreachable if the function doesn't
+							// return, e.g. due to an infinite loop. In that case we
+							// should not replace loads in the exit block with ϕ node that
+							// have no edges. Such loads exist when the function has named
+							// return parameters, as the exit block loads them to turn
+							// them into a Return instruction. By not replacing the loads
+							// with ϕ nodes, they will later be replaced by zero
+							// constants. This is arguably more correct, and more
+							// importantly, it doesn't break code that assumes that phis
+							// have at least one edge.
+							//
+							// For one instance of breakage see
+							// https://staticcheck.dev/issues/1533
+							continue
+						}
 						phi := &Phi{
 							Edges: make([]Value, len(y.Preds)),
 						}
-
+						phi.comment = alloc.comment
 						phi.source = alloc.source
 						phi.setType(deref(alloc.Type()))
 						phi.block = y
@@ -1271,6 +1305,7 @@ func liftAlloc(closure *closure, df domFrontier, rdf postDomFrontier, alloc *All
 									From: y,
 									X:    alloc,
 								}
+								sigma.comment = alloc.comment
 								sigma.source = alloc.source
 								sigma.setType(deref(alloc.Type()))
 								sigma.block = succ
@@ -1359,7 +1394,7 @@ func replace(instr Instruction, x, y Value) {
 func renamed(fn *Function, renaming []Value, alloc *Alloc) Value {
 	v := renaming[alloc.index]
 	if v == nil {
-		v = emitConst(fn, zeroConst(deref(alloc.Type())))
+		v = emitConst(fn, zeroConst(deref(alloc.Type()), alloc.source))
 		renaming[alloc.index] = v
 	}
 	return v
@@ -1767,4 +1802,18 @@ func updateOperandReferrers(instr Instruction) {
 			*refs = append(*refs, instr)
 		}
 	}
+}
+
+// deferstackPreamble returns the *Alloc and ssa:deferstack() call for fn.deferstack.
+func deferstackPreamble(fn *Function) (*Alloc, *Call) {
+	if alloc, _ := fn.vars[fn.deferstack].(*Alloc); alloc != nil {
+		for _, ref := range *alloc.Referrers() {
+			if ref, _ := ref.(*Store); ref != nil && ref.Addr == alloc {
+				if call, _ := ref.Val.(*Call); call != nil {
+					return alloc, call
+				}
+			}
+		}
+	}
+	return nil, nil
 }

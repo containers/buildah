@@ -18,6 +18,31 @@ const (
 )
 
 var idWeaknesses = map[string]*Weakness{
+	"22": {
+		ID:          "22",
+		Description: "The software uses external input to construct a pathname that is intended to identify a file or directory that is located underneath a restricted parent directory, but the software does not properly neutralize special elements within the pathname that can cause the pathname to resolve to a location that is outside of the restricted directory.",
+		Name:        "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+	},
+	"78": {
+		ID:          "78",
+		Description: "The software constructs all or part of an OS command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended OS command when it is sent to a downstream component.",
+		Name:        "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+	},
+	"79": {
+		ID:          "79",
+		Description: "The software does not neutralize or incorrectly neutralizes user-controllable input before it is placed in output that is used as a web page that is served to other users.",
+		Name:        "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+	},
+	"88": {
+		ID:          "88",
+		Description: "The software constructs a string for a command to executed by a separate component\nin another control sphere, but it does not properly delimit the\nintended arguments, options, or switches within that command string.",
+		Name:        "Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')",
+	},
+	"89": {
+		ID:          "89",
+		Description: "The software constructs all or part of an SQL command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended SQL command when it is sent to a downstream component.",
+		Name:        "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+	},
 	"118": {
 		ID:          "118",
 		Description: "The software does not restrict or incorrectly restricts operations within the boundaries of a resource that is accessed using an index or pointer, such as memory or files.",
@@ -32,11 +57,6 @@ var idWeaknesses = map[string]*Weakness{
 		ID:          "200",
 		Description: "The product exposes sensitive information to an actor that is not explicitly authorized to have access to that information.",
 		Name:        "Exposure of Sensitive Information to an Unauthorized Actor",
-	},
-	"22": {
-		ID:          "22",
-		Description: "The software uses external input to construct a pathname that is intended to identify a file or directory that is located underneath a restricted parent directory, but the software does not properly neutralize special elements within the pathname that can cause the pathname to resolve to a location that is outside of the restricted directory.",
-		Name:        "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
 	},
 	"242": {
 		ID:          "242",
@@ -73,6 +93,11 @@ var idWeaknesses = map[string]*Weakness{
 		Description: "The use of a broken or risky cryptographic algorithm is an unnecessary risk that may result in the exposure of sensitive information.",
 		Name:        "Use of a Broken or Risky Cryptographic Algorithm",
 	},
+	"328": {
+		ID:          "328",
+		Description: "The product uses an algorithm that produces a digest (output value) that does not meet security expectations for a hash function that allows an adversary to reasonably determine the original input (preimage attack), find another input that can produce the same hash (2nd preimage attack), or find multiple inputs that evaluate to the same hash (birthday attack). ",
+		Name:        "Use of Weak Hash",
+	},
 	"338": {
 		ID:          "338",
 		Description: "The product uses a Pseudo-Random Number Generator (PRNG) in a security context, but the PRNG's algorithm is not cryptographically strong.",
@@ -93,40 +118,25 @@ var idWeaknesses = map[string]*Weakness{
 		Description: "The software does not handle or incorrectly handles a compressed input with a very high compression ratio that produces a large output.",
 		Name:        "Improper Handling of Highly Compressed Data (Data Amplification)",
 	},
+	"676": {
+		ID:          "676",
+		Description: "The program invokes a potentially dangerous function that could introduce a vulnerability if it is used incorrectly, but the function can also be used safely.",
+		Name:        "Use of Potentially Dangerous Function",
+	},
 	"703": {
 		ID:          "703",
 		Description: "The software does not properly anticipate or handle exceptional conditions that rarely occur during normal operation of the software.",
 		Name:        "Improper Check or Handling of Exceptional Conditions",
-	},
-	"78": {
-		ID:          "78",
-		Description: "The software constructs all or part of an OS command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended OS command when it is sent to a downstream component.",
-		Name:        "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
-	},
-	"79": {
-		ID:          "79",
-		Description: "The software does not neutralize or incorrectly neutralizes user-controllable input before it is placed in output that is used as a web page that is served to other users.",
-		Name:        "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
 	},
 	"798": {
 		ID:          "798",
 		Description: "The software contains hard-coded credentials, such as a password or cryptographic key, which it uses for its own inbound authentication, outbound communication to external components, or encryption of internal data.",
 		Name:        "Use of Hard-coded Credentials",
 	},
-	"88": {
-		ID:          "88",
-		Description: "The software constructs a string for a command to executed by a separate component\nin another control sphere, but it does not properly delimit the\nintended arguments, options, or switches within that command string.",
-		Name:        "Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')",
-	},
-	"89": {
-		ID:          "89",
-		Description: "The software constructs all or part of an SQL command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended SQL command when it is sent to a downstream component.",
-		Name:        "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
-	},
-	"676": {
-		ID:          "676",
-		Description: "The program invokes a potentially dangerous function that could introduce a vulnerability if it is used incorrectly, but the function can also be used safely.",
-		Name:        "Use of Potentially Dangerous Function",
+	"1204": {
+		ID:          "1204",
+		Description: "The product uses a cryptographic primitive that uses an Initialization Vector (IV), but the product does not generate IVs that are sufficiently unpredictable or unique according to the expected cryptographic requirements for that primitive.",
+		Name:        "Generation of Weak Initialization Vector (IV)",
 	},
 }
 

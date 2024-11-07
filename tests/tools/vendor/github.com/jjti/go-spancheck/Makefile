@@ -14,12 +14,12 @@ test: testvendor
 # Follow https://github.com/golang/go/issues/37054 for more details.
 .PHONY: testvendor
 testvendor:
-	@rm -rf base/src
-	@cd testdata/base && go mod vendor
-	@cp -r testdata/base/vendor testdata/base/src
-	@cp -r testdata/base/vendor testdata/disableerrorchecks/src
-	@cp -r testdata/base/vendor testdata/enableall/src
-	@rm -rf testdata/base/vendor
+	rm -rf testdata/base/src
+	cd testdata/base && GOWORK=off go mod vendor
+	cp -r testdata/base/vendor testdata/base/src
+	cp -r testdata/base/vendor testdata/disableerrorchecks/src
+	cp -r testdata/base/vendor testdata/enableall/src
+	rm -rf testdata/base/vendor
 
 .PHONY: install
 install:
