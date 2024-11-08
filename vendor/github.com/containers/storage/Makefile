@@ -35,7 +35,7 @@ TESTFLAGS := $(shell $(GO) test -race $(BUILDFLAGS) ./pkg/stringutils 2>&1 > /de
 # N/B: This value is managed by Renovate, manual changes are
 # possible, as long as they don't disturb the formatting
 # (i.e. DO NOT ADD A 'v' prefix!)
-GOLANGCI_LINT_VERSION := 1.60.3
+GOLANGCI_LINT_VERSION := 1.61.0
 
 default all: local-binary docs local-validate local-cross ## validate all checks, build and cross-build\nbinaries and docs
 
@@ -46,7 +46,7 @@ containers-storage: ## build using gc on the host
 	$(GO) build -compiler gc $(BUILDFLAGS) ./cmd/containers-storage
 
 codespell:
-	codespell -S Makefile,build,buildah,buildah.spec,imgtype,copy,AUTHORS,bin,vendor,.git,go.sum,CHANGELOG.md,changelog.txt,seccomp.json,.cirrus.yml,"*.xz,*.gz,*.tar,*.tgz,*ico,*.png,*.1,*.5,*.orig,*.rej" -L plack,worl,flate,uint,iff,od,ERRO -w
+	codespell
 
 binary local-binary: containers-storage
 
