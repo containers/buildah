@@ -1,4 +1,4 @@
-# dario.cat/mergo v1.0.0
+# dario.cat/mergo v1.0.1
 ## explicit; go 1.13
 dario.cat/mergo
 # github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161
@@ -152,8 +152,8 @@ github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
 github.com/containers/common/pkg/version
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.32.2
-## explicit; go 1.21.0
+# github.com/containers/image/v5 v5.33.0
+## explicit; go 1.22.6
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -366,7 +366,7 @@ github.com/fsnotify/fsnotify
 # github.com/fsouza/go-dockerclient v1.12.0
 ## explicit; go 1.22
 github.com/fsouza/go-dockerclient
-# github.com/go-jose/go-jose/v4 v4.0.2
+# github.com/go-jose/go-jose/v4 v4.0.4
 ## explicit; go 1.21
 github.com/go-jose/go-jose/v4
 github.com/go-jose/go-jose/v4/cipher
@@ -427,7 +427,7 @@ github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.4
 ## explicit; go 1.17
 github.com/golang/protobuf/proto
-# github.com/google/go-containerregistry v0.20.1
+# github.com/google/go-containerregistry v0.20.2
 ## explicit; go 1.18
 github.com/google/go-containerregistry/pkg/name
 github.com/google/go-containerregistry/pkg/v1
@@ -472,8 +472,8 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/klauspost/pgzip v1.2.6
 ## explicit
 github.com/klauspost/pgzip
-# github.com/letsencrypt/boulder v0.0.0-20240418210053-89b07f4543e0
-## explicit; go 1.21
+# github.com/letsencrypt/boulder v0.0.0-20240620165639-de9c06129bec
+## explicit; go 1.22.0
 github.com/letsencrypt/boulder/core
 github.com/letsencrypt/boulder/goodkey
 github.com/letsencrypt/boulder/identifier
@@ -496,7 +496,7 @@ github.com/mattn/go-runewidth
 # github.com/mattn/go-shellwords v1.0.12
 ## explicit; go 1.13
 github.com/mattn/go-shellwords
-# github.com/mattn/go-sqlite3 v1.14.22
+# github.com/mattn/go-sqlite3 v1.14.24
 ## explicit; go 1.19
 github.com/mattn/go-sqlite3
 # github.com/miekg/pkcs11 v1.1.1
@@ -616,14 +616,14 @@ github.com/seccomp/libseccomp-golang
 # github.com/secure-systems-lab/go-securesystemslib v0.8.0
 ## explicit; go 1.20
 github.com/secure-systems-lab/go-securesystemslib/encrypted
-# github.com/sigstore/fulcio v1.4.5
-## explicit; go 1.21
+# github.com/sigstore/fulcio v1.6.4
+## explicit; go 1.22.6
 github.com/sigstore/fulcio/pkg/certificate
 # github.com/sigstore/rekor v1.3.6
 ## explicit; go 1.21
 github.com/sigstore/rekor/pkg/generated/models
-# github.com/sigstore/sigstore v1.8.4
-## explicit; go 1.21
+# github.com/sigstore/sigstore v1.8.9
+## explicit; go 1.22.5
 github.com/sigstore/sigstore/pkg/cryptoutils
 github.com/sigstore/sigstore/pkg/signature
 github.com/sigstore/sigstore/pkg/signature/options
@@ -644,8 +644,8 @@ github.com/stefanberger/go-pkcs11uri
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# github.com/sylabs/sif/v2 v2.18.0
-## explicit; go 1.21.0
+# github.com/sylabs/sif/v2 v2.19.1
+## explicit; go 1.22.5
 github.com/sylabs/sif/v2/pkg/sif
 # github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 ## explicit
@@ -667,7 +667,7 @@ github.com/ulikunitz/xz/lzma
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vbauerster/mpb/v8 v8.7.5
+# github.com/vbauerster/mpb/v8 v8.8.3
 ## explicit; go 1.17
 github.com/vbauerster/mpb/v8
 github.com/vbauerster/mpb/v8/cwriter
