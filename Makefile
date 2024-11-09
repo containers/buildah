@@ -120,7 +120,7 @@ docs: install.tools ## build the docs on the host
 	$(MAKE) -C docs
 
 codespell:
-	codespell -S Makefile,buildah.spec.rpkg,AUTHORS,bin,vendor,.git,go.mod,go.sum,CHANGELOG.md,changelog.txt,seccomp.json,.cirrus.yml,"*.xz,*.gz,*.tar,*.tgz,*ico,*.png,*.1,*.5,*.orig,*.rej" -L secon,passt,bu,uint,iff,od,erro -w
+	codespell -w
 
 .PHONY: validate
 validate: install.tools
