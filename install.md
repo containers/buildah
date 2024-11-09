@@ -194,11 +194,8 @@ In Fedora, you can use this command:
 Then to install Buildah on Fedora follow the steps in this example:
 
 ```
-  mkdir ~/buildah
-  cd ~/buildah
-  export GOPATH=`pwd`
-  git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
-  cd ./src/github.com/containers/buildah
+  git clone https://github.com/containers/buildah
+  cd buildah
   make
   sudo make install
   buildah --help

@@ -119,12 +119,6 @@ clean:
 docs: install.tools ## build the docs on the host
 	$(MAKE) -C docs
 
-# For vendoring to work right, the checkout directory must be such that our top
-# level is at $GOPATH/src/github.com/containers/buildah.
-.PHONY: gopath
-gopath:
-	test $(shell pwd) = $(shell cd ../../../../src/github.com/containers/buildah ; pwd)
-
 codespell:
 	codespell -S Makefile,buildah.spec.rpkg,AUTHORS,bin,vendor,.git,go.mod,go.sum,CHANGELOG.md,changelog.txt,seccomp.json,.cirrus.yml,"*.xz,*.gz,*.tar,*.tgz,*ico,*.png,*.1,*.5,*.orig,*.rej" -L secon,passt,bu,uint,iff,od,erro -w
 
