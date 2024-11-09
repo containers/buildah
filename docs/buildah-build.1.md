@@ -909,7 +909,7 @@ Pass secret information to be used in the Containerfile for building images
 in a safe way that will not end up stored in the final image, or be seen in other stages.
 The value of the secret will be read from an environment variable or file named
 by the "id" option, or named by the "src" option if it is specified, or from an
-environment variable specifed by the "env" option.
+environment variable specified by the "env" option.
 The secret will be mounted in the container at `/run/secrets/*id*` by default.
 
 To later use the secret, use the --mount flag in a `RUN` instruction within a `Containerfile`:
