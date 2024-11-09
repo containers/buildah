@@ -35,8 +35,6 @@ SOURCE_DATE_EPOCH ?= $(if $(shell date +%s),$(shell date +%s),$(error "date fail
 # workaround
 COMMENT := \#
 CNI_COMMIT := $(shell sed -n 's;^$(COMMENT) github.com/containernetworking/cni \([^ \n]*\).*$$;\1;p' vendor/modules.txt)
-RUNC_COMMIT := $(shell sed -n 's;^$(COMMENT) github.com/opencontainers/runc \([^ \n]*\).*$$;\1;p' vendor/modules.txt)
-LIBSECCOMP_COMMIT := release-2.3
 
 EXTRA_LDFLAGS ?=
 BUILDAH_LDFLAGS := $(GO_LDFLAGS) '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(SOURCE_DATE_EPOCH) -X main.cniVersion=$(CNI_COMMIT) $(EXTRA_LDFLAGS)'
@@ -141,25 +139,6 @@ validate: install.tools
 install.tools:
 	$(MAKE) -C tests/tools
 
-.PHONY: runc
-runc: gopath
-	rm -rf ../../opencontainers/runc
-	git clone https://github.com/opencontainers/runc ../../opencontainers/runc
-	cd ../../opencontainers/runc && git checkout $(RUNC_COMMIT) && $(GO) build -tags "$(STORAGETAGS) $(SECURITYTAGS)"
-	ln -sf ../../opencontainers/runc/runc
-
-.PHONY: install.libseccomp.sudo
-install.libseccomp.sudo: gopath
-	rm -rf ../../seccomp/libseccomp
-	git clone https://github.com/seccomp/libseccomp ../../seccomp/libseccomp
-	cd ../../seccomp/libseccomp && git checkout $(LIBSECCOMP_COMMIT) && ./autogen.sh && ./configure --prefix=/usr && make all && sudo make install
-
-.PHONY: install.cni.sudo
-install.cni.sudo: gopath
-	rm -rf ../../containernetworking/plugins
-	git clone https://github.com/containernetworking/plugins ../../containernetworking/plugins
-	cd ../../containernetworking/plugins && ./build_linux.sh && sudo install -D -v -m755 -t /opt/cni/bin/ bin/*
-
 .PHONY: install
 install:
 	install -d -m 755 $(DESTDIR)/$(BINDIR)
@@ -176,10 +155,6 @@ uninstall:
 install.completions:
 	install -m 755 -d $(DESTDIR)/$(BASHINSTALLDIR)
 	install -m 644 contrib/completions/bash/buildah $(DESTDIR)/$(BASHINSTALLDIR)/buildah
-
-.PHONY: install.runc
-install.runc:
-	install -m 755 ../../opencontainers/runc/runc $(DESTDIR)/$(BINDIR)/
 
 .PHONY: test-conformance
 test-conformance:
