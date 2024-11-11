@@ -238,8 +238,9 @@ func (d *blobCacheDestination) SupportsPutBlobPartial() bool {
 // PutBlobPartial attempts to create a blob using the data that is already present
 // at the destination. chunkAccessor is accessed in a non-sequential way to retrieve the missing chunks.
 // It is available only if SupportsPutBlobPartial().
-// Even if SupportsPutBlobPartial() returns true, the call can fail, in which case the caller
-// should fall back to PutBlobWithOptions.
+// Even if SupportsPutBlobPartial() returns true, the call can fail.
+// If the call fails with ErrFallbackToOrdinaryLayerDownload, the caller can fall back to PutBlobWithOptions.
+// The fallback _must not_ be done otherwise.
 func (d *blobCacheDestination) PutBlobPartial(ctx context.Context, chunkAccessor private.BlobChunkAccessor, srcInfo types.BlobInfo, options private.PutBlobPartialOptions) (private.UploadedBlob, error) {
 	return d.destination.PutBlobPartial(ctx, chunkAccessor, srcInfo, options)
 }
@@ -306,6 +307,10 @@ func (d *blobCacheDestination) PutSignaturesWithFormat(ctx context.Context, sign
 	return d.destination.PutSignaturesWithFormat(ctx, signatures, instanceDigest)
 }
 
-func (d *blobCacheDestination) Commit(ctx context.Context, unparsedToplevel types.UnparsedImage) error {
-	return d.destination.Commit(ctx, unparsedToplevel)
+// CommitWithOptions marks the process of storing the image as successful and asks for the image to be persisted.
+// WARNING: This does not have any transactional semantics:
+// - Uploaded data MAY be visible to others before CommitWithOptions() is called
+// - Uploaded data MAY be removed or MAY remain around if Close() is called without CommitWithOptions() (i.e. rollback is allowed but not guaranteed)
+func (d *blobCacheDestination) CommitWithOptions(ctx context.Context, options private.CommitOptions) error {
+	return d.destination.CommitWithOptions(ctx, options)
 }
