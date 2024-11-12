@@ -205,7 +205,7 @@ func TestParsePullPolicy(t *testing.T) {
 		"newer":      true,
 		"false":      true,
 		"never":      true,
-		"trye":       false,
+		"try":        false,
 		"truth":      false,
 	}
 	for value, result := range testCases {
