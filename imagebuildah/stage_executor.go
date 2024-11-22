@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -512,7 +513,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				}
 			}
 			if additionalBuildContext == nil {
-				if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
+				if isStage, _, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
 					return err
 				}
 				if other, ok := s.executor.stages[from]; ok && other.index < s.index {
@@ -677,7 +678,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 					// If the source's name corresponds to the
 					// result of an earlier stage, wait for that
 					// stage to finish being built.
-					if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
+					if isStage, _, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
 						return nil, err
 					}
 					// If the source's name is a stage, return a
@@ -1149,8 +1150,13 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	// If not, then go on assuming that it's just a regular image that's
 	// either in local storage, or one that we have to pull from a
 	// registry, subject to the passed-in pull policy.
-	if isStage, err := s.executor.waitForStage(ctx, base, s.stages[:s.index]); isStage && err != nil {
+	// This helper will also return the final resolved argument list from
+	// the parent state.
+	if isStage, parentArgs, err := s.executor.waitForStage(ctx, base, s.stages[:s.index]); isStage && err != nil {
 		return "", nil, false, err
+	} else {
+		// Update the start args with those from the parent stage
+		maps.Copy(ib.Args, parentArgs)
 	}
 	pullPolicy := s.executor.pullPolicy
 	s.executor.stagesLock.Lock()
@@ -1369,7 +1375,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				// If the source's name corresponds to the
 				// result of an earlier stage, wait for that
 				// stage to finish being built.
-				if isStage, err := s.executor.waitForStage(ctx, from, s.stages[:s.index]); isStage && err != nil {
+				if isStage, _, err := s.executor.waitForStage(ctx, from, s.stages[:s.index]); isStage && err != nil {
 					return "", nil, false, err
 				}
 				if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
@@ -1741,6 +1747,8 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 		}
 	}
+
+	s.executor.freezeArgs(s.name, ib.Args)
 
 	return imgID, ref, onlyBaseImage, nil
 }
