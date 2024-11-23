@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"sort"
 	"strconv"
@@ -451,9 +452,11 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 	}
 }
 
+// freezeArgs stores a copy of the argument map for further use in dependent stages
 func (b *Executor) freezeArgs(name string, args map[string]string) {
+	copiedArgs := maps.Clone(args)
 	b.stagesLock.Lock()
-	b.argResult[name] = args
+	b.argResult[name] = copiedArgs
 	b.stagesLock.Unlock()
 }
 

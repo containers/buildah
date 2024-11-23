@@ -1151,13 +1151,14 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	// either in local storage, or one that we have to pull from a
 	// registry, subject to the passed-in pull policy.
 	// This helper will also return the final resolved argument list from
-	// the parent state.
-	if isStage, parentArgs, err := s.executor.waitForStage(ctx, base, s.stages[:s.index]); isStage && err != nil {
+	// the parent stage, if available.
+	isStage, parentArgs, err := s.executor.waitForStage(ctx, base, s.stages[:s.index])
+	if isStage && err != nil {
 		return "", nil, false, err
-	} else {
-		// Update the start args with those from the parent stage
-		maps.Copy(ib.Args, parentArgs)
 	}
+	// Update the start args with those from the parent stage
+	maps.Copy(ib.Args, parentArgs)
+
 	pullPolicy := s.executor.pullPolicy
 	s.executor.stagesLock.Lock()
 	var preserveBaseImageAnnotationsAtStageStart bool
@@ -1748,6 +1749,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		}
 	}
 
+	// store the final argument map for further use
 	s.executor.freezeArgs(s.name, ib.Args)
 
 	return imgID, ref, onlyBaseImage, nil
