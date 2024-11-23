@@ -3451,6 +3451,17 @@ var internalTestCases = []testCase{
 		dockerUseBuildKit: true,
 		buildArgs:         map[string]string{"SOURCE": "e/**/**/*sub/*.txt"},
 	},
+
+	{
+		name:              "argument inheritance",
+		dockerUseBuildKit: true,
+		dockerfileContents: strings.Join([]string{
+			"FROM mirror.gcr.io/busybox AS base",
+			"ARG NAME=\"joe\"",
+			"FROM base AS build",
+			"RUN echo \"hello $NAME!\" > /hello.txt",
+		}, "\n"),
+	},
 }
 
 func TestCommit(t *testing.T) {
