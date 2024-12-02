@@ -55,8 +55,8 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run sha256sum $TEST_SCRATCH_DIR/randomfile
     blobencoded="${output%% *}"
     run_buildah manifest create foo
-    run_buildah manifest add --artifact --artifact-type image/jpeg --artifact-layer-type image/not-validated --artifact-config-type text/x-not-really --artifact-subject busybox foo $TEST_SCRATCH_DIR/randomfile2
-    run_buildah manifest add --artifact --artifact-type image/png --artifact-layer-type image/not-validated --artifact-config-type text/x-not-really --artifact-subject busybox foo $TEST_SCRATCH_DIR/randomfile
+    run_buildah manifest add --artifact --artifact-type image/jpeg --artifact-layer-type image/not-validated --artifact-config-type text/x-not-really --artifact-subject busybox --artifact-annotation up=down foo $TEST_SCRATCH_DIR/randomfile2
+    run_buildah manifest add --artifact --artifact-type image/png --artifact-layer-type image/not-validated --artifact-config-type text/x-not-really --artifact-subject busybox --artifact-annotation left=right foo $TEST_SCRATCH_DIR/randomfile
     digest="${output##* }"
     alg="${digest%%:*}"
     encoded="${digest##*:}"
@@ -72,6 +72,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     assert "$output" =~ '"artifactType":"image/png"' "cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded"
     assert "$output" =~ '"mediaType":"image/not-validated"' "cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded"
     assert "$output" =~ '"mediaType":"text/x-not-really"' "cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded"
+    assert "$output" =~ '"annotations":\{"left":"right"\}' "cat $TEST_SCRATCH_DIR/pushed/blobs/$alg/$encoded"
     run_buildah manifest rm foo
 }
 

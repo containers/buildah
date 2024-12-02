@@ -43,6 +43,11 @@ Create an artifact manifest and add it to the image index.  Arguments after the
 index name will be interpreted as file names rather than as image references.
 In most scenarios, the **--artifact-type** option should also be specified.
 
+**--artifact-annotation** *annotation=value*
+
+When creating an artifact manifest and adding it to the image index, set an
+annotation in the artifact manifest.
+
 **--artifact-config** *filename*
 
 When creating an artifact manifest and adding it to the image index, use the
