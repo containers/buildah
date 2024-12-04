@@ -9,6 +9,7 @@ env:
     DEST_BRANCH: "main"
     GOPATH: "/var/tmp/go"
     GOSRC: "${GOPATH}/src/github.com/containers/buildah"
+    GOCACHE: "/tmp/go-build"
     # Overrides default location (/tmp/cirrus) for repo clone
     CIRRUS_WORKING_DIR: "${GOSRC}"
     # Shell used to execute all script commands
