@@ -56,7 +56,7 @@ gce_instance: &standardvm
     image_project: "${IMAGE_PROJECT}"
     zone: "us-central1-c"  # Required by Cirrus for the time being
     cpu: 2
-    memory: "4Gb"
+    memory: "4G"
     disk: 200  # Gigabytes, do not set less than 200 per obscure GCE docs re: I/O performance
     image_name: "${FEDORA_CACHE_IMAGE_NAME}"
 
@@ -69,7 +69,7 @@ meta_task:
     container:
         image: "quay.io/libpod/imgts:latest"
         cpu: 1
-        memory: 1
+        memory: "1G"
 
     env:
         # Space-separated list of images used by this repository state
@@ -93,7 +93,8 @@ smoke_task:
     name: "Smoke Test"
 
     gce_instance:
-        memory: "12Gb"
+        memory: "12G"
+        cpu: 4
 
     # Don't bother running on branches (including cron), or for tags.
     only_if: $CIRRUS_PR != ''
@@ -135,6 +136,9 @@ vendor_task:
 # Confirm cross-compile ALL architectures on a Mac OS-X VM.
 cross_build_task:
     name: "Cross Compile"
+    gce_instance:
+        cpu: 8
+        memory: "24G"
     alias: cross_build
     only_if: >-
         $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
@@ -142,8 +146,7 @@ cross_build_task:
         HOME: /root
     script:
         - go version
-        - make cross CGO_ENABLED=0
-
+        - make -j cross CGO_ENABLED=0
     binary_artifacts:
         path: ./bin/*
 
