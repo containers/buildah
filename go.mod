@@ -9,7 +9,7 @@ require (
 	github.com/containernetworking/cni v1.2.3
 	github.com/containers/common v0.61.0
 	github.com/containers/image/v5 v5.33.0
-	github.com/containers/luksy v0.0.0-20241007190014-e2530d691420
+	github.com/containers/luksy v0.0.0-20241204194335-fe88b966f1d6
 	github.com/containers/ocicrypt v1.2.0
 	github.com/containers/storage v1.56.0
 	github.com/cyphar/filepath-securejoin v0.3.4
@@ -34,7 +34,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.etcd.io/bbolt v1.3.11
 	golang.org/x/crypto v0.29.0
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c

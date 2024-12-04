@@ -223,7 +223,7 @@ github.com/containers/image/v5/version
 # github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01
 ## explicit
 github.com/containers/libtrust
-# github.com/containers/luksy v0.0.0-20241007190014-e2530d691420
+# github.com/containers/luksy v0.0.0-20241204194335-fe88b966f1d6
 ## explicit; go 1.20
 github.com/containers/luksy
 # github.com/containers/ocicrypt v1.2.0
@@ -641,9 +641,10 @@ github.com/spf13/pflag
 # github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6
 ## explicit; go 1.19
 github.com/stefanberger/go-pkcs11uri
-# github.com/stretchr/testify v1.9.0
+# github.com/stretchr/testify v1.10.0
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
+github.com/stretchr/testify/assert/yaml
 github.com/stretchr/testify/require
 # github.com/sylabs/sif/v2 v2.19.1
 ## explicit; go 1.22.5
