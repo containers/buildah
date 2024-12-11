@@ -1,4 +1,7 @@
-FROM fedora
+FROM quay.io/fedora/python-311
+
+USER root
+WORKDIR /
 
 RUN <<EOF
 echo "print first line from heredoc"

@@ -1,8 +1,7 @@
-FROM ubuntu:latest
+FROM quay.io/fedora/fedora
 
 ENV MYUSER=myuser
-
 RUN useradd --create-home --home /"${MYUSER}" "${MYUSER}"
 COPY --chown="${MYUSER}" ./copychown.txt /somewhere
 
-RUN ls -alF /somewhere
+RUN stat -c "%U:%G" /somewhere
