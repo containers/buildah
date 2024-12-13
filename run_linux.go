@@ -531,7 +531,7 @@ rootless=%d
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, networkString, moreCreateArgs, spec,
 			mountPoint, path, define.Package+"-"+filepath.Base(path), b.Container, hostsFile, resolvFile)
 	case IsolationChroot:
-		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
+		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr, options.NoPivot)
 	case IsolationOCIRootless:
 		moreCreateArgs := []string{"--no-new-keyring"}
 		if options.NoPivot {
