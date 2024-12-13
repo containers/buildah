@@ -7,9 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"errors"
-
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/system"
