@@ -101,7 +101,7 @@ func testMinimalWithPivot(t *testing.T, noPivot bool, modify func(g *generate.Ge
 
 	output := new(bytes.Buffer)
 	if err := RunUsingChroot(g.Config, bundleDir, "/", new(bytes.Buffer), output, output, noPivot); err != nil {
-		t.Fatalf("run(noPivot=false): %v: %s", err, output.String())
+		t.Fatalf("run(noPivot=%v): %v: %s", noPivot, err, output.String())
 	}
 
 	var report types.TestReport
