@@ -44,6 +44,7 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/lockfile"
+	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/go-digest"
@@ -1533,6 +1534,7 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 	mountTargets := make([]string, 0, len(mounts))
 	tmpFiles := make([]string, 0, len(mounts))
 	mountImages := make([]string, 0, len(mounts))
+	intermediateMounts := make([]string, 0, len(mounts))
 	finalMounts := make([]specs.Mount, 0, len(mounts))
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
 	defaultSSHSock := ""
@@ -1552,6 +1554,14 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 					b.Logger.Error(err.Error())
 				}
 			}
+			for _, intermediateMount := range intermediateMounts {
+				if err := mount.Unmount(intermediateMount); err != nil {
+					b.Logger.Errorf("unmounting %q: %v", intermediateMount, err)
+				}
+				if err := os.Remove(intermediateMount); err != nil {
+					b.Logger.Errorf("removing should-be-empty directory %q: %v", intermediateMount, err)
+				}
+			}
 			for _, mountImage := range mountImages {
 				if _, err := b.store.UnmountImage(mountImage, false); err != nil {
 					b.Logger.Error(err.Error())
@@ -1568,9 +1578,10 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 	for _, mount := range mounts {
 		var mountSpec *specs.Mount
 		var err error
-		var envFile, image, bundleMountsDir, overlayDir string
+		var envFile, image, bundleMountsDir, overlayDir, intermediateMount string
 		var agent *sshagent.AgentServer
 		var tl *lockfile.LockFile
+
 		tokens := strings.Split(mount, ",")
 
 		// If `type` is not set default to TypeBind
@@ -1615,7 +1626,7 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 					return nil, nil, err
 				}
 			}
-			mountSpec, image, overlayDir, err = b.getBindMount(tokens, sources.SystemContext, sources.ContextDir, sources.StageMountPoints, idMaps, sources.WorkDir, bundleMountsDir)
+			mountSpec, image, intermediateMount, overlayDir, err = b.getBindMount(tokens, sources.SystemContext, sources.ContextDir, sources.StageMountPoints, idMaps, sources.WorkDir, bundleMountsDir)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -1625,6 +1636,9 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 			if overlayDir != "" {
 				overlayDirs = append(overlayDirs, overlayDir)
 			}
+			if intermediateMount != "" {
+				intermediateMounts = append(intermediateMounts, intermediateMount)
+			}
 			finalMounts = append(finalMounts, *mountSpec)
 		case "tmpfs":
 			mountSpec, err = b.getTmpfsMount(tokens, idMaps)
@@ -1633,9 +1647,17 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 			}
 			finalMounts = append(finalMounts, *mountSpec)
 		case "cache":
-			mountSpec, tl, err = b.getCacheMount(tokens, sources.StageMountPoints, idMaps, sources.WorkDir)
+			if bundleMountsDir == "" {
+				if bundleMountsDir, err = os.MkdirTemp(bundlePath, "mounts"); err != nil {
+					return nil, nil, err
+				}
+			}
+			mountSpec, intermediateMount, tl, err = b.getCacheMount(tokens, sources.StageMountPoints, idMaps, sources.WorkDir, bundleMountsDir)
 			if err != nil {
 				return nil, nil, err
+			}
+			if intermediateMount != "" {
+				intermediateMounts = append(intermediateMounts, intermediateMount)
 			}
 			if tl != nil {
 				targetLocks = append(targetLocks, tl)
@@ -1660,32 +1682,33 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 	}
 	succeeded = true
 	artifacts := &runMountArtifacts{
-		RunMountTargets: mountTargets,
-		RunOverlayDirs:  overlayDirs,
-		TmpFiles:        tmpFiles,
-		Agents:          agents,
-		MountedImages:   mountImages,
-		SSHAuthSock:     defaultSSHSock,
-		TargetLocks:     targetLocks,
+		RunMountTargets:    mountTargets,
+		RunOverlayDirs:     overlayDirs,
+		TmpFiles:           tmpFiles,
+		Agents:             agents,
+		MountedImages:      mountImages,
+		SSHAuthSock:        defaultSSHSock,
+		TargetLocks:        targetLocks,
+		IntermediateMounts: intermediateMounts,
 	}
 	return finalMounts, artifacts, nil
 }
 
-func (b *Builder) getBindMount(tokens []string, sys *types.SystemContext, contextDir string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, error) {
+func (b *Builder) getBindMount(tokens []string, sys *types.SystemContext, contextDir string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, error) {
 	if contextDir == "" {
-		return nil, "", "", errors.New("context directory for current run invocation is not configured")
+		return nil, "", "", "", errors.New("context directory for current run invocation is not configured")
 	}
 	var optionMounts []specs.Mount
-	mount, image, overlayDir, err := volumes.GetBindMount(sys, tokens, contextDir, b.store, b.MountLabel, stageMountPoints, workDir, tmpDir)
+	mount, image, intermediateMount, overlayMount, err := volumes.GetBindMount(sys, tokens, contextDir, b.store, b.MountLabel, stageMountPoints, workDir, tmpDir)
 	if err != nil {
-		return nil, image, overlayDir, err
+		return nil, "", "", "", err
 	}
 	optionMounts = append(optionMounts, mount)
 	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
-		return nil, image, overlayDir, err
+		return nil, "", "", "", err
 	}
-	return &volumes[0], image, overlayDir, nil
+	return &volumes[0], image, intermediateMount, overlayMount, nil
 }
 
 func (b *Builder) getTmpfsMount(tokens []string, idMaps IDMaps) (*specs.Mount, error) {
@@ -1964,15 +1987,24 @@ func (b *Builder) cleanupTempVolumes() {
 // cleanupRunMounts cleans up run mounts so they only appear in this run.
 func (b *Builder) cleanupRunMounts(mountpoint string, artifacts *runMountArtifacts) error {
 	for _, agent := range artifacts.Agents {
-		err := agent.Shutdown()
-		if err != nil {
-			return err
+		servePath := agent.ServePath()
+		if err := agent.Shutdown(); err != nil {
+			return fmt.Errorf("shutting down SSH agent at %q: %v", servePath, err)
 		}
 	}
 	// clean up any overlays we mounted
 	for _, overlayDirectory := range artifacts.RunOverlayDirs {
 		if err := overlay.RemoveTemp(overlayDirectory); err != nil {
 			return err
+		}
+	}
+	// unmount anything that needs unmounting
+	for _, intermediateMount := range artifacts.IntermediateMounts {
+		if err := mount.Unmount(intermediateMount); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("unmounting %q: %w", intermediateMount, err)
+		}
+		if err := os.Remove(intermediateMount); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("removing should-be-empty directory %q: %w", intermediateMount, err)
 		}
 	}
 	// unmount any images we mounted for this run
