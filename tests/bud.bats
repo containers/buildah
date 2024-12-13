@@ -5738,7 +5738,7 @@ _EOF
   run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
 
   # try reading something from persistent cache in a different build
-  run_buildah 125 build -t testbud $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/bud/buildkit-mount-from/Dockerfilecachefromimage
+  run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
   expect_output --substring "no stage or additional build context found with name buildkitbase"
   run_buildah rmi -f buildkitbase
 }
@@ -5969,8 +5969,8 @@ RUN --mount=type=cache,source=../../../../../../../../../../../$TEST_SCRATCH_DIR
 ls -l /var/tmp && cat /var/tmp/file.txt
 EOF
 
-  run_buildah 1 build --no-cache ${TEST_SCRATCH_DIR}
-  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+  run_buildah 125 build --no-cache $searg ${TEST_SCRATCH_DIR}
+  expect_output --substring "no such file or directory"
 
   mkdir ${TEST_SCRATCH_DIR}/cve20249675
   cat > ${TEST_SCRATCH_DIR}/cve20249675/Containerfile <<EOF
