@@ -184,6 +184,8 @@ type runMountArtifacts struct {
 	SSHAuthSock string
 	// Lock files, which should have their Unlock() methods called
 	TargetLocks []*lockfile.LockFile
+	// Intermediate mount points, which should be Unmount()ed and Removed()d
+	IntermediateMounts []string
 }
 
 // RunMountInfo are the available run mounts for this run
