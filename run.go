@@ -179,4 +179,6 @@ type runMountArtifacts struct {
 	SSHAuthSock string
 	// LockedTargets to be unlocked if there are any.
 	LockedTargets []string
+	// Intermediate mount points, which should be Unmount()ed and Removed()d
+	IntermediateMounts []string
 }

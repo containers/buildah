@@ -427,8 +427,10 @@ function configure_and_check_user() {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	run_buildah run --mount type=bind,source=.,from=buildkitbase,target=/test${zflag}  $cid cat /test/hello
-	expect_output --substring "hello"
+	run_buildah run --mount type=bind,source=.,from=buildkitbase,target=/test${zflag}  $cid cat /test/hello1
+	expect_output --substring "hello1"
+	run_buildah run --mount type=bind,source=subdir,from=buildkitbase,target=/test${zflag}  $cid cat /test/hello
+	expect_output --substring "hello2"
 }
 
 @test "run --mount=type=cache like buildkit" {
@@ -442,8 +444,8 @@ function configure_and_check_user() {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	run_buildah run --mount type=cache,target=/test${zflag}  $cid sh -c 'echo "hello" > /test/hello && cat /test/hello'
-	run_buildah run --mount type=cache,target=/test${zflag}  $cid cat /test/hello
+	run_buildah run --mount type=cache,target=/test${zflag}  $cid sh -c 'mkdir -p /test/subdir && echo "hello" > /test/subdir/h.txt && cat /test/subdir/h.txt'
+	run_buildah run --mount type=cache,src=subdir,target=/test${zflag}  $cid cat /test/h.txt
 	expect_output --substring "hello"
 }
 

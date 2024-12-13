@@ -4649,8 +4649,8 @@ RUN --mount=type=cache,source=../../../../../../../../../../../$TEST_SCRATCH_DIR
 ls -l /var/tmp && cat /var/tmp/file.txt
 EOF
 
-  run_buildah 1 build --no-cache $searg ${TEST_SCRATCH_DIR}
-  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+  run_buildah 125 build --no-cache $searg ${TEST_SCRATCH_DIR}
+  expect_output --substring "no such file or directory"
 
   mkdir ${TEST_SCRATCH_DIR}/cve20249675
   cat > ${TEST_SCRATCH_DIR}/cve20249675/Containerfile <<EOF

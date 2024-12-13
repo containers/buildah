@@ -11,12 +11,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// bindFromChroot opens "path" inside of "root" using a chrooted subprocess
+// BindFromChroot opens "path" inside of "root" using a chrooted subprocess
 // that returns a descriptor, then creates a uniquely-named temporary directory
 // or file under "tmp" and bind-mounts the opened descriptor to it, returning
 // the path of the temporary file or directory.  The caller is responsible for
 // unmounting and removing the temporary.
-func bindFromChroot(root, path, tmp string) (string, error) {
+func BindFromChroot(root, path, tmp string) (string, error) {
 	fd, _, err := open.InChroot(root, "", path, unix.O_DIRECTORY|unix.O_RDONLY, 0)
 	if err != nil {
 		if !errors.Is(err, unix.ENOTDIR) {
