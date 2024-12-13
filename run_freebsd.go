@@ -308,8 +308,8 @@ func setupSpecialMountSpecChanges(spec *spec.Spec, shmSize string) ([]specs.Moun
 	return spec.Mounts, nil
 }
 
-func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, []string, error) {
-	return nil, nil, errors.New("cache mounts not supported on freebsd")
+func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, tmpDir string) (*spec.Mount, string, []string, error) {
+	return nil, "", nil, errors.New("cache mounts not supported on freebsd")
 }
 
 func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, Err error) {
