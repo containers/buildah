@@ -179,8 +179,10 @@ type runMountArtifacts struct {
 	Agents []*sshagent.AgentServer
 	// SSHAuthSock is the path to the ssh auth sock inside the container
 	SSHAuthSock string
-	// TargetLocks to be unlocked if there are any.
-	TargetLocks []*lockfile.LockFile
+	// LockedTargets to be unlocked if there are any.
+	LockedTargets []string
+	// Intermediate mount points, which should be Unmount()ed and Removed()d
+	IntermediateMounts []string
 }
 
 // RunMountInfo are the available run mounts for this run

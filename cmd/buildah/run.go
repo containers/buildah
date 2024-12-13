@@ -14,6 +14,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/containers/storage/pkg/mount"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -180,13 +181,21 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
-	mounts, mountedImages, _, lockedTargets, err := internalParse.GetVolumes(systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, tmpDir)
+	mounts, mountedImages, intermediateMounts, _, lockedTargets, err := internalParse.GetVolumes(systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, tmpDir)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := overlay.CleanupContent(tmpDir); err != nil {
 			logrus.Debugf("unmounting overlay mounts under %q: %v", tmpDir, err)
+		}
+		for _, intermediateMount := range intermediateMounts {
+			if err := mount.Unmount(intermediateMount); err != nil {
+				logrus.Debugf("unmounting mount %q: %v", intermediateMount, err)
+			}
+			if err := os.Remove(intermediateMount); err != nil {
+				logrus.Debugf("removing should-be-empty mount directory %q: %v", intermediateMount, err)
+			}
 		}
 		for _, mountedImage := range mountedImages {
 			if _, err := store.UnmountImage(mountedImage, false); err != nil {

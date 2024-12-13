@@ -15,6 +15,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
 	internalUtil "github.com/containers/buildah/internal/util"
+	internalVolumes "github.com/containers/buildah/internal/volumes"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/common/pkg/parse"
 	"github.com/containers/image/v5/types"
@@ -22,6 +23,7 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/lockfile"
 	"github.com/containers/storage/pkg/unshare"
+	"github.com/containers/storage/pkg/mount"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
@@ -112,9 +114,17 @@ func convertToOverlay(m specs.Mount, store storage.Store, mountLabel, tmpDir str
 }
 
 // GetBindMount parses a single bind mount entry from the --mount flag.
-// Returns specifiedMount and a string which contains name of image that we mounted otherwise its empty.
-// Caller is expected to perform unmount of any mounted images
-func GetBindMount(sys *types.SystemContext, args []string, contextDir string, store storage.Store, mountLabel string, additionalMountPoints map[string]internal.StageMountDetails, tmpDir string) (specs.Mount, string, string, error) {
+//
+// Returns a Mount to add to the runtime spec's list of mounts, the ID of the
+// image we mounted if we mounted one, the path of a mounted location if one
+// needs to be unmounted and removed, and the path of an overlay mount if one
+// needs to be cleaned up, or an error.
+//
+// The caller is expected to, after the command which uses the mount exits,
+// clean up the overlay filesystem (if we provided a path to it), unmount and
+// remove the mountpoint for the mounted filesystem (if we provided the path to
+// its mountpoint), and then unmount the image (if we mounted one).
+func GetBindMount(sys *types.SystemContext, args []string, contextDir string, store storage.Store, mountLabel string, additionalMountPoints map[string]internal.StageMountDetails, tmpDir string) (specs.Mount, string, string, string, error) {
 	newMount := specs.Mount{
 		Type: define.TypeBind,
 	}
@@ -147,26 +157,26 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			newMount.Options = append(newMount.Options, kv[0])
 		case "from":
 			if len(kv) == 1 {
-				return newMount, "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			fromImage = kv[1]
 		case "bind-propagation":
 			if len(kv) == 1 {
-				return newMount, "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "src", "source":
 			if len(kv) == 1 {
-				return newMount, "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			newMount.Source = kv[1]
 		case "target", "dst", "destination":
 			if len(kv) == 1 {
-				return newMount, "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", "", "", fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			setDest = kv[1]
 			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
-				return newMount, "", "", err
+				return newMount, "", "", "", err
 			}
 			newMount.Destination = kv[1]
 		case "consistency":
@@ -174,7 +184,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			// and can thus be safely ignored.
 			// See also the handling of the equivalent "delegated" and "cached" in ValidateVolumeOpts
 		default:
-			return newMount, "", "", fmt.Errorf("%v: %w", kv[0], errBadMntOption)
+			return newMount, "", "", "", fmt.Errorf("%v: %w", kv[0], errBadMntOption)
 		}
 	}
 
@@ -198,12 +208,12 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 		if mountPoint == "" {
 			image, err := internalUtil.LookupImage(sys, store, fromImage)
 			if err != nil {
-				return newMount, "", "", err
+				return newMount, "", "", "", err
 			}
 
 			mountPoint, err = image.Mount(context.Background(), nil, mountLabel)
 			if err != nil {
-				return newMount, "", "", err
+				return newMount, "", "", "", err
 			}
 			mountedImage = image.ID()
 			defer func() {
@@ -224,7 +234,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 	}
 
 	if setDest == "" {
-		return newMount, "", "", errBadVolDest
+		return newMount, "", "", "", errBadVolDest
 	}
 
 	// buildkit parity: support absolute path for sources from current build context
@@ -232,36 +242,53 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 		// path should be /contextDir/specified path
                 evaluated, err := copier.Eval(contextDir, contextDir+string(filepath.Separator)+newMount.Source, copier.EvalOptions{})
                 if err != nil {
-                    return newMount, "", "", err
+                    return newMount, "", "", "", err
                 }
                 newMount.Source = evaluated
 	} else {
 		// looks like its coming from `build run --mount=type=bind` allow using absolute path
 		// error out if no source is set
 		if newMount.Source == "" {
-			return newMount, "", "", errBadVolSrc
+			return newMount, "", "", "", errBadVolSrc
 		}
 		if err := parse.ValidateVolumeHostDir(newMount.Source); err != nil {
-			return newMount, "", "", err
+			return newMount, "", "", "", err
 		}
 	}
 
 	opts, err := parse.ValidateVolumeOpts(newMount.Options)
 	if err != nil {
-		return newMount, "", "", err
+		return newMount, "", "", "", err
 	}
 	newMount.Options = opts
+
+	var intermediateMount string
+	if contextDir != "" && newMount.Source != contextDir {
+		rel, err := filepath.Rel(contextDir, newMount.Source)
+		if err != nil {
+			return newMount, "", "", "", fmt.Errorf("computing pathname of bind subdirectory: %w", err)
+		}
+		if rel != "." && rel != "/" {
+			mnt, err := internalVolumes.BindFromChroot(contextDir, rel, tmpDir)
+			if err != nil {
+				return newMount, "", "", "", fmt.Errorf("sanitizing bind subdirectory %q: %w", newMount.Source, err)
+			}
+			logrus.Debugf("bind-mounted %q under %q to %q", rel, contextDir, mnt)
+			intermediateMount = mnt
+			newMount.Source = intermediateMount
+		}
+	}
 
 	overlayDir := ""
 	if mountedImage != "" || mountIsReadWrite(newMount) {
 		if newMount, overlayDir, err = convertToOverlay(newMount, store, mountLabel, tmpDir, 0, 0); err != nil {
-			return newMount, "", "", err
+			return newMount, "", "", "", err
 		}
 	}
 
 	succeeded = true
 
-	return newMount, mountedImage, overlayDir, nil
+	return newMount, mountedImage, intermediateMount, overlayDir, nil
 }
 
 // CleanCacheMount gets the cache parent created by `--mount=type=cache` and removes it.
@@ -272,8 +299,14 @@ func CleanCacheMount() error {
 
 // GetCacheMount parses a single cache mount entry from the --mount flag.
 //
-// If this function succeeds and returns a non-nil *lockfile.LockFile, the caller must unlock it (when??).
-func GetCacheMount(args []string, store storage.Store, imageMountLabel string, additionalMountPoints map[string]internal.StageMountDetails, workDir string) (specs.Mount, *lockfile.LockFile, error) {
+// Returns a Mount to add to the runtime spec's list of mounts, the path of a
+// mounted filesystem if one needs to be unmounted, and an optional lock that
+// needs to be released, or an error.
+//
+// The caller is expected to, after the command which uses the mount exits,
+// unmount and remove the mountpoint of the mounted filesystem (if we provided
+// the path to its mountpoint).
+func GetCacheMount(args []string, additionalMountPoints map[string]internal.StageMountDetails, tmpDir string) (specs.Mount, string, []string, error) {
 	var err error
 	var mode uint64
 	var buildahLockFilesDir string
@@ -324,26 +357,25 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 			sharing = kv[1]
 		case "bind-propagation":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "id":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			id = kv[1]
 		case "from":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			fromStage = kv[1]
 		case "target", "dst", "destination":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
-			targetPath := kv[1]
-			if !path.IsAbs(targetPath) {
-				targetPath = filepath.Join(workDir, targetPath)
+			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
+				return newMount, "", nil, err
 			}
 			if err := parse.ValidateVolumeCtrDir(targetPath); err != nil {
 				return newMount, nil, err
@@ -352,35 +384,35 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 			setDest = true
 		case "src", "source":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			newMount.Source = kv[1]
 		case "mode":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			mode, err = strconv.ParseUint(kv[1], 8, 32)
 			if err != nil {
-				return newMount, nil, fmt.Errorf("unable to parse cache mode: %w", err)
+				return newMount, "", nil, fmt.Errorf("unable to parse cache mode: %w", err)
 			}
 		case "uid":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			uid, err = strconv.Atoi(kv[1])
 			if err != nil {
-				return newMount, nil, fmt.Errorf("unable to parse cache uid: %w", err)
+				return newMount, "", nil, fmt.Errorf("unable to parse cache uid: %w", err)
 			}
 		case "gid":
 			if len(kv) == 1 {
-				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			gid, err = strconv.Atoi(kv[1])
 			if err != nil {
-				return newMount, nil, fmt.Errorf("unable to parse cache gid: %w", err)
+				return newMount, "", nil, fmt.Errorf("unable to parse cache gid: %w", err)
 			}
 		default:
-			return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadMntOption)
+			return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadMntOption)
 		}
 	}
 
@@ -391,10 +423,14 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 	}
 
 	if !setDest {
-		return newMount, nil, errBadVolDest
+		return newMount, "", nil, errBadVolDest
 	}
 
+	thisCacheRoot := ""
 	if fromStage != "" {
+		// do not create and use a cache direcotry on the host,
+		// instead use the location in the mounted stage or
+		// temporary directory as the cache
 		mountPoint := ""
 		if additionalMountPoints != nil {
 			if val, ok := additionalMountPoints[fromStage]; ok {
@@ -406,14 +442,9 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		// Cache does not supports using image so if not stage found
 		// return with error
 		if mountPoint == "" {
-			return newMount, lockedTargets, fmt.Errorf("no stage or additional build context found with name %s", fromStage)
+			return newMount, "", nil, fmt.Errorf("no stage or additional build context found with name %s", fromStage)
 		}
-		// path should be /contextDir/specified path
-		evaluated, err := copier.Eval(mountPoint, mountPoint+string(filepath.Separator)+newMount.Source, copier.EvalOptions{})
-		if err != nil {
-			return newMount, nil, err
-		}
-		newMount.Source = evaluated
+		thisCacheRoot = mountPoint
 	} else {
 		// we need to create cache on host if no image is being used
 
@@ -426,61 +457,58 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		// create cache on host if not present
 		err = os.MkdirAll(cacheParent, os.FileMode(0755))
 		if err != nil {
-			return newMount, nil, fmt.Errorf("unable to create build cache directory: %w", err)
+			return newMount, "", nil, fmt.Errorf("unable to create build cache directory: %w", err)
 		}
 
 		if id != "" {
 			// Don't let the user control where we place the directory.
 			dirID := digest.FromString(id).Encoded()[:16]
-			newMount.Source = filepath.Join(cacheParent, dirID)
-			buildahLockFilesDir = filepath.Join(BuildahCacheLockfileDir, dirID)
+			thisCacheRoot = filepath.Join(cacheParent, dirID)
 		} else {
 			// Don't let the user control where we place the directory.
 			dirID := digest.FromString(newMount.Destination).Encoded()[:16]
-			newMount.Source = filepath.Join(cacheParent, dirID)
-			buildahLockFilesDir = filepath.Join(BuildahCacheLockfileDir, dirID)
+			thisCacheRoot = filepath.Join(cacheParent, dirID)
 		}
 		idPair := idtools.IDPair{
 			UID: uid,
 			GID: gid,
 		}
-		//buildkit parity: change uid and gid if specified otheriwise keep `0`
-		err = idtools.MkdirAllAndChownNew(newMount.Source, os.FileMode(mode), idPair)
+		// buildkit parity: change uid and gid if specified otheriwise keep `0`
+		err = idtools.MkdirAllAndChownNew(thisCacheRoot, os.FileMode(mode), idPair)
 		if err != nil {
-			return newMount, nil, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
-		}
-
-		// create a subdirectory inside `cacheParent` just to store lockfiles
-		buildahLockFilesDir = filepath.Join(cacheParent, buildahLockFilesDir)
-		err = os.MkdirAll(buildahLockFilesDir, os.FileMode(0700))
-		if err != nil {
-			return newMount, nil, fmt.Errorf("unable to create build cache lockfiles directory: %w", err)
+			return newMount, "", nil, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
 		}
 	}
 
-	var targetLock *lockfile.LockFile // = nil
+	// path should be /mountPoint/specified path
+	evaluated, err := copier.Eval(thisCacheRoot, thisCacheRoot+string(filepath.Separator)+newMount.Source, copier.EvalOptions{})
+	if err != nil {
+		return newMount, "", nil, err
+	}
+	newMount.Source = evaluated
+
 	succeeded := false
-	defer func() {
-		if !succeeded && targetLock != nil {
-			targetLock.Unlock()
-		}
-	}()
 	switch sharing {
 	case "locked":
 		// lock parent cache
 		lockfile, err := lockfile.GetLockFile(filepath.Join(buildahLockFilesDir, BuildahCacheLockfile))
 		if err != nil {
-			return newMount, nil, fmt.Errorf("unable to acquire lock when sharing mode is locked: %w", err)
+			return newMount, "", nil, fmt.Errorf("unable to acquire lock when sharing mode is locked: %w", err)
 		}
 		// Will be unlocked after the RUN step is executed.
 		lockfile.Lock()
-		targetLock = lockfile
+		lockedTargets = append(lockedTargets, filepath.Join(newMount.Source, BuildahCacheLockfile))
+		defer func() {
+			if !succeeded {
+				UnlockLockArray(lockedTargets)
+			}
+		}()
 	case "shared":
 		// do nothing since default is `shared`
 		break
 	default:
 		// error out for unknown values
-		return newMount, nil, fmt.Errorf("unrecognized value %q for field `sharing`: %w", sharing, err)
+		return newMount, "", nil, fmt.Errorf("unrecognized value %q for field `sharing`: %w", sharing, err)
 	}
 
 	// buildkit parity: default sharing should be shared
@@ -498,12 +526,29 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 
 	opts, err := parse.ValidateVolumeOpts(newMount.Options)
 	if err != nil {
-		return newMount, nil, err
+		return newMount, "", nil, err
 	}
 	newMount.Options = opts
 
+	var intermediateMount string
+	if newMount.Source != thisCacheRoot {
+		rel, err := filepath.Rel(thisCacheRoot, newMount.Source)
+		if err != nil {
+			return newMount, "", nil, fmt.Errorf("computing pathname of cache subdirectory: %w", err)
+		}
+		if rel != "." && rel != "/" {
+			mnt, err := internalVolumes.BindFromChroot(thisCacheRoot, rel, tmpDir)
+			if err != nil {
+				return newMount, "", nil, fmt.Errorf("sanitizing cache subdirectory %q: %w", newMount.Source, err)
+			}
+			logrus.Debugf("bind-mounted %q under %q to %q", rel, thisCacheRoot, mnt)
+			intermediateMount = mnt
+			newMount.Source = intermediateMount
+		}
+	}
+
 	succeeded = true
-	return newMount, targetLock, nil
+	return newMount, intermediateMount, lockedTargets, nil
 }
 
 // ValidateVolumeMountHostDir validates the host path of buildah --volume
@@ -590,23 +635,40 @@ func Volume(volume string) (specs.Mount, error) {
 	return mount, nil
 }
 
-// GetVolumes gets the volumes from --volume and --mount
-func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string, volumes []string, mounts []string, contextDir string, tmpDir string) ([]specs.Mount, []string, []string, []string, error) {
-	unifiedMounts, mountedImages, overlayDirs, lockedTargets, err := getMounts(ctx, store, mountLabel, mounts, contextDir, tmpDir)
+// GetVolumes gets the volumes from --volume and --mount flags.
+//
+// Returns a slice of Mounts to add to the runtime spec's list of mounts, the
+// IDs of any images we mounted, a slice of bind-mounted paths, a slice of
+// overlay directories and a slice of locks that we acquired, or an error.
+//
+// The caller is expected to, after the command which uses the mounts and
+// volumes exits, clean up the overlay directories, unmount and remove the
+// mountpoints for the bind-mounted paths, unmount any images we mounted, and
+// release the locks we returned if any.
+func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string, volumes []string, mounts []string, contextDir string, tmpDir string) ([]specs.Mount, []string, []string, []string, []string, error) {
+	unifiedMounts, mountedImages, intermediateMounts, overlayMounts, lockedTargets, err := getMounts(ctx, store, mountLabel, mounts, contextDir, tmpDir)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	succeeded := false
 	defer func() {
 		if !succeeded {
-			for _, overlayDir := range overlayDirs {
-				if err := overlay.RemoveTemp(overlayDir); err != nil {
-					logrus.Debugf("unmounting overlay mount at %q: %v", overlayDir, err)
+			for _, overlayMount := range overlayMounts {
+				if err := overlay.RemoveTemp(overlayMount); err != nil {
+					logrus.Debugf("unmounting overlay mount at %q: %v", overlayMount, err)
 				}
 			}
-			for _, mountedImage := range mountedImages {
-				if _, err := store.UnmountImage(mountedImage, false); err != nil {
-					logrus.Debugf("unmounting image %q: %v", mountedImage, err)
+			for _, intermediateMount := range intermediateMounts {
+				if err := mount.Unmount(intermediateMount); err != nil {
+					logrus.Debugf("unmounting intermediate mount point %q: %v", intermediateMount, err)
+				}
+				if err := os.Remove(intermediateMount); err != nil {
+					logrus.Debugf("removing should-be-empty directory %q: %v", intermediateMount, err)
+				}
+			}
+			for _, image := range mountedImages {
+				if _, err := store.UnmountImage(image, false); err != nil {
+					logrus.Debugf("unmounting image %q: %v", image, err)
 				}
 			}
 			UnlockLockArray(lockedTargets)
@@ -614,11 +676,11 @@ func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string
 	}()
 	volumeMounts, err := getVolumeMounts(volumes)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	for dest, mount := range volumeMounts {
 		if _, ok := unifiedMounts[dest]; ok {
-			return nil, nil, nil, nil, fmt.Errorf("%v: %w", dest, errDuplicateDest)
+			return nil, nil, nil, nil, nil, fmt.Errorf("%v: %w", dest, errDuplicateDest)
 		}
 		unifiedMounts[dest] = mount
 	}
@@ -628,29 +690,48 @@ func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string
 		finalMounts = append(finalMounts, mount)
 	}
 	succeeded = true
-	return finalMounts, mountedImages, overlayDirs, lockedTargets, nil
+	return finalMounts, mountedImages, intermediateMounts, overlayMounts, lockedTargets, nil
 }
 
-// getMounts takes user-provided input from the --mount flag and creates OCI
-// spec mounts.
-// buildah run --mount type=bind,src=/etc/resolv.conf,target=/etc/resolv.conf ...
-// buildah run --mount type=tmpfs,target=/dev/shm ...
-func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string, mounts []string, contextDir, tmpDir string) (map[string]specs.Mount, []string, []string, []string, error) {
+// getMounts takes user-provided inputs from the --mount flag and returns a
+// slice of OCI spec mounts, a slice of mounted image IDs, a slice of other
+// mount locations, a slice of overlay mounts, and a slice of locks, or an
+// error.
+//
+//     buildah run --mount type=bind,src=/etc/resolv.conf,target=/etc/resolv.conf ...
+//     buildah run --mount type=cache,target=/var/cache ...
+//     buildah run --mount type=tmpfs,target=/dev/shm ...
+//
+// The caller is expected to, after the command which uses the mounts exits,
+// unmount the overlay filesystems (if we mounted any), unmount the other
+// mounted filesystems and remove their mountpoints (if we provided any paths
+// to mountpoints), unmount any mounted images (if we provided the IDs of any),
+// and then unlock the locks we returned if any.
+func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string, mounts []string, contextDir, tmpDir string) (map[string]specs.Mount, []string, []string, []string, []string, error) {
 	finalMounts := make(map[string]specs.Mount, len(mounts))
 	mountedImages := make([]string, 0, len(mounts))
-	overlayDirs := make([]string, 0, len(mounts))
+	intermediateMounts := make([]string, 0, len(mounts))
+	overlayMounts := make([]string, 0, len(mounts))
 	lockedTargets := make([]string, 0, len(mounts))
 	succeeded := false
 	defer func() {
 		if !succeeded {
-			for _, overlayDir := range overlayDirs {
+			for _, overlayDir := range overlayMounts {
 				if err := overlay.RemoveTemp(overlayDir); err != nil {
 					logrus.Debugf("unmounting overlay mount at %q: %v", overlayDir, err)
 				}
 			}
-			for _, mountedImage := range mountedImages {
-				if _, err := store.UnmountImage(mountedImage, false); err != nil {
-					logrus.Debugf("unmounting image %q: %v", mountedImage, err)
+			for _, intermediateMount := range intermediateMounts {
+				if err := mount.Unmount(intermediateMount); err != nil {
+					logrus.Debugf("unmounting intermediate mount point %q: %v", intermediateMount, err)
+				}
+				if err := os.Remove(intermediateMount); err != nil {
+					logrus.Debugf("removing should-be-empty directory %q: %v", intermediateMount, err)
+				}
+			}
+			for _, image := range mountedImages {
+				if _, err := store.UnmountImage(image, false); err != nil {
+					logrus.Debugf("unmounting image %q: %v", image, err)
 				}
 			}
 			UnlockLockArray(lockedTargets)
@@ -665,57 +746,64 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string,
 	for _, mount := range mounts {
 		arr := strings.SplitN(mount, ",", 2)
 		if len(arr) < 2 {
-			return nil, nil, nil, nil, fmt.Errorf("%q: %w", mount, errInvalidSyntax)
+			return nil, nil, nil, nil, nil, fmt.Errorf("%q: %w", mount, errInvalidSyntax)
 		}
 		kv := strings.Split(arr[0], "=")
 		// TODO: type is not explicitly required in Docker.
 		// If not specified, it defaults to "volume".
 		if len(kv) != 2 || kv[0] != "type" {
-			return nil, nil, nil, nil, fmt.Errorf("%q: %w", mount, errInvalidSyntax)
+			return nil, nil, nil, nil, nil, fmt.Errorf("%q: %w", mount, errInvalidSyntax)
 		}
 
 		tokens := strings.Split(arr[1], ",")
 		switch kv[1] {
 		case TypeBind:
-			mount, image, overlayDir, err := GetBindMount(ctx, tokens, contextDir, store, mountLabel, nil, tmpDir)
+			mount, image, intermediateMount, overlayMount, err := GetBindMount(ctx, tokens, contextDir, store, mountLabel, nil, tmpDir)
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, nil, nil, err
 			}
 			if image != "" {
 				mountedImages = append(mountedImages, image)
 			}
-			if overlayDir != "" {
-				overlayDirs = append(overlayDirs, overlayDir)
+			if intermediateMount != "" {
+				intermediateMounts = append(intermediateMounts, intermediateMount)
+			}
+			if overlayMount != "" {
+				overlayMounts = append(overlayMounts, overlayMount)
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, nil, nil, nil, fmt.Errorf("%v: %w", mount.Destination, errDuplicateDest)
+				return nil, nil, nil, nil, nil, fmt.Errorf("%v: %w", mount.Destination, errDuplicateDest)
 			}
 			finalMounts[mount.Destination] = mount
 		case TypeCache:
-			mount, tl, err := GetCacheMount(tokens, store, "", nil, workDir)
+			mount, intermediateMount, lockedPaths, err := GetCacheMount(tokens, nil, tmpDir)
+			lockedTargets = lockedPaths
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, nil, nil, err
+			}
+			if intermediateMount != "" {
+				intermediateMounts = append(intermediateMounts, intermediateMount)
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, nil, nil, nil, fmt.Errorf("%v: %w", mount.Destination, errDuplicateDest)
+				return nil, nil, nil, nil, nil, fmt.Errorf("%v: %w", mount.Destination, errDuplicateDest)
 			}
 			finalMounts[mount.Destination] = mount
 		case TypeTmpfs:
 			mount, err := GetTmpfsMount(tokens)
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, nil, nil, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, nil, nil, nil, fmt.Errorf("%v: %w", mount.Destination, errDuplicateDest)
+				return nil, nil, nil, nil, nil, fmt.Errorf("%v: %w", mount.Destination, errDuplicateDest)
 			}
 			finalMounts[mount.Destination] = mount
 		default:
-			return nil, nil, nil, nil, fmt.Errorf("invalid filesystem type %q", kv[1])
+			return nil, nil, nil, nil, nil, fmt.Errorf("invalid filesystem type %q", kv[1])
 		}
 	}
 
 	succeeded = true
-	return finalMounts, mountedImages, overlayDirs, lockedTargets, nil
+	return finalMounts, mountedImages, intermediateMounts, overlayMounts, lockedTargets, nil
 }
 
 // GetTmpfsMount parses a single tmpfs mount entry from the --mount flag

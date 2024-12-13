@@ -34,6 +34,7 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/lockfile"
+	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/docker/go-units"
@@ -1205,26 +1206,33 @@ func checkIdsGreaterThan5(ids []spec.LinuxIDMapping) bool {
 	return false
 }
 
-// If this function succeeds and returns a non-nil *lockfile.LockFile, the caller must unlock it (when??).
-func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir string) (*spec.Mount, *lockfile.LockFile, error) {
+func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, tmpDir string) (*spec.Mount, string, []string, error) {
 	var optionMounts []specs.Mount
-	mount, targetLock, err := internalParse.GetCacheMount(tokens, b.store, b.MountLabel, stageMountPoints, workDir)
+	optionMount, intermediateMount, lockedTargets, err := internalParse.GetCacheMount(tokens, stageMountPoints, tmpDir)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 	succeeded := false
 	defer func() {
-		if !succeeded && targetLock != nil {
-			targetLock.Unlock()
+		if !succeeded {
+			if intermediateMount != "" {
+				if err := mount.Unmount(intermediateMount); err != nil {
+					b.Logger.Debugf("ummounting %q: %v", intermediateMount, err)
+				}
+				if err := os.Remove(intermediateMount); err != nil {
+					b.Logger.Debugf("removing should-be-empty directory %q: %v", intermediateMount, err)
+				}
+			}
+			internalParse.UnlockLockArray(lockedTargets)
 		}
 	}()
-	optionMounts = append(optionMounts, mount)
+	optionMounts = append(optionMounts, optionMount)
 	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 	succeeded = true
-	return &volumes[0], targetLock, nil
+	return &volumes[0], intermediateMount, lockedTargets, nil
 }
 
 // setPdeathsig sets a parent-death signal for the process
