@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	dockertypes "github.com/docker/docker/api/types"
+	dockerregistrytypes "github.com/docker/docker/api/types/registry"
 	docker "github.com/fsouza/go-dockerclient"
 	"k8s.io/klog"
 
@@ -105,7 +105,7 @@ type ClientExecutor struct {
 
 	// AuthFn will handle authenticating any docker pulls if Image
 	// is set to nil.
-	AuthFn func(name string) ([]dockertypes.AuthConfig, bool)
+	AuthFn func(name string) ([]dockerregistrytypes.AuthConfig, bool)
 	// HostConfig is used to start the container (if necessary).
 	HostConfig *docker.HostConfig
 	// LogFn is an optional command to log information to the end user
@@ -121,7 +121,7 @@ type ClientExecutor struct {
 }
 
 // NoAuthFn can be used for AuthFn when no authentication is required in Docker.
-func NoAuthFn(string) ([]dockertypes.AuthConfig, bool) {
+func NoAuthFn(string) ([]dockerregistrytypes.AuthConfig, bool) {
 	return nil, false
 }
 
@@ -189,7 +189,7 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 		} else {
 			from, err := b.From(stage.Node)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error: Determining base image: %v", err)
 			}
 			if prereq := e.Named[from]; prereq != nil {
 				b, ok := stages.ByName(from)
@@ -229,10 +229,10 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 		}
 
 		if err := stageExecutor.Prepare(stage.Builder, stage.Node, stageFrom); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error: preparing stage using %q as base: %v", stageFrom, err)
 		}
 		if err := stageExecutor.Execute(stage.Builder, stage.Node); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error: running stage: %v", err)
 		}
 
 		// remember the outcome of the stage execution on the container config in case
@@ -348,7 +348,7 @@ func (e *ClientExecutor) Prepare(b *imagebuilder.Builder, node *parser.Node, fro
 				opts.Config.Entrypoint = nil
 			} else {
 				// TODO; replace me with a better default command
-				opts.Config.Cmd = []string{fmt.Sprintf("%s\nsleep 86400", "#(imagebuilder)")}
+				opts.Config.Cmd = []string{"# (imagebuilder)\n/bin/sleep 86400"}
 				opts.Config.Entrypoint = append([]string{}, defaultShell...)
 			}
 		}
@@ -618,7 +618,7 @@ func (e *ClientExecutor) LoadImageWithPlatform(from string, platform string) (*d
 	// TODO: we may want to abstract looping over multiple credentials
 	auth, _ := e.AuthFn(repository)
 	if len(auth) == 0 {
-		auth = append(auth, dockertypes.AuthConfig{})
+		auth = append(auth, dockerregistrytypes.AuthConfig{})
 	}
 
 	if e.LogFn != nil {
@@ -777,6 +777,9 @@ func (e *ClientExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error 
 // the user command into a shell and perform those operations before. Since RUN
 // requires /bin/sh, we can use both 'cd' and 'export'.
 func (e *ClientExecutor) Run(run imagebuilder.Run, config docker.Config) error {
+	if len(run.Files) > 0 {
+		return fmt.Errorf("Heredoc syntax is not supported")
+	}
 	if len(run.Mounts) > 0 {
 		return fmt.Errorf("RUN --mount not supported")
 	}
@@ -876,6 +879,24 @@ func (e *ClientExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 func (e *ClientExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 	// copying content into a volume invalidates the archived state of any given directory
 	for _, copy := range copies {
+		if copy.Checksum != "" {
+			return fmt.Errorf("ADD --checksum not supported")
+		}
+		if copy.Link {
+			return fmt.Errorf("ADD or COPY --link not supported")
+		}
+		if copy.Parents {
+			return fmt.Errorf("COPY --parents not supported")
+		}
+		if copy.KeepGitDir {
+			return fmt.Errorf("ADD --keep-git-dir not supported")
+		}
+		if len(copy.Excludes) > 0 {
+			return fmt.Errorf("ADD or COPY --exclude not supported")
+		}
+		if len(copy.Files) > 0 {
+			return fmt.Errorf("Heredoc syntax is not supported")
+		}
 		e.Volumes.Invalidate(copy.Dest)
 	}
 
@@ -1049,7 +1070,7 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			}
 			chmod = func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
 				mode := h.Mode &^ 0o777
-				mode |= parsed & 0o777
+				mode |= parsed & 0o7777
 				h.Mode = mode
 				return nil, false, false, nil
 			}

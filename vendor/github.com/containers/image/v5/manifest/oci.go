@@ -3,6 +3,7 @@ package manifest
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/containers/image/v5/internal/manifest"
@@ -12,7 +13,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/exp/slices"
 )
 
 // BlobInfoFromOCI1Descriptor returns a types.BlobInfo based on the input OCI1 descriptor.
@@ -60,7 +60,7 @@ func OCI1FromManifest(manifestBlob []byte) (*OCI1, error) {
 	if err := json.Unmarshal(manifestBlob, &oci1); err != nil {
 		return nil, err
 	}
-	if err := manifest.ValidateUnambiguousManifestFormat(manifestBlob, imgspecv1.MediaTypeImageIndex,
+	if err := manifest.ValidateUnambiguousManifestFormat(manifestBlob, imgspecv1.MediaTypeImageManifest,
 		manifest.AllowedFieldConfig|manifest.AllowedFieldLayers); err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (m *OCI1) ConfigInfo() types.BlobInfo {
 // The Digest field is guaranteed to be provided; Size may be -1.
 // WARNING: The list may contain duplicates, and they are semantically relevant.
 func (m *OCI1) LayerInfos() []LayerInfo {
-	blobs := []LayerInfo{}
+	blobs := make([]LayerInfo, 0, len(m.Layers))
 	for _, layer := range m.Layers {
 		blobs = append(blobs, LayerInfo{
 			BlobInfo:   BlobInfoFromOCI1Descriptor(layer),
@@ -167,7 +167,7 @@ func (m *OCI1) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 // an error if the mediatype does not support encryption
 func getEncryptedMediaType(mediatype string) (string, error) {
 	if slices.Contains(strings.Split(mediatype, "+")[1:], "encrypted") {
-		return "", fmt.Errorf("unsupported mediaType: %v already encrypted", mediatype)
+		return "", fmt.Errorf("unsupported mediaType: %q already encrypted", mediatype)
 	}
 	unsuffixedMediatype := strings.Split(mediatype, "+")[0]
 	switch unsuffixedMediatype {
@@ -176,17 +176,18 @@ func getEncryptedMediaType(mediatype string) (string, error) {
 		return mediatype + "+encrypted", nil
 	}
 
-	return "", fmt.Errorf("unsupported mediaType to encrypt: %v", mediatype)
+	return "", fmt.Errorf("unsupported mediaType to encrypt: %q", mediatype)
 }
 
-// getEncryptedMediaType will return the mediatype to its encrypted counterpart and return
+// getDecryptedMediaType will return the mediatype to its encrypted counterpart and return
 // an error if the mediatype does not support decryption
 func getDecryptedMediaType(mediatype string) (string, error) {
-	if !strings.HasSuffix(mediatype, "+encrypted") {
-		return "", fmt.Errorf("unsupported mediaType to decrypt: %v", mediatype)
+	res, ok := strings.CutSuffix(mediatype, "+encrypted")
+	if !ok {
+		return "", fmt.Errorf("unsupported mediaType to decrypt: %q", mediatype)
 	}
 
-	return strings.TrimSuffix(mediatype, "+encrypted"), nil
+	return res, nil
 }
 
 // Serialize returns the manifest in a blob format.
@@ -202,7 +203,7 @@ func (m *OCI1) Inspect(configGetter func(types.BlobInfo) ([]byte, error)) (*type
 		// Most software calling this without human intervention is going to expect the values to be realistic and relevant,
 		// and is probably better served by failing; we can always re-visit that later if we fail now, but
 		// if we started returning some data for OCI artifacts now, we couldn’t start failing in this function later.
-		return nil, manifest.NewNonImageArtifactError(m.Config.MediaType)
+		return nil, manifest.NewNonImageArtifactError(&m.Manifest)
 	}
 
 	config, err := configGetter(m.ConfigInfo())
@@ -235,7 +236,7 @@ func (m *OCI1) Inspect(configGetter func(types.BlobInfo) ([]byte, error)) (*type
 }
 
 // ImageID computes an ID which can uniquely identify this image by its contents.
-func (m *OCI1) ImageID([]digest.Digest) (string, error) {
+func (m *OCI1) ImageID(diffIDs []digest.Digest) (string, error) {
 	// The way m.Config.Digest “uniquely identifies” an image is
 	// by containing RootFS.DiffIDs, which identify the layers of the image.
 	// For non-image artifacts, the we can’t expect the config to change
@@ -253,13 +254,13 @@ func (m *OCI1) ImageID([]digest.Digest) (string, error) {
 	// (The only known caller of ImageID is storage/storageImageDestination.computeID,
 	// which can’t work with non-image artifacts.)
 	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
-		return "", manifest.NewNonImageArtifactError(m.Config.MediaType)
+		return "", manifest.NewNonImageArtifactError(&m.Manifest)
 	}
 
 	if err := m.Config.Digest.Validate(); err != nil {
 		return "", err
 	}
-	return m.Config.Digest.Hex(), nil
+	return m.Config.Digest.Encoded(), nil
 }
 
 // CanChangeLayerCompression returns true if we can compress/decompress layers with mimeType in the current image

@@ -15,15 +15,18 @@ Conformance tests use Docker CE to build images to be compared with images built
 
 ## Run conformance tests
 
-First, pull base images used by various conformance tests:
+These are the base images used by various conformance tests:
 ```
 bash
-docker pull alpine
-docker pull busybox
+docker pull mirror.gcr.io/alpine
+docker pull mirror.gcr.io/busybox
 docker pull quay.io/libpod/centos:7
+docker pull registry.fedoraproject.org/fedora-minimal:41-aarch64
+docker pull registry.fedoraproject.org/fedora-minimal:41-amd64
+docker pull registry.fedoraproject.org/fedora-minimal
 ```
 
-Then you can run all of the tests with go test:
+You can run all of the tests with go test (and under `buildah unshare` or `podman unshare` if you're not root):
 ```
 go test -v -timeout=30m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh)" ./tests/conformance
 ```

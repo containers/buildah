@@ -7,17 +7,16 @@ package goimports
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 )
 
-// Extracted from golang.org/x/tools@v0.1.12/cmd/goimports/goimports.go
+// Extracted from golang.org/x/tools@v0.24.0/cmd/goimports/goimports.go
 
 func writeTempFile(dir, prefix string, data []byte) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
+	file, err := os.CreateTemp(dir, prefix)
 	if err != nil {
 		return "", err
 	}

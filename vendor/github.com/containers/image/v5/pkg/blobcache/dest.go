@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/containers/image/v5/internal/blobinfocache"
 	"github.com/containers/image/v5/internal/imagedestination"
 	"github.com/containers/image/v5/internal/imagedestination/impl"
 	"github.com/containers/image/v5/internal/private"
@@ -80,47 +79,58 @@ func (d *blobCacheDestination) IgnoresEmbeddedDockerReference() bool {
 // and this new file.
 func (d *blobCacheDestination) saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os.File, compressedFilename string, compressedDigest digest.Digest, isConfig bool, alternateDigest *digest.Digest) {
 	defer wg.Done()
-	// Decompress from and digest the reading end of that pipe.
-	decompressed, err3 := archive.DecompressStream(decompressReader)
+	defer decompressReader.Close()
+
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			// Remove the temporary file.
+			if err := os.Remove(tempFile.Name()); err != nil {
+				logrus.Debugf("error cleaning up temporary file %q for decompressed copy of blob %q: %v", tempFile.Name(), compressedDigest.String(), err)
+			}
+		}
+	}()
+
 	digester := digest.Canonical.Digester()
-	if err3 == nil {
+	if err := func() error { // A scope for defer
+		defer tempFile.Close()
+
+		// Decompress from and digest the reading end of that pipe.
+		decompressed, err := archive.DecompressStream(decompressReader)
+		if err != nil {
+			// Drain the pipe to keep from stalling the PutBlob() thread.
+			if _, err2 := io.Copy(io.Discard, decompressReader); err2 != nil {
+				logrus.Debugf("error draining the pipe: %v", err2)
+			}
+			return err
+		}
+		defer decompressed.Close()
 		// Read the decompressed data through the filter over the pipe, blocking until the
 		// writing end is closed.
-		_, err3 = io.Copy(io.MultiWriter(tempFile, digester.Hash()), decompressed)
-	} else {
-		// Drain the pipe to keep from stalling the PutBlob() thread.
-		if _, err := io.Copy(io.Discard, decompressReader); err != nil {
-			logrus.Debugf("error draining the pipe: %v", err)
-		}
+		_, err = io.Copy(io.MultiWriter(tempFile, digester.Hash()), decompressed)
+		return err
+	}(); err != nil {
+		return
 	}
-	decompressReader.Close()
-	decompressed.Close()
-	tempFile.Close()
+
 	// Determine the name that we should give to the uncompressed copy of the blob.
-	decompressedFilename := d.reference.blobPath(digester.Digest(), isConfig)
-	if err3 == nil {
-		// Rename the temporary file.
-		if err3 = os.Rename(tempFile.Name(), decompressedFilename); err3 != nil {
-			logrus.Debugf("error renaming new decompressed copy of blob %q into place at %q: %v", digester.Digest().String(), decompressedFilename, err3)
-			// Remove the temporary file.
-			if err3 = os.Remove(tempFile.Name()); err3 != nil {
-				logrus.Debugf("error cleaning up temporary file %q for decompressed copy of blob %q: %v", tempFile.Name(), compressedDigest.String(), err3)
-			}
-		} else {
-			*alternateDigest = digester.Digest()
-			// Note the relationship between the two files.
-			if err3 = ioutils.AtomicWriteFile(decompressedFilename+compressedNote, []byte(compressedDigest.String()), 0600); err3 != nil {
-				logrus.Debugf("error noting that the compressed version of %q is %q: %v", digester.Digest().String(), compressedDigest.String(), err3)
-			}
-			if err3 = ioutils.AtomicWriteFile(compressedFilename+decompressedNote, []byte(digester.Digest().String()), 0600); err3 != nil {
-				logrus.Debugf("error noting that the decompressed version of %q is %q: %v", compressedDigest.String(), digester.Digest().String(), err3)
-			}
-		}
-	} else {
-		// Remove the temporary file.
-		if err3 = os.Remove(tempFile.Name()); err3 != nil {
-			logrus.Debugf("error cleaning up temporary file %q for decompressed copy of blob %q: %v", tempFile.Name(), compressedDigest.String(), err3)
-		}
+	decompressedFilename, err := d.reference.blobPath(digester.Digest(), isConfig)
+	if err != nil {
+		return
+	}
+	// Rename the temporary file.
+	if err := os.Rename(tempFile.Name(), decompressedFilename); err != nil {
+		logrus.Debugf("error renaming new decompressed copy of blob %q into place at %q: %v", digester.Digest().String(), decompressedFilename, err)
+		return
+	}
+	succeeded = true
+	*alternateDigest = digester.Digest()
+	// Note the relationship between the two files.
+	if err := ioutils.AtomicWriteFile(decompressedFilename+compressedNote, []byte(compressedDigest.String()), 0600); err != nil {
+		logrus.Debugf("error noting that the compressed version of %q is %q: %v", digester.Digest().String(), compressedDigest.String(), err)
+	}
+	if err := ioutils.AtomicWriteFile(compressedFilename+decompressedNote, []byte(digester.Digest().String()), 0600); err != nil {
+		logrus.Debugf("error noting that the decompressed version of %q is %q: %v", compressedDigest.String(), digester.Digest().String(), err)
 	}
 }
 
@@ -145,7 +155,10 @@ func (d *blobCacheDestination) PutBlobWithOptions(ctx context.Context, stream io
 	needToWait := false
 	compression := archive.Uncompressed
 	if inputInfo.Digest != "" {
-		filename := d.reference.blobPath(inputInfo.Digest, options.IsConfig)
+		filename, err2 := d.reference.blobPath(inputInfo.Digest, options.IsConfig)
+		if err2 != nil {
+			return private.UploadedBlob{}, err2
+		}
 		tempfile, err = os.CreateTemp(filepath.Dir(filename), filepath.Base(filename))
 		if err == nil {
 			stream = io.TeeReader(stream, tempfile)
@@ -225,10 +238,11 @@ func (d *blobCacheDestination) SupportsPutBlobPartial() bool {
 // PutBlobPartial attempts to create a blob using the data that is already present
 // at the destination. chunkAccessor is accessed in a non-sequential way to retrieve the missing chunks.
 // It is available only if SupportsPutBlobPartial().
-// Even if SupportsPutBlobPartial() returns true, the call can fail, in which case the caller
-// should fall back to PutBlobWithOptions.
-func (d *blobCacheDestination) PutBlobPartial(ctx context.Context, chunkAccessor private.BlobChunkAccessor, srcInfo types.BlobInfo, cache blobinfocache.BlobInfoCache2) (private.UploadedBlob, error) {
-	return d.destination.PutBlobPartial(ctx, chunkAccessor, srcInfo, cache)
+// Even if SupportsPutBlobPartial() returns true, the call can fail.
+// If the call fails with ErrFallbackToOrdinaryLayerDownload, the caller can fall back to PutBlobWithOptions.
+// The fallback _must not_ be done otherwise.
+func (d *blobCacheDestination) PutBlobPartial(ctx context.Context, chunkAccessor private.BlobChunkAccessor, srcInfo types.BlobInfo, options private.PutBlobPartialOptions) (private.UploadedBlob, error) {
+	return d.destination.PutBlobPartial(ctx, chunkAccessor, srcInfo, options)
 }
 
 // TryReusingBlobWithOptions checks whether the transport already contains, or can efficiently reuse, a blob, and if so, applies it to the current destination
@@ -237,6 +251,9 @@ func (d *blobCacheDestination) PutBlobPartial(ctx context.Context, chunkAccessor
 // If the blob has been successfully reused, returns (true, info, nil).
 // If the transport can not reuse the requested blob, TryReusingBlob returns (false, {}, nil); it returns a non-nil error only on an unexpected failure.
 func (d *blobCacheDestination) TryReusingBlobWithOptions(ctx context.Context, info types.BlobInfo, options private.TryReusingBlobOptions) (bool, private.ReusedBlob, error) {
+	if !impl.OriginalCandidateMatchesTryReusingBlobOptions(options) {
+		return false, private.ReusedBlob{}, nil
+	}
 	present, reusedInfo, err := d.destination.TryReusingBlobWithOptions(ctx, info, options)
 	if err != nil || present {
 		return present, reusedInfo, err
@@ -271,7 +288,10 @@ func (d *blobCacheDestination) PutManifest(ctx context.Context, manifestBytes []
 	if err != nil {
 		logrus.Warnf("error digesting manifest %q: %v", string(manifestBytes), err)
 	} else {
-		filename := d.reference.blobPath(manifestDigest, false)
+		filename, err := d.reference.blobPath(manifestDigest, false)
+		if err != nil {
+			return err
+		}
 		if err = ioutils.AtomicWriteFile(filename, manifestBytes, 0600); err != nil {
 			logrus.Warnf("error saving manifest as %q: %v", filename, err)
 		}
@@ -287,6 +307,10 @@ func (d *blobCacheDestination) PutSignaturesWithFormat(ctx context.Context, sign
 	return d.destination.PutSignaturesWithFormat(ctx, signatures, instanceDigest)
 }
 
-func (d *blobCacheDestination) Commit(ctx context.Context, unparsedToplevel types.UnparsedImage) error {
-	return d.destination.Commit(ctx, unparsedToplevel)
+// CommitWithOptions marks the process of storing the image as successful and asks for the image to be persisted.
+// WARNING: This does not have any transactional semantics:
+// - Uploaded data MAY be visible to others before CommitWithOptions() is called
+// - Uploaded data MAY be removed or MAY remain around if Close() is called without CommitWithOptions() (i.e. rollback is allowed but not guaranteed)
+func (d *blobCacheDestination) CommitWithOptions(ctx context.Context, options private.CommitOptions) error {
+	return d.destination.CommitWithOptions(ctx, options)
 }

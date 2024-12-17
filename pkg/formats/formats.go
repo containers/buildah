@@ -131,7 +131,7 @@ func (j JSONStruct) Out() error {
 	return nil
 }
 
-//Out method for Go templates
+// Out method for Go templates
 func (t StdoutTemplate) Out() error {
 	tmpl, err := template.New("image").Parse(t.Template)
 	if err != nil {

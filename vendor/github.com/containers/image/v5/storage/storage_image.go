@@ -18,22 +18,34 @@ var (
 	ErrNoSuchImage = storage.ErrNotAnImage
 )
 
-type storageImageCloser struct {
-	types.ImageCloser
-	size int64
-}
-
 // manifestBigDataKey returns a key suitable for recording a manifest with the specified digest using storage.Store.ImageBigData and related functions.
 // If a specific manifest digest is explicitly requested by the user, the key returned by this function should be used preferably;
 // for compatibility, if a manifest is not available under this key, check also storage.ImageDigestBigDataKey
-func manifestBigDataKey(digest digest.Digest) string {
-	return storage.ImageDigestManifestBigDataNamePrefix + "-" + digest.String()
+func manifestBigDataKey(digest digest.Digest) (string, error) {
+	if err := digest.Validate(); err != nil { // Make sure info.Digest.String() uses the expected format and does not collide with other BigData keys.
+		return "", err
+	}
+	return storage.ImageDigestManifestBigDataNamePrefix + "-" + digest.String(), nil
 }
 
 // signatureBigDataKey returns a key suitable for recording the signatures associated with the manifest with the specified digest using storage.Store.ImageBigData and related functions.
 // If a specific manifest digest is explicitly requested by the user, the key returned by this function should be used preferably;
-func signatureBigDataKey(digest digest.Digest) string {
-	return "signature-" + digest.Encoded()
+func signatureBigDataKey(digest digest.Digest) (string, error) {
+	if err := digest.Validate(); err != nil { // digest.Digest.Encoded() panics on failure, so validate explicitly.
+		return "", err
+	}
+	return "signature-" + digest.Encoded(), nil
+}
+
+// storageImageMetadata is stored, as JSON, in storage.Image.Metadata
+type storageImageMetadata struct {
+	SignatureSizes  []int                   `json:"signature-sizes,omitempty"`  // List of sizes of each signature slice
+	SignaturesSizes map[digest.Digest][]int `json:"signatures-sizes,omitempty"` // Sizes of each manifest's signature slice
+}
+
+type storageImageCloser struct {
+	types.ImageCloser
+	size int64
 }
 
 // Size() returns the previously-computed size of the image, with no error.

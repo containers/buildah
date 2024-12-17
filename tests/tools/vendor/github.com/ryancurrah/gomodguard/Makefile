@@ -6,7 +6,7 @@ lint:
 
 .PHONY: build
 build:
-	go build -o gomodguard cmd/gomodguard/main.go
+	go build -o "$$(go env GOPATH)/bin/gomodguard" cmd/gomodguard/main.go
 
 .PHONY: run
 run: build
@@ -26,11 +26,11 @@ dockerrun: dockerbuild
 
 .PHONY: snapshot
 snapshot:
-	goreleaser --rm-dist --snapshot
+	goreleaser --clean --snapshot
 
 .PHONY: release
 release:
-	goreleaser --rm-dist
+	goreleaser --clean
 
 .PHONY: clean
 clean:
@@ -43,4 +43,4 @@ install-tools-mac:
 
 .PHONY: install-go-tools
 install-go-tools:
-	go install -v github.com/t-yuki/gocover-cobertura
+	go install -v github.com/t-yuki/gocover-cobertura@latest

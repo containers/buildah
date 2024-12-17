@@ -77,6 +77,28 @@ ignore the `cmd` value of the container image.  However if you use the array
 form, then the cmd will be appended onto the end of the entrypoint cmd and be
 executed together.
 
+Note: The string form is appended to the `sh -c` command as the entrypoint. The array form
+replaces entrypoint entirely.
+
+String Format:
+```
+$ buildah from scratch
+$ buildah config --entrypoint "/usr/bin/notashell" working-container
+$ buildah inspect --format '{{ .OCIv1.Config.Entrypoint }}' working-container
+[/bin/sh -c /usr/bin/notshell]
+$ buildah inspect --format '{{ .Docker.Config.Entrypoint }}' working-container
+[/bin/sh -c /usr/bin/notshell]
+```
+
+Array Format:
+```
+$ buildah config --entrypoint '["/usr/bin/notashell"]' working-container
+$ buildah inspect --format '{{ .OCIv1.Config.Entrypoint }}' working-container
+[/usr/bin/notashell]
+$ buildah inspect --format '{{ .Docker.Config.Entrypoint }}' working-container
+[/usr/bin/notashell]
+```
+
 **--env**, **-e** *env[=value]*
 
 Add a value (e.g. env=*value*) to the environment for containers based on any
@@ -107,6 +129,12 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 
 Specify how many times the command specified using the *--healthcheck* option
 can fail before the container is considered to be unhealthy.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
+**--healthcheck-start-interval** *interval*
+
+Specify the time between health checks during the start period.
 
 Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
@@ -182,12 +210,15 @@ This option is typically only meaningful when the image's OS is Windows, and is
 typically set in Windows base images, so using this option is usually
 unnecessary.
 
-**--port**, **-p** *port*
+**--port**, **-p** *port/protocol*
 
 Add a *port* to expose when running containers based on any images which
 will be built using the specified container. Can be used multiple times.
-If *port* has a trailing `-`, and is already set, then the *port* is removed from the config.
-If the port is set to "-" then all exposed ports settings are removed from the config.
+To specify whether the port listens on TCP or UDP, use "port/protocol".
+The default is TCP if the protocol is not specified. To expose the port on both TCP and UDP,
+specify the port option multiple times. If *port* has a trailing `-` and is already set,
+then the *port* is removed from the configuration. If the port is set to `-` then all exposed
+ports settings are removed from the configuration.
 
 **--shell** *shell*
 
@@ -199,6 +230,10 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 **--stop-signal** *signal*
 
 Set default *stop signal* for container. This signal will be sent when container is stopped, default is SIGINT.
+
+**--unsetlabel** *label*
+
+Unset the image label, causing the label not to be inherited from the base image.
 
 **--user**, **-u** *user*[:*group*]
 
@@ -250,6 +285,8 @@ buildah config --volume /usr/myvol containerID
 buildah config --volume /usr/myvol- containerID
 
 buildah config --port 1234 --port 8080 containerID
+
+buildah config --port 514/tcp --port 514/udp containerID
 
 buildah config --env 1234=5678 containerID
 

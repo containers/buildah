@@ -618,8 +618,7 @@ func (conv *converter) convertFilterExprImpl(e ast.Expr) ir.FilterExpr {
 	case *ast.UnaryExpr:
 		x := conv.convertFilterExpr(e.X)
 		args := []ir.FilterExpr{x}
-		switch e.Op {
-		case token.NOT:
+		if e.Op == token.NOT {
 			return ir.FilterExpr{Op: ir.FilterNotOp, Args: args}
 		}
 

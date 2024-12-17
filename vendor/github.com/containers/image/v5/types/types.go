@@ -135,8 +135,8 @@ type BlobInfo struct {
 	// CompressionOperation is used in Image.UpdateLayerInfos to instruct
 	// whether the original layer's "compressed or not" should be preserved,
 	// possibly while changing the compression algorithm from one to another,
-	// or if it should be compressed or decompressed.  The field defaults to
-	// preserve the original layer's compressedness.
+	// or if it should be changed to compressed or decompressed.
+	// The field defaults to preserve the original layer's compressedness.
 	// TODO: To remove together with CryptoOperation in re-design to remove
 	// field out of BlobInfo.
 	CompressionOperation LayerCompression
@@ -445,7 +445,7 @@ type ImageCloser interface {
 	Close() error
 }
 
-// ManifestUpdateOptions is a way to pass named optional arguments to Image.UpdatedManifest
+// ManifestUpdateOptions is a way to pass named optional arguments to Image.UpdatedImage
 type ManifestUpdateOptions struct {
 	LayerInfos              []BlobInfo // Complete BlobInfos (size+digest+urls+annotations) which should replace the originals, in order (the root layer first, and then successive layered layers). BlobInfos' MediaType fields are ignored.
 	EmbeddedDockerReference reference.Named
@@ -457,7 +457,7 @@ type ManifestUpdateOptions struct {
 // ManifestUpdateInformation is a component of ManifestUpdateOptions, named here
 // only to make writing struct literals possible.
 type ManifestUpdateInformation struct {
-	Destination  ImageDestination // and yes, UpdatedManifest may write to Destination (see the schema2 → schema1 conversion logic in image/docker_schema2.go)
+	Destination  ImageDestination // and yes, UpdatedImage may write to Destination (see the schema2 → schema1 conversion logic in image/docker_schema2.go)
 	LayerInfos   []BlobInfo       // Complete BlobInfos (size+digest) which have been uploaded, in order (the root layer first, and then successive layered layers)
 	LayerDiffIDs []digest.Digest  // Digest values for the _uncompressed_ contents of the blobs which have been uploaded, in the same order.
 }
@@ -594,6 +594,10 @@ type SystemContext struct {
 	// this field is ignored if `AuthFilePath` is set (we favor the newer format);
 	// only reading of this data is supported;
 	LegacyFormatAuthFilePath string
+	// If set, a path to a Docker-compatible "config.json" file containing credentials; and no other files are processed.
+	// This must not be set if AuthFilePath is set.
+	// Only credentials and credential helpers in this file apre processed, not any other configuration in this file.
+	DockerCompatAuthFilePath string
 	// If not "", overrides the use of platform.GOARCH when choosing an image or verifying architecture match.
 	ArchitectureChoice string
 	// If not "", overrides the use of platform.GOOS when choosing an image or verifying OS match.
@@ -639,6 +643,7 @@ type SystemContext struct {
 	// if true, a V1 ping attempt isn't done to give users a better error. Default is false.
 	// Note that this field is used mainly to integrate containers/image into projectatomic/docker
 	// in order to not break any existing docker's integration tests.
+	// Deprecated: The V1 container registry detection is no longer performed, so setting this flag has no effect.
 	DockerDisableV1Ping bool
 	// If true, dockerImageDestination.SupportedManifestMIMETypes will omit the Schema1 media types from the supported list
 	DockerDisableDestSchema1MIMETypes bool

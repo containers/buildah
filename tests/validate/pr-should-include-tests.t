@@ -7,6 +7,13 @@
 #
 ME=$(basename $0)
 
+# As of 2024-02 our test script queries github, for which we need token
+if [[ -z "$GITHUB_TOKEN" ]]; then
+    echo "$ME: Please set \$GITHUB_TOKEN" >&2
+    exit 1
+fi
+export CIRRUS_REPO_CLONE_TOKEN="$GITHUB_TOKEN"
+
 ###############################################################################
 # BEGIN test cases
 #
@@ -26,12 +33,13 @@ ME=$(basename $0)
 #        commit history, but once we do, please add a new '0' test here.
 #
 tests="
-0  f466086d  88bc27df  PR 2955: two commits, includes tests
-1  c5870ff8  520c7815  PR 2973: single commit, no tests
-0  d460e2ed  371e4ca6  PR 2886: .cirrus.yml and contrib/cirrus/*
-0  88bc27df  c5870ff8  PR 2972: vendor only
-0  d4c696af  faa86c4f  PR 2470: CI:DOCS as well as only a .md change
-0  d460e2ed  f52762a9  PR 2927: .md only, without CI:DOCS
+0  f466086d  88bc27df  2955  two commits, includes tests
+1  f466086d  4026fa96  2973  single commit, no tests
+0  d460e2ed  371e4ca6  2886  .cirrus.yml and contrib/cirrus/*
+0  88bc27df  c5870ff8  2972  vendor only
+0  d4c696af  faa86c4f  2470  CI:DOCS as well as only a .md change
+0  d460e2ed  f52762a9  2927  .md only, without CI:DOCS
+0  d80ec964  8a1bcd51  5366  no tests, allowed due to No New Tests label
 "
 
 # The script we're testing
@@ -69,10 +77,10 @@ function run_test_script() {
                 echo "# Actual:   $output"
                 rc=1
             else
-                echo "ok $testnum $testname"
+                echo "ok $testnum $testname - rc=$expected_rc"
             fi
         else
-            echo "ok $testnum $testname"
+            echo "ok $testnum $testname - rc=$expected_rc"
         fi
     fi
 
@@ -84,19 +92,10 @@ function run_test_script() {
 
             CIRRUS_CHANGE_TITLE="[CI:DOCS] hi there" $test_script &>/dev/null
             if [[ $? -ne 0 ]]; then
-                echo "not ok $testnum $rest (override with CI:DOCS)"
+                echo "not ok $testnum $testname (override with CI:DOCS)"
                 rc=1
             else
-                echo "ok $testnum $rest (override with CI:DOCS)"
-            fi
-
-            testnum=$(( testnum + 1 ))
-            CIRRUS_CHANGE_MESSAGE="hi there [NO TESTS NEEDED] bye" $test_script &>/dev/null
-            if [[ $? -ne 0 ]]; then
-                echo "not ok $testnum $rest (override with '[NO TESTS NEEDED]')"
-                rc=1
-            else
-                echo "ok $testnum $rest (override with '[NO TESTS NEEDED]')"
+                echo "ok $testnum $testname (override with CI:DOCS)"
             fi
 
             tested_override=1
@@ -112,16 +111,17 @@ rc=0
 testnum=0
 tested_override=
 
-while read expected_rc parent_sha  commit_sha rest; do
+while read expected_rc parent_sha  commit_sha pr rest; do
     # Skip blank lines
     test -z "$expected_rc" && continue
 
-    export DEST_BRANCH=$parent_sha
+    export GITVALIDATE_EPOCH=$parent_sha
     export CIRRUS_CHANGE_IN_REPO=$commit_sha
     export CIRRUS_CHANGE_TITLE=$(git log -1 --format=%s $commit_sha)
     export CIRRUS_CHANGE_MESSAGE=
+    export CIRRUS_PR=$pr
 
-    run_test_script $expected_rc "$rest"
+    run_test_script $expected_rc "PR $pr - $rest"
 done <<<"$tests"
 
 echo "1..$testnum"

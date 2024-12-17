@@ -54,9 +54,10 @@ type Schema2HealthConfig struct {
 	Test []string `json:",omitempty"`
 
 	// Zero means to inherit. Durations are expressed as integer nanoseconds.
-	StartPeriod time.Duration `json:",omitempty"` // StartPeriod is the time to wait after starting before running the first check.
-	Interval    time.Duration `json:",omitempty"` // Interval is the time to wait between checks.
-	Timeout     time.Duration `json:",omitempty"` // Timeout is the time to wait before considering the check to have hung.
+	StartPeriod   time.Duration `json:",omitempty"` // StartPeriod is the time to wait after starting before running the first check.
+	StartInterval time.Duration `json:",omitempty"` // StartInterval is the time to wait between checks during the start period.
+	Interval      time.Duration `json:",omitempty"` // Interval is the time to wait between checks.
+	Timeout       time.Duration `json:",omitempty"` // Timeout is the time to wait before considering the check to have hung.
 
 	// Retries is the number of consecutive failures needed to consider a container as unhealthy.
 	// Zero means inherit.
@@ -201,7 +202,7 @@ func (m *Schema2) ConfigInfo() types.BlobInfo {
 // The Digest field is guaranteed to be provided; Size may be -1.
 // WARNING: The list may contain duplicates, and they are semantically relevant.
 func (m *Schema2) LayerInfos() []LayerInfo {
-	blobs := []LayerInfo{}
+	blobs := make([]LayerInfo, 0, len(m.LayersDescriptors))
 	for _, layer := range m.LayersDescriptors {
 		blobs = append(blobs, LayerInfo{
 			BlobInfo:   BlobInfoFromSchema2Descriptor(layer),
@@ -247,6 +248,9 @@ func (m *Schema2) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 		m.LayersDescriptors[i].Digest = info.Digest
 		m.LayersDescriptors[i].Size = info.Size
 		m.LayersDescriptors[i].URLs = info.URLs
+		if info.CryptoOperation != types.PreserveOriginalCrypto {
+			return fmt.Errorf("encryption change (for layer %q) is not supported in schema2 manifests", info.Digest)
+		}
 	}
 	return nil
 }
@@ -291,7 +295,7 @@ func (m *Schema2) ImageID([]digest.Digest) (string, error) {
 	if err := m.ConfigDescriptor.Digest.Validate(); err != nil {
 		return "", err
 	}
-	return m.ConfigDescriptor.Digest.Hex(), nil
+	return m.ConfigDescriptor.Digest.Encoded(), nil
 }
 
 // CanChangeLayerCompression returns true if we can compress/decompress layers with mimeType in the current image

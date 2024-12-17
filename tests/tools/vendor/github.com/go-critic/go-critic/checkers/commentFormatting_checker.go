@@ -8,13 +8,13 @@ import (
 	"unicode/utf8"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "commentFormatting"
-	info.Tags = []string{"style"}
+	info.Tags = []string{linter.StyleTag}
 	info.Summary = "Detects comments with non-idiomatic formatting"
 	info.Before = `//This is a comment`
 	info.After = `// This is a comment`
@@ -27,12 +27,16 @@ func init() {
 			"//nolint",
 		}
 		parts := []string{
-			"//go:generate ",  // e.g.: go:generate value
-			"//line /",        // e.g.: line /path/to/file:123
-			"//nolint ",       // e.g.: nolint
-			"//noinspection ", // e.g.: noinspection ALL, some GoLand and friends versions
-			"//export ",       // e.g.: export Foo
-			"///",             // e.g.: vertical breaker /////////////
+			"//go:generate ",   // e.g.: go:generate value
+			"//line /",         // e.g.: line /path/to/file:123
+			"//nolint ",        // e.g.: nolint
+			"//noinspection ",  // e.g.: noinspection ALL, some GoLand and friends versions
+			"//region",         // e.g.: region awawa, used by GoLand and friends for custom folding
+			"//endregion",      // e.g.: endregion awawa or endregion, closes GoLand regions
+			"//<editor-fold",   // e.g.: <editor-fold desc="awawa"> or <editor-fold>, used by VSCode for custom folding
+			"//</editor-fold>", // e.g.: </editor-fold>, closes VSCode regions
+			"//export ",        // e.g.: export Foo
+			"///",              // e.g.: vertical breaker /////////////
 			"//+",
 			"//#",
 			"//-",

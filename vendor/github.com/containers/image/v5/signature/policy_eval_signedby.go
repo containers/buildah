@@ -6,13 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
+	"slices"
 
+	"github.com/containers/image/v5/internal/multierr"
 	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/manifest"
 	digest "github.com/opencontainers/go-digest"
-	"golang.org/x/exp/slices"
 )
 
 func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image private.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error) {
@@ -20,40 +19,25 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 	case SBKeyTypeGPGKeys:
 	case SBKeyTypeSignedByGPGKeys, SBKeyTypeX509Certificates, SBKeyTypeSignedByX509CAs:
 		// FIXME? Reject this at policy parsing time already?
-		return sarRejected, nil, fmt.Errorf(`Unimplemented "keyType" value "%s"`, string(pr.KeyType))
+		return sarRejected, nil, fmt.Errorf(`Unimplemented "keyType" value %q`, string(pr.KeyType))
 	default:
 		// This should never happen, newPRSignedBy ensures KeyType.IsValid()
-		return sarRejected, nil, fmt.Errorf(`Unknown "keyType" value "%s"`, string(pr.KeyType))
+		return sarRejected, nil, fmt.Errorf(`Unknown "keyType" value %q`, string(pr.KeyType))
 	}
 
 	// FIXME: move this to per-context initialization
-	var data [][]byte
-	keySources := 0
-	if pr.KeyPath != "" {
-		keySources++
-		d, err := os.ReadFile(pr.KeyPath)
-		if err != nil {
-			return sarRejected, nil, err
-		}
-		data = [][]byte{d}
+	const notOneSourceErrorText = `Internal inconsistency: not exactly one of "keyPath", "keyPaths" and "keyData" specified`
+	data, err := loadBytesFromConfigSources(configBytesSources{
+		inconsistencyErrorMessage: notOneSourceErrorText,
+		path:                      pr.KeyPath,
+		paths:                     pr.KeyPaths,
+		data:                      pr.KeyData,
+	})
+	if err != nil {
+		return sarRejected, nil, err
 	}
-	if pr.KeyPaths != nil {
-		keySources++
-		data = [][]byte{}
-		for _, path := range pr.KeyPaths {
-			d, err := os.ReadFile(path)
-			if err != nil {
-				return sarRejected, nil, err
-			}
-			data = append(data, d)
-		}
-	}
-	if pr.KeyData != nil {
-		keySources++
-		data = [][]byte{pr.KeyData}
-	}
-	if keySources != 1 {
-		return sarRejected, nil, errors.New(`Internal inconsistency: not exactly one of "keyPath", "keyPaths" and "keyData" specified`)
+	if data == nil {
+		return sarRejected, nil, errors.New(notOneSourceErrorText)
 	}
 
 	// FIXME: move this to per-context initialization
@@ -77,7 +61,7 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 		},
 		validateSignedDockerReference: func(ref string) error {
 			if !pr.SignedIdentity.matchesDockerReference(image, ref) {
-				return PolicyRequirementError(fmt.Sprintf("Signature for identity %s is not accepted", ref))
+				return PolicyRequirementError(fmt.Sprintf("Signature for identity %q is not accepted", ref))
 			}
 			return nil
 		},
@@ -123,7 +107,7 @@ func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image private.U
 			// Huh?! This should not happen at all; treat it as any other invalid value.
 			fallthrough
 		default:
-			reason = fmt.Errorf(`Internal error: Unexpected signature verification result "%s"`, string(res))
+			reason = fmt.Errorf(`Internal error: Unexpected signature verification result %q`, string(res))
 		}
 		rejections = append(rejections, reason)
 	}
@@ -134,12 +118,7 @@ func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image private.U
 	case 1:
 		summary = rejections[0]
 	default:
-		var msgs []string
-		for _, e := range rejections {
-			msgs = append(msgs, e.Error())
-		}
-		summary = PolicyRequirementError(fmt.Sprintf("None of the signatures were accepted, reasons: %s",
-			strings.Join(msgs, "; ")))
+		summary = PolicyRequirementError(multierr.Format("None of the signatures were accepted, reasons: ", "; ", "", rejections).Error())
 	}
 	return false, summary
 }

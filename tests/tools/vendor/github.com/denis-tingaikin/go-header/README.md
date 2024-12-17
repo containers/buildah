@@ -8,7 +8,7 @@ Go source code linter providing checks for license headers.
 For installation you can simply use `go get`.
 
 ```bash
-go get github.com/denis-tingaikin/go-header/cmd/go-header
+go install github.com/denis-tingaikin/go-header/cmd/go-header
 ```
 
 ## Configuration
@@ -38,6 +38,8 @@ values:
 
 ## Bult-in values
 
+- **MOD-YEAR** - Returns the year when the file was modified.
+- **MOD-YEAR-RANGE** - Returns a year-range where the range starts from the  year when the file was modified.
 - **YEAR** - Expects current year. Example header value: `2020`.  Example of template using: `{{YEAR}}` or `{{year}}`.
 - **YEAR-RANGE** - Expects any valid year interval or current year. Example header value: `2020` or `2000-2020`. Example of template using: `{{year-range}}` or `{{YEAR-RANGE}}`.
 

@@ -3,27 +3,31 @@ package config
 import "os"
 
 const (
-	// OverrideContainersConfig holds the default config path overridden by the root user
-	OverrideContainersConfig = "/etc/" + _configPath
+	// _configPath is the path to the containers/containers.conf
+	// inside a given config directory.
+	_configPath = "\\containers\\containers.conf"
 
 	// DefaultContainersConfig holds the default containers config path
-	DefaultContainersConfig = "/usr/share/" + _configPath
+	DefaultContainersConfig = ""
 
 	// DefaultSignaturePolicyPath is the default value for the
 	// policy.json file.
 	DefaultSignaturePolicyPath = "/etc/containers/policy.json"
+
+	// Mount type for mounting host dir
+	_typeBind = "bind"
 )
 
-// podman remote clients on windows cannot use unshare.isRootless() to determine the configuration file locations.
-func customConfigFile() (string, error) {
-	if path, found := os.LookupEnv("CONTAINERS_CONF"); found {
-		return path, nil
-	}
-	return os.Getenv("APPDATA") + "\\containers\\containers.conf", nil
+// userConfigPath returns the path to the users local config that is
+// not shared with other users. It uses $APPDATA/containers...
+func userConfigPath() (string, error) {
+	return os.Getenv("APPDATA") + _configPath, nil
 }
 
-func ifRootlessConfigPath() (string, error) {
-	return os.Getenv("APPDATA") + "\\containers\\containers.conf", nil
+// overrideContainersConfigPath returns the path to the system wide
+// containers config folder. It users $PROGRAMDATA/containers...
+func overrideContainersConfigPath() (string, error) {
+	return os.Getenv("ProgramData") + _configPath, nil
 }
 
 var defaultHelperBinariesDir = []string{

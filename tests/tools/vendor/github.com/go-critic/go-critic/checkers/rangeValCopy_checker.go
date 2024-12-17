@@ -4,13 +4,13 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "rangeValCopy"
-	info.Tags = []string{"performance"}
+	info.Tags = []string{linter.PerformanceTag}
 	info.Params = linter.CheckerParams{
 		"sizeThreshold": {
 			Value: 128,

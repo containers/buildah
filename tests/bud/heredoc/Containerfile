@@ -1,0 +1,62 @@
+FROM quay.io/fedora/python-311
+
+USER root
+WORKDIR /
+
+RUN <<EOF
+echo "print first line from heredoc"
+echo "print second line from heredoc"
+EOF
+
+RUN <<EOF
+echo "Heredoc writing first file" >> /file1
+echo "some text of first file" >> /file1
+EOF
+
+RUN cat file1
+
+RUN python3 <<EOF
+with open("/file2", "w") as f:
+    print("file2 from python", file=f)
+EOF
+
+RUN cat file2
+
+ADD <<EOF /index.html
+ (your index page goes here)
+EOF
+
+RUN cat index.html
+
+COPY <<robots.txt <<humans.txt /test/
+(robots content)
+robots.txt
+(humans content)
+humans.txt
+
+RUN cat /proc/self/fd/5 /proc/self/fd/6 5<<FILE1 6<<FILE2 > test6.txt
+this is the output of test6 part1
+FILE1
+this is the output of test6 part2
+FILE2
+
+RUN 5<<file cat /proc/self/fd/5 /proc/self/fd/6 6<<FILE | cat /dev/stdin /proc/self/fd/6 6<<File > test7.txt
+this is the output of test7 part1
+file
+this is the output of test7 part2
+FILE
+this is the output of test7 part3
+File
+
+RUN <<FILE1 cat > test8.1 && <<FILE2 cat > test8.2
+this is the output of test8 part1
+FILE1
+this is the output of test8 part2
+FILE2
+
+RUN cat /test/robots.txt
+RUN cat /test/humans.txt
+RUN cat test6.txt
+RUN cat test7.txt
+RUN cat test8.1
+RUN cat test8.2

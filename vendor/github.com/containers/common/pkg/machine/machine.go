@@ -4,15 +4,9 @@ import (
 	"os"
 	"strings"
 	"sync"
-
-	"github.com/containers/common/pkg/config"
-	"github.com/sirupsen/logrus"
 )
 
-// TODO: change name to MachineMarker since package is already called machine
-//
-//nolint:revive
-type MachineMarker struct {
+type Marker struct {
 	Enabled bool
 	Type    string
 }
@@ -21,56 +15,42 @@ const (
 	markerFile = "/etc/containers/podman-machine"
 	Wsl        = "wsl"
 	Qemu       = "qemu"
+	AppleHV    = "applehv"
+	HyperV     = "hyperv"
 )
 
 var (
-	markerSync    sync.Once
-	machineMarker *MachineMarker
+	markerSync sync.Once
+	marker     *Marker
 )
 
 func loadMachineMarker(file string) {
 	var kind string
-
-	// Support deprecated config value for compatibility
-	enabled := isLegacyConfigSet()
+	enabled := false
 
 	if content, err := os.ReadFile(file); err == nil {
 		enabled = true
 		kind = strings.TrimSpace(string(content))
 	}
 
-	machineMarker = &MachineMarker{enabled, kind}
-}
-
-func isLegacyConfigSet() bool {
-	config, err := config.Default()
-	if err != nil {
-		logrus.Warnf("could not obtain container configuration")
-		return false
-	}
-
-	//nolint:staticcheck //lint:ignore SA1019 deprecated call
-	return config.Engine.MachineEnabled
+	marker = &Marker{enabled, kind}
 }
 
 func IsPodmanMachine() bool {
 	return GetMachineMarker().Enabled
 }
 
-// TODO: change name to HostType since package is already called machine
-//
-//nolint:revive
-func MachineHostType() string {
+func HostType() string {
 	return GetMachineMarker().Type
 }
 
 func IsGvProxyBased() bool {
-	return IsPodmanMachine() && MachineHostType() != Wsl
+	return IsPodmanMachine() && HostType() != Wsl
 }
 
-func GetMachineMarker() *MachineMarker {
+func GetMachineMarker() *Marker {
 	markerSync.Do(func() {
 		loadMachineMarker(markerFile)
 	})
-	return machineMarker
+	return marker
 }

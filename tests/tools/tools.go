@@ -9,5 +9,4 @@ package tools
 import (
 	_ "github.com/cpuguy83/go-md2man/v2"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
-	_ "github.com/onsi/ginkgo/ginkgo"
 )

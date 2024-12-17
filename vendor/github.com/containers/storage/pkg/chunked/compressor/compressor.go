@@ -7,7 +7,6 @@ package compressor
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"io"
 
 	"github.com/containers/storage/pkg/chunked/internal"
@@ -369,34 +368,14 @@ func writeZstdChunkedStream(destFile io.Writer, outMetadata map[string]string, r
 			}
 		}
 
-		typ, err := internal.GetType(hdr.Typeflag)
+		mainEntry, err := internal.NewFileMetadata(hdr)
 		if err != nil {
 			return err
 		}
-		xattrs := make(map[string]string)
-		for k, v := range hdr.Xattrs {
-			xattrs[k] = base64.StdEncoding.EncodeToString([]byte(v))
-		}
-		entries := []internal.FileMetadata{
-			{
-				Type:       typ,
-				Name:       hdr.Name,
-				Linkname:   hdr.Linkname,
-				Mode:       hdr.Mode,
-				Size:       hdr.Size,
-				UID:        hdr.Uid,
-				GID:        hdr.Gid,
-				ModTime:    &hdr.ModTime,
-				AccessTime: &hdr.AccessTime,
-				ChangeTime: &hdr.ChangeTime,
-				Devmajor:   hdr.Devmajor,
-				Devminor:   hdr.Devminor,
-				Xattrs:     xattrs,
-				Digest:     checksum,
-				Offset:     startOffset,
-				EndOffset:  lastOffset,
-			},
-		}
+		mainEntry.Digest = checksum
+		mainEntry.Offset = startOffset
+		mainEntry.EndOffset = lastOffset
+		entries := []internal.FileMetadata{mainEntry}
 		for i := 1; i < len(chunks); i++ {
 			entries = append(entries, internal.FileMetadata{
 				Type:        internal.TypeChunk,
@@ -420,6 +399,14 @@ func writeZstdChunkedStream(destFile io.Writer, outMetadata map[string]string, r
 		zstdWriter.Close()
 		return err
 	}
+
+	// make sure the entire tarball is flushed to the output as it might contain
+	// some trailing zeros that affect the checksum.
+	if _, err := io.Copy(zstdWriter, its); err != nil {
+		zstdWriter.Close()
+		return err
+	}
+
 	if err := zstdWriter.Flush(); err != nil {
 		zstdWriter.Close()
 		return err
@@ -452,12 +439,12 @@ type zstdChunkedWriter struct {
 }
 
 func (w zstdChunkedWriter) Close() error {
-	err := <-w.tarSplitErr
-	if err != nil {
-		w.tarSplitOut.Close()
+	errClose := w.tarSplitOut.Close()
+
+	if err := <-w.tarSplitErr; err != nil && err != io.EOF {
 		return err
 	}
-	return w.tarSplitOut.Close()
+	return errClose
 }
 
 func (w zstdChunkedWriter) Write(p []byte) (int, error) {

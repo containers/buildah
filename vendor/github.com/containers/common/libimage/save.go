@@ -1,3 +1,5 @@
+//go:build !remote
+
 package libimage
 
 import (
@@ -51,7 +53,7 @@ func (r *Runtime) Save(ctx context.Context, names []string, format, path string,
 			return fmt.Errorf("unsupported format %q for saving multiple images (only docker-archive)", format)
 		}
 		if len(options.AdditionalTags) > 0 {
-			return fmt.Errorf("cannot save multiple images with multiple tags")
+			return errors.New("cannot save multiple images with multiple tags")
 		}
 	}
 
@@ -117,13 +119,13 @@ func (r *Runtime) saveSingleImage(ctx context.Context, name, format, path string
 		return err
 	}
 
-	c, err := r.newCopier(&options.CopyOptions)
+	c, err := r.newCopier(&options.CopyOptions, nil)
 	if err != nil {
 		return err
 	}
-	defer c.close()
+	defer c.Close()
 
-	_, err = c.copy(ctx, srcRef, destRef)
+	_, err = c.Copy(ctx, srcRef, destRef)
 	return err
 }
 
@@ -202,11 +204,11 @@ func (r *Runtime) saveDockerArchive(ctx context.Context, names []string, path st
 		copyOpts := options.CopyOptions
 		copyOpts.dockerArchiveAdditionalTags = local.tags
 
-		c, err := r.newCopier(&copyOpts)
+		c, err := r.newCopier(&copyOpts, nil)
 		if err != nil {
 			return err
 		}
-		defer c.close()
+		defer c.Close()
 
 		destRef, err := writer.NewReference(nil)
 		if err != nil {
@@ -218,7 +220,7 @@ func (r *Runtime) saveDockerArchive(ctx context.Context, names []string, path st
 			return err
 		}
 
-		if _, err := c.copy(ctx, srcRef, destRef); err != nil {
+		if _, err := c.Copy(ctx, srcRef, destRef); err != nil {
 			return err
 		}
 	}

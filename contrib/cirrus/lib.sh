@@ -69,19 +69,35 @@ CIRRUS_BUILD_ID=${CIRRUS_BUILD_ID:-unknown$(date +%s)}  # must be short and uniq
 CIRRUS_TASK_ID=${CIRRUS_BUILD_ID:-unknown$(date +%d)}   # to prevent state thrashing when
                                                         # debugging with `hack/get_ci_vm.sh`
 
-# Unsafe env. vars for display
-SECRET_ENV_RE='(IRCID)|(ACCOUNT)|(^GC[EP]..+)|(SSH)'
+# All CI jobs use a local registry
+export CI_USE_REGISTRY_CACHE=true
 
-# GCE image-name compatible string representation of distribution name
-OS_RELEASE_ID="$(source /etc/os-release; echo $ID)"
-# GCE image-name compatible string representation of distribution _major_ version
-OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | tr -d '.')"
-# Combined to ease soe usage
-OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
+# Regex defining all CI-related env. vars. necessary for all possible
+# testing operations on all platforms and versions.  This is necessary
+# to avoid needlessly passing through global/system values across
+# contexts, such as host->container or root->rootless user
+#
+# List of envariables which must be EXACT matches
+#   N/B: Don't include BUILDAH_ISOLATION, STORAGE_DRIVER, or CGROUP_MANAGER
+#   here because they will negatively affect execution of the rootless
+#   integration tests.
+PASSTHROUGH_ENV_EXACT='DEST_BRANCH|DISTRO_NV|GOPATH|GOSRC|ROOTLESS_USER|SCRIPT_BASE|IN_PODMAN_IMAGE'
+
+# List of envariable patterns which must match AT THE BEGINNING of the name.
+PASSTHROUGH_ENV_ATSTART='CI|TEST'
+
+# List of envariable patterns which can match ANYWHERE in the name
+PASSTHROUGH_ENV_ANYWHERE='_NAME|_FQIN'
+
+# Combine into one
+PASSTHROUGH_ENV_RE="(^($PASSTHROUGH_ENV_EXACT)\$)|(^($PASSTHROUGH_ENV_ATSTART))|($PASSTHROUGH_ENV_ANYWHERE)"
+
+# Unsafe env. vars for display
+SECRET_ENV_RE='ACCOUNT|GC[EP]..|SSH|PASSWORD|SECRET|TOKEN'
 
 # FQINs needed for testing
-REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
-ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
+REGISTRY_FQIN=${REGISTRY_FQIN:-quay.io/libpod/registry:2.8.2}
+ALPINE_FQIN=${ALPINE_FQIN:-quay.io/libpod/alpine}
 
 # for in-container testing
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
@@ -149,37 +165,40 @@ remove_packaged_buildah_files() {
     fi
 }
 
+# Return a list of environment variables that should be passed through
+# to lower levels (tests in containers, or via ssh to rootless).
+# We return the variable names only, not their values. It is up to our
+# caller to reference values.
+passthrough_envars(){
+    warn "Will pass env. vars. matching the following regex:
+    $PASSTHROUGH_ENV_RE"
+    compgen -A variable | \
+        grep -Ev "$SECRET_ENV_RE" | \
+        grep -Ev "^PASSTHROUGH_" | \
+        grep -E  "$PASSTHROUGH_ENV_RE"
+}
+
 in_podman() {
     req_env_vars IN_PODMAN_NAME GOSRC GOPATH SECRET_ENV_RE HOME
     [[ -n "$@" ]] || \
         die "Must specify FQIN and command with arguments to execute"
-    local envargs
-    local envarg
-    local envname
-    local envval
-    local xchars='[:punct:][:cntrl:][:space:]'
-    local envrx='(^CI.*)|(^CIRRUS)|(^GOPATH)|(^GOCACHE)|(^GOSRC)|(^SCRIPT_BASE)|(.*_NAME)|(.*_FQIN)|(^IN_PODMAN_)|(^DISTRO)|(^BUILDAH)|(^STORAGE_)'
-    local envfile=$(mktemp -p '' in_podman_env_tmp_XXXXXXXX)
-    trap "rm -f $envfile" EXIT
 
-    # TODO: This env. var. processing is fugly and fragile.  Refactor
-    # this closer to how podman CI does it using passthrough_envars()
-    msg "Gathering env. vars. to pass-through into container."
-    for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | sort | \
-                     egrep "$envrx" | egrep -v "$SECRET_ENV_RE");
-    do
-        envval="${!envname}"
-        [[ -n $(tr -d "$xchars" <<<"$envval") ]] || continue
-        envarg=$(printf -- "$envname=%q" "$envval")
-        echo "$envarg" | tee -a $envfile | indent
-    done
+    # Line-separated arguments which include shell-escaped special characters
+    declare -a envargs
+    while read -r var; do
+        # Pass "-e VAR" on the command line, not "-e VAR=value". Podman can
+        # do a much better job of transmitting the value than we can,
+        # especially when value includes spaces.
+        envargs+=("-e" "$var")
+    done <<<"$(passthrough_envars)"
+
     showrun podman run -i --name="$IN_PODMAN_NAME" \
-                   --net="container:registry" \
-                   --env-file=$envfile \
+                   --net=host \
                    --privileged \
                    --cgroupns=host \
-                   -e "GOPATH=$GOPATH" \
-                   -e "GOSRC=$GOSRC" \
+                   "${envargs[@]}" \
+                   -e BUILDAH_ISOLATION \
+                   -e STORAGE_DRIVER \
                    -e "IN_PODMAN=false" \
                    -e "CONTAINER=podman" \
                    -e "CGROUP_MANAGER=cgroupfs" \
@@ -311,18 +330,17 @@ setup_rootless() {
     chown -R $ROOTLESS_USER:$ROOTLESS_USER "/home/$ROOTLESS_USER/.ssh"
 
     msg "   setup known_hosts for $USER"
-    ssh -q root@localhost \
-        -o UserKnownHostsFile=/root/.ssh/known_hosts \
-        -o UpdateHostKeys=yes \
-        -o StrictHostKeyChecking=no \
-        -o CheckHostIP=no \
-        true
+    ssh-keyscan localhost > /root/.ssh/known_hosts
 
     msg "   setup known_hosts for $ROOTLESS_USER"
-    su $ROOTLESS_USER -c "ssh -q $ROOTLESS_USER@localhost \
-        -o UserKnownHostsFile=/home/$ROOTLESS_USER/.ssh/known_hosts \
-        -o UpdateHostKeys=yes \
-        -o StrictHostKeyChecking=no \
-        -o CheckHostIP=no \
-        true"
+    install -Z -m 700 -o $ROOTLESS_USER -g $ROOTLESS_USER \
+        /root/.ssh/known_hosts /home/$ROOTLESS_USER/.ssh/known_hosts
+
+    msg "Setting up pass-through env. vars for $ROOTLESS_USER"
+    while read -r env_var; do
+        # N/B: Some values contain spaces and other potential nasty-bits
+        # (i.e. $CIRRUS_COMMIT_MESSAGE).  The %q conversion ensures proper
+        # bash-style escaping.
+        printf -- "export %s=%q\n" "${env_var}" "${!env_var}" | tee -a /home/$ROOTLESS_USER/ci_environment
+    done <<<"$(passthrough_envars)"
 }

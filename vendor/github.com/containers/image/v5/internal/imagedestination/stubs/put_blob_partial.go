@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/containers/image/v5/internal/blobinfocache"
 	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/types"
 )
@@ -37,9 +36,10 @@ func (stub NoPutBlobPartialInitialize) SupportsPutBlobPartial() bool {
 // PutBlobPartial attempts to create a blob using the data that is already present
 // at the destination. chunkAccessor is accessed in a non-sequential way to retrieve the missing chunks.
 // It is available only if SupportsPutBlobPartial().
-// Even if SupportsPutBlobPartial() returns true, the call can fail, in which case the caller
-// should fall back to PutBlobWithOptions.
-func (stub NoPutBlobPartialInitialize) PutBlobPartial(ctx context.Context, chunkAccessor private.BlobChunkAccessor, srcInfo types.BlobInfo, cache blobinfocache.BlobInfoCache2) (private.UploadedBlob, error) {
+// Even if SupportsPutBlobPartial() returns true, the call can fail.
+// If the call fails with ErrFallbackToOrdinaryLayerDownload, the caller can fall back to PutBlobWithOptions.
+// The fallback _must not_ be done otherwise.
+func (stub NoPutBlobPartialInitialize) PutBlobPartial(ctx context.Context, chunkAccessor private.BlobChunkAccessor, srcInfo types.BlobInfo, options private.PutBlobPartialOptions) (private.UploadedBlob, error) {
 	return private.UploadedBlob{}, fmt.Errorf("internal error: PutBlobPartial is not supported by the %q transport", stub.transportName)
 }
 

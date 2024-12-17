@@ -39,7 +39,6 @@ load helpers
   # Inspect the config
   run jq -r .created $srcdir/blobs/sha256/$configDigest
   assert "$status" -eq 0 "status of jq .created on configDigest"
-  creatd=$output
   run date --date="$output"
   assert "$status" -eq 0 "status of date (this should never ever fail)"
   run jq -r .author $srcdir/blobs/sha256/$configDigest
@@ -134,9 +133,11 @@ load helpers
   run_buildah source push --quiet --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
   expect_output ""
   # --quiet=false (implicit)
-  run_buildah source push --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
+  run_buildah source push --digestfile=${TEST_SCRATCH_DIR}/digest.txt --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
   expect_output --substring "Copying blob"
   expect_output --substring "Copying config"
+  cat ${TEST_SCRATCH_DIR}/digest.txt
+  test -s ${TEST_SCRATCH_DIR}/digest.txt
 
   pulldir=${TEST_SCRATCH_DIR}/pulledsource
   # --quiet=true

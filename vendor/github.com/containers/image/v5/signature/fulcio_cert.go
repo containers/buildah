@@ -1,3 +1,6 @@
+//go:build !containers_image_fulcio_stub
+// +build !containers_image_fulcio_stub
+
 package signature
 
 import (
@@ -7,12 +10,12 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/containers/image/v5/signature/internal"
 	"github.com/sigstore/fulcio/pkg/certificate"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
-	"golang.org/x/exp/slices"
 )
 
 // fulcioTrustRoot contains policy allow validating Fulcio-issued certificates.
@@ -175,7 +178,7 @@ func (f *fulcioTrustRoot) verifyFulcioCertificateAtTime(relevantTime time.Time, 
 
 	// == Validate the OIDC subject
 	if !slices.Contains(untrustedCertificate.EmailAddresses, f.subjectEmail) {
-		return nil, internal.NewInvalidSignatureError(fmt.Sprintf("Required email %s not found (got %#v)",
+		return nil, internal.NewInvalidSignatureError(fmt.Sprintf("Required email %q not found (got %q)",
 			f.subjectEmail,
 			untrustedCertificate.EmailAddresses))
 	}
@@ -192,10 +195,10 @@ func (f *fulcioTrustRoot) verifyFulcioCertificateAtTime(relevantTime time.Time, 
 	return untrustedCertificate.PublicKey, nil
 }
 
-func verifyRekorFulcio(rekorPublicKey *ecdsa.PublicKey, fulcioTrustRoot *fulcioTrustRoot, untrustedRekorSET []byte,
+func verifyRekorFulcio(rekorPublicKeys []*ecdsa.PublicKey, fulcioTrustRoot *fulcioTrustRoot, untrustedRekorSET []byte,
 	untrustedCertificateBytes []byte, untrustedIntermediateChainBytes []byte, untrustedBase64Signature string,
 	untrustedPayloadBytes []byte) (crypto.PublicKey, error) {
-	rekorSETTime, err := internal.VerifyRekorSET(rekorPublicKey, untrustedRekorSET, untrustedCertificateBytes,
+	rekorSETTime, err := internal.VerifyRekorSET(rekorPublicKeys, untrustedRekorSET, untrustedCertificateBytes,
 		untrustedBase64Signature, untrustedPayloadBytes)
 	if err != nil {
 		return nil, err

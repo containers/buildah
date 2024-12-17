@@ -23,7 +23,6 @@ func testFlagCompletion(t *testing.T, flags pflag.FlagSet, flagCompletions compl
 			t.Errorf(`Flag %q is a bool flag but has a shell completion function set.
 	You have to remove this shell completion function.`, f.Name)
 			return
-
 		}
 	})
 

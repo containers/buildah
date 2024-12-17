@@ -1,0 +1,17 @@
+FROM alpine
+
+RUN <<EOF
+#!/bin/sh
+echo "
+	this is the output of test" > test.txt
+# Mount of this file must exists till this run step
+# so this `ls` command should not fail
+ls -a /dev/pipes/
+EOF
+
+RUN cat test.txt
+
+# This ls command must fail, since mount is removed in this step
+RUN ls -a /dev/pipes
+
+

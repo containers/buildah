@@ -17,13 +17,13 @@ env:
     ####
     #### Cache-image names to test with (double-quotes around names are critical)
     ###
-    FEDORA_NAME: "fedora-38"
+    FEDORA_NAME: "fedora-39"
     DEBIAN_NAME: "debian-13"
 
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
     # VM Image built in containers/automation_images
-    IMAGE_SUFFIX: "c20230614t132754z-f38f37d13"
+    IMAGE_SUFFIX: "c20241010t105554z-f40f39d13"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     DEBIAN_CACHE_IMAGE_NAME: "debian-${IMAGE_SUFFIX}"
 
@@ -113,11 +113,10 @@ debian_testing_task: &debian_testing
             TEST_DRIVER: "fuse-overlay-whiteout"
         - env:
             TEST_DRIVER: "btrfs"
-        - env:
-            TEST_DRIVER: "zfs"
 
 
 lint_task:
+    alias: lint
     env:
         CIRRUS_WORKING_DIR: "/go/src/github.com/containers/storage"
     container:
@@ -127,7 +126,7 @@ lint_task:
         folder: $GOPATH/pkg/mod
     build_script: |
       apt-get update
-      apt-get install -y libbtrfs-dev libdevmapper-dev
+      apt-get install -y libbtrfs-dev
     test_script: |
       make TAGS=regex_precompile local-validate
       make lint
@@ -136,6 +135,7 @@ lint_task:
 
 # Update metadata on VM images referenced by this repository state
 meta_task:
+    alias: meta
 
     container:
         image: "quay.io/libpod/imgts:latest"
@@ -158,6 +158,7 @@ meta_task:
 
 
 vendor_task:
+    alias: vendor
     container:
         image: golang
     modules_cache:
@@ -166,15 +167,35 @@ vendor_task:
     build_script: make vendor
     test_script: hack/tree_status.sh
 
-
 cross_task:
+    alias: cross
     container:
-        image: golang:1.19
+        image: golang:1.22
     build_script: make cross
 
+gofix_task:
+    alias: gofix
+    container:
+        image: golang:1.22
+    build_script: go fix ./...
+    test_script: git diff --exit-code
 
-# Represent overall pass/fail status from required dependent tasks
+codespell_task:
+    alias: codespell
+    container:
+        image: python
+    build_script: pip install codespell
+    test_script: codespell
+
+
+# Status aggregator for all tests.  This task simply ensures a defined
+# set of tasks all passed, and allows confirming that based on the status
+# of this task.
 success_task:
+    alias: success
+    # N/B: The prow merge-bot (tide) is sensitized to this exact name, DO NOT CHANGE IT.
+    # Ref: https://github.com/openshift/release/pull/49820
+    name: "Total Success"
     depends_on:
         - lint
         - fedora_testing
@@ -182,7 +203,9 @@ success_task:
         - meta
         - vendor
         - cross
+        - gofix
+        - codespell
     container:
-        image: golang:1.19
+        image: golang:1.21
     clone_script: 'mkdir -p "$CIRRUS_WORKING_DIR"'  # Source code not needed
     script: /bin/true

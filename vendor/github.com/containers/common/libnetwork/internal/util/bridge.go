@@ -3,17 +3,17 @@ package util
 import (
 	"fmt"
 	"net"
+	"slices"
 
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/libnetwork/util"
 	"github.com/containers/common/pkg/config"
-	pkgutil "github.com/containers/common/pkg/util"
 )
 
 func CreateBridge(n NetUtil, network *types.Network, usedNetworks []*net.IPNet, subnetPools []config.SubnetPool) error {
 	if network.NetworkInterface != "" {
 		bridges := GetBridgeInterfaceNames(n)
-		if pkgutil.StringInSlice(network.NetworkInterface, bridges) {
+		if slices.Contains(bridges, network.NetworkInterface) {
 			return fmt.Errorf("bridge name %s already in use", network.NetworkInterface)
 		}
 		if !types.NameRegex.MatchString(network.NetworkInterface) {

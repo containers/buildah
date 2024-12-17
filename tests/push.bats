@@ -150,7 +150,7 @@ load helpers
 
   start_registry
   run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword docker.io/busybox:latest docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
-  docker login localhost:${REGISTRY_PORT} --username testuser --password testpassword
+  docker login localhost:${REGISTRY_PORT} --username testuser --password-stdin <<<testpassword
   docker pull localhost:${REGISTRY_PORT}/buildah/busybox:latest
   output=$(docker images)
   expect_output --substring "buildah/busybox"

@@ -68,6 +68,13 @@ type ListUpdate struct {
 	Digest    digest.Digest
 	Size      int64
 	MediaType string
+	// ReadOnly fields: may be set by Instance(), ignored by UpdateInstance()
+	ReadOnly struct {
+		Platform                  *imgspecv1.Platform
+		Annotations               map[string]string
+		CompressionAlgorithmNames []string
+		ArtifactType              string
+	}
 }
 
 type ListOp int
@@ -95,6 +102,7 @@ type ListEdit struct {
 	AddDigest                digest.Digest
 	AddSize                  int64
 	AddMediaType             string
+	AddArtifactType          string
 	AddPlatform              *imgspecv1.Platform
 	AddAnnotations           map[string]string
 	AddCompressionAlgorithms []compression.Algorithm
@@ -121,5 +129,5 @@ func ListFromBlob(manifest []byte, manifestMIMEType string) (List, error) {
 	case DockerV2Schema1MediaType, DockerV2Schema1SignedMediaType, imgspecv1.MediaTypeImageManifest, DockerV2Schema2MediaType:
 		return nil, fmt.Errorf("Treating single images as manifest lists is not implemented")
 	}
-	return nil, fmt.Errorf("Unimplemented manifest list MIME type %s (normalized as %s)", manifestMIMEType, normalized)
+	return nil, fmt.Errorf("Unimplemented manifest list MIME type %q (normalized as %q)", manifestMIMEType, normalized)
 }

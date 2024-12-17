@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 
 	"github.com/containers/image/v5/internal/imagedestination/impl"
 	"github.com/containers/image/v5/internal/imagedestination/stubs"
@@ -16,6 +18,7 @@ import (
 	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/internal/putblobdigest"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage/pkg/fileutils"
 	digest "github.com/opencontainers/go-digest"
 	imgspec "github.com/opencontainers/image-spec/specs-go"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -84,7 +87,7 @@ func newImageDestination(sys *types.SystemContext, ref ociReference) (private.Im
 	// Per the OCI image specification, layouts MUST have a "blobs" subdirectory,
 	// but it MAY be empty (e.g. if we never end up calling PutBlob)
 	// https://github.com/opencontainers/image-spec/blame/7c889fafd04a893f5c5f50b7ab9963d5d64e5242/image-layout.md#L19
-	if err := ensureDirectoryExists(filepath.Join(d.ref.dir, "blobs")); err != nil {
+	if err := ensureDirectoryExists(filepath.Join(d.ref.dir, imgspecv1.ImageBlobsDir)); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -172,6 +175,9 @@ func (d *ociImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 // If the blob has been successfully reused, returns (true, info, nil).
 // If the transport can not reuse the requested blob, TryReusingBlob returns (false, {}, nil); it returns a non-nil error only on an unexpected failure.
 func (d *ociImageDestination) TryReusingBlobWithOptions(ctx context.Context, info types.BlobInfo, options private.TryReusingBlobOptions) (bool, private.ReusedBlob, error) {
+	if !impl.OriginalCandidateMatchesTryReusingBlobOptions(options) {
+		return false, private.ReusedBlob{}, nil
+	}
 	if info.Digest == "" {
 		return false, private.ReusedBlob{}, errors.New("Can not check for a blob with unknown digest")
 	}
@@ -268,19 +274,22 @@ func (d *ociImageDestination) addManifest(desc *imgspecv1.Descriptor) {
 			return
 		}
 	}
-	// It's a new entry to be added to the index.
-	d.index.Manifests = append(d.index.Manifests, *desc)
+	// It's a new entry to be added to the index. Use slices.Clone() to avoid a remote dependency on how d.index was created.
+	d.index.Manifests = append(slices.Clone(d.index.Manifests), *desc)
 }
 
-// Commit marks the process of storing the image as successful and asks for the image to be persisted.
-// unparsedToplevel contains data about the top-level manifest of the source (which may be a single-arch image or a manifest list
-// if PutManifest was only called for the single-arch image with instanceDigest == nil), primarily to allow lookups by the
-// original manifest list digest, if desired.
+// CommitWithOptions marks the process of storing the image as successful and asks for the image to be persisted.
 // WARNING: This does not have any transactional semantics:
-// - Uploaded data MAY be visible to others before Commit() is called
-// - Uploaded data MAY be removed or MAY remain around if Close() is called without Commit() (i.e. rollback is allowed but not guaranteed)
-func (d *ociImageDestination) Commit(context.Context, types.UnparsedImage) error {
-	if err := os.WriteFile(d.ref.ociLayoutPath(), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0644); err != nil {
+// - Uploaded data MAY be visible to others before CommitWithOptions() is called
+// - Uploaded data MAY be removed or MAY remain around if Close() is called without CommitWithOptions() (i.e. rollback is allowed but not guaranteed)
+func (d *ociImageDestination) CommitWithOptions(ctx context.Context, options private.CommitOptions) error {
+	layoutBytes, err := json.Marshal(imgspecv1.ImageLayout{
+		Version: imgspecv1.ImageLayoutVersion,
+	})
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(d.ref.ociLayoutPath(), layoutBytes, 0644); err != nil {
 		return err
 	}
 	indexJSON, err := json.Marshal(d.index)
@@ -291,7 +300,7 @@ func (d *ociImageDestination) Commit(context.Context, types.UnparsedImage) error
 }
 
 func ensureDirectoryExists(path string) error {
-	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+	if err := fileutils.Exists(path); err != nil && errors.Is(err, fs.ErrNotExist) {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			return err
 		}
@@ -307,7 +316,7 @@ func ensureParentDirectoryExists(path string) error {
 // indexExists checks whether the index location specified in the OCI reference exists.
 // The implementation is opinionated, since in case of unexpected errors false is returned
 func indexExists(ref ociReference) bool {
-	_, err := os.Stat(ref.indexPath())
+	err := fileutils.Exists(ref.indexPath())
 	if err == nil {
 		return true
 	}

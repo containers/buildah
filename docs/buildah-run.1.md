@@ -60,6 +60,25 @@ Allows setting context directory for current RUN invocation. Specifying a contex
 directory causes RUN context to consider context directory as root directory for
 specified source in `--mount` of type 'bind'.
 
+**--device**=*device*
+
+Add a host device, or devices under a directory, to the environment in which
+the command will be run.  The optional *permissions* parameter can be used to
+specify device permissions, using any one or more of
+**r** for read, **w** for write, and **m** for **mknod**(2).
+
+Example: **--device=/dev/sdc:/dev/xvdc:rwm**.
+
+Note: if _host-device_ is a symbolic link then it will be resolved first.
+The container will only store the major and minor numbers of the host device.
+
+The device to share can also be specified using a Container Device Interface
+(CDI) specification (https://github.com/cncf-tags/container-device-interface).
+
+Note: if the user only has access rights via a group, accessing the device
+from inside a rootless container will fail. The **crun**(1) runtime offers a
+workaround for this by adding the option **--annotation run.oci.keep_original_groups=1**.
+
 **--env**, **-e** *env=value*
 
 Temporarily add a value (e.g. env=*value*) to the environment for the running
@@ -99,7 +118,7 @@ BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
 Attach a filesystem mount to the container
 
-Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Footnote1)</sup>
+Current supported mount TYPES are bind, cache, secret and tmpfs.
 
        e.g.
 
@@ -119,7 +138,7 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
        Options specific to bind:
 
-              · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2).
+              · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2). <sup>[[1]](#Footnote1)</sup>
 
               . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
 
@@ -217,9 +236,15 @@ Valid _mode_ values are:
         host, using the loopback interface instead of the tap interface for improved
         performance
 
+**--no-hostname**
+
+Do not create the _/etc/hostname_ file in the container for RUN instructions.
+
+By default, Buildah manages the _/etc/hostname_ file, adding the container's own hostname.  When the **--no-hostname** option is set, the image's _/etc/hostname_ will be preserved unmodified if it exists.
+
 **--no-hosts**
 
-Do not create _/etc/hosts_ for the container.
+Do not create the _/etc/hosts_ file in the container for RUN instructions.
 
 By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
 **--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified.
@@ -284,12 +309,12 @@ process.
 
 Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
 bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
+container. The `OPTIONS` are a comma delimited list and can be:
 
    * [rw|ro]
    * [U]
    * [z|Z]
-   * [`[r]shared`|`[r]slave`|`[r]private`]
+   * [`[r]shared`|`[r]slave`|`[r]private`] <sup>[[1]](#Footnote1)</sup>
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 must be an absolute path as well. Buildah bind-mounts the `HOST-DIR` to the

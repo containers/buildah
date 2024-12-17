@@ -359,6 +359,31 @@ stuff/mystuff"
   expect_output --from="$filelist" "$expect" "container file list"
 }
 
+@test "copy --exclude" {
+  mytest=${TEST_SCRATCH_DIR}/mytest
+  mkdir -p ${mytest}
+  touch ${mytest}/mystuff
+  touch ${mytest}/source.go
+  mkdir -p ${mytest}/notmystuff
+  touch ${mytest}/notmystuff/notmystuff
+
+expect="
+stuff
+stuff/mystuff"
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah copy --exclude=**/*.go --exclude=.ignore --exclude=**/notmystuff $cid ${mytest} /stuff
+
+  run_buildah mount $cid
+  mnt=$output
+  run find $mnt -printf "%P\n"
+  filelist=$(LC_ALL=C sort <<<"$output")
+  run_buildah umount $cid
+  expect_output --from="$filelist" "$expect" "container file list"
+}
+
 @test "copy-quiet" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   _prefetch alpine
@@ -447,7 +472,7 @@ stuff/mystuff"
 @test "copy-preserving-extended-attributes" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   # if we need to change which image we use, any image that can provide a working setattr/setcap/getfattr will do
-  image="quay.io/libpod/fedora-minimal:34"
+  image="quay.io/libpod/systemd-image:20240124"
   if ! which setfattr > /dev/null 2> /dev/null; then
     skip "setfattr not available, unable to check if it'll work in filesystem at ${TEST_SCRATCH_DIR}"
   fi
@@ -493,4 +518,88 @@ stuff/mystuff"
   run_buildah run $ctr ls -1 /opt/
   expect_line_count 1
   assert "$output" = "test_file" "only contents of copied directory"
+}
+
+@test "copy-file-relative-context-dir" {
+  image=busybox
+  _prefetch $image
+  mkdir -p ${TEST_SCRATCH_DIR}/context
+  createrandom ${TEST_SCRATCH_DIR}/context/test_file
+  run_buildah from --quiet $WITH_POLICY_JSON $image
+  ctr="$output"
+  run_buildah copy --contextdir ${TEST_SCRATCH_DIR}/context $ctr test_file /opt/
+  run_buildah run $ctr ls -1 /opt/
+  expect_line_count 1
+  assert "$output" = "test_file" "only the one file"
+}
+
+@test "copy-file-absolute-context-dir" {
+  image=busybox
+  _prefetch $image
+  mkdir -p ${TEST_SCRATCH_DIR}/context/subdir
+  createrandom ${TEST_SCRATCH_DIR}/context/subdir/test_file
+  run_buildah from --quiet $WITH_POLICY_JSON $image
+  ctr="$output"
+  run_buildah copy --contextdir ${TEST_SCRATCH_DIR}/context $ctr /subdir/test_file /opt/
+  run_buildah run $ctr ls -1 /opt/
+  expect_line_count 1
+  assert "$output" = "test_file" "only the one file"
+}
+
+@test "copy-file-relative-no-context-dir" {
+  image=busybox
+  _prefetch $image
+  mkdir -p ${TEST_SCRATCH_DIR}/context
+  createrandom ${TEST_SCRATCH_DIR}/context/test_file
+  run_buildah from --quiet $WITH_POLICY_JSON $image
+  ctr="$output"
+  # we're not in that directory currently
+  run_buildah 125 copy $ctr test_file /opt/
+  # now we are
+  cd ${TEST_SCRATCH_DIR}/context
+  run_buildah copy $ctr test_file /opt/
+  run_buildah run $ctr ls -1 /opt/
+  expect_line_count 1
+  assert "$output" = "test_file" "only the one file"
+}
+
+@test "copy-from-ownership" {
+  # Build both a container and an image that have contents owned by a
+  # non-default user.
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-1
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-2
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-3
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-4
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-5
+  truncate -s 256 ${TEST_SCRATCH_DIR}/random-file-6
+  run_buildah from scratch
+  sourcectr="$output"
+  run_buildah copy --chown 123:123 $sourcectr ${TEST_SCRATCH_DIR}/random-file-1
+  run_buildah copy --chown 123:123 $sourcectr ${TEST_SCRATCH_DIR}/random-file-2
+  run_buildah copy --chown 456:456 $sourcectr ${TEST_SCRATCH_DIR}/random-file-4
+  run_buildah copy --chown 456:456 $sourcectr ${TEST_SCRATCH_DIR}/random-file-5
+  sourceimg=testimage
+  run_buildah commit $sourcectr $sourceimg
+  _prefetch busybox
+  run_buildah from --pull=never $WITH_POLICY_JSON busybox
+  ctr="$output"
+  run_buildah copy $ctr ${TEST_SCRATCH_DIR}/random-file-3
+  run_buildah copy --from=$sourceimg $ctr /random-file-1 # should be preserved as 123:123
+  run_buildah copy --from=$sourceimg --chown=456:456 $ctr /random-file-2
+  run_buildah copy --from=$sourcectr $ctr /random-file-4 # should be preserved as 456:456
+  run_buildah copy --from=$sourcectr --chown=123:123 $ctr /random-file-5
+  run_buildah copy $ctr ${TEST_SCRATCH_DIR}/random-file-3
+  run_buildah copy --chown=789:789 $ctr ${TEST_SCRATCH_DIR}/random-file-6
+  run_buildah run $ctr stat -c %u:%g /random-file-1
+  assert 123:123
+  run_buildah run $ctr stat -c %u:%g /random-file-2
+  assert 456:456
+  run_buildah run $ctr stat -c %u:%g /random-file-3
+  assert 0:0
+  run_buildah run $ctr stat -c %u:%g /random-file-4
+  assert 456:456
+  run_buildah run $ctr stat -c %u:%g /random-file-5
+  assert 123:123
+  run_buildah run $ctr stat -c %u:%g /random-file-6
+  assert 789:789
 }

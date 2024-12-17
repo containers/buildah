@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package main
 
@@ -12,9 +11,9 @@ import (
 
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
+	"github.com/moby/sys/capability"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/syndtr/gocapability/capability"
 )
 
 var (
@@ -139,7 +138,7 @@ func debugCapabilities() {
 		logrus.Errorf("error loading our current capabilities: %v", err)
 		return
 	}
-	knownCaps := capability.List()
+	knownCaps := capability.ListKnown()
 	effective := make([]string, 0, len(knownCaps))
 	for i := range knownCaps {
 		have := pid.Get(capability.EFFECTIVE, knownCaps[i])

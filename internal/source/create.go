@@ -3,9 +3,9 @@ package source
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
+	"github.com/containers/storage/pkg/fileutils"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -32,7 +32,7 @@ func (o *CreateOptions) createdTime() *time.Time {
 // Create creates an empty source image at the specified `sourcePath`.  Note
 // that `sourcePath` must not exist.
 func Create(ctx context.Context, sourcePath string, options CreateOptions) error {
-	if _, err := os.Stat(sourcePath); err == nil {
+	if err := fileutils.Exists(sourcePath); err == nil {
 		return fmt.Errorf("creating source image: %q already exists", sourcePath)
 	}
 
@@ -40,6 +40,7 @@ func Create(ctx context.Context, sourcePath string, options CreateOptions) error
 	if err != nil {
 		return err
 	}
+	defer ociDest.Close()
 
 	// Create and add a config.
 	config := ImageConfig{

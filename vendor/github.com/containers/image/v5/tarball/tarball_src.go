@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"runtime"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	imgspecs "github.com/opencontainers/image-spec/specs-go"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/exp/maps"
 )
 
 type tarballImageSource struct {
@@ -103,7 +103,7 @@ func (r *tarballReference) NewImageSource(ctx context.Context, sys *types.System
 		}
 		// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 		if _, err := io.Copy(io.Discard, reader); err != nil {
-			return nil, fmt.Errorf("error reading %q: %v", filename, err)
+			return nil, fmt.Errorf("error reading %q: %w", filename, err)
 		}
 		if uncompressed != nil {
 			uncompressed.Close()
@@ -117,7 +117,7 @@ func (r *tarballReference) NewImageSource(ctx context.Context, sys *types.System
 
 		history = append(history, imgspecv1.History{
 			Created:   &blobTime,
-			CreatedBy: fmt.Sprintf("/bin/sh -c #(nop) ADD file:%s in %c", diffID.Hex(), os.PathSeparator),
+			CreatedBy: fmt.Sprintf("/bin/sh -c #(nop) ADD file:%s in %c", diffID.Encoded(), os.PathSeparator),
 			Comment:   comment,
 		})
 		// Use the mtime of the most recently modified file as the image's creation time.
@@ -152,7 +152,7 @@ func (r *tarballReference) NewImageSource(ctx context.Context, sys *types.System
 	// Encode and digest the image configuration blob.
 	configBytes, err := json.Marshal(&config)
 	if err != nil {
-		return nil, fmt.Errorf("error generating configuration blob for %q: %v", strings.Join(r.filenames, separator), err)
+		return nil, fmt.Errorf("error generating configuration blob for %q: %w", strings.Join(r.filenames, separator), err)
 	}
 	configID := digest.Canonical.FromBytes(configBytes)
 	blobs[configID] = tarballBlob{
@@ -177,7 +177,7 @@ func (r *tarballReference) NewImageSource(ctx context.Context, sys *types.System
 	// Encode the manifest.
 	manifestBytes, err := json.Marshal(&manifest)
 	if err != nil {
-		return nil, fmt.Errorf("error generating manifest for %q: %v", strings.Join(r.filenames, separator), err)
+		return nil, fmt.Errorf("error generating manifest for %q: %w", strings.Join(r.filenames, separator), err)
 	}
 
 	// Return the image.

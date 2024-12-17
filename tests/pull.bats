@@ -32,29 +32,30 @@ load helpers
   run_buildah 125 --registries-conf ${TEST_SOURCES}/registries.conf.block pull $WITH_POLICY_JSON docker.io/alpine
   expect_output --substring "registry docker.io is blocked in"
 
-  run_buildah --retry --registries-conf ${TEST_SOURCES}/registries.conf       pull $WITH_POLICY_JSON docker.io/alpine
+  run_buildah --retry pull $WITH_POLICY_JSON docker.io/alpine
 }
 
 @test "pull-from-registry" {
-  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON busybox:glibc
-  run_buildah pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON busybox:latest
+  run_buildah --retry pull $WITH_POLICY_JSON busybox:glibc
+  run_buildah pull $WITH_POLICY_JSON busybox:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "busybox:glibc"
   expect_output --substring "busybox:latest"
   # We need to see if this file is created after first pull in at least one test
   [ -f ${TEST_SCRATCH_DIR}/root/defaultNetworkBackend ]
 
-  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
+  run_buildah --retry pull $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
   run_buildah rmi quay.io/libpod/alpine_nginx:latest
-  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx
+  run_buildah --retry pull $WITH_POLICY_JSON quay.io/libpod/alpine_nginx
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
-  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON alpine@sha256:e9a2035f9d0d7cee1cdd445f5bfa0c5c646455ee26f14565dce23cf2d2de7570
-  run_buildah 125 pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON fakeimage/fortest
+  run_buildah --retry pull $WITH_POLICY_JSON alpine@sha256:634a8f35b5f16dcf4aaa0822adc0b1964bb786fca12f6831de8ddc45e5986a00
+
+  run_buildah 125 pull $WITH_POLICY_JSON fakeimage/fortest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   assert "$output" !~ "fakeimage/fortest" "fakeimage/fortest found in buildah images"
 }
@@ -150,13 +151,30 @@ load helpers
 
 @test "pull-from-oci-directory" {
   run_buildah --retry pull $WITH_POLICY_JSON alpine
-  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest oci:${TEST_SCRATCH_DIR}/alpine
-  run_buildah rmi alpine
-  run_buildah pull $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
-  run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "localhost${TEST_SCRATCH_DIR}/alpine:latest"
+
   run_buildah 125 pull --all-tags $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
   expect_output --substring "pulling all tags is not supported for oci transport"
+
+  # Create on OCI image with reference and one without.  The first is expected
+  # to preserve the reference while the latter should be unnamed.
+  name="foo.com/name"
+  tag="tag"
+  withref="oci:${TEST_SCRATCH_DIR}/withref:$name:$tag"
+  noref="oci:${TEST_SCRATCH_DIR}/noref"
+
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest $withref
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest $noref
+  run_buildah rmi alpine
+
+  # Image without optional reference is unnamed.
+  run_buildah pull -q $WITH_POLICY_JSON $noref
+  run_buildah images --format "{{.Name}}:{{.Tag}}" $output
+  expect_output "<none>:<none>"
+
+  # Image with optional reference is named.
+  run_buildah pull -q $WITH_POLICY_JSON $withref
+  run_buildah images --format "{{.Name}}:{{.Tag}}" $output
+  expect_output "$name:$tag"
 }
 
 @test "pull-denied-by-registry-sources" {

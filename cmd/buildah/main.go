@@ -45,13 +45,13 @@ type globalFlags struct {
 var rootCmd = &cobra.Command{
 	Use:  "buildah",
 	Long: "A tool that facilitates building OCI images",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return cmd.Help()
 	},
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return before(cmd)
 	},
-	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPostRunE: func(cmd *cobra.Command, _ []string) error {
 		return after(cmd)
 	},
 	SilenceUsage:  true,
@@ -59,19 +59,17 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	globalFlagResults globalFlags
-	exitCode          int
+	globalFlagResults      globalFlags
+	exitCode               int
+	defaultContainerConfig *config.Config
 )
 
 func init() {
-	var (
-		defaultStoreDriverOptions []string
-	)
-	storageOptions, err := storage.DefaultStoreOptions(false, 0)
+	var defaultStoreDriverOptions []string
+	storageOptions, err := storage.DefaultStoreOptions()
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Error(err.Error())
 		os.Exit(1)
-
 	}
 
 	if len(storageOptions.GraphDriverOptions) > 0 {
@@ -79,17 +77,17 @@ func init() {
 		defaultStoreDriverOptions = optionSlice
 	}
 
-	containerConfig, err := config.Default()
+	defaultContainerConfig, err = config.Default()
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Error(err.Error())
 		os.Exit(1)
 	}
-	containerConfig.CheckCgroupsAndAdjustConfig()
+	defaultContainerConfig.CheckCgroupsAndAdjustConfig()
 
 	cobra.OnInitialize(initConfig)
 	// Disable the implicit `completion` command in cobra.
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	//rootCmd.TraverseChildren = true
+	// rootCmd.TraverseChildren = true
 	rootCmd.Version = fmt.Sprintf("%s (image-spec %s, runtime-spec %s)", define.Version, ispecs.Version, rspecs.Version)
 	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.Debug, "debug", false, "print debugging information")
 	// TODO Need to allow for environment variable
@@ -98,13 +96,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.UserShortNameAliasConfPath, "short-name-alias-conf", "", "path to short name alias cache file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.Root, "root", storageOptions.GraphRoot, "storage root dir")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RunRoot, "runroot", storageOptions.RunRoot, "storage state dir")
-	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CgroupManager, "cgroup-manager", containerConfig.Engine.CgroupManager, "cgroup manager")
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CgroupManager, "cgroup-manager", defaultContainerConfig.Engine.CgroupManager, "cgroup manager")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.StorageDriver, "storage-driver", storageOptions.GraphDriverName, "storage-driver")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.StorageOpts, "storage-opt", defaultStoreDriverOptions, "storage driver option")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSUID, "userns-uid-map", []string{}, "default `ctrID:hostID:length` UID mapping to use")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSGID, "userns-gid-map", []string{}, "default `ctrID:hostID:length` GID mapping to use")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.DefaultMountsFile, "default-mounts-file", "", "path to default mounts file")
-	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "warn", `The log level to be used. Either "trace", "debug", "info", "warn", "error", "fatal", or "panic".`)
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "warn", `the log level to be used, one of "trace", "debug", "info", "warn", "error", "fatal", or "panic"`)
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CPUProfile, "cpu-profile", "", "`file` to write CPU profile")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.MemoryProfile, "memory-profile", "", "`file` to write memory profile")
 
@@ -164,7 +162,7 @@ func before(cmd *cobra.Command) error {
 		return err
 	}
 
-	for _, env := range defaultContainerConfig.Engine.Env {
+	for _, env := range defaultContainerConfig.Engine.Env.Get() {
 		splitEnv := strings.SplitN(env, "=", 2)
 		if len(splitEnv) != 2 {
 			return fmt.Errorf("invalid environment variable %q from containers.conf, valid configuration is KEY=value pair", env)

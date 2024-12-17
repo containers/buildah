@@ -1,5 +1,5 @@
-# Note: Hopefully a registries.conf alias redirects this to quay.io/libpod/busybox
-FROM busybox
+# Note: Hopefully a registries.conf alias redirects this to quay.io/libpod/mirror.gcr.io/busybox
+FROM mirror.gcr.io/busybox
 
 MAINTAINER docker <docker@docker.io>
 

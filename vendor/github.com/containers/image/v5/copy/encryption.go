@@ -2,13 +2,13 @@ package copy
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/containers/image/v5/types"
 	"github.com/containers/ocicrypt"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // isOciEncrypted returns a bool indicating if a mediatype is encrypted
@@ -34,7 +34,7 @@ type bpDecryptionStepData struct {
 // srcInfo is only used for error messages.
 // Returns data for other steps; the caller should eventually use updateCryptoOperation.
 func (ic *imageCopier) blobPipelineDecryptionStep(stream *sourceStream, srcInfo types.BlobInfo) (*bpDecryptionStepData, error) {
-	if !isOciEncrypted(stream.info.MediaType) || ic.c.ociDecryptConfig == nil {
+	if !isOciEncrypted(stream.info.MediaType) || ic.c.options.OciDecryptConfig == nil {
 		return &bpDecryptionStepData{
 			decrypting: false,
 		}, nil
@@ -47,13 +47,17 @@ func (ic *imageCopier) blobPipelineDecryptionStep(stream *sourceStream, srcInfo 
 	desc := imgspecv1.Descriptor{
 		Annotations: stream.info.Annotations,
 	}
-	reader, decryptedDigest, err := ocicrypt.DecryptLayer(ic.c.ociDecryptConfig, stream.reader, desc, false)
+	// DecryptLayer supposedly returns a digest of the decrypted stream.
+	// In practice, that value is never set in the current implementation.
+	// And we shouldn’t use it anyway, because it is not trusted: encryption can be made to a public key,
+	// i.e. it doesn’t authenticate the origin of the metadata in any way.
+	reader, _, err := ocicrypt.DecryptLayer(ic.c.options.OciDecryptConfig, stream.reader, desc, false)
 	if err != nil {
 		return nil, fmt.Errorf("decrypting layer %s: %w", srcInfo.Digest, err)
 	}
 
 	stream.reader = reader
-	stream.info.Digest = decryptedDigest
+	stream.info.Digest = ""
 	stream.info.Size = -1
 	maps.DeleteFunc(stream.info.Annotations, func(k string, _ string) bool {
 		return strings.HasPrefix(k, "org.opencontainers.image.enc")
@@ -70,7 +74,7 @@ func (d *bpDecryptionStepData) updateCryptoOperation(operation *types.LayerCrypt
 	}
 }
 
-// bpdData contains data that the copy pipeline needs about the encryption step.
+// bpEncryptionStepData contains data that the copy pipeline needs about the encryption step.
 type bpEncryptionStepData struct {
 	encrypting bool // We are actually encrypting the stream
 	finalizer  ocicrypt.EncryptLayerFinalizer
@@ -81,7 +85,7 @@ type bpEncryptionStepData struct {
 // Returns data for other steps; the caller should eventually call updateCryptoOperationAndAnnotations.
 func (ic *imageCopier) blobPipelineEncryptionStep(stream *sourceStream, toEncrypt bool, srcInfo types.BlobInfo,
 	decryptionStep *bpDecryptionStepData) (*bpEncryptionStepData, error) {
-	if !toEncrypt || isOciEncrypted(srcInfo.MediaType) || ic.c.ociEncryptConfig == nil {
+	if !toEncrypt || isOciEncrypted(srcInfo.MediaType) || ic.c.options.OciEncryptConfig == nil {
 		return &bpEncryptionStepData{
 			encrypting: false,
 		}, nil
@@ -101,7 +105,7 @@ func (ic *imageCopier) blobPipelineEncryptionStep(stream *sourceStream, toEncryp
 		Size:        srcInfo.Size,
 		Annotations: annotations,
 	}
-	reader, finalizer, err := ocicrypt.EncryptLayer(ic.c.ociEncryptConfig, stream.reader, desc)
+	reader, finalizer, err := ocicrypt.EncryptLayer(ic.c.options.OciEncryptConfig, stream.reader, desc)
 	if err != nil {
 		return nil, fmt.Errorf("encrypting blob %s: %w", srcInfo.Digest, err)
 	}

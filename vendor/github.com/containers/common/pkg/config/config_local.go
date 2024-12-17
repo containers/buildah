@@ -1,5 +1,4 @@
 //go:build !remote
-// +build !remote
 
 package config
 
@@ -9,36 +8,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
+	"github.com/containers/storage/pkg/fileutils"
 	units "github.com/docker/go-units"
+	"tags.cncf.io/container-device-interface/pkg/parser"
 )
-
-// isDirectory tests whether the given path exists and is a directory. It
-// follows symlinks.
-func isDirectory(path string) error {
-	path, err := resolveHomeDir(path)
-	if err != nil {
-		return err
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-
-	if !info.Mode().IsDir() {
-		// Return a PathError to be consistent with os.Stat().
-		return &os.PathError{
-			Op:   "stat",
-			Path: path,
-			Err:  syscall.ENOTDIR,
-		}
-	}
-
-	return nil
-}
 
 func (c *EngineConfig) validatePaths() error {
 	// Relative paths can cause nasty bugs, because core paths we use could
@@ -57,8 +31,8 @@ func (c *EngineConfig) validatePaths() error {
 }
 
 func (c *ContainersConfig) validateDevices() error {
-	for _, d := range c.Devices {
-		if cdi.IsQualifiedName(d) {
+	for _, d := range c.Devices.Get() {
+		if parser.IsQualifiedName(d) {
 			continue
 		}
 		_, _, _, err := Device(d)
@@ -69,8 +43,16 @@ func (c *ContainersConfig) validateDevices() error {
 	return nil
 }
 
+func (c *ContainersConfig) validateInterfaceName() error {
+	if c.InterfaceName == "device" || c.InterfaceName == "" {
+		return nil
+	}
+
+	return fmt.Errorf("invalid interface_name option %s", c.InterfaceName)
+}
+
 func (c *ContainersConfig) validateUlimits() error {
-	for _, u := range c.DefaultUlimits {
+	for _, u := range c.DefaultUlimits.Get() {
 		ul, err := units.ParseUlimit(u)
 		if err != nil {
 			return fmt.Errorf("unrecognized ulimit %s: %w", u, err)
@@ -93,9 +75,16 @@ func (c *ContainersConfig) validateTZ() error {
 		"/etc/zoneinfo",
 	}
 
+	// Allow using TZDIR to override the lookupPaths. Ref:
+	// https://sourceware.org/git/?p=glibc.git;a=blob;f=time/tzfile.c;h=8a923d0cccc927a106dc3e3c641be310893bab4e;hb=HEAD#l149
+	tzdir := os.Getenv("TZDIR")
+	if tzdir != "" {
+		lookupPaths = []string{tzdir}
+	}
+
 	for _, paths := range lookupPaths {
 		zonePath := filepath.Join(paths, c.TZ)
-		if _, err := os.Stat(zonePath); err == nil {
+		if err := fileutils.Exists(zonePath); err == nil {
 			// found zone information
 			return nil
 		}

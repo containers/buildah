@@ -1,20 +1,19 @@
 package overlay
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"errors"
+	"syscall"
 
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/system"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 )
 
 // Options type holds various configuration options for overlay
@@ -54,7 +53,7 @@ type Options struct {
 // TempDir generates an overlay Temp directory in the container content
 func TempDir(containerDir string, rootUID, rootGID int) (string, error) {
 	contentDir := filepath.Join(containerDir, "overlay")
-	if err := idtools.MkdirAllAs(contentDir, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(contentDir, 0o700, rootUID, rootGID); err != nil {
 		return "", fmt.Errorf("failed to create the overlay %s directory: %w", contentDir, err)
 	}
 
@@ -69,7 +68,7 @@ func TempDir(containerDir string, rootUID, rootGID int) (string, error) {
 // GenerateStructure generates an overlay directory structure for container content
 func GenerateStructure(containerDir, containerID, name string, rootUID, rootGID int) (string, error) {
 	contentDir := filepath.Join(containerDir, "overlay-containers", containerID, name)
-	if err := idtools.MkdirAllAs(contentDir, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(contentDir, 0o700, rootUID, rootGID); err != nil {
 		return "", fmt.Errorf("failed to create the overlay %s directory: %w", contentDir, err)
 	}
 
@@ -80,14 +79,14 @@ func GenerateStructure(containerDir, containerID, name string, rootUID, rootGID 
 func generateOverlayStructure(containerDir string, rootUID, rootGID int) (string, error) {
 	upperDir := filepath.Join(containerDir, "upper")
 	workDir := filepath.Join(containerDir, "work")
-	if err := idtools.MkdirAllAs(upperDir, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(upperDir, 0o700, rootUID, rootGID); err != nil {
 		return "", fmt.Errorf("failed to create the overlay %s directory: %w", upperDir, err)
 	}
-	if err := idtools.MkdirAllAs(workDir, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(workDir, 0o700, rootUID, rootGID); err != nil {
 		return "", fmt.Errorf("failed to create the overlay %s directory: %w", workDir, err)
 	}
 	mergeDir := filepath.Join(containerDir, "merge")
-	if err := idtools.MkdirAllAs(mergeDir, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(mergeDir, 0o700, rootUID, rootGID); err != nil {
 		return "", fmt.Errorf("failed to create the overlay %s directory: %w", mergeDir, err)
 	}
 
@@ -113,10 +112,10 @@ func MountReadOnly(contentDir, source, dest string, rootUID, rootGID int, graphO
 
 // findMountProgram finds if any mount program is specified in the graph options.
 func findMountProgram(graphOptions []string) string {
-	mountMap := map[string]bool{
-		".mount_program":         true,
-		"overlay.mount_program":  true,
-		"overlay2.mount_program": true,
+	mountMap := map[string]struct{}{
+		".mount_program":         {},
+		"overlay.mount_program":  {},
+		"overlay2.mount_program": {},
 	}
 
 	for _, i := range graphOptions {
@@ -126,7 +125,7 @@ func findMountProgram(graphOptions []string) string {
 		}
 		key := s[0]
 		val := s[1]
-		if mountMap[key] {
+		if _, has := mountMap[key]; has {
 			return val
 		}
 	}
@@ -180,7 +179,7 @@ func Unmount(contentDir string) error {
 	}
 
 	// Ignore EINVAL as the specified merge dir is not a mount point
-	if err := unix.Unmount(mergeDir, 0); err != nil && !errors.Is(err, os.ErrNotExist) && err != unix.EINVAL {
+	if err := system.Unmount(mergeDir); err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, syscall.EINVAL) {
 		return fmt.Errorf("unmount overlay %s: %w", mergeDir, err)
 	}
 	return nil

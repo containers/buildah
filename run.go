@@ -3,10 +3,12 @@ package buildah
 import (
 	"fmt"
 	"io"
+	"net"
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/pkg/sshagent"
+	"github.com/containers/common/libnetwork/etchosts"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/lockfile"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -86,7 +88,9 @@ type RunOptions struct {
 	Runtime string
 	// Args adds global arguments for the runtime.
 	Args []string
-	// NoHosts use the images /etc/hosts file
+	// NoHostname won't create new /etc/hostname file
+	NoHostname bool
+	// NoHosts won't create new /etc/hosts file
 	NoHosts bool
 	// NoPivot adds the --no-pivot runtime flag.
 	NoPivot bool
@@ -143,14 +147,15 @@ type RunOptions struct {
 	// after processing the AddCapabilities set.  If a capability appears in both
 	// lists, it will be dropped.
 	DropCapabilities []string
-	// Devices are the additional devices to add to the containers
+	// Devices are parsed additional devices to add
 	Devices define.ContainerDevices
-	// Secrets are the available secrets to use in a RUN
+	// DeviceSpecs are unparsed additional devices to add
+	DeviceSpecs []string
+	// Secrets are the available secrets to use
 	Secrets map[string]define.Secret
-	// SSHSources is the available ssh agents to use in a RUN
+	// SSHSources is the available ssh agents to use
 	SSHSources map[string]*sshagent.Source `json:"-"`
-	// RunMounts are mounts for this run. RunMounts for this run
-	// will not show up in subsequent runs.
+	// RunMounts are unparsed mounts to be added for this run
 	RunMounts []string
 	// Map of stages and container mountpoint if any from stage executor
 	StageMountPoints map[string]internal.StageMountDetails
@@ -162,6 +167,15 @@ type RunOptions struct {
 	SystemContext *types.SystemContext
 	// CgroupManager to use for running OCI containers
 	CgroupManager string
+	// CDIConfigDir is the location of CDI configuration files, if the files in
+	// the default configuration locations shouldn't be used.
+	CDIConfigDir string
+	// CompatBuiltinVolumes causes the contents of locations marked as
+	// volumes in the container's configuration to be set up as bind mounts to
+	// directories which are not in the container's rootfs, hiding changes
+	// made to contents of those changes when the container is subsequently
+	// committed.
+	CompatBuiltinVolumes types.OptionalBool
 }
 
 // RunMountArtifacts are the artifacts created when using a run mount.
@@ -204,4 +218,14 @@ type IDMaps struct {
 	rootGID    int
 	processUID int
 	processGID int
+}
+
+// netResult type to hold network info for hosts/resolv.conf
+type netResult struct {
+	entries                           etchosts.HostEntries
+	dnsServers                        []string
+	excludeIPs                        []net.IP
+	ipv6                              bool
+	keepHostResolvers                 bool
+	preferredHostContainersInternalIP string
 }

@@ -13,9 +13,9 @@ import (
 
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/moby/sys/capability"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
 
@@ -117,17 +117,17 @@ func TestGetPermissionErrorChroot(t *testing.T) {
 func testGetPermissionError(t *testing.T) {
 	dropCaps := []capability.Cap{capability.CAP_DAC_OVERRIDE, capability.CAP_DAC_READ_SEARCH}
 	tmp := t.TempDir()
-	err := os.Mkdir(filepath.Join(tmp, "unreadable-directory"), 0000)
+	err := os.Mkdir(filepath.Join(tmp, "unreadable-directory"), 0o000)
 	require.NoError(t, err, "error creating an unreadable directory")
-	err = os.Mkdir(filepath.Join(tmp, "readable-directory"), 0755)
+	err = os.Mkdir(filepath.Join(tmp, "readable-directory"), 0o755)
 	require.NoError(t, err, "error creating a readable directory")
-	err = os.Mkdir(filepath.Join(tmp, "readable-directory", "unreadable-subdirectory"), 0000)
+	err = os.Mkdir(filepath.Join(tmp, "readable-directory", "unreadable-subdirectory"), 0o000)
 	require.NoError(t, err, "error creating an unreadable subdirectory")
-	err = os.WriteFile(filepath.Join(tmp, "unreadable-file"), []byte("hi, i'm a file that you can't read"), 0000)
+	err = os.WriteFile(filepath.Join(tmp, "unreadable-file"), []byte("hi, i'm a file that you can't read"), 0o000)
 	require.NoError(t, err, "error creating an unreadable file")
-	err = os.WriteFile(filepath.Join(tmp, "readable-file"), []byte("hi, i'm also a file, and you can read me"), 0644)
+	err = os.WriteFile(filepath.Join(tmp, "readable-file"), []byte("hi, i'm also a file, and you can read me"), 0o644)
 	require.NoError(t, err, "error creating a readable file")
-	err = os.WriteFile(filepath.Join(tmp, "readable-directory", "unreadable-file"), []byte("hi, i'm also a file that you can't read"), 0000)
+	err = os.WriteFile(filepath.Join(tmp, "readable-directory", "unreadable-file"), []byte("hi, i'm also a file that you can't read"), 0o000)
 	require.NoError(t, err, "error creating an unreadable file in a readable directory")
 	for _, ignore := range []bool{false, true} {
 		t.Run(fmt.Sprintf("ignore=%v", ignore), func(t *testing.T) {
@@ -163,7 +163,7 @@ func TestGetNoCrossDevice(t *testing.T) {
 	require.NoError(t, err, "error creating new mount namespace")
 
 	subdir := filepath.Join(tmpdir, "subdir")
-	err = os.Mkdir(subdir, 0755)
+	err = os.Mkdir(subdir, 0o755)
 	require.NoErrorf(t, err, "error creating %q", subdir)
 
 	err = mount.Mount("tmpfs", subdir, "tmpfs", "rw")
@@ -174,7 +174,7 @@ func TestGetNoCrossDevice(t *testing.T) {
 	}()
 
 	skipped := filepath.Join(subdir, "skipped.txt")
-	err = os.WriteFile(skipped, []byte("this file should have been skipped\n"), 0644)
+	err = os.WriteFile(skipped, []byte("this file should have been skipped\n"), 0o644)
 	require.NoErrorf(t, err, "error writing file at %q", skipped)
 
 	var buf bytes.Buffer

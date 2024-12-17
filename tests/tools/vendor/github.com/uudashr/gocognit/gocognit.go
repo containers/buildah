@@ -26,6 +26,11 @@ func (s Stat) String() string {
 func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 	for _, decl := range f.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
+			d := parseDirective(fn.Doc)
+			if d.Ignore {
+				continue
+			}
+
 			stats = append(stats, Stat{
 				PkgName:    f.Name.Name,
 				FuncName:   funcName(fn),
@@ -35,6 +40,24 @@ func ComplexityStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 		}
 	}
 	return stats
+}
+
+type directive struct {
+	Ignore bool
+}
+
+func parseDirective(doc *ast.CommentGroup) directive {
+	if doc == nil {
+		return directive{}
+	}
+
+	for _, c := range doc.List {
+		if c.Text == "//gocognit:ignore" {
+			return directive{Ignore: true}
+		}
+	}
+
+	return directive{}
 }
 
 // funcName returns the name representation of a function or method:
@@ -272,7 +295,7 @@ func (v *complexityVisitor) visitBranchStmt(n *ast.BranchStmt) ast.Visitor {
 }
 
 func (v *complexityVisitor) visitBinaryExpr(n *ast.BinaryExpr) ast.Visitor {
-	if (n.Op == token.LAND || n.Op == token.LOR) && !v.isCalculated(n) {
+	if isBinaryLogicalOp(n.Op) && !v.isCalculated(n) {
 		ops := v.collectBinaryOps(n)
 
 		var lastOp token.Token
@@ -299,15 +322,10 @@ func (v *complexityVisitor) visitCallExpr(n *ast.CallExpr) ast.Visitor {
 
 func (v *complexityVisitor) collectBinaryOps(exp ast.Expr) []token.Token {
 	v.markCalculated(exp)
-	switch exp := exp.(type) {
-	case *ast.BinaryExpr:
+	if exp, ok := exp.(*ast.BinaryExpr); ok {
 		return mergeBinaryOps(v.collectBinaryOps(exp.X), exp.Op, v.collectBinaryOps(exp.Y))
-	case *ast.ParenExpr:
-		// interest only on what inside paranthese
-		return v.collectBinaryOps(exp.X)
-	default:
-		return []token.Token{}
 	}
+	return nil
 }
 
 func (v *complexityVisitor) incIfComplexity(n *ast.IfStmt) {
@@ -320,14 +338,16 @@ func (v *complexityVisitor) incIfComplexity(n *ast.IfStmt) {
 
 func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.Token {
 	var out []token.Token
-	if len(x) != 0 {
-		out = append(out, x...)
+	out = append(out, x...)
+	if isBinaryLogicalOp(op) {
+		out = append(out, op)
 	}
-	out = append(out, op)
-	if len(y) != 0 {
-		out = append(out, y...)
-	}
+	out = append(out, y...)
 	return out
+}
+
+func isBinaryLogicalOp(op token.Token) bool {
+	return op == token.LAND || op == token.LOR
 }
 
 const Doc = `Find complex function using cognitive complexity calculation.
@@ -359,13 +379,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.FuncDecl)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		fnDecl := n.(*ast.FuncDecl)
+		funcDecl := n.(*ast.FuncDecl)
 
-		fnName := funcName(fnDecl)
-		fnComplexity := Complexity(fnDecl)
+		d := parseDirective(funcDecl.Doc)
+		if d.Ignore {
+			return
+		}
+
+		fnName := funcName(funcDecl)
+
+		fnComplexity := Complexity(funcDecl)
 
 		if fnComplexity > over {
-			pass.Reportf(fnDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", fnComplexity, fnName, over)
+			pass.Reportf(funcDecl.Pos(), "cognitive complexity %d of func %s is high (> %d)", fnComplexity, fnName, over)
 		}
 	})
 

@@ -11,6 +11,7 @@ The `buildah manifest` command provides subcommands which can be used to:
 
     * Create a working Docker manifest list or OCI image index.
     * Add an entry to a manifest list or image index for a specified image.
+    * Add an entry to an image index for an artifact manifest referring to a file.
     * Add or update information about an entry in a manifest list or image index.
     * Delete a working container or an image.
     * Push a manifest list or image index to a registry or other location.
@@ -19,8 +20,8 @@ The `buildah manifest` command provides subcommands which can be used to:
 
 | Command  | Man Page                                                       | Description                                                                 |
 | -------  | -------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| add      | [buildah-manifest-add(1)](buildah-manifest-add.1.md)           | Add an image to a manifest list or image index.                             |
-| annotate | [buildah-manifest-annotate(1)](buildah-manifest-annotate.1.md) | Add or update information about an image in a manifest list or image index. |
+| add      | [buildah-manifest-add(1)](buildah-manifest-add.1.md)           | Add an image or artifact to a manifest list or image index.                             |
+| annotate | [buildah-manifest-annotate(1)](buildah-manifest-annotate.1.md) | Add or update information about an image or artifact in a manifest list or image index. |
 | create   | [buildah-manifest-create(1)](buildah-manifest-create.1.md)     | Create a manifest list or image index.                                      |
 | exists   | [buildah-manifest-exists(1)](buildah-manifest-exists.1.md)     | Check if a manifest list exists in local storage.                           |
 | inspect  | [buildah-manifest-inspect(1)](buildah-manifest-inspect.1.md)   | Display the contents of a manifest list or image index.                     |
@@ -41,8 +42,8 @@ the scope of this example.  Building a multi-arch manifest list
         $ platarch=linux/amd64,linux/ppc64le,linux/arm64,linux/s390x
         $ buildah build --jobs=4 --platform=$platarch --manifest shazam .
 
-**Note:** The `--jobs` argument is optional, and the `-t` or `--tag`
-option should *not* be used.
+**Note:** The `--jobs` argument is optional, and the `--manifest` option
+should be used instead of the`-t` or `--tag` options.
 
 ### Assembling a multi-arch manifest from separately built images
 

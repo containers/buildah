@@ -1,12 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
-
-	"errors"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
@@ -25,27 +24,29 @@ import (
 )
 
 type pushOptions struct {
-	all                bool
-	authfile           string
-	blobCache          string
-	certDir            string
-	creds              string
-	digestfile         string
-	disableCompression bool
-	format             string
-	compressionFormat  string
-	compressionLevel   int
-	retry              int
-	retryDelay         string
-	rm                 bool
-	quiet              bool
-	removeSignatures   bool
-	signaturePolicy    string
-	signBy             string
-	tlsVerify          bool
-	encryptionKeys     []string
-	encryptLayers      []int
-	insecure           bool
+	all                    bool
+	authfile               string
+	blobCache              string
+	certDir                string
+	creds                  string
+	digestfile             string
+	disableCompression     bool
+	format                 string
+	compressionFormat      string
+	compressionLevel       int
+	forceCompressionFormat bool
+	retry                  int
+	retryDelay             string
+	rm                     bool
+	quiet                  bool
+	removeSignatures       bool
+	signaturePolicy        string
+	signBy                 string
+	tlsVerify              bool
+	encryptionKeys         []string
+	encryptLayers          []int
+	insecure               bool
+	addCompression         []string
 }
 
 func init() {
@@ -85,12 +86,13 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&opts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting image to the file")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
+	flags.BoolVarP(&opts.forceCompressionFormat, "force-compression", "", false, "use the specified compression algorithm if the destination contains a differently-compressed variant already")
 	flags.StringVarP(&opts.format, "format", "f", "", "manifest type (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)")
 	flags.StringVar(&opts.compressionFormat, "compression-format", "", "compression format to use")
 	flags.IntVar(&opts.compressionLevel, "compression-level", 0, "compression level to use")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
-	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing push/pull")
-	flags.StringVar(&opts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of push/pull failures")
+	flags.IntVar(&opts.retry, "retry", int(defaultContainerConfig.Engine.Retry), "number of times to retry in case of failure when performing push")
+	flags.StringVar(&opts.retryDelay, "retry-delay", defaultContainerConfig.Engine.RetryDelay, "delay between retries in case of push failures")
 	flags.BoolVar(&opts.rm, "rm", false, "remove the manifest list if push succeeds")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing image")
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
@@ -191,25 +193,33 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
 
-	var pullPushRetryDelay time.Duration
-	pullPushRetryDelay, err = time.ParseDuration(iopts.retryDelay)
-	if err != nil {
-		return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+	if c.Flag("compression-format").Changed {
+		if !c.Flag("force-compression").Changed {
+			// If `compression-format` is set and no value for `--force-compression`
+			// is selected then defaults to `true`.
+			iopts.forceCompressionFormat = true
+		}
 	}
 
 	options := buildah.PushOptions{
-		Compression:         compress,
-		ManifestType:        manifestType,
-		SignaturePolicyPath: iopts.signaturePolicy,
-		Store:               store,
-		SystemContext:       systemContext,
-		BlobDirectory:       iopts.blobCache,
-		RemoveSignatures:    iopts.removeSignatures,
-		SignBy:              iopts.signBy,
-		MaxRetries:          iopts.retry,
-		RetryDelay:          pullPushRetryDelay,
-		OciEncryptConfig:    encConfig,
-		OciEncryptLayers:    encLayers,
+		Compression:            compress,
+		ManifestType:           manifestType,
+		SignaturePolicyPath:    iopts.signaturePolicy,
+		Store:                  store,
+		SystemContext:          systemContext,
+		BlobDirectory:          iopts.blobCache,
+		RemoveSignatures:       iopts.removeSignatures,
+		SignBy:                 iopts.signBy,
+		MaxRetries:             iopts.retry,
+		OciEncryptConfig:       encConfig,
+		OciEncryptLayers:       encLayers,
+		ForceCompressionFormat: iopts.forceCompressionFormat,
+	}
+	if iopts.retryDelay != "" {
+		options.RetryDelay, err = time.ParseDuration(iopts.retryDelay)
+		if err != nil {
+			return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+		}
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
@@ -244,7 +254,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	logrus.Debugf("Successfully pushed %s with digest %s", transports.ImageName(dest), digest.String())
 
 	if iopts.digestfile != "" {
-		if err = os.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
+		if err = os.WriteFile(iopts.digestfile, []byte(digest.String()), 0o644); err != nil {
 			return util.GetFailureCause(err, fmt.Errorf("failed to write digest to file %q: %w", iopts.digestfile, err))
 		}
 	}

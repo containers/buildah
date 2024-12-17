@@ -6,15 +6,16 @@ package parse
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/containers/storage/pkg/fileutils"
 )
 
 // ValidateVolumeOpts validates a volume's options
 func ValidateVolumeOpts(options []string) ([]string, error) {
-	var foundRootPropagation, foundRWRO, foundLabelChange, bindType, foundExec, foundDev, foundSuid, foundChown, foundUpperDir, foundWorkDir, foundCopy int
+	var foundRootPropagation, foundRWRO, foundLabelChange, bindType, foundExec, foundDev, foundSuid, foundChown, foundUpperDir, foundWorkDir, foundCopy, foundCopySymlink int
 	finalOpts := make([]string, 0, len(options))
 	for _, opt := range options {
 		// support advanced options like upperdir=/path, workdir=/path
@@ -93,6 +94,11 @@ func ValidateVolumeOpts(options []string) ([]string, error) {
 			if foundCopy > 1 {
 				return nil, fmt.Errorf("invalid options %q, can only specify 1 'copy' or 'nocopy' option", strings.Join(options, ", "))
 			}
+		case "no-dereference":
+			foundCopySymlink++
+			if foundCopySymlink > 1 {
+				return nil, fmt.Errorf("invalid options %q, can only specify 1 'no-dereference' option", strings.Join(options, ", "))
+			}
 		default:
 			return nil, fmt.Errorf("invalid option type %q", opt)
 		}
@@ -170,7 +176,7 @@ func ValidateVolumeHostDir(hostDir string) error {
 		return errors.New("host directory cannot be empty")
 	}
 	if filepath.IsAbs(hostDir) {
-		if _, err := os.Stat(hostDir); err != nil {
+		if err := fileutils.Exists(hostDir); err != nil {
 			return err
 		}
 	}

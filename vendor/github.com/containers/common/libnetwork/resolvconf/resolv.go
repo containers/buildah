@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
-	"github.com/containers/common/pkg/util"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -61,7 +62,7 @@ func getDefaultResolvConf(params *Params) ([]byte, bool, error) {
 			if ns.Path != "" && !strings.HasPrefix(ns.Path, "/proc/") {
 				// check for netns created by "ip netns"
 				path := filepath.Join("/etc/netns", filepath.Base(ns.Path), "resolv.conf")
-				_, err := os.Stat(path)
+				err := fileutils.Exists(path)
 				if err == nil {
 					resolveConf = path
 				}
@@ -111,7 +112,7 @@ func getDefaultResolvConf(params *Params) ([]byte, bool, error) {
 
 // unsetSearchDomainsIfNeeded removes the search domain when they contain a single dot as element.
 func unsetSearchDomainsIfNeeded(searches []string) []string {
-	if util.StringInSlice(".", searches) {
+	if slices.Contains(searches, ".") {
 		return nil
 	}
 	return searches
@@ -173,7 +174,7 @@ func Remove(path string, nameservers []string) error {
 	oldNameservers := getNameservers(contents)
 	newNameserver := make([]string, 0, len(oldNameservers))
 	for _, ns := range oldNameservers {
-		if !util.StringInSlice(ns, nameservers) {
+		if !slices.Contains(nameservers, ns) {
 			newNameserver = append(newNameserver, ns)
 		}
 	}

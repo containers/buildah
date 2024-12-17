@@ -1,4 +1,4 @@
-FROM busybox
+FROM mirror.gcr.io/busybox
 ADD https://github.com/openshift/origin/raw/master/README.md README.md
 USER 1001
 ADD https://github.com/openshift/origin/raw/master/LICENSE .

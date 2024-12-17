@@ -605,11 +605,12 @@ func (cl *compiler) compileCall(key funcKey, sig *types.Signature, args []ast.Ex
 	}
 
 	var op opcode
-	if sig.Results().Len() == 0 {
+	switch {
+	case sig.Results().Len() == 0:
 		op = opVoidCall
-	} else if typeIsInt(sig.Results().At(0).Type()) {
+	case typeIsInt(sig.Results().At(0).Type()):
 		op = opIntCall
-	} else {
+	default:
 		op = opCall
 	}
 

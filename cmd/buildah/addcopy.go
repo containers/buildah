@@ -22,6 +22,7 @@ type addCopyResults struct {
 	addHistory       bool
 	chmod            string
 	chown            string
+	checksum         string
 	quiet            bool
 	ignoreFile       string
 	contextdir       string
@@ -36,6 +37,7 @@ type addCopyResults struct {
 	certDir          string
 	retry            int
 	retryDelay       string
+	excludes         []string
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -47,7 +49,8 @@ func createCommand(addCopy string, desc string, short string, opts *addCopyResul
 			return addAndCopyCmd(cmd, args, strings.ToUpper(addCopy), *opts)
 		},
 		Example: `buildah ` + addCopy + ` containerID '/myapp/app.conf'
-  buildah ` + addCopy + ` containerID '/myapp/app.conf' '/myapp/app.conf'`,
+  buildah ` + addCopy + ` containerID 'app.conf' '/myapp/app.conf'
+  buildah ` + addCopy + ` containerID 'app.conf' 'drop-in.conf' '/myapp/app.conf.d/'`,
 		Args: cobra.MinimumNArgs(1),
 	}
 }
@@ -63,10 +66,8 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	if err := flags.MarkHidden("blob-cache"); err != nil {
 		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
 	}
-	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access registries")
-	if err := flags.MarkHidden("cert-dir"); err != nil {
-		panic(fmt.Sprintf("error marking cert-dir as hidden: %v", err))
-	}
+	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access registries and sources in HTTPS locations")
+	flags.StringVar(&opts.checksum, "checksum", "", "checksum the HTTP source content")
 	flags.StringVar(&opts.chown, "chown", "", "set the user and group ownership of the destination content")
 	flags.StringVar(&opts.chmod, "chmod", "", "set the access permissions of the destination content")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing registries when pulling images")
@@ -78,15 +79,13 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	if err := flags.MarkHidden("decryption-key"); err != nil {
 		panic(fmt.Sprintf("error marking decryption-key as hidden: %v", err))
 	}
+	flags.StringSliceVar(&opts.excludes, "exclude", nil, "exclude pattern when copying files")
 	flags.StringVar(&opts.ignoreFile, "ignorefile", "", "path to .containerignore file")
 	flags.StringVar(&opts.contextdir, "contextdir", "", "context directory path")
 	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
 	flags.StringVar(&opts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
-	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing registries when pulling images. TLS verification cannot be used when talking to an insecure registry.")
-	if err := flags.MarkHidden("tls-verify"); err != nil {
-		panic(fmt.Sprintf("error marking tls-verify as hidden: %v", err))
-	}
+	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing registries when pulling images, and when retrieving sources from HTTPS URLs. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pulling image")
 	if err := flags.MarkHidden("remove-signatures"); err != nil {
 		panic(fmt.Sprintf("error marking remove-signatures as hidden: %v", err))
@@ -158,21 +157,17 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		return errors.New("--ignorefile option requires that you specify a context dir using --contextdir")
 	}
 
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return fmt.Errorf("building system context: %w", err)
+	}
+
+	var preserveOwnership bool
 	if iopts.from != "" {
 		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Is(err, storage.ErrContainerUnknown) {
-			systemContext, err2 := parse.SystemContextFromOptions(c)
-			if err2 != nil {
-				return fmt.Errorf("building system context: %w", err2)
-			}
-
 			decryptConfig, err2 := cli.DecryptConfig(iopts.decryptionKeys)
 			if err2 != nil {
 				return fmt.Errorf("unable to obtain decrypt config: %w", err2)
-			}
-			var pullPushRetryDelay time.Duration
-			pullPushRetryDelay, err = time.ParseDuration(iopts.retryDelay)
-			if err != nil {
-				return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
 			}
 			options := buildah.BuilderOptions{
 				FromImage:           iopts.from,
@@ -180,8 +175,13 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 				SignaturePolicyPath: iopts.signaturePolicy,
 				SystemContext:       systemContext,
 				MaxPullRetries:      iopts.retry,
-				PullRetryDelay:      pullPushRetryDelay,
 				OciDecryptConfig:    decryptConfig,
+			}
+			if iopts.retryDelay != "" {
+				options.PullRetryDelay, err = time.ParseDuration(iopts.retryDelay)
+				if err != nil {
+					return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+				}
 			}
 			if !iopts.quiet {
 				options.ReportWriter = os.Stderr
@@ -219,6 +219,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 			}
 		}()
 		idMappingOptions = &from.IDMappingOptions
+		preserveOwnership = true
 		contextdir = filepath.Join(fromMountPoint, iopts.contextdir)
 		for i := range args {
 			args[i] = filepath.Join(fromMountPoint, args[i])
@@ -233,10 +234,18 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	builder.ContentDigester.Restart()
 
 	options := buildah.AddAndCopyOptions{
-		Chmod:            iopts.chmod,
-		Chown:            iopts.chown,
-		ContextDir:       contextdir,
-		IDMappingOptions: idMappingOptions,
+		Chmod:             iopts.chmod,
+		Chown:             iopts.chown,
+		PreserveOwnership: preserveOwnership,
+		Checksum:          iopts.checksum,
+		ContextDir:        contextdir,
+		Excludes:          iopts.excludes,
+		IDMappingOptions:  idMappingOptions,
+		// These next two fields are set based on command line flags
+		// with more generic-sounding names.
+		CertPath:              systemContext.DockerCertPath,
+		InsecureSkipTLSVerify: systemContext.DockerInsecureSkipTLSVerify,
+		MaxRetries:            iopts.retry,
 	}
 	if iopts.contextdir != "" {
 		var excludes []string
@@ -245,7 +254,14 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		if err != nil {
 			return err
 		}
-		options.Excludes = excludes
+		options.Excludes = append(excludes, options.Excludes...)
+	}
+	if iopts.retryDelay != "" {
+		retryDelay, err := time.ParseDuration(iopts.retryDelay)
+		if err != nil {
+			return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+		}
+		options.RetryDelay = retryDelay
 	}
 
 	extractLocalArchives := verb == "ADD"

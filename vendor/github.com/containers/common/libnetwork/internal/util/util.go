@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/config"
-	"github.com/containers/common/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,9 +28,7 @@ func GetBridgeInterfaceNames(n NetUtil) []string {
 func GetUsedNetworkNames(n NetUtil) []string {
 	names := make([]string, 0, n.Len())
 	n.ForEach(func(net types.Network) {
-		if net.Driver == types.BridgeNetworkDriver {
-			names = append(names, net.NetworkInterface)
-		}
+		names = append(names, net.Name)
 	})
 	return names
 }
@@ -53,7 +51,7 @@ func GetFreeDeviceName(n NetUtil) (string, error) {
 	// Start by 1, 0 is reserved for the default network
 	for i := 1; i < 1000000; i++ {
 		deviceName := fmt.Sprintf("%s%d", n.DefaultInterfaceName(), i)
-		if !util.StringInSlice(deviceName, names) {
+		if !slices.Contains(names, deviceName) {
 			logrus.Debugf("found free device name %s", deviceName)
 			return deviceName, nil
 		}
@@ -114,7 +112,7 @@ func GetFreeIPv4NetworkSubnet(usedNetworks []*net.IPNet, subnetPools []config.Su
 // GetFreeIPv6NetworkSubnet returns a unused ipv6 subnet
 func GetFreeIPv6NetworkSubnet(usedNetworks []*net.IPNet) (*types.Subnet, error) {
 	// FIXME: Is 10000 fine as limit? We should prevent an endless loop.
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		// RFC4193: Choose the ipv6 subnet random and NOT sequentially.
 		network, err := getRandomIPv6Subnet()
 		if err != nil {

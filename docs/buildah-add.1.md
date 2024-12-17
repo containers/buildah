@@ -23,6 +23,18 @@ Defaults to false.
 Note: You can also override the default value of --add-history by setting the
 BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 
+**--cert-dir** *path*
+
+Use certificates at *path* (\*.crt, \*.cert, \*.key) when connecting to
+registries for pulling images named with the **--from** flag, and when
+connecting to HTTPS servers when fetching sources from locations specified with
+HTTPS URLs.  The default certificates directory is _/etc/containers/certs.d_.
+
+**--checksum** *checksum*
+
+Checksum the source content. The value of *checksum* must be a standard
+container digest string. Only supported for HTTP sources.
+
 **--chmod** *permissions*
 
 Sets the access permissions of the destination content. Accepts the numerical format.
@@ -36,6 +48,11 @@ Sets the user and group ownership of the destination content.
 Build context directory. Specifying a context directory causes Buildah to
 chroot into that context directory. This means copying files pointed at
 by symbolic links outside of the chroot will fail.
+
+**--exclude** *pattern*
+
+Exclude copying files matching the specified pattern. Option can be specified
+multiple times. See containerignore(5) for supported formats.
 
 **--from** *containerOrImage*
 
@@ -54,15 +71,24 @@ Refrain from printing a digest of the added content.
 
 **--retry** *attempts*
 
-Number of times to retry in case of failure when performing pull of images from registry.
+Number of times to retry in case of failure when pulling images from registries
+or retrieving content from HTTPS URLs.
 
 Defaults to `3`.
 
 **--retry-delay** *duration*
 
-Duration of delay between retry attempts in case of failure when performing pull of images from registry.
+Duration of delay between retry attempts in case of failure when pulling images
+from registries or retrieving content from HTTPS URLs.
 
 Defaults to `2s`.
+
+**--tls-verify** *bool-value*
+
+Require verification of certificates when retrieving sources from HTTPS
+locations, or when pulling images referred to with the **--from*** flag
+(defaults to true).  TLS verification cannot be used when talking to an
+insecure registry.
 
 ## EXAMPLE
 
@@ -84,12 +110,12 @@ buildah add containerID 'passwd' 'certs.d' /etc
 
 ## FILES
 
-### .containerignore
+### .containerignore or .dockerignore
 
 If a .containerignore or .dockerignore file exists in the context directory,
 `buildah add` reads its contents. If both exist, then .containerignore is used.
 
-When the \fB\fC\-\-ignorefile\fR option is specified Buildah reads it and
+When the `--ignorefile` option is specified Buildah reads it and
 uses it to decide which content to exclude when copying content into the
 working container.
 
@@ -130,7 +156,7 @@ Exclude all doc files except Help.doc when copying content into the container.
 
 This functionality is compatible with the handling of .containerignore files described here:
 
-https://github.com/containers/buildah/blob/main/docs/containerignore.5.md
+https://github.com/containers/common/blob/main/docs/containerignore.5.md
 
 ## SEE ALSO
 buildah(1), containerignore(5)

@@ -7,10 +7,12 @@ import (
 
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/pkg/shortnames"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage/pkg/fileutils"
 )
 
 // PullOptions includes data to alter certain knobs when pulling a source
@@ -26,11 +28,15 @@ type PullOptions struct {
 
 // Pull `imageInput` from a container registry to `sourcePath`.
 func Pull(ctx context.Context, imageInput string, sourcePath string, options PullOptions) error {
-	if _, err := os.Stat(sourcePath); err == nil {
+	if err := fileutils.Exists(sourcePath); err == nil {
 		return fmt.Errorf("%q already exists", sourcePath)
 	}
 
 	srcRef, err := stringToImageReference(imageInput)
+	if err != nil {
+		return err
+	}
+	destRef, err := layout.ParseReference(sourcePath)
 	if err != nil {
 		return err
 	}
@@ -50,11 +56,6 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 		return err
 	}
 
-	ociDest, err := openOrCreateSourceImage(ctx, sourcePath)
-	if err != nil {
-		return err
-	}
-
 	policy, err := signature.DefaultPolicy(sysCtx)
 	if err != nil {
 		return fmt.Errorf("obtaining default signature policy: %w", err)
@@ -70,7 +71,7 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 	if !options.Quiet {
 		copyOpts.ReportWriter = os.Stderr
 	}
-	if _, err := copy.Image(ctx, policyContext, ociDest.Reference(), srcRef, &copyOpts); err != nil {
+	if _, err := copy.Image(ctx, policyContext, destRef, srcRef, &copyOpts); err != nil {
 		return fmt.Errorf("pulling source image: %w", err)
 	}
 

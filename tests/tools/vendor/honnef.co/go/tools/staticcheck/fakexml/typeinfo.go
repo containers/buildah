@@ -6,11 +6,11 @@ package fakexml
 
 import (
 	"fmt"
-	"go/types"
 	"strconv"
 	"strings"
 	"sync"
 
+	"honnef.co/go/tools/go/types/typeutil"
 	"honnef.co/go/tools/staticcheck/fakereflect"
 )
 
@@ -80,8 +80,7 @@ func getTypeInfo(typ fakereflect.TypeAndCanAddr) (*typeInfo, error) {
 	}
 
 	tinfo := &typeInfo{}
-	named, ok := typ.Type.(*types.Named)
-	if typ.IsStruct() && !(ok && named.Obj().Pkg().Path() == "encoding/xml" && named.Obj().Name() == "Name") {
+	if typ.IsStruct() && !typeutil.IsTypeWithName(typ.Type, "encoding/xml.Name") {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
 			f := typ.Field(i)

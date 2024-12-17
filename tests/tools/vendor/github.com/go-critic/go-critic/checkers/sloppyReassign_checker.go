@@ -5,7 +5,8 @@ import (
 	"go/token"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astcopy"
 	"github.com/go-toolsmith/astequal"
@@ -14,7 +15,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "sloppyReassign"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Summary = "Detects suspicious/confusing re-assignments"
 	info.Before = `if err = f(); err != nil { return err }`
 	info.After = `if err := f(); err != nil { return err }`

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	"github.com/containers/buildah/define"
 	iversion "github.com/containers/image/v5/version"
@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//Overwritten at build time
+// Overwritten at build time
 var (
 	GitCommit  string
 	buildInfo  string
@@ -44,12 +44,12 @@ type versionOptions struct {
 func init() {
 	var opts versionOptions
 
-	//cli command to print out the version info of buildah
+	// cli command to print out the version info of buildah
 	versionCommand := &cobra.Command{
 		Use:   "version",
 		Short: "Display the Buildah version information",
 		Long:  "Displays Buildah version information.",
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return versionCmd(opts)
 		},
 		Args:    cobra.NoArgs,
@@ -67,7 +67,7 @@ func versionCmd(opts versionOptions) error {
 	var err error
 	buildTime := int64(0)
 	if buildInfo != "" {
-		//converting unix time from string to int64
+		// converting unix time from string to int64
 		buildTime, err = strconv.ParseInt(buildInfo, 10, 64)
 		if err != nil {
 			return err
@@ -106,7 +106,7 @@ func versionCmd(opts versionOptions) error {
 	fmt.Println("image Version:  ", version.ImageVersion)
 	fmt.Println("Git Commit:     ", version.GitCommit)
 
-	//Prints out the build time in readable format
+	// Prints out the build time in readable format
 	fmt.Println("Built:          ", version.Built)
 	fmt.Println("OS/Arch:        ", version.OsArch)
 	fmt.Println("BuildPlatform:  ", version.BuildPlatform)

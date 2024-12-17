@@ -1,4 +1,4 @@
-FROM alpine
+FROM mirror.gcr.io/alpine
 ARG BUILDPLATFORM
 ARG BUILDOS
 ARG BUILDARCH
@@ -17,7 +17,7 @@ RUN echo ${TARGETOS}       > first/targetos=`echo ${TARGETOS} | sed s,/,_,g`
 RUN echo ${TARGETARCH}     > first/targetarch=`echo ${TARGETARCH} | sed s,/,_,g`
 RUN echo ${TARGETVARIANT}  > first/targetvariant=`echo ${TARGETVARIANT} | sed s,/,_,g`
 
-FROM alpine
+FROM mirror.gcr.io/alpine
 ARG BUILDPLATFORM
 ARG BUILDOS
 ARG BUILDARCH

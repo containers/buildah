@@ -26,7 +26,7 @@ the list or index itself.
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. See containers-auth.json(5) for more information. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -41,6 +41,7 @@ The default certificates directory is _/etc/containers/certs.d_.
 **--compression-format** *format*
 
 Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+`zstd:chunked` is incompatible with encrypting images, and will be treated as `zstd` with a warning in that case.
 
 **--compression-level** *level*
 
@@ -69,6 +70,11 @@ Layer(s) to encrypt: 0-indexed layer indices with support for negative indexing 
 **--encryption-key** *key*
 
 The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7516), PGP (RFC4880), and PKCS7 (RFC2315) and the key material required for image encryption. For instance, jwe:/path/to/key.pem or pgp:admin@example.com or pkcs7:/path/to/x509-file.
+
+**--force-compression**
+
+If set, push uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to `true` if `--compression-format` is explicitly specified on the command-line, `false` otherwise.
 
 **--format**, **-f**
 
@@ -176,4 +182,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-login(1), containers-policy.json(5), docker-login(1), containers-registries.conf(5), buildah-manifest(1)
+buildah(1), buildah-login(1), containers-policy.json(5), docker-login(1), containers-registries.conf(5), buildah-manifest(1), containers-transports(5), containers-auth.json(5)

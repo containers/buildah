@@ -11,9 +11,11 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -25,18 +27,23 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
+	"github.com/containers/buildah/internal/config"
 	"github.com/containers/image/v5/docker/daemon"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
+	is "github.com/containers/image/v5/storage"
 	istorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
+	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
 	dockertypes "github.com/docker/docker/api/types"
 	dockerdockerclient "github.com/docker/docker/client"
-	dockerarchive "github.com/docker/docker/pkg/archive"
 	docker "github.com/fsouza/go-dockerclient"
 	digest "github.com/opencontainers/go-digest"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
@@ -45,13 +52,17 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 const (
 	// See http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06, from archive/tar
-	cISUID = 04000 // Set uid, from archive/tar
-	cISGID = 02000 // Set gid, from archive/tar
-	cISVTX = 01000 // Save text (sticky bit), from archive/tar
+	cISUID = 0o4000 // Set uid, from archive/tar
+	cISGID = 0o2000 // Set gid, from archive/tar
+	cISVTX = 0o1000 // Save text (sticky bit), from archive/tar
+	// xattrs in the PAXRecords map are namespaced with this prefix
+	xattrPAXRecordNamespace = "SCHILY.xattr."
 )
 
 var (
@@ -118,48 +129,86 @@ func TestMain(m *testing.M) {
 	flag.StringVar(&imagebuilderDir, "imagebuilder-dir", imagebuilderDir, "location to save imagebuilder build results")
 	flag.StringVar(&buildahDir, "buildah-dir", buildahDir, "location to save buildah build results")
 	flag.Parse()
+	var tempdir string
+	if buildahDir == "" || dockerDir == "" || imagebuilderDir == "" {
+		if tempdir == "" {
+			if tempdir, err = os.MkdirTemp("", "conformance"); err != nil {
+				logrus.Fatalf("creating temporary directory: %v", err)
+				os.Exit(1)
+			}
+		}
+	}
+	if buildahDir == "" {
+		buildahDir = filepath.Join(tempdir, "buildah")
+	}
+	if dockerDir == "" {
+		dockerDir = filepath.Join(tempdir, "docker")
+	}
+	if imagebuilderDir == "" {
+		imagebuilderDir = filepath.Join(tempdir, "imagebuilder")
+	}
 	level, err := logrus.ParseLevel(logLevel)
 	if err != nil {
 		logrus.Fatalf("error parsing log level %q: %v", logLevel, err)
 	}
 	logrus.SetLevel(level)
-	os.Exit(m.Run())
+	result := m.Run()
+	if err = os.RemoveAll(tempdir); err != nil {
+		logrus.Errorf("removing temporary directory %q: %v", tempdir, err)
+	}
+	os.Exit(result)
 }
 
 func TestConformance(t *testing.T) {
-	var tempdir string
-	if buildahDir == "" {
-		if tempdir == "" {
-			tempdir = t.TempDir()
-		}
-		buildahDir = filepath.Join(tempdir, "buildah")
-	}
-	if dockerDir == "" {
-		if tempdir == "" {
-			tempdir = t.TempDir()
-		}
-		dockerDir = filepath.Join(tempdir, "docker")
-	}
-	if imagebuilderDir == "" {
-		if tempdir == "" {
-			tempdir = t.TempDir()
-		}
-		imagebuilderDir = filepath.Join(tempdir, "imagebuilder")
-	}
 	dateStamp := fmt.Sprintf("%d", time.Now().UnixNano())
 	for i := range internalTestCases {
 		t.Run(internalTestCases[i].name, func(t *testing.T) {
-			testConformanceInternal(t, dateStamp, i)
+			if internalTestCases[i].testUsingSetParent {
+				t.Run("new-set-parent", func(t *testing.T) {
+					testConformanceInternal(t, dateStamp, i, func(test *testCase) {
+						test.dockerBuilderVersion = docker.BuilderBuildKit
+						test.compatSetParent = types.OptionalBoolFalse
+						test.compatScratchConfig = types.OptionalBoolFalse
+					})
+				})
+				t.Run("old-set-parent", func(t *testing.T) {
+					testConformanceInternal(t, dateStamp, i, func(test *testCase) {
+						test.dockerBuilderVersion = docker.BuilderV1
+						test.compatSetParent = types.OptionalBoolTrue
+						test.compatScratchConfig = types.OptionalBoolTrue
+					})
+				})
+			} else if internalTestCases[i].testUsingVolumes {
+				t.Run("new-volumes", func(t *testing.T) {
+					testConformanceInternal(t, dateStamp, i, func(test *testCase) {
+						test.dockerBuilderVersion = docker.BuilderBuildKit
+						test.compatVolumes = types.OptionalBoolFalse
+						test.compatScratchConfig = types.OptionalBoolFalse
+					})
+				})
+				t.Run("old-volumes", func(t *testing.T) {
+					testConformanceInternal(t, dateStamp, i, func(test *testCase) {
+						test.dockerBuilderVersion = docker.BuilderV1
+						test.compatVolumes = types.OptionalBoolTrue
+						test.compatScratchConfig = types.OptionalBoolTrue
+					})
+				})
+			} else {
+				testConformanceInternal(t, dateStamp, i, nil)
+			}
 		})
 	}
 }
 
-func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
+func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, mutate func(*testCase)) {
 	test := internalTestCases[testIndex]
+	if mutate != nil {
+		mutate(&test)
+	}
 	ctx := context.TODO()
 
 	cwd, err := os.Getwd()
-	require.Nil(t, err, "error finding current directory")
+	require.NoError(t, err, "error finding current directory")
 
 	// create a temporary directory to hold our build context
 	tempdir := t.TempDir()
@@ -172,12 +221,12 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	// check if we can test xattrs where we're storing build contexts
 	if contextCanDoXattrs == nil {
 		testDir := filepath.Join(tempdir, "test")
-		if err := os.Mkdir(testDir, 0700); err != nil {
-			require.Nil(t, err, "error creating test directory to check if xattrs are testable: %v", err)
+		if err := os.Mkdir(testDir, 0o700); err != nil {
+			require.NoErrorf(t, err, "error creating test directory to check if xattrs are testable: %v", err)
 		}
 		testFile := filepath.Join(testDir, "testfile")
-		if err := os.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
-			require.Nil(t, err, "error creating test file to check if xattrs are testable: %v", err)
+		if err := os.WriteFile(testFile, []byte("whatever"), 0o600); err != nil {
+			require.NoErrorf(t, err, "error creating test file to check if xattrs are testable: %v", err)
 		}
 		can := false
 		if err := copier.Lsetxattrs(testFile, map[string]string{"user.test": "test"}); err == nil {
@@ -205,14 +254,14 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		if test.contextDir != "" || test.dockerfile != "" {
 			putErr = copier.Put("", contextDir, copier.PutOptions{}, pipeReader)
 		} else {
-			putErr = os.Mkdir(contextDir, 0755)
+			putErr = os.Mkdir(contextDir, 0o755)
 		}
 		pipeReader.Close()
 		wg.Done()
 	}()
 	wg.Wait()
-	assert.Nil(t, getErr, "error reading build info from %q", filepath.Join("testdata", test.dockerfile))
-	assert.Nil(t, putErr, "error writing build info to %q", contextDir)
+	assert.NoErrorf(t, getErr, "error reading build info from %q", filepath.Join("testdata", test.dockerfile))
+	assert.NoErrorf(t, putErr, "error writing build info to %q", contextDir)
 	if t.Failed() {
 		t.FailNow()
 	}
@@ -221,6 +270,11 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	buildahImage := fmt.Sprintf("conformance-buildah:%s-%d", dateStamp, testIndex)
 	dockerImage := fmt.Sprintf("conformance-docker:%s-%d", dateStamp, testIndex)
 	imagebuilderImage := fmt.Sprintf("conformance-imagebuilder:%s-%d", dateStamp, testIndex)
+	if mutate != nil {
+		buildahImage += path.Base(t.Name())
+		dockerImage += path.Base(t.Name())
+		imagebuilderImage += path.Base(t.Name())
+	}
 
 	// compute the name of the Dockerfile in the build context directory
 	var dockerfileName string
@@ -235,7 +289,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	if len(dockerfileContents) == 0 {
 		// no inlined contents -> read them from the specified location
 		contents, err := os.ReadFile(dockerfileName)
-		require.Nil(t, err, "error reading Dockerfile %q", filepath.Join(tempdir, dockerfileName))
+		require.NoErrorf(t, err, "error reading Dockerfile %q", filepath.Join(tempdir, dockerfileName))
 		dockerfileContents = contents
 	}
 
@@ -247,11 +301,11 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		RootlessStoragePath: rootDir,
 	}
 	store, err := storage.GetStore(options)
-	require.Nil(t, err, "error creating buildah storage at %q", rootDir)
+	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
 	defer func() {
 		if store != nil {
 			_, err := store.Shutdown(true)
-			require.Nil(t, err, "error shutting down storage for buildah")
+			require.NoError(t, err, "error shutting down storage for buildah")
 		}
 	}()
 	storageDriver := store.GraphDriverName()
@@ -261,15 +315,15 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	if storageCanDoXattrs == nil {
 		layer, err := store.CreateLayer("", "", nil, "", true, nil)
 		if err != nil {
-			require.Nil(t, err, "error creating test layer to check if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error creating test layer to check if xattrs are testable: %v", err)
 		}
 		mountPoint, err := store.Mount(layer.ID, "")
 		if err != nil {
-			require.Nil(t, err, "error mounting test layer to check if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error mounting test layer to check if xattrs are testable: %v", err)
 		}
 		testFile := filepath.Join(mountPoint, "testfile")
-		if err := os.WriteFile(testFile, []byte("whatever"), 0600); err != nil {
-			require.Nil(t, err, "error creating file in test layer to check if xattrs are testable: %v", err)
+		if err := os.WriteFile(testFile, []byte("whatever"), 0o600); err != nil {
+			require.NoErrorf(t, err, "error creating file in test layer to check if xattrs are testable: %v", err)
 		}
 		can := false
 		if err := copier.Lsetxattrs(testFile, map[string]string{"user.test": "test"}); err == nil {
@@ -278,23 +332,23 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		storageCanDoXattrs = &can
 		err = store.DeleteLayer(layer.ID)
 		if err != nil {
-			require.Nil(t, err, "error removing test layer after checking if xattrs are testable: %v", err)
+			require.NoErrorf(t, err, "error removing test layer after checking if xattrs are testable: %v", err)
 		}
 	}
 
 	// connect to dockerd using the docker client library
 	dockerClient, err := dockerdockerclient.NewClientWithOpts(dockerdockerclient.FromEnv)
-	require.Nil(t, err, "unable to initialize docker.client")
+	require.NoError(t, err, "unable to initialize docker.client")
 	dockerClient.NegotiateAPIVersion(ctx)
-	if test.dockerUseBuildKit {
-		if err := dockerClient.NewVersionError("1.38", "buildkit"); err != nil {
+	if test.dockerUseBuildKit || test.dockerBuilderVersion != "" {
+		if err := dockerClient.NewVersionError(ctx, "1.38", "buildkit"); err != nil {
 			t.Skipf("%v", err)
 		}
 	}
 
 	// connect to dockerd using go-dockerclient
 	client, err := docker.NewClientFromEnv()
-	require.Nil(t, err, "unable to initialize docker client")
+	require.NoError(t, err, "unable to initialize docker client")
 	var dockerVersion []string
 	if version, err := client.Version(); err == nil {
 		if version != nil {
@@ -303,13 +357,13 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 			}
 		}
 	} else {
-		require.Nil(t, err, "unable to connect to docker daemon")
+		require.NoError(t, err, "unable to connect to docker daemon")
 	}
 
 	// make any last-minute tweaks to the build context directory that this test requires
 	if test.tweakContextDir != nil {
 		err = test.tweakContextDir(t, contextDir, storageDriver, storageRoot)
-		require.Nil(t, err, "error tweaking context directory using test-specific callback: %v", err)
+		require.NoErrorf(t, err, "error tweaking context directory using test-specific callback: %v", err)
 	}
 
 	// decide whether we're building just one image for this Dockerfile, or
@@ -343,12 +397,12 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	// contents we were passed, which may only be an initial subset of the
 	// original file, or inlined information, in which case the file didn't
 	// necessarily exist
-	err := os.WriteFile(dockerfileName, dockerfileContents, 0644)
-	require.Nil(t, err, "error writing Dockerfile at %q", dockerfileName)
+	err := os.WriteFile(dockerfileName, dockerfileContents, 0o644)
+	require.NoErrorf(t, err, "error writing Dockerfile at %q", dockerfileName)
 	err = os.Chtimes(dockerfileName, testDate, testDate)
-	require.Nil(t, err, "error resetting timestamp on Dockerfile at %q", dockerfileName)
+	require.NoErrorf(t, err, "error resetting timestamp on Dockerfile at %q", dockerfileName)
 	err = os.Chtimes(contextDir, testDate, testDate)
-	require.Nil(t, err, "error resetting timestamp on context directory at %q", contextDir)
+	require.NoErrorf(t, err, "error resetting timestamp on context directory at %q", contextDir)
 
 	defer func() {
 		if t.Failed() {
@@ -443,21 +497,21 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	if t.Failed() {
 		t.FailNow()
 	}
-	deleteLabel := func(config map[string]interface{}, label string) {
+	deleteIdentityLabel := func(config map[string]interface{}) {
 		for _, configName := range []string{"config", "container_config"} {
 			if configStruct, ok := config[configName]; ok {
 				if configMap, ok := configStruct.(map[string]interface{}); ok {
 					if labels, ok := configMap["Labels"]; ok {
 						if labelMap, ok := labels.(map[string]interface{}); ok {
-							delete(labelMap, label)
+							delete(labelMap, buildah.BuilderIdentityAnnotation)
 						}
 					}
 				}
 			}
 		}
 	}
-	deleteLabel(originalBuildahConfig, buildah.BuilderIdentityAnnotation)
-	deleteLabel(ociBuildahConfig, buildah.BuilderIdentityAnnotation)
+	deleteIdentityLabel(originalBuildahConfig)
+	deleteIdentityLabel(ociBuildahConfig)
 
 	var originalDockerConfig, ociDockerConfig, fsDocker map[string]interface{}
 
@@ -469,6 +523,10 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 		if t.Failed() {
 			t.FailNow()
 		}
+
+		// Some of the base images for our tests were built with buildah, too
+		deleteIdentityLabel(originalDockerConfig)
+		deleteIdentityLabel(ociDockerConfig)
 
 		miss, left, diff, same := compareJSON(originalDockerConfig, originalBuildahConfig, originalSkip)
 		if !same {
@@ -521,6 +579,36 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	}
 	// set up build options
 	output := &bytes.Buffer{}
+	if test.compatSetParent != types.OptionalBoolUndefined {
+		compat := "default"
+		switch test.compatSetParent {
+		case types.OptionalBoolFalse:
+			compat = "false"
+		case types.OptionalBoolTrue:
+			compat = "true"
+		}
+		t.Logf("using buildah flag CompatSetParent = %s", compat)
+	}
+	if test.compatVolumes != types.OptionalBoolUndefined {
+		compat := "default"
+		switch test.compatVolumes {
+		case types.OptionalBoolFalse:
+			compat = "false"
+		case types.OptionalBoolTrue:
+			compat = "true"
+		}
+		t.Logf("using buildah flag CompatVolumes = %s", compat)
+	}
+	if test.compatScratchConfig != types.OptionalBoolUndefined {
+		compat := "default"
+		switch test.compatScratchConfig {
+		case types.OptionalBoolFalse:
+			compat = "false"
+		case types.OptionalBoolTrue:
+			compat = "true"
+		}
+		t.Logf("using buildah flag CompatScratchConfig = %s", compat)
+	}
 	options := define.BuildOptions{
 		ContextDirectory: contextDir,
 		CommonBuildOpts:  &define.CommonBuildOptions{},
@@ -537,6 +625,10 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 		NoCache:                 true,
 		RemoveIntermediateCtrs:  true,
 		ForceRmIntermediateCtrs: true,
+		CompatSetParent:         test.compatSetParent,
+		CompatVolumes:           test.compatVolumes,
+		CompatScratchConfig:     test.compatScratchConfig,
+		Args:                    maps.Clone(test.buildArgs),
 	}
 	// build the image and gather output. log the output if the build part of the test failed
 	imageID, _, err := imagebuildah.BuildDockerfiles(ctx, store, options, dockerfileName)
@@ -561,57 +653,110 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	return buildahRef, []byte(outputString)
 }
 
+func pullImageIfMissing(t *testing.T, client *docker.Client, image string) {
+	if _, err := client.InspectImage(image); err != nil {
+		repository, tag := docker.ParseRepositoryTag(image)
+		if tag == "" {
+			tag = "latest"
+		}
+		pullOptions := docker.PullImageOptions{
+			Repository: repository,
+			Tag:        tag,
+		}
+		pullAuths := docker.AuthConfiguration{}
+		if err := client.PullImage(pullOptions, pullAuths); err != nil {
+			t.Fatalf("while pulling %q: %v", image, err)
+		}
+	}
+}
+
 func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, dockerClient *dockerdockerclient.Client, test testCase, dockerImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (dockerRef types.ImageReference, dockerLog []byte) {
 	// compute the path of the dockerfile relative to the build context
 	dockerfileRelativePath, err := filepath.Rel(contextDir, dockerfileName)
-	require.Nil(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
+	require.NoErrorf(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
 
-	// set up build options
-	output := &bytes.Buffer{}
-	if test.dockerUseBuildKit {
-		dockerOptions := dockertypes.ImageBuildOptions{
-			Dockerfile:  dockerfileRelativePath,
-			Tags:        []string{dockerImage},
-			NoCache:     true,
-			Remove:      true,
-			ForceRemove: true,
-			Version:     dockertypes.BuilderBuildKit,
+	// read the Dockerfile so that we can pull base images
+	dockerfileContent, err := os.ReadFile(dockerfileName)
+	require.NoErrorf(t, err, "reading dockerfile %q", dockerfileName)
+	for _, line := range strings.Split(string(dockerfileContent), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# syntax=") {
+			pullImageIfMissing(t, client, strings.TrimPrefix(line, "# syntax="))
 		}
-		var buildContextReader io.Reader
-		if contextDir != "" {
-			rc, err := dockerarchive.Tar(contextDir, dockerarchive.Uncompressed)
-			assert.Nil(t, err, "error archiving context directory %q", contextDir)
-			defer rc.Close()
-			buildContextReader = rc
+	}
+	parsed, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfileContent))
+	require.NoErrorf(t, err, "parsing dockerfile %q", dockerfileName)
+	dummyBuilder := imagebuilder.NewBuilder(nil)
+	stages, err := imagebuilder.NewStages(parsed, dummyBuilder)
+	require.NoErrorf(t, err, "breaking dockerfile %q up into stages", dockerfileName)
+	for i := range stages {
+		stageBase, err := dummyBuilder.From(stages[i].Node)
+		require.NoErrorf(t, err, "parsing base image for stage %d in %q", i, dockerfileName)
+		if stageBase == "" || stageBase == imagebuilder.NoBaseImageSpecifier {
+			continue
 		}
-		// build the image and gather output. log the output if the build part of the test failed
-		response, err := dockerClient.ImageBuild(ctx, buildContextReader, dockerOptions)
-		if err != nil {
-			output.WriteString("\n" + err.Error())
-		}
-		if response.Body != nil {
-			_, err = io.Copy(output, response.Body)
-			response.Body.Close()
-			if err != nil {
-				t.Logf("error while reading buildkit response: %v", err)
+		needToEnsureBase := true
+		for j := 0; j < i; j++ {
+			if stageBase == stages[j].Name {
+				needToEnsureBase = false
 			}
 		}
-	} else {
-		options := docker.BuildImageOptions{
-			Context:             ctx,
-			ContextDir:          contextDir,
-			Dockerfile:          dockerfileRelativePath,
-			OutputStream:        output,
-			Name:                dockerImage,
-			NoCache:             true,
-			RmTmpContainer:      true,
-			ForceRmTmpContainer: true,
+		if !needToEnsureBase {
+			continue
 		}
-		// build the image and gather output. log the output if the build part of the test failed
-		err = client.BuildImage(options)
-		if err != nil {
-			output.WriteString("\n" + err.Error())
+		pullImageIfMissing(t, client, stageBase)
+	}
+
+	excludes, err := imagebuilder.ParseDockerignore(contextDir)
+	require.NoErrorf(t, err, "parsing ignores file in %q", contextDir)
+	excludes = append(excludes, "!"+dockerfileRelativePath, "!.dockerignore")
+	tarOptions := &archive.TarOptions{
+		ExcludePatterns: excludes,
+		ChownOpts:       &idtools.IDPair{UID: 0, GID: 0},
+	}
+	input, err := archive.TarWithOptions(contextDir, tarOptions)
+	require.NoErrorf(t, err, "archiving context directory %q", contextDir)
+	defer input.Close()
+
+	var buildArgs []docker.BuildArg
+	for k, v := range test.buildArgs {
+		buildArgs = append(buildArgs, docker.BuildArg{Name: k, Value: v})
+	}
+	// set up build options
+	output := &bytes.Buffer{}
+	options := docker.BuildImageOptions{
+		Context:             ctx,
+		Dockerfile:          dockerfileRelativePath,
+		InputStream:         input,
+		OutputStream:        output,
+		Name:                dockerImage,
+		NoCache:             true,
+		RmTmpContainer:      true,
+		ForceRmTmpContainer: true,
+		BuildArgs:           buildArgs,
+	}
+	if test.dockerUseBuildKit || test.dockerBuilderVersion != "" {
+		if test.dockerBuilderVersion != "" {
+			var version string
+			switch test.dockerBuilderVersion {
+			case docker.BuilderBuildKit:
+				version = "BuildKit"
+			case docker.BuilderV1:
+				version = "V1 (classic)"
+			default:
+				version = "(unknown)"
+			}
+			t.Logf("requesting docker builder %s", version)
+			options.Version = test.dockerBuilderVersion
+		} else {
+			t.Log("requesting docker builder BuildKit")
+			options.Version = docker.BuilderBuildKit
 		}
+	}
+	// build the image and gather output. log the output if the build part of the test failed
+	err = client.BuildImage(options)
+	if err != nil {
+		output.WriteString("\n" + err.Error())
 	}
 	if _, err := dockerClient.BuildCachePrune(ctx, dockertypes.BuildCachePruneOptions{All: true}); err != nil {
 		t.Logf("docker build cache prune: %v", err)
@@ -637,7 +782,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 func buildUsingImagebuilder(t *testing.T, client *docker.Client, test testCase, imagebuilderImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (imagebuilderRef types.ImageReference, imagebuilderLog []byte) {
 	// compute the path of the dockerfile relative to the build context
 	dockerfileRelativePath, err := filepath.Rel(contextDir, dockerfileName)
-	require.Nil(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
+	require.NoErrorf(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
 	// set up build options
 	output := &bytes.Buffer{}
 	executor := dockerclient.NewClientExecutor(client)
@@ -664,7 +809,7 @@ func buildUsingImagebuilder(t *testing.T, client *docker.Client, test testCase, 
 		})
 	}
 	// build the image and gather output. log the output if the build part of the test failed
-	builder := imagebuilder.NewBuilder(nil)
+	builder := imagebuilder.NewBuilder(maps.Clone(test.buildArgs))
 	node, err := imagebuilder.ParseFile(filepath.Join(contextDir, dockerfileRelativePath))
 	if err != nil {
 		assert.Nil(t, err, "error parsing Dockerfile: %v", err)
@@ -797,18 +942,18 @@ func fsHeaderForEntry(hdr *tar.Header) FSHeader {
 func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, directory string, dockerfileContents []byte, buildLog []byte, version []string) {
 	imageName := ""
 	// make sure the directory exists
-	err := os.MkdirAll(directory, 0755)
-	require.Nil(t, err, "error ensuring directory %q exists for storing a report")
+	err := os.MkdirAll(directory, 0o755)
+	require.NoErrorf(t, err, "error ensuring directory %q exists for storing a report", directory)
 	// save the Dockerfile that was used to generate the image
-	err = os.WriteFile(filepath.Join(directory, "Dockerfile"), dockerfileContents, 0644)
-	require.Nil(t, err, "error saving Dockerfile for image %q", imageName)
+	err = os.WriteFile(filepath.Join(directory, "Dockerfile"), dockerfileContents, 0o644)
+	require.NoErrorf(t, err, "error saving Dockerfile for image %q", imageName)
 	// save the log generated while building the image
-	err = os.WriteFile(filepath.Join(directory, "build.log"), buildLog, 0644)
-	require.Nil(t, err, "error saving build log for image %q", imageName)
+	err = os.WriteFile(filepath.Join(directory, "build.log"), buildLog, 0o644)
+	require.NoErrorf(t, err, "error saving build log for image %q", imageName)
 	// save the version information
 	if len(version) > 0 {
-		err = os.WriteFile(filepath.Join(directory, "version"), []byte(strings.Join(version, "\n")+"\n"), 0644)
-		require.Nil(t, err, "error saving builder version information for image %q", imageName)
+		err = os.WriteFile(filepath.Join(directory, "version"), []byte(strings.Join(version, "\n")+"\n"), 0o644)
+		require.NoErrorf(t, err, "error saving builder version information for image %q", imageName)
 	}
 	// open the image for reading
 	if ref == nil {
@@ -816,37 +961,37 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	}
 	imageName = transports.ImageName(ref)
 	src, err := ref.NewImageSource(ctx, nil)
-	require.Nil(t, err, "error opening image %q as source to read its configuration", imageName)
+	require.NoErrorf(t, err, "error opening image %q as source to read its configuration", imageName)
 	closer := io.Closer(src)
 	defer func() {
 		closer.Close()
 	}()
 	img, err := image.FromSource(ctx, nil, src)
-	require.Nil(t, err, "error opening image %q to read its configuration", imageName)
+	require.NoErrorf(t, err, "error opening image %q to read its configuration", imageName)
 	closer = img
 	// read the manifest in its original form
 	rawManifest, _, err := src.GetManifest(ctx, nil)
-	require.Nil(t, err, "error reading raw manifest from image %q", imageName)
+	require.NoErrorf(t, err, "error reading raw manifest from image %q", imageName)
 	// read the config blob in its original form
 	rawConfig, err := img.ConfigBlob(ctx)
-	require.Nil(t, err, "error reading configuration from image %q", imageName)
+	require.NoErrorf(t, err, "error reading configuration from image %q", imageName)
 	// read the config blob, converted to OCI format by the image library, and re-encode it
 	ociConfig, err := img.OCIConfig(ctx)
-	require.Nil(t, err, "error reading OCI-format configuration from image %q", imageName)
+	require.NoErrorf(t, err, "error reading OCI-format configuration from image %q", imageName)
 	encodedConfig, err := json.Marshal(ociConfig)
-	require.Nil(t, err, "error encoding OCI-format configuration from image %q for saving", imageName)
+	require.NoErrorf(t, err, "error encoding OCI-format configuration from image %q for saving", imageName)
 	// save the manifest in its original form
-	err = os.WriteFile(filepath.Join(directory, "manifest.json"), rawManifest, 0644)
-	require.Nil(t, err, "error saving original manifest from image %q", imageName)
+	err = os.WriteFile(filepath.Join(directory, "manifest.json"), rawManifest, 0o644)
+	require.NoErrorf(t, err, "error saving original manifest from image %q", imageName)
 	// save the config blob in the OCI format
-	err = os.WriteFile(filepath.Join(directory, "oci-config.json"), encodedConfig, 0644)
-	require.Nil(t, err, "error saving OCI-format configuration from image %q", imageName)
+	err = os.WriteFile(filepath.Join(directory, "oci-config.json"), encodedConfig, 0o644)
+	require.NoErrorf(t, err, "error saving OCI-format configuration from image %q", imageName)
 	// save the config blob in its original format
-	err = os.WriteFile(filepath.Join(directory, "config.json"), rawConfig, 0644)
-	require.Nil(t, err, "error saving original configuration from image %q", imageName)
+	err = os.WriteFile(filepath.Join(directory, "config.json"), rawConfig, 0o644)
+	require.NoErrorf(t, err, "error saving original configuration from image %q", imageName)
 	// start pulling layer information
 	layerBlobInfos, err := img.LayerInfosForCopy(ctx)
-	require.Nil(t, err, "error reading blob infos for image %q", imageName)
+	require.NoErrorf(t, err, "error reading blob infos for image %q", imageName)
 	if len(layerBlobInfos) == 0 {
 		layerBlobInfos = img.LayerInfos()
 	}
@@ -854,7 +999,7 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	// grab digest and header information from the layer blob
 	for _, layerBlobInfo := range layerBlobInfos {
 		rc, _, err := src.GetBlob(ctx, layerBlobInfo, nil)
-		require.Nil(t, err, "error reading blob %+v for image %q", layerBlobInfo, imageName)
+		require.NoErrorf(t, err, "error reading blob %+v for image %q", layerBlobInfo, imageName)
 		defer rc.Close()
 		layer := summarizeLayer(t, imageName, layerBlobInfo, rc)
 		fstree.Layers = append(fstree.Layers, layer)
@@ -885,26 +1030,30 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	// contents individually, which would produce the same result, so
 	// there's no point in saving them for comparison later
 	encodedFSTree, err := json.Marshal(fstree.Tree)
-	require.Nil(t, err, "error encoding filesystem tree from image %q for saving", imageName)
-	err = os.WriteFile(filepath.Join(directory, "fs.json"), encodedFSTree, 0644)
-	require.Nil(t, err, "error saving filesystem tree from image %q", imageName)
+	require.NoErrorf(t, err, "error encoding filesystem tree from image %q for saving", imageName)
+	err = os.WriteFile(filepath.Join(directory, "fs.json"), encodedFSTree, 0o644)
+	require.NoErrorf(t, err, "error saving filesystem tree from image %q", imageName)
 }
 
 // summarizeLayer reads a blob and returns a summary of the parts of its contents that we care about
 func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, reader io.Reader) (layer Layer) {
 	compressedDigest := digest.Canonical.Digester()
-	uncompressedBlob, _, err := compression.AutoDecompress(io.TeeReader(reader, compressedDigest.Hash()))
-	require.Nil(t, err, "error decompressing blob %+v for image %q", blobInfo, imageName)
+	counter := ioutils.NewWriteCounter(compressedDigest.Hash())
+	compressionAlgorithm, _, reader, err := compression.DetectCompressionFormat(reader)
+	require.NoErrorf(t, err, "error checking if blob %+v for image %q is compressed", blobInfo, imageName)
+	uncompressedBlob, wasCompressed, err := compression.AutoDecompress(io.TeeReader(reader, counter))
+	require.NoErrorf(t, err, "error decompressing blob %+v for image %q", blobInfo, imageName)
 	defer uncompressedBlob.Close()
 	uncompressedDigest := digest.Canonical.Digester()
-	tr := tar.NewReader(io.TeeReader(uncompressedBlob, uncompressedDigest.Hash()))
+	tarToRead := io.TeeReader(uncompressedBlob, uncompressedDigest.Hash())
+	tr := tar.NewReader(tarToRead)
 	hdr, err := tr.Next()
 	for err == nil {
 		header := fsHeaderForEntry(hdr)
 		if hdr.Size != 0 {
 			contentDigest := digest.Canonical.Digester()
 			n, err := io.Copy(contentDigest.Hash(), tr)
-			require.Nil(t, err, "error digesting contents of %q from layer %+v for image %q", hdr.Name, blobInfo, imageName)
+			require.NoErrorf(t, err, "error digesting contents of %q from layer %+v for image %q", hdr.Name, blobInfo, imageName)
 			require.Equal(t, hdr.Size, n, "error reading contents of %q from layer %+v for image %q: wrong size", hdr.Name, blobInfo, imageName)
 			header.Digest = contentDigest.Digest()
 		}
@@ -912,8 +1061,18 @@ func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, rea
 		hdr, err = tr.Next()
 	}
 	require.Equal(t, io.EOF, err, "unexpected error reading layer contents %+v for image %q", blobInfo, imageName)
+	_, err = io.Copy(io.Discard, tarToRead)
+	require.NoError(t, err, "reading out any not-usually-present zero padding at the end")
 	layer.CompressedDigest = compressedDigest.Digest()
-	require.Equal(t, blobInfo.Digest, layer.CompressedDigest, "calculated digest of compressed blob didn't match expected digest")
+	blobFormatDescription := "uncompressed"
+	if wasCompressed {
+		if compressionAlgorithm.Name() != "" {
+			blobFormatDescription = "compressed with " + compressionAlgorithm.Name()
+		} else {
+			blobFormatDescription = "compressed (?)"
+		}
+	}
+	require.Equalf(t, blobInfo.Digest, layer.CompressedDigest, "calculated digest of %s blob didn't match expected digest (expected length %d, actual length %d)", blobFormatDescription, blobInfo.Size, counter.Count)
 	layer.UncompressedDigest = uncompressedDigest.Digest()
 	return layer
 }
@@ -1019,40 +1178,40 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 func readReport(t *testing.T, directory string) (manifestType string, original, oci, fs map[string]interface{}) {
 	// read the manifest in the as-committed format, whatever that is
 	originalManifest, err := os.ReadFile(filepath.Join(directory, "manifest.json"))
-	require.Nil(t, err, "error reading manifest %q", filepath.Join(directory, "manifest.json"))
+	require.NoErrorf(t, err, "error reading manifest %q", filepath.Join(directory, "manifest.json"))
 	// dump it into a map
 	manifest := make(map[string]interface{})
 	err = json.Unmarshal(originalManifest, &manifest)
-	require.Nil(t, err, "error decoding manifest %q", filepath.Join(directory, "manifest.json"))
+	require.NoErrorf(t, err, "error decoding manifest %q", filepath.Join(directory, "manifest.json"))
 	if str, ok := manifest["mediaType"].(string); ok {
 		manifestType = str
 	}
 	// read the config in the as-committed (docker) format
 	originalConfig, err := os.ReadFile(filepath.Join(directory, "config.json"))
-	require.Nil(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
+	require.NoErrorf(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
 	// dump it into a map
 	original = make(map[string]interface{})
 	err = json.Unmarshal(originalConfig, &original)
-	require.Nil(t, err, "error decoding configuration from file %q", filepath.Join(directory, "config.json"))
+	require.NoErrorf(t, err, "error decoding configuration from file %q", filepath.Join(directory, "config.json"))
 	// read the config in converted-to-OCI format
 	ociConfig, err := os.ReadFile(filepath.Join(directory, "oci-config.json"))
-	require.Nil(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci-config.json"))
+	require.NoErrorf(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci-config.json"))
 	// dump it into a map
 	oci = make(map[string]interface{})
 	err = json.Unmarshal(ociConfig, &oci)
-	require.Nil(t, err, "error decoding OCI configuration from file %q", filepath.Join(directory, "oci.json"))
+	require.NoErrorf(t, err, "error decoding OCI configuration from file %q", filepath.Join(directory, "oci.json"))
 	// read the filesystem
 	fsInfo, err := os.ReadFile(filepath.Join(directory, "fs.json"))
-	require.Nil(t, err, "error reading filesystem summary file %q", filepath.Join(directory, "fs.json"))
+	require.NoErrorf(t, err, "error reading filesystem summary file %q", filepath.Join(directory, "fs.json"))
 	// dump it into a map for comparison
 	fs = make(map[string]interface{})
 	err = json.Unmarshal(fsInfo, &fs)
-	require.Nil(t, err, "error decoding filesystem summary from file %q", filepath.Join(directory, "fs.json"))
+	require.NoErrorf(t, err, "error decoding filesystem summary from file %q", filepath.Join(directory, "fs.json"))
 	// return both
 	return manifestType, original, oci, fs
 }
 
-// contains is used to check if item is exist in []string or not
+// contains is used to check if item exists in []string or not, ignoring case
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if strings.EqualFold(s, item) {
@@ -1183,11 +1342,7 @@ func compareJSON(a, b map[string]interface{}, skip []string) (missKeys, leftKeys
 		}
 	}
 
-	replace := func(slice []string) []string {
-		return append([]string{}, slice...)
-	}
-
-	return replace(missKeys), replace(leftKeys), replace(diffKeys), isSame
+	return slices.Clone(missKeys), slices.Clone(leftKeys), slices.Clone(diffKeys), isSame
 }
 
 // configCompareResult summarizes the output of compareJSON for display
@@ -1247,27 +1402,36 @@ func fsCompareResult(miss, left, diff []string, notDocker string) string {
 	return buffer.String()
 }
 
-type testCaseTweakContextDirFn func(*testing.T, string, string, string) error
-type testCase struct {
-	name                 string                    // name of the test
-	dockerfileContents   string                    // inlined Dockerfile content to use instead of possible file in the build context
-	dockerfile           string                    // name of the Dockerfile, relative to contextDir, if not Dockerfile
-	contextDir           string                    // name of context subdirectory, if there is one to be copied
-	tweakContextDir      testCaseTweakContextDirFn // callback to make updates to the temporary build context before we build it
-	shouldFailAt         int                       // line where a build is expected to fail (starts with 1, 0 if it should succeed
-	buildahRegex         string                    // if set, expect this to be present in output
-	dockerRegex          string                    // if set, expect this to be present in output
-	imagebuilderRegex    string                    // if set, expect this to be present in output
-	buildahErrRegex      string                    // if set, expect this to be present in output
-	dockerErrRegex       string                    // if set, expect this to be present in output
-	imagebuilderErrRegex string                    // if set, expect this to be present in output
-	failureRegex         string                    // if set, expect this to be present in output when the build fails
-	withoutDocker        bool                      // don't build this with docker, because it depends on a buildah-specific feature
-	dockerUseBuildKit    bool                      // if building with docker, request that dockerd use buildkit
-	withoutImagebuilder  bool                      // don't build this with imagebuilder, because it depends on a buildah-specific feature
-	transientMounts      []string                  // one possible buildah-specific feature
-	fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
-}
+type (
+	testCaseTweakContextDirFn func(*testing.T, string, string, string) error
+	testCase                  struct {
+		name                 string                    // name of the test
+		dockerfileContents   string                    // inlined Dockerfile content to use instead of possible file in the build context
+		dockerfile           string                    // name of the Dockerfile, relative to contextDir, if not Dockerfile
+		contextDir           string                    // name of context subdirectory, if there is one to be copied
+		tweakContextDir      testCaseTweakContextDirFn // callback to make updates to the temporary build context before we build it
+		shouldFailAt         int                       // line where a build is expected to fail (starts with 1, 0 if it should succeed
+		buildahRegex         string                    // if set, expect this to be present in output
+		dockerRegex          string                    // if set, expect this to be present in output
+		imagebuilderRegex    string                    // if set, expect this to be present in output
+		buildahErrRegex      string                    // if set, expect this to be present in output
+		dockerErrRegex       string                    // if set, expect this to be present in output
+		imagebuilderErrRegex string                    // if set, expect this to be present in output
+		failureRegex         string                    // if set, expect this to be present in output when the build fails
+		withoutImagebuilder  bool                      // don't build this with imagebuilder, because it depends on a buildah-specific feature
+		withoutDocker        bool                      // don't build this with docker, because it depends on a buildah-specific feature
+		dockerUseBuildKit    bool                      // if building with docker, request that dockerd use buildkit
+		dockerBuilderVersion docker.BuilderVersion     // if building with docker, request the specific builder
+		testUsingSetParent   bool                      // test both with old (gets set) and new (left blank) config.Parent behavior
+		compatSetParent      types.OptionalBool        // placeholder for a value to set for the buildah compatSetParent flag
+		testUsingVolumes     bool                      // test both with old (preserved) and new (just a config note) volume behavior
+		compatVolumes        types.OptionalBool        // placeholder for a value to set for the buildah compatVolumes flag
+		compatScratchConfig  types.OptionalBool        // placeholder for a value to set for the buildah compatScratchConfig flag
+		transientMounts      []string                  // one possible buildah-specific feature
+		fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
+		buildArgs            map[string]string         // build args to supply, as if --build-arg was used
+	}
+)
 
 var internalTestCases = []testCase{
 	{
@@ -1275,6 +1439,29 @@ var internalTestCases = []testCase{
 		dockerfile:   "Dockerfile.shell",
 		buildahRegex: "(?s)[0-9a-z]+(.*)--",
 		dockerRegex:  "(?s)RUN env.*?Running in [0-9a-z]+(.*?)---",
+	},
+
+	{
+		name:       "copy-escape-glob",
+		contextDir: "copy-escape-glob",
+		fsSkip:     []string{"(dir):app:mtime", "(dir):app2:mtime", "(dir):app3:mtime", "(dir):app4:mtime", "(dir):app5:mtime"},
+		tweakContextDir: func(t *testing.T, contextDir, _, _ string) error {
+			appDir := filepath.Join(contextDir, "app")
+			jklDir := filepath.Join(appDir, "jkl?")
+			require.NoError(t, os.Mkdir(jklDir, 0o700))
+			jklFile := filepath.Join(jklDir, "file.txt")
+			require.NoError(t, os.WriteFile(jklFile, []byte("another"), 0o600))
+			nopeDir := filepath.Join(appDir, "n?pe")
+			require.NoError(t, os.Mkdir(nopeDir, 0o700))
+			nopeFile := filepath.Join(nopeDir, "file.txt")
+			require.NoError(t, os.WriteFile(nopeFile, []byte("and also"), 0o600))
+			stuvDir := filepath.Join(appDir, "st*uv")
+			require.NoError(t, os.Mkdir(stuvDir, 0o700))
+			stuvFile := filepath.Join(stuvDir, "file.txt")
+			require.NoError(t, os.WriteFile(stuvFile, []byte("and yet"), 0o600))
+			return nil
+		},
+		dockerUseBuildKit: true,
 	},
 
 	{
@@ -1431,7 +1618,8 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"COPY dir/file /subdir/",
 		}, "\n"),
-		fsSkip: []string{"(dir):subdir"},
+		fsSkip:              []string{"(dir):subdir"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1473,8 +1661,9 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "exposed default",
-		dockerfile: "Dockerfile.exposedefault",
+		name:               "exposed default",
+		dockerfile:         "Dockerfile.exposedefault",
+		testUsingSetParent: true,
 	},
 
 	{
@@ -1497,15 +1686,17 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "volume",
-		contextDir: "volume",
-		fsSkip:     []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		name:             "volume",
+		contextDir:       "volume",
+		fsSkip:           []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		testUsingVolumes: true,
 	},
 
 	{
-		name:       "volumerun",
-		contextDir: "volumerun",
-		fsSkip:     []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		name:             "volumerun",
+		contextDir:       "volumerun",
+		fsSkip:           []string{"(dir):var:mtime", "(dir):var:(dir):www:mtime"},
+		testUsingVolumes: true,
 	},
 
 	{
@@ -1519,7 +1710,7 @@ var internalTestCases = []testCase{
 	{
 		name:          "transient-mount",
 		contextDir:    "transientmount",
-		buildahRegex:  "file2.*?FROM busybox ENV name value",
+		buildahRegex:  "file2.*?FROM mirror.gcr.io/busybox ENV name value",
 		withoutDocker: true,
 		transientMounts: []string{
 			"@@TEMPDIR@@:/mountdir" + selinuxMountFlag(),
@@ -1531,7 +1722,7 @@ var internalTestCases = []testCase{
 		// from internal team chat
 		name: "ci-pipeline-modified",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox",
+			"FROM mirror.gcr.io/busybox",
 			"WORKDIR /go/src/github.com/openshift/ocp-release-operator-sdk/",
 			"ENV GOPATH=/go",
 			"RUN env | grep -E -v '^(HOSTNAME|OLDPWD)=' | LANG=C sort | tee /env-contents.txt\n",
@@ -1555,14 +1746,14 @@ var internalTestCases = []testCase{
 			"ADD archive.tar subdir1/",
 			"ADD archive/ subdir2/",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			content := []byte("test content")
 
-			if err := os.Mkdir(filepath.Join(contextDir, "archive"), 0755); err != nil {
+			if err := os.Mkdir(filepath.Join(contextDir, "archive"), 0o755); err != nil {
 				return fmt.Errorf("creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "archive", "should-be-owned-by-root")
-			if err = os.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0o640); err != nil {
 				return fmt.Errorf("creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
@@ -1572,7 +1763,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "archive", "should-be-owned-by-99")
-			if err = os.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0o640); err != nil {
 				return fmt.Errorf("creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
@@ -1583,7 +1774,7 @@ var internalTestCases = []testCase{
 			}
 
 			filename = filepath.Join(contextDir, "archive.tar")
-			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o644)
 			if err != nil {
 				return fmt.Errorf("creating archive file: %w", err)
 			}
@@ -1595,7 +1786,7 @@ var internalTestCases = []testCase{
 				Typeflag: tar.TypeReg,
 				Size:     int64(len(content)),
 				ModTime:  testDate,
-				Mode:     0640,
+				Mode:     0o640,
 				Uid:      0,
 				Gid:      0,
 			})
@@ -1614,7 +1805,7 @@ var internalTestCases = []testCase{
 				Typeflag: tar.TypeReg,
 				Size:     int64(len(content)),
 				ModTime:  testDate,
-				Mode:     0640,
+				Mode:     0o640,
 				Uid:      99,
 				Gid:      99,
 			})
@@ -1641,14 +1832,14 @@ var internalTestCases = []testCase{
 			"COPY subdir/ subdir/",
 			"COPY --chown=99:99 subdir/ subdir/",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			content := []byte("test content")
 
-			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
+			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0o755); err != nil {
 				return fmt.Errorf("creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
-			if err = os.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0o640); err != nil {
 				return fmt.Errorf("creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
@@ -1658,7 +1849,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
-			if err = os.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0o640); err != nil {
 				return fmt.Errorf("creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
@@ -1669,7 +1860,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1680,14 +1872,14 @@ var internalTestCases = []testCase{
 			"COPY --chown=99:99 subdir/ subdir/",
 			"COPY subdir/ subdir/",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			content := []byte("test content")
 
-			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
+			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0o755); err != nil {
 				return fmt.Errorf("creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
-			if err = os.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0o640); err != nil {
 				return fmt.Errorf("creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
@@ -1697,7 +1889,7 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
-			if err = os.WriteFile(filename, content, 0640); err != nil {
+			if err = os.WriteFile(filename, content, 0o640); err != nil {
 				return fmt.Errorf("creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
@@ -1708,7 +1900,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1717,7 +1910,7 @@ var internalTestCases = []testCase{
 		// list in the image repository would do
 		name: "stage-container-as-source-plus-hardlinks",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox@sha256:9ddee63a712cea977267342e8750ecbc60d3aab25f04ceacfa795e6fce341793 AS build",
+			"FROM mirror.gcr.io/busybox@sha256:9ae97d36d26566ff84e8893c64a6dc4fe8ca6d1144bf5b87b2b85a32def253c7 AS build",
 			"RUN mkdir -p /target/subdir",
 			"RUN cp -p /etc/passwd /target/",
 			"RUN ln /target/passwd /target/subdir/passwd",
@@ -1725,13 +1918,15 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"COPY --from=build /target/subdir /subdir",
 		}, "\n"),
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "dockerfile-in-subdirectory",
-		dockerfile: "subdir/Dockerfile",
-		contextDir: "subdir",
+		name:                "dockerfile-in-subdirectory",
+		dockerfile:          "subdir/Dockerfile",
+		contextDir:          "subdir",
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1742,42 +1937,42 @@ var internalTestCases = []testCase{
 			"COPY . subdir1",
 			"ADD  . subdir2",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			filename := filepath.Join(contextDir, "should-be-setuid-file")
-			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0o644); err != nil {
 				return fmt.Errorf("creating setuid test file in temporary context directory: %w", err)
 			}
-			if err = syscall.Chmod(filename, syscall.S_ISUID|0755); err != nil {
+			if err = syscall.Chmod(filename, syscall.S_ISUID|0o755); err != nil {
 				return fmt.Errorf("setting setuid bit on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
 				return fmt.Errorf("setting date on setuid test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-be-setgid-file")
-			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0o644); err != nil {
 				return fmt.Errorf("creating setgid test file in temporary context directory: %w", err)
 			}
-			if err = syscall.Chmod(filename, syscall.S_ISGID|0755); err != nil {
+			if err = syscall.Chmod(filename, syscall.S_ISGID|0o755); err != nil {
 				return fmt.Errorf("setting setgid bit on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
 				return fmt.Errorf("setting date on setgid test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-be-sticky-file")
-			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0o644); err != nil {
 				return fmt.Errorf("creating sticky test file in temporary context directory: %w", err)
 			}
-			if err = syscall.Chmod(filename, syscall.S_ISVTX|0755); err != nil {
+			if err = syscall.Chmod(filename, syscall.S_ISVTX|0o755); err != nil {
 				return fmt.Errorf("setting permissions on sticky test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
 				return fmt.Errorf("setting date on sticky test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-not-be-setuid-setgid-sticky-file")
-			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0o644); err != nil {
 				return fmt.Errorf("creating non-suid non-sgid non-sticky test file in temporary context directory: %w", err)
 			}
-			if err = syscall.Chmod(filename, 0640); err != nil {
+			if err = syscall.Chmod(filename, 0o640); err != nil {
 				return fmt.Errorf("setting permissions on plain test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
@@ -1785,7 +1980,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		fsSkip:              []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1805,13 +2001,13 @@ var internalTestCases = []testCase{
 			}
 
 			filename := filepath.Join(contextDir, "xattrs-file")
-			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0o644); err != nil {
 				return fmt.Errorf("creating test file with xattrs in temporary context directory: %w", err)
 			}
 			if err = copier.Lsetxattrs(filename, map[string]string{"user.a": "test"}); err != nil {
 				return fmt.Errorf("setting xattrs on test file in temporary context directory: %w", err)
 			}
-			if err = syscall.Chmod(filename, 0640); err != nil {
+			if err = syscall.Chmod(filename, 0o640); err != nil {
 				return fmt.Errorf("setting permissions on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
@@ -1819,7 +2015,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		fsSkip:              []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1829,9 +2026,9 @@ var internalTestCases = []testCase{
 			fmt.Sprintf("# Do the setuid/setgid/sticky files in this archive end up setuid(0%o)/setgid(0%o)/sticky(0%o)?", syscall.S_ISUID, syscall.S_ISGID, syscall.S_ISVTX),
 			"ADD archive.tar .",
 		}, "\n"),
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			filename := filepath.Join(contextDir, "archive.tar")
-			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o644)
 			if err != nil {
 				return fmt.Errorf("creating new archive file in temporary context directory: %w", err)
 			}
@@ -1844,7 +2041,7 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeReg,
 				Size:     8,
-				Mode:     cISUID | 0755,
+				Mode:     cISUID | 0o755,
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
@@ -1859,7 +2056,7 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeReg,
 				Size:     8,
-				Mode:     cISGID | 0755,
+				Mode:     cISGID | 0o755,
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
@@ -1874,7 +2071,7 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeReg,
 				Size:     8,
-				Mode:     cISVTX | 0755,
+				Mode:     cISVTX | 0o755,
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
@@ -1889,7 +2086,7 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeDir,
 				Size:     0,
-				Mode:     cISUID | 0755,
+				Mode:     cISUID | 0o755,
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
@@ -1901,7 +2098,7 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeDir,
 				Size:     0,
-				Mode:     cISGID | 0755,
+				Mode:     cISGID | 0o755,
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
@@ -1913,7 +2110,7 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeDir,
 				Size:     0,
-				Mode:     cISVTX | 0755,
+				Mode:     cISVTX | 0o755,
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
@@ -1921,6 +2118,7 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1939,7 +2137,7 @@ var internalTestCases = []testCase{
 			}
 
 			filename := filepath.Join(contextDir, "archive.tar")
-			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o644)
 			if err != nil {
 				return fmt.Errorf("creating new archive file in temporary context directory: %w", err)
 			}
@@ -1952,9 +2150,11 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeReg,
 				Size:     8,
-				Mode:     0640,
+				Mode:     0o640,
 				ModTime:  testDate,
-				Xattrs:   map[string]string{"user.a": "test"},
+				PAXRecords: map[string]string{
+					xattrPAXRecordNamespace + "user.a": "test",
+				},
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
 				return fmt.Errorf("writing tar archive header: %w", err)
@@ -1964,7 +2164,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		fsSkip:              []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -1972,7 +2173,7 @@ var internalTestCases = []testCase{
 		// possibly around https://github.com/moby/moby/pull/38599
 		name: "setuid-file-in-other-stage",
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox",
+			"FROM mirror.gcr.io/busybox",
 			"RUN mkdir /a && echo whatever > /a/setuid && chmod u+xs /a/setuid && touch -t @1485449953 /a/setuid",
 			"RUN mkdir /b && echo whatever > /b/setgid && chmod g+xs /b/setgid && touch -t @1485449953 /b/setgid",
 			"RUN mkdir /c && echo whatever > /c/sticky && chmod o+x /c/sticky && chmod +t /c/sticky && touch -t @1485449953 /c/sticky",
@@ -1980,6 +2181,7 @@ var internalTestCases = []testCase{
 			fmt.Sprintf("# Does this setuid/setgid/sticky file copied from another stage end up setuid/setgid/sticky (0%o/0%o/0%o)?", syscall.S_ISUID, syscall.S_ISGID, syscall.S_ISVTX),
 			"COPY --from=0 /a/setuid /b/setgid /c/sticky /",
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2000,13 +2202,13 @@ var internalTestCases = []testCase{
 			}
 
 			filename := filepath.Join(contextDir, "xattrs-file")
-			if err = os.WriteFile(filename, []byte("test content"), 0644); err != nil {
+			if err = os.WriteFile(filename, []byte("test content"), 0o644); err != nil {
 				return fmt.Errorf("creating test file with xattrs in temporary context directory: %w", err)
 			}
 			if err = copier.Lsetxattrs(filename, map[string]string{"user.a": "test"}); err != nil {
 				return fmt.Errorf("setting xattrs on test file in temporary context directory: %w", err)
 			}
-			if err = syscall.Chmod(filename, 0640); err != nil {
+			if err = syscall.Chmod(filename, 0o640); err != nil {
 				return fmt.Errorf("setting permissions on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
@@ -2014,6 +2216,7 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2052,8 +2255,9 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"COPY file-a.txt subdir-* file-?.txt missing* subdir/",
 		}, "\n"),
-		contextDir: "dockerignore/populated",
-		fsSkip:     []string{"(dir):subdir:mtime"},
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2077,8 +2281,9 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "copy-integration2",
-		contextDir: "dockerignore/integration2",
+		name:                "copy-integration2",
+		contextDir:          "dockerignore/integration2",
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2126,7 +2331,7 @@ var internalTestCases = []testCase{
 	{
 		name: "multi-stage-through-base",
 		dockerfileContents: strings.Join([]string{
-			"FROM alpine AS base",
+			"FROM mirror.gcr.io/alpine AS base",
 			"RUN touch -t @1485449953 /1",
 			"ENV LOCAL=/1",
 			"RUN find $LOCAL",
@@ -2139,11 +2344,11 @@ var internalTestCases = []testCase{
 	{
 		name: "multi-stage-derived", // from #2415
 		dockerfileContents: strings.Join([]string{
-			"FROM busybox as layer",
+			"FROM mirror.gcr.io/busybox as layer",
 			"RUN touch /root/layer",
 			"FROM layer as derived",
 			"RUN touch -t @1485449953 /root/derived ; rm /root/layer",
-			"FROM busybox AS output",
+			"FROM mirror.gcr.io/busybox AS output",
 			"COPY --from=layer /root /root",
 		}, "\n"),
 		fsSkip: []string{"(dir):root:mtime", "(dir):root:(dir):layer:mtime"},
@@ -2157,17 +2362,18 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "dockerignore-is-even-there",
-		contextDir: "dockerignore/empty",
-		fsSkip:     []string{"(dir):subdir:mtime"},
+		name:                "dockerignore-is-even-there",
+		contextDir:          "dockerignore/empty",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
 		name:       "dockerignore-irrelevant",
 		contextDir: "dockerignore/empty",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o600); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2175,7 +2381,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2185,9 +2392,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o644); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2195,7 +2402,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2205,9 +2413,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o600); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2215,7 +2423,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2225,9 +2434,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"!**/*-c"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o640); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2235,7 +2444,85 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+	},
+
+	{
+		name: "add--exclude-includes-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"ADD --exclude=**/*-c ./ subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "add--exclude-includes-slash",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"ADD --exclude=*.txt / subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "add--exclude-includes-dot",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"ADD --exclude=*-c . subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+	{
+		name: "copy--exclude-includes-subdir-slash",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude=**/*-c / subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--exclude-includes-dot-slash",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude='!**/*-c' ./ subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--exclude-includes-slash",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude='!**/*-c' . subdir/",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
 	},
 
 	{
@@ -2245,9 +2532,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("!**/*-c\n")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0100); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o100); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2255,7 +2542,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2265,9 +2553,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-c")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o200); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2275,7 +2563,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2285,9 +2574,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-c")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o400); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2295,7 +2584,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2305,9 +2595,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-c")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o200); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2315,7 +2605,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2325,9 +2616,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-c")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o400); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2335,7 +2626,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2345,9 +2637,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-*")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o000); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2355,7 +2647,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2365,9 +2658,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("subdir-*")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o660); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2375,7 +2668,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2385,9 +2679,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-*")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o000); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2395,7 +2689,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2405,9 +2700,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-*")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o660); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2415,7 +2710,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2425,9 +2721,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-f")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0666); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o666); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2435,7 +2731,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2445,9 +2742,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-f")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o640); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2455,7 +2752,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2465,9 +2763,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-b")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0705); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o705); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2475,7 +2773,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2485,9 +2784,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte("**/subdir-b")
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2495,7 +2794,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2505,9 +2805,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2515,7 +2815,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2525,9 +2826,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2535,7 +2836,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2545,9 +2847,9 @@ var internalTestCases = []testCase{
 			"COPY . subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2555,7 +2857,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2565,9 +2868,9 @@ var internalTestCases = []testCase{
 			"COPY * subdir/",
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+		tweakContextDir: func(_ *testing.T, contextDir, _, _ string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
-			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
+			if err := os.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0o750); err != nil {
 				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
@@ -2575,7 +2878,8 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip: []string{"(dir):subdir:mtime"},
+		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2586,6 +2890,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name value`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2596,6 +2901,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name=value`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2606,6 +2912,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name=value name2=value2`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2616,6 +2923,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name="value value1"`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2626,6 +2934,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name=value\ value2`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2636,6 +2945,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name="value'quote space'value2"`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2646,6 +2956,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name='value"double quote"value2'`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2656,6 +2967,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name=value\ value2 name2=value2\ value3`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2666,6 +2978,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name="a\"b"`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2687,6 +3000,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name="a\'b"`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2697,6 +3011,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name='a\'b''`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2707,6 +3022,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name='a\"b'`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2717,6 +3033,7 @@ var internalTestCases = []testCase{
 			`COPY script .`,
 			`ENV name="''"`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2734,37 +3051,40 @@ var internalTestCases = []testCase{
 			`    name3="value3a\n\"value3b\"" \`,
 			`        name4="value4a\\nvalue4b" \`,
 		}, "\n"),
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
 		name: "copy-from-owner", // from issue #2518
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`RUN set -ex; touch -t @1485449953 /test; chown 65:65 /test`,
 			`FROM scratch`,
 			`USER 66:66`,
 			`COPY --from=0 /test /test`,
 		}, "\n"),
-		fsSkip: []string{"test:mtime"},
+		fsSkip:              []string{"test:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
 		name: "copy-from-owner-with-chown", // issue #2518, but with chown to override
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`RUN set -ex; touch -t @1485449953 /test; chown 65:65 /test`,
 			`FROM scratch`,
 			`USER 66:66`,
 			`COPY --from=0 --chown=1:1 /test /test`,
 		}, "\n"),
-		fsSkip: []string{"test:mtime"},
+		fsSkip:              []string{"test:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
 		name:       "copy-for-user", // flip side of issue #2518
 		contextDir: "copy",
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`USER 66:66`,
 			`COPY /script /script`,
 		}, "\n"),
@@ -2774,16 +3094,17 @@ var internalTestCases = []testCase{
 		name:       "copy-for-user-with-chown", // flip side of issue #2518, but with chown to override
 		contextDir: "copy",
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`FROM mirror.gcr.io/alpine`,
 			`USER 66:66`,
 			`COPY --chown=1:1 /script /script`,
 		}, "\n"),
 	},
 
 	{
-		name:       "add-parent-symlink",
-		contextDir: "add/parent-symlink",
-		fsSkip:     []string{"(dir):testsubdir:mtime", "(dir):testsubdir:(dir):etc:mtime"},
+		name:                "add-parent-symlink",
+		contextDir:          "add/parent-symlink",
+		fsSkip:              []string{"(dir):testsubdir:mtime", "(dir):testsubdir:(dir):etc:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2799,49 +3120,56 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "add-archive-1",
-		contextDir: "add/archive",
-		dockerfile: "Dockerfile.1",
+		name:                "add-archive-1",
+		contextDir:          "add/archive",
+		dockerfile:          "Dockerfile.1",
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "add-archive-2",
-		contextDir: "add/archive",
-		dockerfile: "Dockerfile.2",
+		name:                "add-archive-2",
+		contextDir:          "add/archive",
+		dockerfile:          "Dockerfile.2",
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "add-archive-3",
-		contextDir: "add/archive",
-		dockerfile: "Dockerfile.3",
+		name:                "add-archive-3",
+		contextDir:          "add/archive",
+		dockerfile:          "Dockerfile.3",
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "add-archive-4",
-		contextDir: "add/archive",
-		dockerfile: "Dockerfile.4",
-		fsSkip:     []string{"(dir):sub:mtime"},
+		name:                "add-archive-4",
+		contextDir:          "add/archive",
+		dockerfile:          "Dockerfile.4",
+		fsSkip:              []string{"(dir):sub:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "add-archive-5",
-		contextDir: "add/archive",
-		dockerfile: "Dockerfile.5",
-		fsSkip:     []string{"(dir):sub:mtime"},
+		name:                "add-archive-5",
+		contextDir:          "add/archive",
+		dockerfile:          "Dockerfile.5",
+		fsSkip:              []string{"(dir):sub:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "add-archive-6",
-		contextDir: "add/archive",
-		dockerfile: "Dockerfile.6",
-		fsSkip:     []string{"(dir):sub:mtime"},
+		name:                "add-archive-6",
+		contextDir:          "add/archive",
+		dockerfile:          "Dockerfile.6",
+		fsSkip:              []string{"(dir):sub:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "add-archive-7",
-		contextDir: "add/archive",
-		dockerfile: "Dockerfile.7",
-		fsSkip:     []string{"(dir):sub:mtime"},
+		name:                "add-archive-7",
+		contextDir:          "add/archive",
+		dockerfile:          "Dockerfile.7",
+		fsSkip:              []string{"(dir):sub:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2874,27 +3202,31 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "dockerignore-allowlist-subdir-file-dir",
-		contextDir: "dockerignore/allowlist/subdir-file",
-		fsSkip:     []string{"(dir):f1:mtime"},
+		name:                "dockerignore-allowlist-subdir-file-dir",
+		contextDir:          "dockerignore/allowlist/subdir-file",
+		fsSkip:              []string{"(dir):f1:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "dockerignore-allowlist-subdir-file-file",
-		contextDir: "dockerignore/allowlist/subdir-file",
-		fsSkip:     []string{"(dir):f1:mtime"},
+		name:                "dockerignore-allowlist-subdir-file-file",
+		contextDir:          "dockerignore/allowlist/subdir-file",
+		fsSkip:              []string{"(dir):f1:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "dockerignore-allowlist-nothing-dot",
-		contextDir: "dockerignore/allowlist/nothing-dot",
-		fsSkip:     []string{"file:mtime"},
+		name:                "dockerignore-allowlist-nothing-dot",
+		contextDir:          "dockerignore/allowlist/nothing-dot",
+		fsSkip:              []string{"file:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "dockerignore-allowlist-nothing-slash",
-		contextDir: "dockerignore/allowlist/nothing-slash",
-		fsSkip:     []string{"file:mtime"},
+		name:                "dockerignore-allowlist-nothing-slash",
+		contextDir:          "dockerignore/allowlist/nothing-slash",
+		fsSkip:              []string{"file:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2909,15 +3241,17 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "dockerignore-allowlist-subsubdir-nofile",
-		contextDir: "dockerignore/allowlist/subsubdir-nofile",
-		fsSkip:     []string{"file:mtime"},
+		name:                "dockerignore-allowlist-subsubdir-nofile",
+		contextDir:          "dockerignore/allowlist/subsubdir-nofile",
+		fsSkip:              []string{"file:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "dockerignore-allowlist-subsubdir-nosubdir",
-		contextDir: "dockerignore/allowlist/subsubdir-nosubdir",
-		fsSkip:     []string{"file:mtime"},
+		name:                "dockerignore-allowlist-subsubdir-nosubdir",
+		contextDir:          "dockerignore/allowlist/subsubdir-nosubdir",
+		fsSkip:              []string{"file:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
@@ -2983,34 +3317,56 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "replace-symlink-with-directory",
-		contextDir: "replace/symlink-with-directory",
+		name:              "heredoc-copy",
+		dockerfile:        "Dockerfile.heredoc_copy",
+		dockerUseBuildKit: true,
+		contextDir:        "heredoc",
+		fsSkip: []string{
+			"(dir):test:mtime",
+			"(dir):test2:mtime",
+			"(dir):test:(dir):humans.txt:mtime",
+			"(dir):test:(dir):robots.txt:mtime",
+			"(dir):test2:(dir):humans.txt:mtime",
+			"(dir):test2:(dir):robots.txt:mtime",
+			"(dir):test2:(dir):image_file:mtime",
+			"(dir):etc:(dir):hostname", /* buildkit does not contains /etc/hostname like buildah */
+		},
 	},
 
 	{
-		name:       "replace-directory-with-symlink",
-		contextDir: "replace/symlink-with-directory",
-		dockerfile: "Dockerfile.2",
+		name:                "replace-symlink-with-directory",
+		contextDir:          "replace/symlink-with-directory",
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "replace-symlink-with-directory-subdir",
-		contextDir: "replace/symlink-with-directory",
-		dockerfile: "Dockerfile.3",
-		fsSkip:     []string{"(dir):tree:mtime"},
+		name:                "replace-directory-with-symlink",
+		contextDir:          "replace/symlink-with-directory",
+		dockerfile:          "Dockerfile.2",
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
-		name:       "replace-directory-with-symlink-subdir",
-		contextDir: "replace/symlink-with-directory",
-		dockerfile: "Dockerfile.4",
-		fsSkip:     []string{"(dir):tree:mtime"},
+		name:                "replace-symlink-with-directory-subdir",
+		contextDir:          "replace/symlink-with-directory",
+		dockerfile:          "Dockerfile.3",
+		fsSkip:              []string{"(dir):tree:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
+	},
+
+	{
+		name:                "replace-directory-with-symlink-subdir",
+		contextDir:          "replace/symlink-with-directory",
+		dockerfile:          "Dockerfile.4",
+		fsSkip:              []string{"(dir):tree:mtime"},
+		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
 	{
 		name: "workdir-owner", // from issue #3620
 		dockerfileContents: strings.Join([]string{
-			`FROM alpine`,
+			`# syntax=docker/dockerfile:1.4`,
+			`FROM mirror.gcr.io/alpine`,
 			`USER daemon`,
 			`WORKDIR /created/directory`,
 			`RUN ls /created`,
@@ -3024,4 +3380,582 @@ var internalTestCases = []testCase{
 		contextDir:        "env/precedence",
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:              "multistage-copyback",
+		contextDir:        "multistage/copyback",
+		dockerUseBuildKit: true,
+	},
+
+	{
+		name:              "heredoc-quoting",
+		dockerfile:        "Dockerfile.heredoc-quoting",
+		dockerUseBuildKit: true,
+		fsSkip:            []string{"(dir):etc:(dir):hostname"}, // buildkit does not create a phantom /etc/hostname
+	},
+
+	{
+		name: "workdir with trailing separator",
+		dockerfileContents: strings.Join([]string{
+			"FROM mirror.gcr.io/busybox",
+			"USER daemon",
+			"WORKDIR /tmp/",
+		}, "\n"),
+	},
+
+	{
+		name: "workdir without trailing separator",
+		dockerfileContents: strings.Join([]string{
+			"FROM mirror.gcr.io/busybox",
+			"USER daemon",
+			"WORKDIR /tmp",
+		}, "\n"),
+	},
+
+	{
+		name:             "chown-volume", // from podman #22530
+		contextDir:       "chown-volume",
+		testUsingVolumes: true,
+	},
+
+	{
+		name:              "builtins",
+		contextDir:        "builtins",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "source", "BUSYBOX": "mirror.gcr.io/busybox", "ALPINE": "mirror.gcr.io/alpine", "OWNERID": "0", "SECONDBASE": "localhost/no-such-image"},
+	},
+
+	{
+		name:              "header-builtin",
+		contextDir:        "header-builtin",
+		dockerUseBuildKit: true,
+	},
+
+	{
+		name:              "copyglob-1",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "**/*.txt"},
+	},
+	{
+		name:              "copyglob-2",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "**/sub/*.txt"},
+	},
+	{
+		name:              "copyglob-3",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "e/**/*sub/*.txt"},
+	},
+	{
+		name:              "copyglob-4",
+		contextDir:        "copyglob",
+		dockerUseBuildKit: true,
+		buildArgs:         map[string]string{"SOURCE": "e/**/**/*sub/*.txt"},
+	},
+}
+
+func TestCommit(t *testing.T) {
+	testCases := []struct {
+		description             string
+		baseImage               string
+		changes, derivedChanges []string
+		config, derivedConfig   *docker.Config
+	}{
+		{
+			description: "defaults",
+			baseImage:   "mirror.gcr.io/busybox",
+		},
+		{
+			description: "empty change",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{""},
+		},
+		{
+			description: "empty config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config:      &docker.Config{},
+		},
+		{
+			description: "cmd just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"CMD /bin/imaginarySh"},
+		},
+		{
+			description: "cmd just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				Cmd: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "cmd conflict",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"CMD /bin/imaginarySh"},
+			config: &docker.Config{
+				Cmd: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "entrypoint just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"ENTRYPOINT /bin/imaginarySh"},
+		},
+		{
+			description: "entrypoint just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				Entrypoint: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "entrypoint conflict",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"ENTRYPOINT /bin/imaginarySh"},
+			config: &docker.Config{
+				Entrypoint: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "environment just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"ENV A=1", "ENV C=2"},
+		},
+		{
+			description: "environment just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				Env: []string{"A=B"},
+			},
+		},
+		{
+			description: "environment with conflict union",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"ENV A=1", "ENV C=2"},
+			config: &docker.Config{
+				Env: []string{"A=B"},
+			},
+		},
+		{
+			description: "expose just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"EXPOSE 12345"},
+		},
+		{
+			description: "expose just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				ExposedPorts: map[docker.Port]struct{}{"23456": {}},
+			},
+		},
+		{
+			description: "expose union",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"EXPOSE 12345"},
+			config: &docker.Config{
+				ExposedPorts: map[docker.Port]struct{}{"23456": {}},
+			},
+		},
+		{
+			description: "healthcheck just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{`HEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=1 CMD ["/bin/false"]`},
+		},
+		{
+			description: "healthcheck just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				Healthcheck: &docker.HealthConfig{
+					Test:        []string{"/bin/true"},
+					Interval:    2 * time.Second,
+					Timeout:     2 * time.Second,
+					StartPeriod: 2 * time.Second,
+					Retries:     2,
+				},
+			},
+		},
+		{
+			description: "healthcheck conflict",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{`HEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=1 CMD ["/bin/false"]`},
+			config: &docker.Config{
+				Healthcheck: &docker.HealthConfig{
+					Test:        []string{"/bin/true"},
+					Interval:    2 * time.Second,
+					Timeout:     2 * time.Second,
+					StartPeriod: 2 * time.Second,
+					Retries:     2,
+				},
+			},
+		},
+		{
+			description: "label just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"LABEL A=1 C=2"},
+		},
+		{
+			description: "label just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				Labels: map[string]string{"A": "B"},
+			},
+		},
+		{
+			description: "label with conflict union",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"LABEL A=1 C=2"},
+			config: &docker.Config{
+				Labels: map[string]string{"A": "B"},
+			},
+		},
+		// n.b. dockerd didn't like a MAINTAINER change, so no test for it, and it's not in a config blob
+		{
+			description:    "onbuild just changes",
+			baseImage:      "mirror.gcr.io/busybox",
+			changes:        []string{"ONBUILD USER alice", "ONBUILD LABEL A=1"},
+			derivedChanges: []string{"LABEL C=3"},
+		},
+		{
+			description: "onbuild just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				OnBuild: []string{"USER bob", `CMD ["/bin/smash"]`, "LABEL B=2"},
+			},
+			derivedChanges: []string{"LABEL C=3"},
+		},
+		{
+			description: "onbuild conflict",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"ONBUILD USER alice", "ONBUILD LABEL A=1"},
+			config: &docker.Config{
+				OnBuild: []string{"USER bob", `CMD ["/bin/smash"]`, "LABEL B=2"},
+			},
+			derivedChanges: []string{"LABEL C=3"},
+		},
+		// n.b. dockerd didn't like a SHELL change, so no test for it or a conflict with a config blob
+		{
+			description: "shell just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				Shell: []string{"/usr/bin/imaginarySh"},
+			},
+		},
+		{
+			description: "stop signal conflict",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"STOPSIGNAL SIGTERM"},
+			config: &docker.Config{
+				StopSignal: "SIGKILL",
+			},
+		},
+		{
+			description: "stop timeout=0",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				StopTimeout: 0,
+			},
+		},
+		{
+			description: "stop timeout=15",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				StopTimeout: 15,
+			},
+		},
+		{
+			description: "stop timeout=15, then 0",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				StopTimeout: 15,
+			},
+			derivedConfig: &docker.Config{
+				StopTimeout: 0,
+			},
+		},
+		{
+			description: "stop timeout=0, then 15",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				StopTimeout: 0,
+			},
+			derivedConfig: &docker.Config{
+				StopTimeout: 15,
+			},
+		},
+		{
+			description: "user just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"USER 1001:1001"},
+		},
+		{
+			description: "user just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				User: "1000:1000",
+			},
+		},
+		{
+			description: "user with conflict",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"USER 1001:1001"},
+			config: &docker.Config{
+				User: "1000:1000",
+			},
+		},
+		{
+			description: "volume just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"VOLUME /a-volume"},
+		},
+		{
+			description: "volume just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				Volumes: map[string]struct{}{"/b-volume": {}},
+			},
+		},
+		{
+			description: "volume union",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"VOLUME /a-volume"},
+			config: &docker.Config{
+				Volumes: map[string]struct{}{"/b-volume": {}},
+			},
+		},
+		{
+			description: "workdir just changes",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"WORKDIR /yeah"},
+		},
+		{
+			description: "workdir just config",
+			baseImage:   "mirror.gcr.io/busybox",
+			config: &docker.Config{
+				WorkingDir: "/naw",
+			},
+		},
+		{
+			description: "workdir with conflict",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"WORKDIR /yeah"},
+			config: &docker.Config{
+				WorkingDir: "/naw",
+			},
+		},
+	}
+
+	var tempdir string
+	buildahDir := buildahDir
+	if buildahDir == "" {
+		if tempdir == "" {
+			tempdir = t.TempDir()
+		}
+		buildahDir = filepath.Join(tempdir, "buildah")
+	}
+	dockerDir := dockerDir
+	if dockerDir == "" {
+		if tempdir == "" {
+			tempdir = t.TempDir()
+		}
+		dockerDir = filepath.Join(tempdir, "docker")
+	}
+
+	ctx := context.TODO()
+
+	// connect to dockerd using go-dockerclient
+	client, err := docker.NewClientFromEnv()
+	require.NoErrorf(t, err, "unable to initialize docker client")
+	var dockerVersion []string
+	if version, err := client.Version(); err == nil {
+		if version != nil {
+			for _, s := range *version {
+				dockerVersion = append(dockerVersion, s)
+			}
+		}
+	} else {
+		require.NoErrorf(t, err, "unable to connect to docker daemon")
+	}
+
+	// find a new place to store buildah builds
+	tempdir = t.TempDir()
+
+	// create subdirectories to use for buildah storage
+	rootDir := filepath.Join(tempdir, "root")
+	runrootDir := filepath.Join(tempdir, "runroot")
+
+	// initialize storage for buildah
+	options := storage.StoreOptions{
+		GraphDriverName:     os.Getenv("STORAGE_DRIVER"),
+		GraphRoot:           rootDir,
+		RunRoot:             runrootDir,
+		RootlessStoragePath: rootDir,
+	}
+	store, err := storage.GetStore(options)
+	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
+	defer func() {
+		if store != nil {
+			_, err := store.Shutdown(true)
+			require.NoErrorf(t, err, "error shutting down storage for buildah")
+		}
+	}()
+
+	// walk through test cases
+	for testIndex, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			test := testCases[testIndex]
+
+			// create the test container, then commit it, using the docker client
+			baseImage := test.baseImage
+			repository, tag := docker.ParseRepositoryTag(baseImage)
+			if tag == "" {
+				tag = "latest"
+			}
+			baseImage = repository + ":" + tag
+			if _, err := client.InspectImage(test.baseImage); err != nil && errors.Is(err, docker.ErrNoSuchImage) {
+				// oh, we need to pull the base image
+				err = client.PullImage(docker.PullImageOptions{
+					Repository: repository,
+					Tag:        tag,
+				}, docker.AuthConfiguration{})
+				require.NoErrorf(t, err, "pulling base image")
+			}
+			container, err := client.CreateContainer(docker.CreateContainerOptions{
+				Context: ctx,
+				Config: &docker.Config{
+					Image: baseImage,
+				},
+			})
+			require.NoErrorf(t, err, "creating the working container with docker")
+			if err == nil {
+				defer func(containerName string) {
+					err := client.RemoveContainer(docker.RemoveContainerOptions{
+						ID:    containerName,
+						Force: true,
+					})
+					assert.Nil(t, err, "error deleting working docker container %q", containerName)
+				}(container.ID)
+			}
+			dockerImageName := "committed:" + strconv.Itoa(testIndex)
+			dockerImage, err := client.CommitContainer(docker.CommitContainerOptions{
+				Container:  container.ID,
+				Changes:    test.changes,
+				Run:        test.config,
+				Repository: dockerImageName,
+			})
+			assert.NoErrorf(t, err, "committing the working container with docker")
+			if err == nil {
+				defer func(dockerImageName string) {
+					err := client.RemoveImageExtended(dockerImageName, docker.RemoveImageOptions{
+						Context: ctx,
+						Force:   true,
+					})
+					assert.Nil(t, err, "error deleting newly-built docker image %q", dockerImage.ID)
+				}(dockerImageName)
+			}
+			dockerRef, err := alltransports.ParseImageName("docker-daemon:" + dockerImageName)
+			assert.NoErrorf(t, err, "parsing name of newly-committed docker image")
+
+			if len(test.derivedChanges) > 0 || test.derivedConfig != nil {
+				container, err := client.CreateContainer(docker.CreateContainerOptions{
+					Context: ctx,
+					Config: &docker.Config{
+						Image: dockerImage.ID,
+					},
+				})
+				require.NoErrorf(t, err, "creating the derived container with docker")
+				if err == nil {
+					defer func(containerName string) {
+						err := client.RemoveContainer(docker.RemoveContainerOptions{
+							ID:    containerName,
+							Force: true,
+						})
+						assert.Nil(t, err, "error deleting derived docker container %q", containerName)
+					}(container.ID)
+				}
+				derivedImageName := "derived:" + strconv.Itoa(testIndex)
+				derivedImage, err := client.CommitContainer(docker.CommitContainerOptions{
+					Container:  container.ID,
+					Changes:    test.derivedChanges,
+					Run:        test.derivedConfig,
+					Repository: derivedImageName,
+				})
+				assert.NoErrorf(t, err, "committing the derived container with docker")
+				defer func(derivedImageName string) {
+					err := client.RemoveImageExtended(derivedImageName, docker.RemoveImageOptions{
+						Context: ctx,
+						Force:   true,
+					})
+					assert.Nil(t, err, "error deleting newly-derived docker image %q", derivedImage.ID)
+				}(derivedImageName)
+				dockerRef, err = alltransports.ParseImageName("docker-daemon:" + derivedImageName)
+				assert.NoErrorf(t, err, "parsing name of newly-derived docker image")
+			}
+
+			// create the test container, then commit it, using the buildah API
+			builder, err := buildah.NewBuilder(ctx, store, buildah.BuilderOptions{
+				FromImage: baseImage,
+			})
+			require.NoErrorf(t, err, "creating the working container with buildah")
+			defer func(builder *buildah.Builder) {
+				err := builder.Delete()
+				assert.NoErrorf(t, err, "removing the working container")
+			}(builder)
+			var overrideConfig *manifest.Schema2Config
+			if test.config != nil {
+				overrideConfig = config.Schema2ConfigFromGoDockerclientConfig(test.config)
+			}
+			buildahID, _, _, err := builder.Commit(ctx, nil, buildah.CommitOptions{
+				PreferredManifestType: manifest.DockerV2Schema2MediaType,
+				OverrideChanges:       test.changes,
+				OverrideConfig:        overrideConfig,
+			})
+			assert.NoErrorf(t, err, "committing buildah image")
+			buildahRef, err := is.Transport.NewStoreReference(store, nil, buildahID)
+			assert.NoErrorf(t, err, "parsing name of newly-built buildah image")
+
+			if len(test.derivedChanges) > 0 || test.derivedConfig != nil {
+				derivedBuilder, err := buildah.NewBuilder(ctx, store, buildah.BuilderOptions{
+					FromImage: buildahID,
+				})
+				require.NoErrorf(t, err, "creating the derived container with buildah")
+				defer func(builder *buildah.Builder) {
+					err := builder.Delete()
+					assert.NoErrorf(t, err, "removing the derived container")
+				}(derivedBuilder)
+				var overrideConfig *manifest.Schema2Config
+				if test.derivedConfig != nil {
+					overrideConfig = config.Schema2ConfigFromGoDockerclientConfig(test.derivedConfig)
+				}
+				derivedID, _, _, err := builder.Commit(ctx, nil, buildah.CommitOptions{
+					PreferredManifestType: manifest.DockerV2Schema2MediaType,
+					OverrideChanges:       test.derivedChanges,
+					OverrideConfig:        overrideConfig,
+				})
+				assert.NoErrorf(t, err, "committing derived buildah image")
+				buildahRef, err = is.Transport.NewStoreReference(store, nil, derivedID)
+				assert.NoErrorf(t, err, "parsing name of newly-derived buildah image")
+			}
+
+			// scan the images
+			saveReport(ctx, t, dockerRef, filepath.Join(dockerDir, t.Name()), []byte{}, []byte{}, dockerVersion)
+			saveReport(ctx, t, buildahRef, filepath.Join(buildahDir, t.Name()), []byte{}, []byte{}, dockerVersion)
+			// compare the scans
+			_, originalDockerConfig, ociDockerConfig, fsDocker := readReport(t, filepath.Join(dockerDir, t.Name()))
+			_, originalBuildahConfig, ociBuildahConfig, fsBuildah := readReport(t, filepath.Join(buildahDir, t.Name()))
+			miss, left, diff, same := compareJSON(originalDockerConfig, originalBuildahConfig, originalSkip)
+			if !same {
+				assert.Failf(t, "Image configurations differ as committed in Docker format", configCompareResult(miss, left, diff, "buildah"))
+			}
+			miss, left, diff, same = compareJSON(ociDockerConfig, ociBuildahConfig, ociSkip)
+			if !same {
+				assert.Failf(t, "Image configurations differ when converted to OCI format", configCompareResult(miss, left, diff, "buildah"))
+			}
+			miss, left, diff, same = compareJSON(fsDocker, fsBuildah, fsSkip)
+			if !same {
+				assert.Failf(t, "Filesystem contents differ", fsCompareResult(miss, left, diff, "buildah"))
+			}
+		})
+	}
 }

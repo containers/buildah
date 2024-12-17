@@ -26,6 +26,7 @@ import (
 	graphdriver "github.com/containers/storage/drivers"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/directory"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/longpath"
@@ -231,7 +232,7 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		if err != nil {
 			return err
 		}
-		if _, err := os.Stat(filepath.Join(parentPath, "Files")); err == nil {
+		if err := fileutils.Exists(filepath.Join(parentPath, "Files")); err == nil {
 			// This is a legitimate parent layer (not the empty "-init" layer),
 			// so include it in the layer chain.
 			layerChain = []string{parentPath}
@@ -266,7 +267,7 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		}
 	}
 
-	if _, err := os.Lstat(d.dir(parent)); err != nil {
+	if err := fileutils.Lexists(d.dir(parent)); err != nil {
 		if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
 			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err2)
 		}
@@ -763,8 +764,8 @@ func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, 
 	buf := bufio.NewWriter(nil)
 	for err == nil {
 		base := path.Base(hdr.Name)
-		if strings.HasPrefix(base, archive.WhiteoutPrefix) {
-			name := path.Join(path.Dir(hdr.Name), base[len(archive.WhiteoutPrefix):])
+		if rm, ok := strings.CutPrefix(base, archive.WhiteoutPrefix); ok {
+			name := path.Join(path.Dir(hdr.Name), rm)
 			err = w.Remove(filepath.FromSlash(name))
 			if err != nil {
 				return 0, err

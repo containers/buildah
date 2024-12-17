@@ -2,7 +2,7 @@ package syntax
 
 func isSpace(ch byte) bool {
 	switch ch {
-	case '\r', '\n', '\t', '\f', '\v':
+	case '\r', '\n', '\t', '\f', '\v', ' ':
 		return true
 	default:
 		return false

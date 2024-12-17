@@ -1,0 +1,7 @@
+FROM alpine
+RUN <<EOF
+#!/usr/bin/env rev
+11tset fo tuptuo eht si siht
+21tset fo tuptuo eht si siht
+
+EOF

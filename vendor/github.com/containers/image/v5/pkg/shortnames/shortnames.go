@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/internal/multierr"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	"github.com/containers/image/v5/types"
 	"github.com/manifoldco/promptui"
@@ -59,14 +61,12 @@ func parseUnnormalizedShortName(input string) (bool, reference.Named, error) {
 // the tag or digest and stores it in the return values so that both can be
 // re-added to a possible resolved alias' or USRs at a later point.
 func splitUserInput(named reference.Named) (isTagged bool, isDigested bool, normalized reference.Named, tag string, digest digest.Digest) {
-	tagged, isT := named.(reference.NamedTagged)
-	if isT {
+	if tagged, ok := named.(reference.NamedTagged); ok {
 		isTagged = true
 		tag = tagged.Tag()
 	}
 
-	digested, isD := named.(reference.Digested)
-	if isD {
+	if digested, ok := named.(reference.Digested); ok {
 		isDigested = true
 		digest = digested.Digest()
 	}
@@ -168,26 +168,17 @@ func (r *Resolved) Description() string {
 // Note that nil is returned if len(pullErrors) == 0.  Otherwise, the amount of
 // pull errors must equal the amount of pull candidates.
 func (r *Resolved) FormatPullErrors(pullErrors []error) error {
-	if len(pullErrors) > 0 && len(pullErrors) != len(r.PullCandidates) {
-		pullErrors = append(pullErrors,
+	if len(pullErrors) == 0 {
+		return nil
+	}
+
+	if len(pullErrors) != len(r.PullCandidates) {
+		pullErrors = append(slices.Clone(pullErrors),
 			fmt.Errorf("internal error: expected %d instead of %d errors for %d pull candidates",
 				len(r.PullCandidates), len(pullErrors), len(r.PullCandidates)))
 	}
 
-	switch len(pullErrors) {
-	case 0:
-		return nil
-	case 1:
-		return pullErrors[0]
-	default:
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("%d errors occurred while pulling:", len(pullErrors)))
-		for _, e := range pullErrors {
-			sb.WriteString("\n * ")
-			sb.WriteString(e.Error())
-		}
-		return errors.New(sb.String())
-	}
+	return multierr.Format(fmt.Sprintf("%d errors occurred while pulling:\n * ", len(pullErrors)), "\n * ", "", pullErrors)
 }
 
 // PullCandidate is a resolved name.  Once the Value has been used

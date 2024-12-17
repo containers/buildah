@@ -28,5 +28,4 @@ func TestDiscoverContainerfile(t *testing.T) {
 	name, err = DiscoverContainerfile("test/test2")
 	assert.Nil(t, err)
 	assert.Equal(t, name, "test/test2/Dockerfile")
-
 }

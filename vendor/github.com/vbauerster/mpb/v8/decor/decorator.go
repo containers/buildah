@@ -4,33 +4,31 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/acarl005/stripansi"
 	"github.com/mattn/go-runewidth"
 )
 
 const (
-	// DidentRight bit specifies identation direction.
-	// |foo   |b     | With DidentRight
-	// |   foo|     b| Without DidentRight
-	DidentRight = 1 << iota
+	// DindentRight sets indentation from right to left.
+	//
+	//	|foo   |b     | DindentRight is set
+	//	|   foo|     b| DindentRight is not set
+	DindentRight = 1 << iota
 
-	// DextraSpace bit adds extra space, makes sense with DSyncWidth only.
-	// When DidentRight bit set, the space will be added to the right,
-	// otherwise to the left.
+	// DextraSpace bit adds extra indentation space.
 	DextraSpace
 
 	// DSyncWidth bit enables same column width synchronization.
 	// Effective with multiple bars only.
 	DSyncWidth
 
-	// DSyncWidthR is shortcut for DSyncWidth|DidentRight
-	DSyncWidthR = DSyncWidth | DidentRight
+	// DSyncWidthR is shortcut for DSyncWidth|DindentRight
+	DSyncWidthR = DSyncWidth | DindentRight
 
 	// DSyncSpace is shortcut for DSyncWidth|DextraSpace
 	DSyncSpace = DSyncWidth | DextraSpace
 
-	// DSyncSpaceR is shortcut for DSyncWidth|DextraSpace|DidentRight
-	DSyncSpaceR = DSyncWidth | DextraSpace | DidentRight
+	// DSyncSpaceR is shortcut for DSyncWidth|DextraSpace|DindentRight
+	DSyncSpaceR = DSyncWidth | DextraSpace | DindentRight
 )
 
 // TimeStyle enum.
@@ -66,13 +64,13 @@ type Statistics struct {
 // `DecorFunc` into a `Decorator` interface by using provided
 // `func Any(DecorFunc, ...WC) Decorator`.
 type Decorator interface {
-	Configurator
 	Synchronizer
-	Decor(Statistics) string
+	Formatter
+	Decor(Statistics) (str string, viewWidth int)
 }
 
 // DecorFunc func type.
-// To be used with `func Any`(DecorFunc, ...WC) Decorator`.
+// To be used with `func Any(DecorFunc, ...WC) Decorator`.
 type DecorFunc func(Statistics) string
 
 // Synchronizer interface.
@@ -82,10 +80,12 @@ type Synchronizer interface {
 	Sync() (chan int, bool)
 }
 
-// Configurator interface.
-type Configurator interface {
-	GetConf() WC
-	SetConf(WC)
+// Formatter interface.
+// Format method needs to be called from within Decorator.Decor method
+// in order to format string according to decor.WC settings.
+// No need to implement manually as long as decor.WC is embedded.
+type Formatter interface {
+	Format(string) (_ string, width int)
 }
 
 // Wrapper interface.
@@ -135,26 +135,25 @@ type WC struct {
 	wsync chan int
 }
 
-// FormatMsg formats final message according to WC.W and WC.C.
-// Should be called by any Decorator implementation.
-func (wc WC) FormatMsg(msg string) string {
-	pureWidth := runewidth.StringWidth(msg)
-	viewWidth := runewidth.StringWidth(stripansi.Strip(msg))
-	max := wc.W
-	if (wc.C & DSyncWidth) != 0 {
-		viewWidth := viewWidth
-		if (wc.C & DextraSpace) != 0 {
-			viewWidth++
-		}
-		wc.wsync <- viewWidth
-		max = <-wc.wsync
+// Format should be called by any Decorator implementation.
+// Returns formatted string and its view (visual) width.
+func (wc WC) Format(str string) (string, int) {
+	width := runewidth.StringWidth(str)
+	if wc.W > width {
+		width = wc.W
+	} else if (wc.C & DextraSpace) != 0 {
+		width++
 	}
-	return wc.fill(msg, max-viewWidth+pureWidth)
+	if (wc.C & DSyncWidth) != 0 {
+		wc.wsync <- width
+		width = <-wc.wsync
+	}
+	return wc.fill(str, width), width
 }
 
 // Init initializes width related config.
 func (wc *WC) Init() WC {
-	if (wc.C & DidentRight) != 0 {
+	if (wc.C & DindentRight) != 0 {
 		wc.fill = runewidth.FillRight
 	} else {
 		wc.fill = runewidth.FillLeft
@@ -173,16 +172,6 @@ func (wc WC) Sync() (chan int, bool) {
 		panic(fmt.Sprintf("%T is not initialized", wc))
 	}
 	return wc.wsync, (wc.C & DSyncWidth) != 0
-}
-
-// GetConf is implementation of Configurator interface.
-func (wc *WC) GetConf() WC {
-	return *wc
-}
-
-// SetConf is implementation of Configurator interface.
-func (wc *WC) SetConf(conf WC) {
-	*wc = conf.Init()
 }
 
 func initWC(wcc ...WC) WC {

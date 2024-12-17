@@ -17,8 +17,11 @@ import (
 
 var (
 	signaturePolicyPath = ""
-	storeOptions, _     = storage.DefaultStoreOptions(false, 0)
-	testSystemContext   = types.SystemContext{}
+	storeOptions, _     = storage.DefaultStoreOptions()
+	testSystemContext   = types.SystemContext{
+		SignaturePolicyPath:      "../../tests/policy.json",
+		SystemRegistriesConfPath: "../../tests/registries.conf",
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -49,7 +52,7 @@ func TestGetStore(t *testing.T) {
 	failTestIfNotRoot(t)
 	testCmd := &cobra.Command{
 		Use: "test",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			_, err := getStore(cmd)
 			return err
 		},

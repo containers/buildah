@@ -27,6 +27,15 @@ type ContainerNetwork interface {
 	// Teardown will teardown the container network namespace.
 	Teardown(namespacePath string, options TeardownOptions) error
 
+	// RunInRootlessNetns is used to run the given function in the rootless netns.
+	// Only used as rootless and should return an error as root.
+	RunInRootlessNetns(toRun func() error) error
+
+	// RootlessNetnsInfo return extra information about the rootless netns.
+	// Only valid when called after Setup().
+	// Only used as rootless and should return an error as root.
+	RootlessNetnsInfo() (*RootlessNetnsInfo, error)
+
 	// Drivers will return the list of supported network drivers
 	// for this interface.
 	Drivers() []string
@@ -328,6 +337,15 @@ type SetupOptions struct {
 
 type TeardownOptions struct {
 	NetworkOptions
+}
+
+type RootlessNetnsInfo struct {
+	// IPAddresses used in the netns, must not be used for host.containers.internal
+	IPAddresses []net.IP
+	// DnsForwardIps ips used in resolv.conf
+	DnsForwardIps []string
+	// MapGuestIps should be used for the host.containers.internal entry when set
+	MapGuestIps []string
 }
 
 // FilterFunc can be passed to NetworkList to filter the networks.

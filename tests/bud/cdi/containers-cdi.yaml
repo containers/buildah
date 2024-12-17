@@ -1,0 +1,14 @@
+---
+cdiVersion: 0.7.0
+devices:
+  - name: all
+    containerEdits:
+      mounts:
+      - containerPath: /dev/containers-cdi.yaml
+        hostPath: @@hostcdipath@@/containers-cdi.yaml
+        options:
+        - ro
+        - nosuid
+        - nodev
+        - bind
+kind: containers.github.io/sample

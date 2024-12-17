@@ -13,6 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/regexp"
 	"github.com/sirupsen/logrus"
@@ -246,6 +247,11 @@ type V2RegistriesConf struct {
 	// and error if stdout is not a TTY * "disabled": do not prompt and
 	// potentially use all unqualified-search registries
 	ShortNameMode string `toml:"short-name-mode"`
+
+	// AdditionalLayerStoreAuthHelper is a helper binary that receives
+	// registry credentials pass them to Additional Layer Store for
+	// registry authentication. These credentials are only collected when pulling (not pushing).
+	AdditionalLayerStoreAuthHelper string `toml:"additional-layer-store-auth-helper"`
 
 	shortNameAliasConf
 
@@ -564,7 +570,7 @@ func newConfigWrapperWithHomeDir(ctx *types.SystemContext, homeDir string) confi
 	// decide configPath using per-user path or system file
 	if ctx != nil && ctx.SystemRegistriesConfPath != "" {
 		wrapper.configPath = ctx.SystemRegistriesConfPath
-	} else if _, err := os.Stat(userRegistriesFilePath); err == nil {
+	} else if err := fileutils.Exists(userRegistriesFilePath); err == nil {
 		// per-user registries.conf exists, not reading system dir
 		// return config dirs from ctx or per-user one
 		wrapper.configPath = userRegistriesFilePath
@@ -824,6 +830,16 @@ func CredentialHelpers(sys *types.SystemContext) ([]string, error) {
 	return config.partialV2.CredentialHelpers, nil
 }
 
+// AdditionalLayerStoreAuthHelper returns the helper for passing registry
+// credentials to Additional Layer Store.
+func AdditionalLayerStoreAuthHelper(sys *types.SystemContext) (string, error) {
+	config, err := getConfig(sys)
+	if err != nil {
+		return "", err
+	}
+	return config.partialV2.AdditionalLayerStoreAuthHelper, nil
+}
+
 // refMatchingSubdomainPrefix returns the length of ref
 // iff ref, which is a registry, repository namespace, repository or image reference (as formatted by
 // reference.Domain(), reference.Named.Name() or reference.Reference.String()
@@ -1048,6 +1064,11 @@ func (c *parsedConfig) updateWithConfigurationFrom(updates *parsedConfig) {
 	// We don’t maintain c.partialV2.ShortNameMode.
 	if updates.shortNameMode != types.ShortNameModeInvalid {
 		c.shortNameMode = updates.shortNameMode
+	}
+
+	// == Merge AdditionalLayerStoreAuthHelper:
+	if updates.partialV2.AdditionalLayerStoreAuthHelper != "" {
+		c.partialV2.AdditionalLayerStoreAuthHelper = updates.partialV2.AdditionalLayerStoreAuthHelper
 	}
 
 	// == Merge aliasCache:

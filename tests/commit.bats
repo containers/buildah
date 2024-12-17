@@ -173,18 +173,6 @@ load helpers
         expect_output "$buildah_version"
 }
 
-@test "commit-parent-id" {
-  _prefetch alpine
-  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
-  cid=$output
-  run_buildah inspect --format '{{.FromImageID}}' $cid
-  iid=$output
-
-  run_buildah commit $WITH_POLICY_JSON --format docker $cid alpine-image
-  run_buildah inspect --format '{{.Docker.Parent}}' alpine-image
-  expect_output "sha256:$iid" "alpine-image -> .Docker.Parent"
-}
-
 @test "commit-container-id" {
   _prefetch alpine
   run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
@@ -325,4 +313,90 @@ load helpers
   # ownership information should be forced to be in number/number format
   # instead of name/name because the names are gone
   assert "$output" =~ $(id -u)/$(id -g)
+}
+
+@test "commit-with-extra-files" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
+  cid=$output
+  createrandom ${BATS_TMPDIR}/randomfile1
+  createrandom ${BATS_TMPDIR}/randomfile2
+
+  for method in --squash=false --squash=true ; do
+    run_buildah commit $method --add-file ${BATS_TMPDIR}/randomfile1:/randomfile1 $cid with-random-1
+    run_buildah commit $method --add-file ${BATS_TMPDIR}/randomfile2:/in-a-subdir/randomfile2 $cid with-random-2
+    run_buildah commit $method --add-file ${BATS_TMPDIR}/randomfile1:/randomfile1 --add-file ${BATS_TMPDIR}/randomfile2:/in-a-subdir/randomfile2 $cid with-random-both
+
+    # first one should have the first file and not the second, and the shell should be there
+    run_buildah from --quiet --pull=false $WITH_POLICY_JSON with-random-1
+    cid=$output
+    run_buildah mount $cid
+    mountpoint=$output
+    test -s $mountpoint/bin/sh || test -L $mountpoint/bin/sh
+    cmp ${BATS_TMPDIR}/randomfile1 $mountpoint/randomfile1
+    run stat -c %u:%g $mountpoint
+    [ $status -eq 0 ]
+    rootowner=$output
+    run stat -c %u:%g:%A $mountpoint/randomfile1
+    [ $status -eq 0 ]
+    assert ${rootowner}:-rw-r--r--
+    ! test -f $mountpoint/randomfile2
+
+    # second one should have the second file and not the first, and the shell should be there
+    run_buildah from --quiet --pull=false $WITH_POLICY_JSON with-random-2
+    cid=$output
+    run_buildah mount $cid
+    mountpoint=$output
+    test -s $mountpoint/bin/sh || test -L $mountpoint/bin/sh
+    cmp ${BATS_TMPDIR}/randomfile2 $mountpoint/in-a-subdir/randomfile2
+    run stat -c %u:%g $mountpoint
+    [ $status -eq 0 ]
+    rootowner=$output
+    run stat -c %u:%g:%A $mountpoint/in-a-subdir/randomfile2
+    [ $status -eq 0 ]
+    assert ${rootowner}:-rw-r--r--
+    ! test -f $mountpoint/randomfile1
+
+    # third one should have both files, and the shell should be there
+    run_buildah from --quiet --pull=false $WITH_POLICY_JSON with-random-both
+    cid=$output
+    run_buildah mount $cid
+    mountpoint=$output
+    test -s $mountpoint/bin/sh || test -L $mountpoint/bin/sh
+    cmp ${BATS_TMPDIR}/randomfile1 $mountpoint/randomfile1
+    run stat -c %u:%g $mountpoint
+    [ $status -eq 0 ]
+    rootowner=$output
+    run stat -c %u:%g:%A $mountpoint/randomfile1
+    [ $status -eq 0 ]
+    assert ${rootowner}:-rw-r--r--
+    cmp ${BATS_TMPDIR}/randomfile2 $mountpoint/in-a-subdir/randomfile2
+    run stat -c %u:%g:%A $mountpoint/in-a-subdir/randomfile2
+    [ $status -eq 0 ]
+    assert ${rootowner}:-rw-r--r--
+  done
+}
+
+@test "commit with insufficient disk space" {
+  skip_if_rootless_environment
+  _prefetch busybox
+  local tmp=$TEST_SCRATCH_DIR/buildah-test
+  mkdir -p $tmp
+  mount -t tmpfs -o size=4M tmpfs $tmp
+  # Create a temporary file which should not be easy to compress,
+  # which we'll add to our container for committing, but which is
+  # larger than the filesystem where the layer blob that would
+  # contain it, compressed or not, would be written during commit.
+  run dd if=/dev/urandom of=$TEST_SCRATCH_DIR/8M bs=1M count=8
+  # Create a working container.
+  run_buildah from --pull=never $WITH_POLICY_JSON busybox
+  ctrID="$output"
+  # Copy the file into the working container.
+  run_buildah copy $ctrID $TEST_SCRATCH_DIR/8M /8M
+  # Try to commit the image.  The temporary copy of the layer diff should
+  # require more space than is available where we're telling it to store
+  # temporary things.
+  TMPDIR=$tmp run_buildah '?' commit $ctrID
+  umount $tmp
+  expect_output --substring "no space left on device"
 }

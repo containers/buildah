@@ -2,15 +2,16 @@
 
 ## NAME
 
-buildah\-manifest\-add - Add an image to a manifest list or image index.
+buildah\-manifest\-add - Add an image or artifact to a manifest list or image index.
 
 ## SYNOPSIS
 
-**buildah manifest add** *listNameOrIndexName* *imageName*
+**buildah manifest add** [options...] *listNameOrIndexName* *imageOrArtifactName* [...]
 
 ## DESCRIPTION
 
-Adds the specified image to the specified manifest list or image index.
+Adds the specified image to the specified manifest list or image index, or
+creates an artifact manifest and adds it to the specified image index.
 
 ## RETURN VALUE
 
@@ -27,7 +28,7 @@ from such a list or index will be added to the list or index.  Combining
 
 **--annotation** *annotation=value*
 
-Set an annotation on the entry for the newly-added image.
+Set an annotation on the entry for the newly-added image or artifact manifest.
 
 **--arch**
 
@@ -36,9 +37,63 @@ the image.  If *imageName* refers to a manifest list or image index, the
 architecture information will be retrieved from it.  Otherwise, it will be
 retrieved from the image's configuration information.
 
+**--artifact**
+
+Create an artifact manifest and add it to the image index.  Arguments after the
+index name will be interpreted as file names rather than as image references.
+In most scenarios, the **--artifact-type** option should also be specified.
+
+**--artifact-annotation** *annotation=value*
+
+When creating an artifact manifest and adding it to the image index, set an
+annotation in the artifact manifest.
+
+**--artifact-config** *filename*
+
+When creating an artifact manifest and adding it to the image index, use the
+specified file's contents as the configuration blob in the artifact manifest.
+In most scenarios, leaving the default value, which signifies an empty
+configuration, unchanged, is the preferred option.
+
+**--artifact-config-type** *type*
+
+When creating an artifact manifest and adding it to the image index, use the
+specified MIME type as the `mediaType` associated with the configuration blob
+in the artifact manifest.  In most scenarios, leaving the default value, which
+signifies either an empty configuration or the standard OCI configuration type,
+unchanged, is the preferred option.
+
+**--artifact-exclude-titles**
+
+When creating an artifact manifest and adding it to the image index, do not
+set "org.opencontainers.image.title" annotations equal to the file's basename
+for each file added to the artifact manifest.  Tools which retrieve artifacts
+from a registry may use these values to choose names for files when saving
+artifacts to disk, so this option is not recommended unless it is required
+for interoperability with a particular registry.
+
+**--artifact-layer-type** *type*
+
+When creating an artifact manifest and adding it to the image index, use the
+specified MIME type as the `mediaType` associated with the files' contents.  If
+not specified, guesses based on either the files names or their contents will
+be made and used, but the option should be specified if certainty is needed.
+
+**--artifact-subject** *imageName*
+
+When creating an artifact manifest and adding it to the image index, set the
+*subject* field in the artifact manifest to mark the artifact manifest as being
+associated with the specified image in some way.  An artifact manifest can only
+be associated with, at most, one subject.
+
+**--artifact-type** *type*
+
+When creating an artifact manifest, use the specified MIME type as the
+manifest's `artifactType` value instead of the less informative default value.
+
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. See containers-auth.json(5) for more information. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -105,5 +160,11 @@ buildah manifest add --arch arm64 --variant v8 mylist:v1.11 docker://fedora@sha2
 506d8f4bb54931ea03a7e70173a0ed6302e3fb92dfadb3955ba5c17812e95c51: sha256:c829b1810d2dbb456e74a695fd3847530c8319e5a95dca623e9f1b1b89020d8b
 ```
 
+```
+buildah manifest add --artifact --artifact-type application/x-cd-image mylist:v1.11 ./imagefile.iso
+506d8f4bb54931ea03a7e70173a0ed6302e3fb92dfadb3955ba5c17812e95c51: sha256:1768fae728f6f8ff3d0f8c7df409d7f4f0ca5c89b070810bd4aa4a2ed2eca8bb
+```
+
+
 ## SEE ALSO
-buildah(1), buildah-login(1), buildah-manifest(1), buildah-manifest-create(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-manifest-push(1), buildah-rmi(1), docker-login(1)
+buildah(1), buildah-login(1), buildah-manifest(1), buildah-manifest-create(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-manifest-push(1), buildah-rmi(1), docker-login(1), containers-auth.json(5)

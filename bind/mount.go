@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package bind
 
@@ -11,11 +10,11 @@ import (
 	"syscall"
 
 	"github.com/containers/buildah/util"
-	cutil "github.com/containers/common/pkg/util"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sys/unix"
 )
 
@@ -49,7 +48,7 @@ func SetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmou
 	if err != nil {
 		return nil, fmt.Errorf("checking permissions on %q: %w", bundlePath, err)
 	}
-	if err = os.Chmod(bundlePath, info.Mode()|0111); err != nil {
+	if err = os.Chmod(bundlePath, info.Mode()|0o111); err != nil {
 		return nil, fmt.Errorf("loosening permissions on %q: %w", bundlePath, err)
 	}
 
@@ -116,7 +115,7 @@ func SetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmou
 	// other unprivileged users outside of containers, shouldn't be able to
 	// access.
 	mnt := filepath.Join(bundlePath, "mnt")
-	if err = idtools.MkdirAndChown(mnt, 0100, idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}); err != nil {
+	if err = idtools.MkdirAndChown(mnt, 0o100, idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}); err != nil {
 		return unmountAll, fmt.Errorf("creating %q owned by the container's root user: %w", mnt, err)
 	}
 
@@ -129,7 +128,7 @@ func SetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmou
 
 	// Create a bind mount for the root filesystem and add it to the list.
 	rootfs := filepath.Join(mnt, "rootfs")
-	if err = os.Mkdir(rootfs, 0000); err != nil {
+	if err = os.Mkdir(rootfs, 0o000); err != nil {
 		return unmountAll, fmt.Errorf("creating directory %q: %w", rootfs, err)
 	}
 	if err = unix.Mount(rootPath, rootfs, "", unix.MS_BIND|unix.MS_REC|unix.MS_PRIVATE, ""); err != nil {
@@ -160,13 +159,13 @@ func SetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmou
 		if info.IsDir() {
 			// If the source is a directory, make one to use as the
 			// mount target.
-			if err = os.Mkdir(stage, 0000); err != nil {
+			if err = os.Mkdir(stage, 0o000); err != nil {
 				return unmountAll, fmt.Errorf("creating directory %q: %w", stage, err)
 			}
 		} else {
 			// If the source is not a directory, create an empty
 			// file to use as the mount target.
-			file, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE, 0000)
+			file, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE, 0o000)
 			if err != nil {
 				return unmountAll, fmt.Errorf("creating file %q: %w", stage, err)
 			}
@@ -192,11 +191,11 @@ func SetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmou
 // Decide if the mount should not be redirected to an intermediate location first.
 func leaveBindMountAlone(mount specs.Mount) bool {
 	// If we know we shouldn't do a redirection for this mount, skip it.
-	if cutil.StringInSlice(NoBindOption, mount.Options) {
+	if slices.Contains(mount.Options, NoBindOption) {
 		return true
 	}
 	// If we're not bind mounting it in, we don't need to do anything for it.
-	if mount.Type != "bind" && !cutil.StringInSlice("bind", mount.Options) && !cutil.StringInSlice("rbind", mount.Options) {
+	if mount.Type != "bind" && !slices.Contains(mount.Options, "bind") && !slices.Contains(mount.Options, "rbind") {
 		return true
 	}
 	return false
@@ -294,7 +293,7 @@ func UnmountMountpoints(mountpoint string, mountpointsToRemove []string) error {
 			}
 		}
 		// if we're also supposed to remove this thing, do that, too
-		if cutil.StringInSlice(mount.Mountpoint, mountpointsToRemove) {
+		if slices.Contains(mountpointsToRemove, mount.Mountpoint) {
 			if err := os.Remove(mount.Mountpoint); err != nil {
 				return fmt.Errorf("removing %q: %w", mount.Mountpoint, err)
 			}

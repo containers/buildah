@@ -28,6 +28,18 @@ func (e ImageNotFoundError) Error() string {
 	return fmt.Sprintf("no descriptor found for reference %q", e.ref.image)
 }
 
+// ArchiveFileNotFoundError occurs when the archive file does not exist.
+type ArchiveFileNotFoundError struct {
+	// ref is the image reference
+	ref ociArchiveReference
+	// path is the file path that was not present
+	path string
+}
+
+func (e ArchiveFileNotFoundError) Error() string {
+	return fmt.Sprintf("archive file not found: %q", e.path)
+}
+
 type ociArchiveImageSource struct {
 	impl.Compat
 
@@ -137,6 +149,8 @@ func (s *ociArchiveImageSource) SupportsGetBlobAt() bool {
 // The specified chunks must be not overlapping and sorted by their offset.
 // The readers must be fully consumed, in the order they are returned, before blocking
 // to read the next chunk.
+// If the Length for the last chunk is set to math.MaxUint64, then it
+// fully fetches the remaining data from the offset to the end of the blob.
 func (s *ociArchiveImageSource) GetBlobAt(ctx context.Context, info types.BlobInfo, chunks []private.ImageSourceChunk) (chan io.ReadCloser, chan error, error) {
 	return s.unpackedSrc.GetBlobAt(ctx, info, chunks)
 }

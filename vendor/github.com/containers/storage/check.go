@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -304,7 +305,14 @@ func (s *store) Check(options *CheckOptions) (CheckReport, error) {
 							archiveErr = err
 						}
 						// consume any trailer after the EOF marker
-						io.Copy(io.Discard, diffReader)
+						if _, err := io.Copy(io.Discard, diffReader); err != nil {
+							err = fmt.Errorf("layer %s: consume any trailer after the EOF marker: %w", layerID, err)
+							if isReadWrite {
+								report.Layers[layerID] = append(report.Layers[layerID], err)
+							} else {
+								report.ROLayers[layerID] = append(report.ROLayers[layerID], err)
+							}
+						}
 						wg.Done()
 					}(id, reader)
 					wg.Wait()
@@ -366,7 +374,7 @@ func (s *store) Check(options *CheckOptions) (CheckReport, error) {
 			if options.LayerMountable {
 				func() {
 					// Mount the layer.
-					mountPoint, err := s.graphDriver.Get(id, drivers.MountOpts{MountLabel: layer.MountLabel})
+					mountPoint, err := s.graphDriver.Get(id, drivers.MountOpts{MountLabel: layer.MountLabel, Options: []string{"ro"}})
 					if err != nil {
 						err := fmt.Errorf("%slayer %s: %w", readWriteDesc, id, err)
 						if isReadWrite {
@@ -762,12 +770,9 @@ func (s *store) Repair(report CheckReport, options *RepairOptions) []error {
 		return d
 	}
 	isUnaccounted := func(errs []error) bool {
-		for _, err := range errs {
-			if errors.Is(err, ErrLayerUnaccounted) {
-				return true
-			}
-		}
-		return false
+		return slices.ContainsFunc(errs, func(err error) bool {
+			return errors.Is(err, ErrLayerUnaccounted)
+		})
 	}
 	sort.Slice(layersToDelete, func(i, j int) bool {
 		// we've not heard of either of them, so remove them in the order the driver suggested
@@ -955,6 +960,9 @@ func (c *checkDirectory) add(path string, typeflag byte, uid, gid int, size int6
 					mtime:    mtime,
 				}
 			}
+		case tar.TypeXGlobalHeader:
+			// ignore, since even though it looks like a valid pathname, it doesn't end
+			// up on the filesystem
 		default:
 			// treat these as TypeReg items
 			delete(c.directory, components[0])
@@ -966,9 +974,6 @@ func (c *checkDirectory) add(path string, typeflag byte, uid, gid int, size int6
 				mode:     mode,
 				mtime:    mtime,
 			}
-		case tar.TypeXGlobalHeader:
-			// ignore, since even though it looks like a valid pathname, it doesn't end
-			// up on the filesystem
 		}
 		return
 	}
@@ -998,12 +1003,12 @@ func (c *checkDirectory) remove(path string) {
 func (c *checkDirectory) header(hdr *tar.Header) {
 	name := path.Clean(hdr.Name)
 	dir, base := path.Split(name)
-	if strings.HasPrefix(base, archive.WhiteoutPrefix) {
+	if file, ok := strings.CutPrefix(base, archive.WhiteoutPrefix); ok {
 		if base == archive.WhiteoutOpaqueDir {
 			c.remove(path.Clean(dir))
 			c.add(path.Clean(dir), tar.TypeDir, hdr.Uid, hdr.Gid, hdr.Size, os.FileMode(hdr.Mode), hdr.ModTime.Unix())
 		} else {
-			c.remove(path.Join(dir, base[len(archive.WhiteoutPrefix):]))
+			c.remove(path.Join(dir, file))
 		}
 	} else {
 		if hdr.Typeflag == tar.TypeLink {
@@ -1037,7 +1042,7 @@ func (c *checkDirectory) header(hdr *tar.Header) {
 
 // headers updates a checkDirectory using information from the passed-in header slice
 func (c *checkDirectory) headers(hdrs []*tar.Header) {
-	hdrs = append([]*tar.Header{}, hdrs...)
+	hdrs = slices.Clone(hdrs)
 	// sort the headers from the diff to ensure that whiteouts appear
 	// before content when they both appear in the same directory, per
 	// https://github.com/opencontainers/image-spec/blob/main/layer.md#whiteouts

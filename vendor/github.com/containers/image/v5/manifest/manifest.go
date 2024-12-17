@@ -16,7 +16,7 @@ import (
 const (
 	// DockerV2Schema1MediaType MIME type represents Docker manifest schema 1
 	DockerV2Schema1MediaType = manifest.DockerV2Schema1MediaType
-	// DockerV2Schema1MediaType MIME type represents Docker manifest schema 1 with a JWS signature
+	// DockerV2Schema1SignedMediaType MIME type represents Docker manifest schema 1 with a JWS signature
 	DockerV2Schema1SignedMediaType = manifest.DockerV2Schema1SignedMediaType
 	// DockerV2Schema2MediaType MIME type represents Docker manifest schema 2
 	DockerV2Schema2MediaType = manifest.DockerV2Schema2MediaType
@@ -166,5 +166,5 @@ func FromBlob(manblob []byte, mt string) (Manifest, error) {
 		return nil, fmt.Errorf("Treating manifest lists as individual manifests is not implemented")
 	}
 	// Note that this may not be reachable, NormalizedMIMEType has a default for unknown values.
-	return nil, fmt.Errorf("Unimplemented manifest MIME type %s (normalized as %s)", mt, nmt)
+	return nil, fmt.Errorf("Unimplemented manifest MIME type %q (normalized as %q)", mt, nmt)
 }

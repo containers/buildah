@@ -10,11 +10,11 @@ package ir
 //
 // We use the algorithm described in Lengauer & Tarjan. 1979.  A fast
 // algorithm for finding dominators in a flowgraph.
-// http://doi.acm.org/10.1145/357062.357071
+// https://doi.acm.org/10.1145/357062.357071
 //
 // We also apply the optimizations to SLT described in Georgiadis et
 // al, Finding Dominators in Practice, JGAA 2006,
-// http://jgaa.info/accepted/2006/GeorgiadisTarjanWerneck2006.10.1.pdf
+// https://jgaa.info/accepted/2006/GeorgiadisTarjanWerneck2006.10.1.pdf
 // to avoid the need for buckets of size > 1.
 
 import (

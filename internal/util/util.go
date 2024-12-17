@@ -8,7 +8,7 @@ import (
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/common/libimage"
-	"github.com/containers/common/pkg/config"
+	lplatform "github.com/containers/common/libimage/platform"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
@@ -42,27 +42,12 @@ func LookupImage(ctx *types.SystemContext, store storage.Store, image string) (*
 // Wrapper around libimage.NormalizePlatform to return and consume
 // v1.Platform instead of independent os, arch and variant.
 func NormalizePlatform(platform v1.Platform) v1.Platform {
-	os, arch, variant := libimage.NormalizePlatform(platform.OS, platform.Architecture, platform.Variant)
+	os, arch, variant := lplatform.Normalize(platform.OS, platform.Architecture, platform.Variant)
 	return v1.Platform{
 		OS:           os,
 		Architecture: arch,
 		Variant:      variant,
 	}
-}
-
-// GetTempDir returns base for a temporary directory on host.
-func GetTempDir() string {
-	if tmpdir, ok := os.LookupEnv("TMPDIR"); ok {
-		return tmpdir
-	}
-	containerConfig, err := config.Default()
-	if err != nil {
-		tmpdir, err := containerConfig.ImageCopyTmpDir()
-		if err != nil {
-			return tmpdir
-		}
-	}
-	return "/var/tmp"
 }
 
 // ExportFromReader reads bytes from given reader and exports to external tar, directory or stdout.
@@ -87,7 +72,7 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 			noLChown = true
 		}
 
-		err = os.MkdirAll(opts.Path, 0700)
+		err = os.MkdirAll(opts.Path, 0o700)
 		if err != nil {
 			return fmt.Errorf("failed while creating the destination path %q: %w", opts.Path, err)
 		}
@@ -111,4 +96,9 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 		}
 	}
 	return nil
+}
+
+func SetHas(m map[string]struct{}, k string) bool {
+	_, ok := m[k]
+	return ok
 }

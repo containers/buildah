@@ -43,7 +43,7 @@ First create two Dockerfiles:
 
 ```
 $ cat << EOF > Dockerfile
-FROM fedora:latest
+FROM registry.fedoraproject.org/fedora:latest
 RUN touch /foo
 ONBUILD RUN touch /bar
 EOF
@@ -83,7 +83,7 @@ Instead of using a Dockerfile to create the onbuild-image, Buildah allows you to
 First a Fedora container will be created with `buildah from`, then the `/foo` file will be added with `buildah run`.  The `buildah config` command will configure ONBUILD to add `/bar` when a container image is created from the primary image, and finally the image will be saved with `buildah commit`.
 
 ```
-# buildah from --format=docker --name onbuild-container fedora:latest
+# buildah from --format=docker --name onbuild-container registry.fedoraproject.org/fedora:latest
 # buildah run onbuild-container touch /foo
 # buildah config --onbuild="RUN touch /bar" onbuild-container
 # buildah commit --format=docker onbuild-container onbuild-image
@@ -188,6 +188,6 @@ If you have any suggestions or issues please post them at the [Buildah Issues pa
 For more information on Buildah and how you might contribute please visit the [Buildah home page on GitHub](https://github.com/containers/buildah).
 
 [Podman's site]: https://podman.io/
-[image specification]: https://github.com/opencontainers/runtime-spec
+[image specification]: https://github.com/opencontainers/image-spec/blob/main/spec.md
 [Introduction Tutorial]: 01-intro.md
 [Open Container Initiative]: https://www.opencontainers.org/

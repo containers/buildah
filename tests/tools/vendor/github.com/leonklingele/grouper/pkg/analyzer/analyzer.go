@@ -15,7 +15,9 @@ import (
 
 const (
 	Name = "grouper"
-	Doc  = `expression group analyzer: require 'import', 'const', 'var' and/or 'type' declaration groups`
+	Doc  = `analyze expression groups
+
+Require 'import', 'const', 'var' and/or 'type' declaration groups.`
 )
 
 func New() *analysis.Analyzer {

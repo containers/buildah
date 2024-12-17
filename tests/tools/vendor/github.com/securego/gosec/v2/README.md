@@ -1,7 +1,7 @@
 
-# gosec - Golang Security Checker
+# gosec - Go Security Checker
 
-Inspects source code for security problems by scanning the Go AST.
+Inspects source code for security problems by scanning the Go AST and SSA code representation.
 
 <img src="https://securego.io/img/gosec.png" width="320">
 
@@ -68,7 +68,7 @@ jobs:
       GO111MODULE: on
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:
@@ -98,14 +98,14 @@ jobs:
       GO111MODULE: on
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:
           # we let the report trigger content trigger a failure using the GitHub Security features.
           args: '-no-fail -fmt sarif -out results.sarif ./...'
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v1
+        uses: github/codeql-action/upload-sarif@v2
         with:
           # Path to SARIF file relative to the root of the repository
           sarif_file: results.sarif
@@ -113,16 +113,8 @@ jobs:
 
 ### Local Installation
 
-#### Go 1.16+
-
 ```bash
 go install github.com/securego/gosec/v2/cmd/gosec@latest
-```
-
-#### Go version < 1.16
-
-```bash
-go get -u github.com/securego/gosec/v2/cmd/gosec
 ```
 
 ## Usage
@@ -147,6 +139,7 @@ directory you can supply `./...` as the input argument.
 - G112: Potential slowloris attack
 - G113: Usage of Rat.SetString in math/big with an overflow (CVE-2022-23772)
 - G114: Use of net/http serve function that has no support for setting timeouts
+- G115: Potential integer overflow when converting between integer types
 - G201: SQL query construction using format string
 - G202: SQL query construction using string concatenation
 - G203: Use of unescaped data in HTML templates
@@ -157,21 +150,28 @@ directory you can supply `./...` as the input argument.
 - G304: File path provided as taint input
 - G305: File traversal when extracting zip/tar archive
 - G306: Poor file permissions used when writing to a new file
-- G307: Deferring a method which returns an error
-- G401: Detect the usage of DES, RC4, MD5 or SHA1
+- G307: Poor file permissions used when creating a file with os.Create
+- G401: Detect the usage of MD5 or SHA1
 - G402: Look for bad TLS connection settings
 - G403: Ensure minimum RSA key length of 2048 bits
 - G404: Insecure random number source (rand)
+- G405: Detect the usage of DES or RC4
+- G406: Detect the usage of MD4 or RIPEMD160
+- G407: Detect the usage of hardcoded Initialization Vector(IV)/Nonce
 - G501: Import blocklist: crypto/md5
 - G502: Import blocklist: crypto/des
 - G503: Import blocklist: crypto/rc4
 - G504: Import blocklist: net/http/cgi
 - G505: Import blocklist: crypto/sha1
-- G601: Implicit memory aliasing of items from a range statement
+- G506: Import blocklist: golang.org/x/crypto/md4
+- G507: Import blocklist: golang.org/x/crypto/ripemd160
+- G601: Implicit memory aliasing of items from a range statement (only for Go 1.21 or lower)
+- G602: Slice access out of bounds
 
 ### Retired rules
 
 - G105: Audit the use of math/big.Int.Exp - [CVE is fixed](https://github.com/golang/go/issues/15184)
+- G307: Deferring a method which returns an error - causing more inconvenience than fixing a security issue, despite the details from this [blog post](https://www.joeshaw.org/dont-defer-close-on-writable-files/)
 
 ### Selecting rules
 
@@ -188,7 +188,7 @@ $ gosec -exclude=G303 ./...
 
 ### CWE Mapping
 
-Every issue detected by `gosec` is mapped to a [CWE (Common Weakness Enumeration)](http://cwe.mitre.org/data/index.html) which describes in more generic terms the vulnerability. The exact mapping can be found  [here](https://github.com/securego/gosec/blob/master/issue.go#L50).
+Every issue detected by `gosec` is mapped to a [CWE (Common Weakness Enumeration)](http://cwe.mitre.org/data/index.html) which describes in more generic terms the vulnerability. The exact mapping can be found  [here](https://github.com/securego/gosec/blob/master/issue/issue.go#L50).
 
 ### Configuration
 
@@ -236,6 +236,12 @@ You can also configure the hard-coded credentials rule `G101` with additional pa
 }
 ```
 
+#### Go version
+
+Some rules require a specific Go version which is retrieved from the Go module file present in the project. If this version cannot be found, it will fallback to Go runtime version.
+
+The Go module version is parsed using the `go list` command which in some cases might lead to performance degradation. In this situation, the go module version can be easily provided by setting the environment variable `GOSECGOVERSION=go1.21.1`.
+
 ### Dependencies
 
 gosec will fetch automatically the dependencies of the code which is being analyzed when go module is turned on (e.g.`GO111MODULE=on`). If this is not the case,
@@ -269,34 +275,49 @@ gosec can ignore generated go files with default generated code comment.
 gosec -exclude-generated ./...
 ```
 
+### Auto fixing vulnerabilities
+gosec can suggest fixes based on AI recommendation. It will call an AI API to receive a suggestion for a security finding.
+
+You can enable this feature by providing the following command line arguments:
+- `ai-api-provider`: the name of the AI API provider, currently only `gemini`is supported.
+- `ai-api-key` or set the environment variable `GOSEC_AI_API_KEY`: the key to access the AI API,
+For gemini, you can create an API key following [these instructions](https://ai.google.dev/gemini-api/docs/api-key).
+- `ai-endpoint`: the endpoint of the AI provider, this is optional argument.
+
+
+```bash
+gosec -ai-api-provider="gemini" -ai-api-key="your_key" ./...
+```
 
 ### Annotating code
 
-As with all automated detection tools, there will be cases of false positives. In cases where gosec reports a failure that has been manually verified as being safe,
+As with all automated detection tools, there will be cases of false positives.
+In cases where gosec reports a failure that has been manually verified as being safe,
 it is possible to annotate the code with a comment that starts with `#nosec`.
+
 The `#nosec` comment should have the format `#nosec [RuleList] [-- Justification]`.
 
-The annotation causes gosec to stop processing any further nodes within the
-AST so can apply to a whole block or more granularly to a single expression.
+The `#nosec` comment needs to be placed on the line where the warning is reported.
 
 ```go
+func main() {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // #nosec G402
+		},
+	}
 
-import "md5" //#nosec
-
-
-func main(){
-
-    /* #nosec */
-    if x > y {
-        h := md5.New() // this will also be ignored
-    }
-
+	client := &http.Client{Transport: tr}
+	_, err := client.Get("https://golang.org/")
+	if err != nil {
+		fmt.Println(err)
+	}
 }
-
 ```
 
-When a specific false positive has been identified and verified as safe, you may wish to suppress only that single rule (or a specific set of rules)
-within a section of code, while continuing to scan for other problems. To do this, you can list the rule(s) to be suppressed within
+When a specific false positive has been identified and verified as safe, you may
+wish to suppress only that single rule (or a specific set of rules) within a section of code,
+while continuing to scan for other problems. To do this, you can list the rule(s) to be suppressed within
 the `#nosec` annotation, e.g: `/* #nosec G401 */` or `//#nosec G201 G202 G203`
 
 You could put the description or justification text for the annotation. The
@@ -352,7 +373,7 @@ file. The output format is controlled by the `-fmt` flag, and the output file is
 $ gosec -fmt=json -out=results.json *.go
 ```
 
-Results will be reported to stdout as well as to the provided output file by `-stdout` flag. The `-verbose` flag overrides the 
+Results will be reported to stdout as well as to the provided output file by `-stdout` flag. The `-verbose` flag overrides the
 output format when stdout the results while saving them in the output file
 ```bash
 # Write output in json format to results.json as well as stdout
@@ -389,7 +410,7 @@ schema-generate -i sarif-schema-2.1.0.json -o mypath/types.go
 ```
 
 Most of the MarshallJSON/UnmarshalJSON are removed except the one for PropertyBag which is handy to inline the additional properties. The rest can be removed.
-The URI,ID, UUID, GUID were renamed so it fits the Golang convention defined [here](https://github.com/golang/lint/blob/master/lint.go#L700)
+The URI,ID, UUID, GUID were renamed so it fits the Go convention defined [here](https://github.com/golang/lint/blob/master/lint.go#L700)
 
 ### Tests
 
@@ -411,14 +432,14 @@ git push origin v1.0.0
 The GitHub [release workflow](.github/workflows/release.yml) triggers immediately after the tag is pushed upstream. This flow will
 release the binaries using the [goreleaser](https://goreleaser.com/actions/) action and then it will build and publish the docker image into Docker Hub.
 
-The released artifacts are signed using [cosign](https://docs.sigstore.dev/). You can use the public key from [cosign.pub](cosign.pub) 
+The released artifacts are signed using [cosign](https://docs.sigstore.dev/). You can use the public key from [cosign.pub](cosign.pub)
 file to verify the signature of docker image and binaries files.
 
 The docker image signature can be verified with the following command:
 ```
 cosign verify --key cosign.pub securego/gosec:<TAG>
 ```
- 
+
 The binary files signature can be verified with the following command:
 ```
 cosign verify-blob --key cosign.pub --signature gosec_<VERSION>_darwin_amd64.tar.gz.sig  gosec_<VERSION>_darwin_amd64.tar.gz

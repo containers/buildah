@@ -1,5 +1,4 @@
 //go:build linux || darwin
-// +build linux darwin
 
 package parse
 
@@ -17,6 +16,13 @@ func DeviceFromPath(device string) (define.ContainerDevices, error) {
 	src, dst, permissions, err := Device(device)
 	if err != nil {
 		return nil, err
+	}
+	if linkTarget, err := os.Readlink(src); err == nil {
+		if filepath.IsAbs(linkTarget) {
+			src = linkTarget
+		} else {
+			src = filepath.Join(filepath.Dir(src), linkTarget)
+		}
 	}
 	srcInfo, err := os.Stat(src)
 	if err != nil {

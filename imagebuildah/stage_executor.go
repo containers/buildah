@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/containers/buildah/define"
 	buildahdocker "github.com/containers/buildah/docker"
 	"github.com/containers/buildah/internal"
+	"github.com/containers/buildah/internal/tmpdir"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/rusage"
@@ -34,6 +36,7 @@ import (
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/unshare"
 	docker "github.com/fsouza/go-dockerclient"
+	buildkitparser "github.com/moby/buildkit/frontend/dockerfile/parser"
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -41,6 +44,7 @@ import (
 	"github.com/openshift/imagebuilder/dockerfile/command"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 )
 
 // StageExecutor bundles up what we need to know when executing one stage of a
@@ -63,9 +67,9 @@ type StageExecutor struct {
 	name                  string
 	builder               *buildah.Builder
 	preserved             int
-	volumes               imagebuilder.VolumeSet
-	volumeCache           map[string]string
-	volumeCacheInfo       map[string]os.FileInfo
+	volumes               imagebuilder.VolumeSet // list of directories which are volumes
+	volumeCache           map[string]string      // mapping from volume directories to cache archives (used by vfs method)
+	volumeCacheInfo       map[string]os.FileInfo // mapping from volume directories to perms/datestamps to reset after restoring
 	mountPoint            string
 	output                string
 	containerIDs          []string
@@ -77,42 +81,22 @@ type StageExecutor struct {
 // Preserve informs the stage executor that from this point on, it needs to
 // ensure that only COPY and ADD instructions can modify the contents of this
 // directory or anything below it.
-// The StageExecutor handles this by caching the contents of directories which
-// have been marked this way before executing a RUN instruction, invalidating
-// that cache when an ADD or COPY instruction sets any location under the
-// directory as the destination, and using the cache to reset the contents of
-// the directory tree after processing each RUN instruction.
+// When CompatVolumes is enabled, the StageExecutor handles this by caching the
+// contents of directories which have been marked this way before executing a
+// RUN instruction, invalidating that cache when an ADD or COPY instruction
+// sets any location under the directory as the destination, and using the
+// cache to reset the contents of the directory tree after processing each RUN
+// instruction.
 // It would be simpler if we could just mark the directory as a read-only bind
 // mount of itself during Run(), but the directory is expected to be remain
 // writeable while the RUN instruction is being handled, even if any changes
 // made within the directory are ultimately discarded.
 func (s *StageExecutor) Preserve(path string) error {
-	logrus.Debugf("PRESERVE %q", path)
-	if s.volumes.Covers(path) {
-		// This path is already a subdirectory of a volume path that
-		// we're already preserving, so there's nothing new to be done
-		// except ensure that it exists.
-		createdDirPerms := os.FileMode(0755)
-		if err := copier.Mkdir(s.mountPoint, filepath.Join(s.mountPoint, path), copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
-			return fmt.Errorf("ensuring volume path exists: %w", err)
-		}
-		if err := s.volumeCacheInvalidate(path); err != nil {
-			return fmt.Errorf("ensuring volume path %q is preserved: %w", filepath.Join(s.mountPoint, path), err)
-		}
-		return nil
-	}
-	// Figure out where the cache for this volume would be stored.
-	s.preserved++
-	cacheDir, err := s.executor.store.ContainerDirectory(s.builder.ContainerID)
-	if err != nil {
-		return fmt.Errorf("unable to locate temporary directory for container")
-	}
-	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("volume%d.tar", s.preserved))
-	// Save info about the top level of the location that we'll be archiving.
-	var archivedPath string
+	logrus.Debugf("PRESERVE %q in %q (already preserving %v)", path, s.builder.ContainerID, s.volumes)
 
 	// Try and resolve the symlink (if one exists)
 	// Set archivedPath and path based on whether a symlink is found or not
+	var archivedPath string
 	if evaluated, err := copier.Eval(s.mountPoint, filepath.Join(s.mountPoint, path), copier.EvalOptions{}); err == nil {
 		symLink, err := filepath.Rel(s.mountPoint, evaluated)
 		if err != nil {
@@ -127,26 +111,64 @@ func (s *StageExecutor) Preserve(path string) error {
 		return fmt.Errorf("evaluating path %q: %w", path, err)
 	}
 
+	// Whether or not we're caching and restoring the contents of this
+	// directory, we need to ensure it exists now.
+	const createdDirPerms = os.FileMode(0o755)
 	st, err := os.Stat(archivedPath)
 	if errors.Is(err, os.ErrNotExist) {
-		createdDirPerms := os.FileMode(0755)
-		if err = copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
+		// Yup, we do have to create it.  That means it's not in any
+		// cached copy of the path that covers it, so we have to
+		// invalidate such cached copy.
+		logrus.Debugf("have to create volume %q", path)
+		createdDirPerms := createdDirPerms
+		if err := copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return fmt.Errorf("ensuring volume path exists: %w", err)
 		}
-		st, err = os.Stat(archivedPath)
+		if err := s.volumeCacheInvalidate(path); err != nil {
+			return fmt.Errorf("ensuring volume path %q is preserved: %w", filepath.Join(s.mountPoint, path), err)
+		}
+		if st, err = os.Stat(archivedPath); err != nil {
+			return fmt.Errorf("checking on just-created volume path: %w", err)
+		}
 	}
 	if err != nil {
-		logrus.Debugf("error reading info about %q: %v", archivedPath, err)
-		return err
+		return fmt.Errorf("reading info cache for volume at %q: %w", path, err)
 	}
-	s.volumeCacheInfo[path] = st
+
+	if s.volumes.Covers(path) {
+		// This path is a subdirectory of a volume path that we're
+		// already preserving, so there's nothing new to be done now
+		// that we've ensured that it exists.
+		s.volumeCacheInfo[path] = st
+		return nil
+	}
+
+	// Add the new volume path to the ones that we're tracking.
 	if !s.volumes.Add(path) {
 		// This path is not a subdirectory of a volume path that we're
-		// already preserving, so adding it to the list should work.
+		// already preserving, so adding it to the list should have
+		// worked.
 		return fmt.Errorf("adding %q to the volume cache", path)
 	}
+	s.volumeCacheInfo[path] = st
+
+	// If we're not doing save/restore, we're done, since volumeCache
+	// should be empty.
+	if s.executor.compatVolumes != types.OptionalBoolTrue {
+		logrus.Debugf("not doing volume save-and-restore of %q in %q", path, s.builder.ContainerID)
+		return nil
+	}
+
+	// Decide where the cache for this volume will be stored.
+	s.preserved++
+	cacheDir, err := s.executor.store.ContainerDirectory(s.builder.ContainerID)
+	if err != nil {
+		return fmt.Errorf("unable to locate temporary directory for container")
+	}
+	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("volume%d.tar", s.preserved))
 	s.volumeCache[path] = cacheFile
-	// Now prune cache files for volumes that are now supplanted by this one.
+
+	// Now prune cache files for volumes that are newly supplanted by this one.
 	removed := []string{}
 	for cachedPath := range s.volumeCache {
 		// Walk our list of cached volumes, and check that they're
@@ -165,6 +187,7 @@ func (s *StageExecutor) Preserve(path string) error {
 			removed = append(removed, cachedPath)
 		}
 	}
+
 	// Actually remove the caches that we decided to remove.
 	for _, cachedPath := range removed {
 		archivedPath := filepath.Join(s.mountPoint, cachedPath)
@@ -173,7 +196,7 @@ func (s *StageExecutor) Preserve(path string) error {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
-			return err
+			return fmt.Errorf("removing cache of %q: %w", archivedPath, err)
 		}
 		delete(s.volumeCache, cachedPath)
 	}
@@ -223,16 +246,12 @@ func (s *StageExecutor) volumeCacheSaveVFS() (mounts []specs.Mount, err error) {
 			continue
 		}
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-		createdDirPerms := os.FileMode(0755)
-		if err := copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
-			return nil, fmt.Errorf("ensuring volume path exists: %w", err)
+			return nil, fmt.Errorf("checking for presence of a cached copy of %q at %q: %w", cachedPath, cacheFile, err)
 		}
 		logrus.Debugf("caching contents of volume %q in %q", archivedPath, cacheFile)
 		cache, err := os.Create(cacheFile)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("creating cache for volume %q: %w", archivedPath, err)
 		}
 		defer cache.Close()
 		rc, err := chrootarchive.Tar(archivedPath, nil, s.mountPoint)
@@ -265,14 +284,10 @@ func (s *StageExecutor) volumeCacheRestoreVFS() (err error) {
 		logrus.Debugf("restoring contents of volume %q from %q", archivedPath, cacheFile)
 		cache, err := os.Open(cacheFile)
 		if err != nil {
-			return err
+			return fmt.Errorf("restoring contents of volume %q: %w", archivedPath, err)
 		}
 		defer cache.Close()
 		if err := copier.Remove(s.mountPoint, archivedPath, copier.RemoveOptions{All: true}); err != nil {
-			return err
-		}
-		createdDirPerms := os.FileMode(0755)
-		if err := copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return err
 		}
 		err = chrootarchive.Untar(cache, archivedPath, nil)
@@ -301,13 +316,11 @@ func (s *StageExecutor) volumeCacheRestoreVFS() (err error) {
 }
 
 // Save the contents of each of the executor's list of volumes for which we
-// don't already have a cache file.
+// don't already have a cache file.  For overlay, we "save" and "restore" by
+// using it as a lower for an overlay mount in the same location, and then
+// discarding the upper.
 func (s *StageExecutor) volumeCacheSaveOverlay() (mounts []specs.Mount, err error) {
 	for cachedPath := range s.volumeCache {
-		err = copier.Mkdir(s.mountPoint, filepath.Join(s.mountPoint, cachedPath), copier.MkdirOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("ensuring volume exists: %w", err)
-		}
 		volumePath := filepath.Join(s.mountPoint, cachedPath)
 		mount := specs.Mount{
 			Source:      volumePath,
@@ -346,13 +359,30 @@ func (s *StageExecutor) volumeCacheRestore() error {
 // Copy copies data into the working tree.  The "Download" field is how
 // imagebuilder tells us the instruction was "ADD" and not "COPY".
 func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
-	s.builder.ContentDigester.Restart()
-	for _, copy := range copies {
-		if copy.Download {
-			logrus.Debugf("ADD %#v, %#v", excludes, copy)
-		} else {
-			logrus.Debugf("COPY %#v, %#v", excludes, copy)
+	for _, cp := range copies {
+		if cp.KeepGitDir {
+			if cp.Download {
+				return errors.New("ADD --keep-git-dir is not supported")
+			}
+			return errors.New("COPY --keep-git-dir is not supported")
 		}
+		if cp.Link {
+			return errors.New("COPY --link is not supported")
+		}
+		if cp.Parents {
+			return errors.New("COPY --parents is not supported")
+		}
+		if len(cp.Excludes) > 0 {
+			excludes = append(slices.Clone(excludes), cp.Excludes...)
+		}
+	}
+	s.builder.ContentDigester.Restart()
+	return s.performCopy(excludes, copies...)
+}
+
+func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Copy) error {
+	copiesExtend := []imagebuilder.Copy{}
+	for _, copy := range copies {
 		if err := s.volumeCacheInvalidate(copy.Dest); err != nil {
 			return err
 		}
@@ -366,7 +396,61 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		stripSetgid := false
 		preserveOwnership := false
 		contextDir := s.executor.contextDir
-		if len(copy.From) > 0 {
+		// If we are copying files via heredoc syntax, then
+		// its time to create these temporary files on host
+		// and copy these to container
+		if len(copy.Files) > 0 {
+			// If we are copying files from heredoc syntax, there
+			// maybe regular files from context as well so split and
+			// process them differently
+			if len(copy.Src) > len(copy.Files) {
+				regularSources := []string{}
+				for _, src := range copy.Src {
+					// If this source is not a heredoc, then it is a regular file from
+					// build context or from another stage (`--from=`) so treat this differently.
+					if !strings.HasPrefix(src, "<<") {
+						regularSources = append(regularSources, src)
+					}
+				}
+				copyEntry := copy
+				// Remove heredoc if any, since we are already processing them
+				// so create new entry with sources containing regular files
+				// only, since regular files can have different context then
+				// heredoc files.
+				copyEntry.Files = nil
+				copyEntry.Src = regularSources
+				copiesExtend = append(copiesExtend, copyEntry)
+			}
+			copySources := []string{}
+			for _, file := range copy.Files {
+				data := file.Data
+				// remove first break line added while parsing heredoc
+				data = strings.TrimPrefix(data, "\n")
+				// add breakline when heredoc ends for docker compat
+				data = data + "\n"
+				tmpFile, err := os.Create(filepath.Join(parse.GetTempDir(), path.Base(filepath.ToSlash(file.Name))))
+				if err != nil {
+					return fmt.Errorf("unable to create tmp file for COPY instruction at %q: %w", parse.GetTempDir(), err)
+				}
+				err = tmpFile.Chmod(0o644) // 644 is consistent with buildkit
+				if err != nil {
+					tmpFile.Close()
+					return fmt.Errorf("unable to chmod tmp file created for COPY instruction at %q: %w", tmpFile.Name(), err)
+				}
+				defer os.Remove(tmpFile.Name())
+				_, err = tmpFile.WriteString(data)
+				if err != nil {
+					tmpFile.Close()
+					return fmt.Errorf("unable to write contents of heredoc file at %q: %w", tmpFile.Name(), err)
+				}
+				copySources = append(copySources, filepath.Base(tmpFile.Name()))
+				tmpFile.Close()
+			}
+			contextDir = parse.GetTempDir()
+			copy.Src = copySources
+		}
+
+		if len(copy.From) > 0 && len(copy.Files) == 0 {
 			// If from has an argument within it, resolve it to its
 			// value.  Otherwise just return the value found.
 			from, fromErr := imagebuilder.ProcessWord(copy.From, s.stage.Builder.Arguments())
@@ -401,7 +485,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 							// additional context contains a tar file
 							// so download and explode tar to buildah
 							// temp and point context to that.
-							path, subdir, err := define.TempDirForURL(internalUtil.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+							path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
 							if err != nil {
 								return fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 							}
@@ -412,6 +496,16 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 						} else {
 							contextDir = additionalBuildContext.DownloadedCache
 						}
+					} else {
+						// This points to a path on the filesystem
+						// Check to see if there's a .containerignore
+						// file, update excludes for this stage before
+						// proceeding
+						buildContextExcludes, _, err := parse.ContainerIgnoreFile(additionalBuildContext.Value, "", nil)
+						if err != nil {
+							return err
+						}
+						excludes = append(excludes, buildContextExcludes...)
 					}
 				} else {
 					copy.From = additionalBuildContext.Value
@@ -446,6 +540,11 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			stripSetuid = true // did this change between 18.06 and 19.03?
 			stripSetgid = true // did this change between 18.06 and 19.03?
 		}
+		if copy.Download {
+			logrus.Debugf("ADD %#v, %#v", excludes, copy)
+		} else {
+			logrus.Debugf("COPY %#v, %#v", excludes, copy)
+		}
 		for _, src := range copy.Src {
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 				// Source is a URL, allowed for ADD but not COPY.
@@ -462,6 +561,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		options := buildah.AddAndCopyOptions{
 			Chmod:             copy.Chmod,
 			Chown:             copy.Chown,
+			Checksum:          copy.Checksum,
 			PreserveOwnership: preserveOwnership,
 			ContextDir:        contextDir,
 			Excludes:          copyExcludes,
@@ -469,44 +569,66 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			IDMappingOptions:  idMappingOptions,
 			StripSetuidBit:    stripSetuid,
 			StripSetgidBit:    stripSetgid,
+			// The values for these next two fields are ultimately
+			// based on command line flags with names that sound
+			// much more generic.
+			CertPath:              s.executor.systemContext.DockerCertPath,
+			InsecureSkipTLSVerify: s.executor.systemContext.DockerInsecureSkipTLSVerify,
+			MaxRetries:            s.executor.maxPullPushRetries,
+			RetryDelay:            s.executor.retryPullPushDelay,
+		}
+		if len(copy.Files) > 0 {
+			// If we are copying heredoc files, we need to temporary place
+			// them in the context dir and then move to container via copier
+			// there are cases where .containerignore can have a patterns like
+			// '*' which can match our heredoc files so let's not set any excludes
+			// or IgnoreFile for this copy.
+			options.Excludes = nil
+			options.IgnoreFile = ""
 		}
 		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
 			return err
 		}
 	}
+	if len(copiesExtend) > 0 {
+		// If we found heredocs and regularfiles together
+		// in same statement then we produced new copies to
+		// process regular files separately since they need
+		// different context.
+		return s.performCopy(excludes, copiesExtend...)
+	}
 	return nil
 }
 
-// Returns a map of StageName/ImageName:internal.StageMountDetails for RunOpts if any --mount with from is provided
-// Stage can automatically cleanup this mounts when a stage is removed
-// check if RUN contains `--mount` with `from`. If yes pre-mount images or stages from executor for Run.
-// stages mounted here will we used be Run().
+// Returns a map of StageName/ImageName:internal.StageMountDetails for the
+// items in the passed-in mounts list which include a "from=" value.
 func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]internal.StageMountDetails, error) {
 	stageMountPoints := make(map[string]internal.StageMountDetails)
 	for _, flag := range mountList {
 		if strings.Contains(flag, "from") {
-			arr := strings.SplitN(flag, ",", 2)
-			if len(arr) < 2 {
+			tokens := strings.Split(flag, ",")
+			if len(tokens) < 2 {
 				return nil, fmt.Errorf("Invalid --mount command: %s", flag)
 			}
-			tokens := strings.Split(flag, ",")
-			for _, val := range tokens {
-				kv := strings.SplitN(val, "=", 2)
-				switch kv[0] {
+			for _, token := range tokens {
+				key, val, hasVal := strings.Cut(token, "=")
+				switch key {
 				case "from":
-					if len(kv) == 1 {
+					if !hasVal {
 						return nil, fmt.Errorf("unable to resolve argument for `from=`: bad argument")
 					}
-					if kv[1] == "" {
+					if val == "" {
 						return nil, fmt.Errorf("unable to resolve argument for `from=`: from points to an empty value")
 					}
-					from, fromErr := imagebuilder.ProcessWord(kv[1], s.stage.Builder.Arguments())
+					from, fromErr := imagebuilder.ProcessWord(val, s.stage.Builder.Arguments())
 					if fromErr != nil {
-						return nil, fmt.Errorf("unable to resolve argument %q: %w", kv[1], fromErr)
+						return nil, fmt.Errorf("unable to resolve argument %q: %w", val, fromErr)
 					}
-					// If additional buildContext contains this
-					// give priority to that and break if additional
-					// is not an external image.
+					// If the value corresponds to an additional build context,
+					// the mount source is either either the rootfs of the image,
+					// the filesystem path, or a temporary directory populated
+					// with the contents of the URL, all in preference to any
+					// stage which might have the value as its name.
 					if additionalBuildContext, ok := s.executor.additionalBuildContexts[from]; ok {
 						if additionalBuildContext.IsImage {
 							mountPoint, err := s.getImageRootfs(s.ctx, additionalBuildContext.Value)
@@ -519,39 +641,38 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 							//  `from` to refer from stageMountPoints map later.
 							stageMountPoints[from] = internal.StageMountDetails{IsStage: false, DidExecute: true, MountPoint: mountPoint}
 							break
-						} else {
-							// Most likely this points to path on filesystem
-							// or external tar archive, Treat it as a stage
-							// nothing is different for this. So process and
-							// point mountPoint to path on host and it will
-							// be automatically handled correctly by since
-							// GetBindMount will honor IsStage:false while
-							// processing stageMountPoints.
-							mountPoint := additionalBuildContext.Value
-							if additionalBuildContext.IsURL {
-								// Check if following buildContext was already
-								// downloaded before in any other RUN step. If not
-								// download it and populate DownloadCache field for
-								// future RUN steps.
-								if additionalBuildContext.DownloadedCache == "" {
-									// additional context contains a tar file
-									// so download and explode tar to buildah
-									// temp and point context to that.
-									path, subdir, err := define.TempDirForURL(internalUtil.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
-									if err != nil {
-										return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
-									}
-									// point context dir to the extracted path
-									mountPoint = filepath.Join(path, subdir)
-									// populate cache for next RUN step
-									additionalBuildContext.DownloadedCache = mountPoint
-								} else {
-									mountPoint = additionalBuildContext.DownloadedCache
-								}
-							}
-							stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: true, MountPoint: mountPoint}
-							break
 						}
+						// Most likely this points to path on filesystem
+						// or external tar archive, Treat it as a stage
+						// nothing is different for this. So process and
+						// point mountPoint to path on host and it will
+						// be automatically handled correctly by since
+						// GetBindMount will honor IsStage:false while
+						// processing stageMountPoints.
+						mountPoint := additionalBuildContext.Value
+						if additionalBuildContext.IsURL {
+							// Check if following buildContext was already
+							// downloaded before in any other RUN step. If not
+							// download it and populate DownloadCache field for
+							// future RUN steps.
+							if additionalBuildContext.DownloadedCache == "" {
+								// additional context contains a tar file
+								// so download and explode tar to buildah
+								// temp and point context to that.
+								path, subdir, err := define.TempDirForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+								if err != nil {
+									return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
+								}
+								// point context dir to the extracted path
+								mountPoint = filepath.Join(path, subdir)
+								// populate cache for next RUN step
+								additionalBuildContext.DownloadedCache = mountPoint
+							} else {
+								mountPoint = additionalBuildContext.DownloadedCache
+							}
+						}
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: true, MountPoint: mountPoint}
+						break
 					}
 					// If the source's name corresponds to the
 					// result of an earlier stage, wait for that
@@ -559,10 +680,13 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 					if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
 						return nil, err
 					}
+					// If the source's name is a stage, return a
+					// pointer to its rootfs.
 					if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
 						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, DidExecute: otherStage.didExecute, MountPoint: otherStage.mountPoint}
 						break
 					} else {
+						// Treat the source's name as the name of an image.
 						mountPoint, err := s.getImageRootfs(s.ctx, from)
 						if err != nil {
 							return nil, fmt.Errorf("%s from=%s: no stage or image found with that name", flag, from)
@@ -579,10 +703,73 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 	return stageMountPoints, nil
 }
 
+func (s *StageExecutor) createNeededHeredocMountsForRun(files []imagebuilder.File) ([]Mount, error) {
+	mountResult := []Mount{}
+	for _, file := range files {
+		f, err := os.CreateTemp(parse.GetTempDir(), "buildahheredoc")
+		if err != nil {
+			return nil, err
+		}
+		if _, err := f.WriteString(file.Data); err != nil {
+			f.Close()
+			return nil, err
+		}
+		err = f.Chmod(0o755)
+		if err != nil {
+			f.Close()
+			return nil, err
+		}
+		// dest path is same as buildkit for compat
+		dest := filepath.Join("/dev/pipes/", filepath.Base(f.Name()))
+		mount := Mount{Destination: dest, Type: define.TypeBind, Source: f.Name(), Options: append(define.BindOptions, "rprivate", "z", "Z")}
+		mountResult = append(mountResult, mount)
+		f.Close()
+	}
+	return mountResult, nil
+}
+
+func parseSheBang(data string) string {
+	lines := strings.Split(data, "\n")
+	if len(lines) > 2 && strings.HasPrefix(lines[1], "#!") {
+		shebang := strings.TrimLeft(lines[1], "#!")
+		return shebang
+	}
+	return ""
+}
+
 // Run executes a RUN instruction using the stage's current working container
 // as a root directory.
 func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 	logrus.Debugf("RUN %#v, %#v", run, config)
+	args := run.Args
+	heredocMounts := []Mount{}
+	if len(run.Files) > 0 {
+		if heredoc := buildkitparser.MustParseHeredoc(args[0]); heredoc != nil {
+			if strings.HasPrefix(run.Files[0].Data, "#!") || strings.HasPrefix(run.Files[0].Data, "\n#!") {
+				// This is a single heredoc with a shebang, so create a file
+				// and run it with program specified in shebang.
+				heredocMount, err := s.createNeededHeredocMountsForRun(run.Files)
+				if err != nil {
+					return err
+				}
+				shebangArgs := parseSheBang(run.Files[0].Data)
+				if shebangArgs != "" {
+					args = []string{shebangArgs + " " + heredocMount[0].Destination}
+				} else {
+					args = []string{heredocMount[0].Destination}
+				}
+				heredocMounts = append(heredocMounts, heredocMount...)
+			} else {
+				args = []string{run.Files[0].Data}
+			}
+		} else {
+			full := args[0]
+			for _, file := range run.Files {
+				full += file.Data + "\n" + file.Name
+			}
+			args = []string{full}
+		}
+	}
 	stageMountPoints, err := s.runStageMountPoints(run.Mounts)
 	if err != nil {
 		return err
@@ -601,31 +788,33 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 	}
 	namespaceOptions := append([]define.NamespaceOption{}, s.executor.namespaceOptions...)
 	options := buildah.RunOptions{
-		Args:             s.executor.runtimeArgs,
-		Cmd:              config.Cmd,
-		ContextDir:       s.executor.contextDir,
-		ConfigureNetwork: s.executor.configureNetwork,
-		Entrypoint:       config.Entrypoint,
-		Env:              config.Env,
-		Hostname:         config.Hostname,
-		Logger:           s.executor.logger,
-		Mounts:           append([]Mount{}, s.executor.transientMounts...),
-		NamespaceOptions: namespaceOptions,
-		NoHosts:          s.executor.noHosts,
-		NoPivot:          os.Getenv("BUILDAH_NOPIVOT") != "",
-		Quiet:            s.executor.quiet,
-		RunMounts:        run.Mounts,
-		Runtime:          s.executor.runtime,
-		Secrets:          s.executor.secrets,
-		SSHSources:       s.executor.sshsources,
-		StageMountPoints: stageMountPoints,
-		Stderr:           s.executor.err,
-		Stdin:            stdin,
-		Stdout:           s.executor.out,
-		SystemContext:    s.executor.systemContext,
-		Terminal:         buildah.WithoutTerminal,
-		User:             config.User,
-		WorkingDir:       config.WorkingDir,
+		Args:                 s.executor.runtimeArgs,
+		Cmd:                  config.Cmd,
+		ContextDir:           s.executor.contextDir,
+		ConfigureNetwork:     s.executor.configureNetwork,
+		Entrypoint:           config.Entrypoint,
+		Env:                  config.Env,
+		Hostname:             config.Hostname,
+		Logger:               s.executor.logger,
+		Mounts:               slices.Clone(s.executor.transientMounts),
+		NamespaceOptions:     namespaceOptions,
+		NoHostname:           s.executor.noHostname,
+		NoHosts:              s.executor.noHosts,
+		NoPivot:              os.Getenv("BUILDAH_NOPIVOT") != "" || s.executor.noPivotRoot,
+		Quiet:                s.executor.quiet,
+		CompatBuiltinVolumes: types.OptionalBoolFalse,
+		RunMounts:            run.Mounts,
+		Runtime:              s.executor.runtime,
+		Secrets:              s.executor.secrets,
+		SSHSources:           s.executor.sshsources,
+		StageMountPoints:     stageMountPoints,
+		Stderr:               s.executor.err,
+		Stdin:                stdin,
+		Stdout:               s.executor.out,
+		SystemContext:        s.executor.systemContext,
+		Terminal:             buildah.WithoutTerminal,
+		User:                 config.User,
+		WorkingDir:           config.WorkingDir,
 	}
 
 	// Honor `RUN --network=<>`.
@@ -645,7 +834,6 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		options.ConfigureNetwork = buildah.NetworkDisabled
 	}
 
-	args := run.Args
 	if run.Shell {
 		if len(config.Shell) > 0 && s.builder.Format == define.Dockerv2ImageManifest {
 			args = append(config.Shell, args...)
@@ -653,17 +841,40 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 			args = append([]string{"/bin/sh", "-c"}, args...)
 		}
 	}
-	mounts, err := s.volumeCacheSave()
-	if err != nil {
-		return err
+
+	if s.executor.compatVolumes == types.OptionalBoolTrue {
+		// Only bother with saving/restoring the contents of volumes if
+		// we've been specifically asked to.
+		mounts, err := s.volumeCacheSave()
+		if err != nil {
+			return err
+		}
+		options.Mounts = append(options.Mounts, mounts...)
 	}
-	options.Mounts = append(options.Mounts, mounts...)
+
+	// The list of built-in volumes isn't passed in via RunOptions, so make
+	// sure the builder's list of built-in volumes includes anything that
+	// the configuration thinks is a built-in volume.
+	s.builder.ClearVolumes()
+	for v := range config.Volumes {
+		s.builder.AddVolume(v)
+	}
+
+	if len(heredocMounts) > 0 {
+		options.Mounts = append(options.Mounts, heredocMounts...)
+	}
 	err = s.builder.Run(args, options)
-	if err2 := s.volumeCacheRestore(); err2 != nil {
-		if err == nil {
-			return err2
+
+	if s.executor.compatVolumes == types.OptionalBoolTrue {
+		// Only bother with saving/restoring the contents of volumes if
+		// we've been specifically asked to.
+		if err2 := s.volumeCacheRestore(); err2 != nil {
+			if err == nil {
+				return err2
+			}
 		}
 	}
+
 	return err
 }
 
@@ -673,20 +884,20 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 	errStr := fmt.Sprintf("Build error: Unknown instruction: %q ", strings.ToUpper(step.Command))
 	err := fmt.Sprintf(errStr+"%#v", step)
 	if s.executor.ignoreUnrecognizedInstructions {
-		logrus.Debugf(err)
+		logrus.Debug(err)
 		return nil
 	}
 
 	switch logrus.GetLevel() {
 	case logrus.ErrorLevel:
-		s.executor.logger.Errorf(errStr)
+		s.executor.logger.Error(errStr)
 	case logrus.DebugLevel:
-		logrus.Debugf(err)
+		logrus.Debug(err)
 	default:
 		s.executor.logger.Errorf("+(UNHANDLED LOGLEVEL) %#v", step)
 	}
 
-	return fmt.Errorf(err)
+	return errors.New(err)
 }
 
 // prepare creates a working container based on the specified image, or if one
@@ -706,12 +917,15 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		from = base
 	}
 	displayFrom := from
+	if ib.Platform != "" {
+		displayFrom = "--platform=" + ib.Platform + " " + displayFrom
+	}
 
 	// stage.Name will be a numeric string for all stages without an "AS" clause
 	asImageName := stage.Name
 	if asImageName != "" {
 		if _, err := strconv.Atoi(asImageName); err != nil {
-			displayFrom = from + " AS " + asImageName
+			displayFrom += " AS " + asImageName
 		}
 	}
 
@@ -761,6 +975,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		Format:                s.executor.outputFormat,
 		Capabilities:          s.executor.capabilities,
 		Devices:               s.executor.devices,
+		DeviceSpecs:           s.executor.deviceSpecs,
 		MaxPullRetries:        s.executor.maxPullPushRetries,
 		PullRetryDelay:        s.executor.retryPullPushDelay,
 		OciDecryptConfig:      s.executor.ociDecryptConfig,
@@ -768,6 +983,8 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		ProcessLabel:          s.executor.processLabel,
 		MountLabel:            s.executor.mountLabel,
 		PreserveBaseImageAnns: preserveBaseImageAnnotations,
+		CDIConfigDir:          s.executor.cdiConfigDir,
+		CompatScratchConfig:   s.executor.compatScratchConfig,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
@@ -821,7 +1038,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			}
 		}
 		dImage := docker.Image{
-			Parent:          builder.FromImage,
+			Parent:          builder.FromImageID,
 			ContainerConfig: dConfig,
 			Container:       builder.Container,
 			Author:          builder.Maintainer(),
@@ -848,6 +1065,15 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		// Make this our "current" working container.
 		s.mountPoint = mountPoint
 		s.builder = builder
+		// Now that the rootfs is mounted, set up handling of volumes from the base image.
+		s.volumes = make([]string, 0, len(s.volumes))
+		s.volumeCache = make(map[string]string)
+		s.volumeCacheInfo = make(map[string]os.FileInfo)
+		for _, v := range builder.Volumes() {
+			if err := s.Preserve(v); err != nil {
+				return nil, fmt.Errorf("marking base image volume %q for preservation: %w", v, err)
+			}
+		}
 	}
 	logrus.Debugln("Container ID:", builder.ContainerID)
 	return builder, nil
@@ -904,15 +1130,16 @@ func (s *StageExecutor) getContentSummaryAfterAddingContent() string {
 }
 
 // Execute runs each of the steps in the stage's parsed tree, in turn.
-func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string, ref reference.Canonical, err error) {
+func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string, ref reference.Canonical, onlyBaseImg bool, err error) {
 	var resourceUsage rusage.Rusage
 	stage := s.stage
 	ib := stage.Builder
 	checkForLayers := s.executor.layers && s.executor.useCache
 	moreStages := s.index < len(s.stages)-1
 	lastStage := !moreStages
-	imageIsUsedLater := moreStages && (s.executor.baseMap[stage.Name] || s.executor.baseMap[strconv.Itoa(stage.Position)])
-	rootfsIsUsedLater := moreStages && (s.executor.rootfsMap[stage.Name] || s.executor.rootfsMap[strconv.Itoa(stage.Position)])
+	onlyBaseImage := false
+	imageIsUsedLater := moreStages && (internalUtil.SetHas(s.executor.baseMap, stage.Name) || internalUtil.SetHas(s.executor.baseMap, strconv.Itoa(stage.Position)))
+	rootfsIsUsedLater := moreStages && (internalUtil.SetHas(s.executor.rootfsMap, stage.Name) || internalUtil.SetHas(s.executor.rootfsMap, strconv.Itoa(stage.Position)))
 
 	// If the base image's name corresponds to the result of an earlier
 	// stage, make sure that stage has finished building an image, and
@@ -923,7 +1150,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	// either in local storage, or one that we have to pull from a
 	// registry, subject to the passed-in pull policy.
 	if isStage, err := s.executor.waitForStage(ctx, base, s.stages[:s.index]); isStage && err != nil {
-		return "", nil, err
+		return "", nil, false, err
 	}
 	pullPolicy := s.executor.pullPolicy
 	s.executor.stagesLock.Lock()
@@ -953,7 +1180,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	// Start counting resource usage before we potentially pull a base image.
 	if rusage.Supported() {
 		if resourceUsage, err = rusage.Get(); err != nil {
-			return "", nil, err
+			return "", nil, false, err
 		}
 		// Log the final incremental resource usage counter before we return.
 		defer logRusage()
@@ -963,7 +1190,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	// the imagebuilder configuration may alter the list of steps we have,
 	// so take a snapshot of them *after* that.
 	if _, err := s.prepare(ctx, base, true, true, preserveBaseImageAnnotationsAtStageStart, pullPolicy); err != nil {
-		return "", nil, err
+		return "", nil, false, err
 	}
 	children := stage.Node.Children
 
@@ -978,7 +1205,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		if output != "" {
 			commitMessage = fmt.Sprintf("%s %s", commitMessage, output)
 		}
-		logrus.Debugf(commitMessage)
+		logrus.Debug(commitMessage)
 		if !s.executor.quiet {
 			s.log(commitMessage)
 		}
@@ -1021,56 +1248,40 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		logrus.Debugf("Generating custom build output with options %q", s.executor.buildOutput)
 		buildOutputOption, err = parse.GetBuildOutput(s.executor.buildOutput)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to parse build output: %w", err)
+			return "", nil, false, fmt.Errorf("failed to parse build output: %w", err)
 		}
 	}
 
 	if len(children) == 0 {
 		// There are no steps.
-		if s.builder.FromImageID == "" || s.executor.squash {
+		if s.builder.FromImageID == "" || s.executor.squash || s.executor.confidentialWorkload.Convert || len(s.executor.labels) > 0 || len(s.executor.annotations) > 0 || len(s.executor.unsetEnvs) > 0 || len(s.executor.unsetLabels) > 0 || len(s.executor.sbomScanOptions) > 0 {
 			// We either don't have a base image, or we need to
-			// squash the contents of the base image.  Whichever is
-			// the case, we need to commit() to create a new image.
+			// transform the contents of the base image, or we need
+			// to make some changes to just the config blob.  Whichever
+			// is the case, we need to commit() to create a new image.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(nil, ""), false, s.output, s.executor.squash); err != nil {
-				return "", nil, fmt.Errorf("committing base container: %w", err)
-			}
-			// Generate build output if needed.
-			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildOutputOption); err != nil {
-					return "", nil, err
-				}
-			}
-		} else if len(s.executor.labels) > 0 || len(s.executor.annotations) > 0 {
-			// The image would be modified by the labels passed
-			// via the command line, so we need to commit.
-			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(stage.Node, ""), true, s.output, s.executor.squash); err != nil {
-				return "", nil, err
-			}
-			// Generate build output if needed.
-			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildOutputOption); err != nil {
-					return "", nil, err
-				}
+			// No base image means there's nothing to put in a
+			// layer, so don't create one.
+			emptyLayer := (s.builder.FromImageID == "")
+			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(nil, ""), emptyLayer, s.output, s.executor.squash || s.executor.confidentialWorkload.Convert, lastStage); err != nil {
+				return "", nil, false, fmt.Errorf("committing base container: %w", err)
 			}
 		} else {
-			// We don't need to squash the base image, and the
-			// image wouldn't be modified by the command line
-			// options, so just reuse the base image.
+			// We don't need to squash or otherwise transform the
+			// base image, and the image wouldn't be modified by
+			// the command line options, so just reuse the base
+			// image.
 			logCommit(s.output, -1)
 			if imgID, ref, err = s.tagExistingImage(ctx, s.builder.FromImageID, s.output); err != nil {
-				return "", nil, err
+				return "", nil, onlyBaseImage, err
 			}
-			// If we have reached this point then our build is just performing a tag
-			// and it contains no steps or instructions (i.e Containerfile only contains
-			// `FROM <imagename> and nothing else so we will never end up committing this
-			// but instead just re-tag image. For such use-cases if `-o` or `--output` was
-			// specified honor that and export the contents of the current build anyways.
-			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildOutputOption); err != nil {
-					return "", nil, err
-				}
+			onlyBaseImage = true
+		}
+		// Generate build output from the new image, or the preexisting
+		// one if we didn't actually do anything, if needed.
+		if canGenerateBuildOutput {
+			if err := s.generateBuildOutput(buildOutputOption); err != nil {
+				return "", nil, onlyBaseImage, err
 			}
 		}
 		logImageID(imgID)
@@ -1083,34 +1294,51 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// Resolve any arguments in this instruction.
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
-			return "", nil, fmt.Errorf("resolving step %+v: %w", *node, err)
+			return "", nil, false, fmt.Errorf("resolving step %+v: %w", *node, err)
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
 		if !s.executor.quiet {
-			s.log("%s", step.Original)
+			logMsg := step.Original
+			if len(step.Heredocs) > 0 {
+				summarizeHeredoc := func(doc string) string {
+					doc = strings.TrimSpace(doc)
+					lines := strings.Split(strings.ReplaceAll(doc, "\r\n", "\n"), "\n")
+					summary := lines[0]
+					if len(lines) > 1 {
+						summary += "..."
+					}
+					return summary
+				}
+
+				for _, doc := range node.Heredocs {
+					heredocContent := summarizeHeredoc(doc.Content)
+					logMsg = logMsg + " (" + heredocContent + ")"
+				}
+			}
+			s.log("%s", logMsg)
 		}
 
 		// Check if there's a --from if the step command is COPY.
 		// Also check the chmod and the chown flags for validity.
 		for _, flag := range step.Flags {
 			command := strings.ToUpper(step.Command)
-			// chmod, chown and from flags should have an '=' sign, '--chmod=', '--chown=' or '--from='
-			if command == "COPY" && (flag == "--chmod" || flag == "--chown" || flag == "--from") {
-				return "", nil, fmt.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags")
+			// chmod, chown and from flags should have an '=' sign, '--chmod=', '--chown=' or '--from=' or '--exclude='
+			if command == "COPY" && (flag == "--chmod" || flag == "--chown" || flag == "--from" || flag == "--exclude") {
+				return "", nil, false, fmt.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> --from=<image|stage> and the --exclude=<pattern> flags")
 			}
-			if command == "ADD" && (flag == "--chmod" || flag == "--chown") {
-				return "", nil, fmt.Errorf("ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags")
+			if command == "ADD" && (flag == "--chmod" || flag == "--chown" || flag == "--checksum" || flag == "--exclude") {
+				return "", nil, false, fmt.Errorf("ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> --exclude=<pattern> flags")
 			}
 			if strings.Contains(flag, "--from") && command == "COPY" {
 				arr := strings.Split(flag, "=")
 				if len(arr) != 2 {
-					return "", nil, fmt.Errorf("%s: invalid --from flag, should be --from=<name|stage>", command)
+					return "", nil, false, fmt.Errorf("%s: invalid --from flag %q, should be --from=<name|stage>", command, flag)
 				}
 				// If arr[1] has an argument within it, resolve it to its
 				// value.  Otherwise just return the value found.
 				from, fromErr := imagebuilder.ProcessWord(arr[1], s.stage.Builder.Arguments())
 				if fromErr != nil {
-					return "", nil, fmt.Errorf("unable to resolve argument %q: %w", arr[1], fromErr)
+					return "", nil, false, fmt.Errorf("unable to resolve argument %q: %w", arr[1], fromErr)
 				}
 
 				// Before looking into additional context
@@ -1129,26 +1357,25 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 						// since this additional context
 						// is not an image.
 						break
-					} else {
-						// replace with image set in build context
-						from = additionalBuildContext.Value
-						if _, err := s.getImageRootfs(ctx, from); err != nil {
-							return "", nil, fmt.Errorf("%s --from=%s: no stage or image found with that name", command, from)
-						}
-						break
 					}
+					// replace with image set in build context
+					from = additionalBuildContext.Value
+					if _, err := s.getImageRootfs(ctx, from); err != nil {
+						return "", nil, false, fmt.Errorf("%s --from=%s: no stage or image found with that name", command, from)
+					}
+					break
 				}
 
 				// If the source's name corresponds to the
 				// result of an earlier stage, wait for that
 				// stage to finish being built.
 				if isStage, err := s.executor.waitForStage(ctx, from, s.stages[:s.index]); isStage && err != nil {
-					return "", nil, err
+					return "", nil, false, err
 				}
 				if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
 					break
 				} else if _, err = s.getImageRootfs(ctx, from); err != nil {
-					return "", nil, fmt.Errorf("%s --from=%s: no stage or image found with that name", command, from)
+					return "", nil, false, fmt.Errorf("%s --from=%s: no stage or image found with that name", command, from)
 				}
 				break
 			}
@@ -1170,7 +1397,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
 				logrus.Debugf("Error building at step %+v: %v", *step, err)
-				return "", nil, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
+				return "", nil, false, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
 			}
 			// In case we added content, retrieve its digest.
 			addedContentSummary := s.getContentSummaryAfterAddingContent()
@@ -1185,30 +1412,29 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				}
 				s.builder.AddPrependedEmptyLayer(&timestamp, s.getCreatedBy(node, addedContentSummary), "", "")
 				continue
-			} else {
-				// This is the last instruction for this stage,
-				// so we should commit this container to create
-				// an image, but only if it's the last stage,
-				// or if it's used as the basis for a later
-				// stage.
-				if lastStage || imageIsUsedLater {
-					logCommit(s.output, i)
-					imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), false, s.output, s.executor.squash)
-					if err != nil {
-						return "", nil, fmt.Errorf("committing container for step %+v: %w", *step, err)
-					}
-					logImageID(imgID)
-					// Generate build output if needed.
-					if canGenerateBuildOutput {
-						if err := s.generateBuildOutput(buildOutputOption); err != nil {
-							return "", nil, err
-						}
-					}
-				} else {
-					imgID = ""
-				}
-				break
 			}
+			// This is the last instruction for this stage,
+			// so we should commit this container to create
+			// an image, but only if it's the last stage,
+			// or if it's used as the basis for a later
+			// stage.
+			if lastStage || imageIsUsedLater {
+				logCommit(s.output, i)
+				imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), false, s.output, s.executor.squash, lastStage && lastInstruction)
+				if err != nil {
+					return "", nil, false, fmt.Errorf("committing container for step %+v: %w", *step, err)
+				}
+				logImageID(imgID)
+				// Generate build output if needed.
+				if canGenerateBuildOutput {
+					if err := s.generateBuildOutput(buildOutputOption); err != nil {
+						return "", nil, false, err
+					}
+				}
+			} else {
+				imgID = ""
+			}
+			break
 		}
 
 		// We're in a multi-layered build.
@@ -1233,7 +1459,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		for _, a := range node.Flags {
 			arg, err := imagebuilder.ProcessWord(a, s.stage.Builder.Arguments())
 			if err != nil {
-				return "", nil, err
+				return "", nil, false, err
 			}
 			switch {
 			case strings.HasPrefix(arg, "--mount="):
@@ -1245,7 +1471,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		}
 		stageMountPoints, err := s.runStageMountPoints(mounts)
 		if err != nil {
-			return "", nil, err
+			return "", nil, false, err
 		}
 		for _, mountPoint := range stageMountPoints {
 			if mountPoint.DidExecute {
@@ -1253,7 +1479,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 		}
 
-		needsCacheKey := (len(s.executor.cacheFrom) != 0 || len(s.executor.cacheTo) != 0) && !avoidLookingCache
+		needsCacheKey := (len(s.executor.cacheFrom) != 0 && !avoidLookingCache) || len(s.executor.cacheTo) != 0
 
 		// If we have to commit for this instruction, only assign the
 		// stage's configured output name to the last layer.
@@ -1267,7 +1493,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		if needsCacheKey {
 			cacheKey, err = s.generateCacheKey(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 			if err != nil {
-				return "", nil, fmt.Errorf("failed while generating cache key: %w", err)
+				return "", nil, false, fmt.Errorf("failed while generating cache key: %w", err)
 			}
 		}
 		// Check if there's already an image based on our parent that
@@ -1284,10 +1510,9 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// and copy the content.
 			canMatchCacheOnlyAfterRun = (step.Command == command.Add || step.Command == command.Copy)
 			if canMatchCacheOnlyAfterRun {
-				s.didExecute = true
 				if err = ib.Run(step, s, noRunsRemaining); err != nil {
 					logrus.Debugf("Error building at step %+v: %v", *step, err)
-					return "", nil, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
+					return "", nil, false, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
 				}
 				// Retrieve the digest info for the content that we just copied
 				// into the rootfs.
@@ -1296,13 +1521,13 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				if needsCacheKey {
 					cacheKey, err = s.generateCacheKey(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 					if err != nil {
-						return "", nil, fmt.Errorf("failed while generating cache key: %w", err)
+						return "", nil, false, fmt.Errorf("failed while generating cache key: %w", err)
 					}
 				}
 			}
 			cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 			if err != nil {
-				return "", nil, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
+				return "", nil, false, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
 			}
 			// All the best effort to find cache on localstorage have failed try pulling
 			// cache from remote repo if `--cache-from` was configured.
@@ -1314,12 +1539,15 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 					logCachePulled(cacheKey, ref)
 					cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 					if err != nil {
-						return "", nil, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
+						return "", nil, false, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
 					}
 					if cacheID != "" {
 						pulledAndUsedCacheImage = true
 					}
 				}
+			}
+			if canMatchCacheOnlyAfterRun && cacheID == "" {
+				s.didExecute = true
 			}
 		}
 
@@ -1334,7 +1562,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			s.didExecute = true
 			if err = ib.Run(step, s, noRunsRemaining); err != nil {
 				logrus.Debugf("Error building at step %+v: %v", *step, err)
-				return "", nil, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
+				return "", nil, false, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
 			}
 
 			// In case we added content, retrieve its digest.
@@ -1343,7 +1571,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if needsCacheKey {
 				cacheKey, err = s.generateCacheKey(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 				if err != nil {
-					return "", nil, fmt.Errorf("failed while generating cache key: %w", err)
+					return "", nil, false, fmt.Errorf("failed while generating cache key: %w", err)
 				}
 			}
 
@@ -1352,7 +1580,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if checkForLayers && !avoidLookingCache {
 				cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 				if err != nil {
-					return "", nil, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
+					return "", nil, false, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
 				}
 				// All the best effort to find cache on localstorage have failed try pulling
 				// cache from remote repo if `--cache-from` was configured and cacheKey was
@@ -1365,7 +1593,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 						logCachePulled(cacheKey, ref)
 						cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 						if err != nil {
-							return "", nil, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
+							return "", nil, false, fmt.Errorf("checking if cached image exists from a previous build: %w", err)
 						}
 						if cacheID != "" {
 							pulledAndUsedCacheImage = true
@@ -1389,13 +1617,13 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				err := ib.Run(step, s, noRunsRemaining)
 				if err != nil {
 					logrus.Debugf("Error building at step %+v: %v", *step, err)
-					return "", nil, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
+					return "", nil, false, fmt.Errorf("building at STEP \"%s\": %w", step.Message, err)
 				}
 			}
 		}
 
-		// Note: If the build has squash, we must try to re-use as many layers as possible if cache is found.
-		// So only perform commit if its the lastInstruction of lastStage.
+		// Note: If the build has squash, we must try to reuse as many layers as possible if cache is found.
+		// So only perform commit if it's the lastInstruction of lastStage.
 		if cacheID != "" {
 			logCacheHit(cacheID)
 			// A suitable cached image was found, so we can just
@@ -1406,7 +1634,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if commitName != "" {
 				logCommit(commitName, i)
 				if imgID, ref, err = s.tagExistingImage(ctx, cacheID, commitName); err != nil {
-					return "", nil, err
+					return "", nil, false, err
 				}
 			}
 		} else {
@@ -1419,15 +1647,15 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// While committing we always set squash to false here
 			// because at this point we want to save history for
 			// layers even if its a squashed build so that they
-			// can be part of build-cache.
-			imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, false)
+			// can be part of the build cache.
+			imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, false, lastStage && lastInstruction)
 			if err != nil {
-				return "", nil, fmt.Errorf("committing container for step %+v: %w", *step, err)
+				return "", nil, false, fmt.Errorf("committing container for step %+v: %w", *step, err)
 			}
 			// Generate build output if needed.
 			if canGenerateBuildOutput {
 				if err := s.generateBuildOutput(buildOutputOption); err != nil {
-					return "", nil, err
+					return "", nil, false, err
 				}
 			}
 		}
@@ -1445,23 +1673,25 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		if len(s.executor.cacheTo) != 0 && (!pulledAndUsedCacheImage || cacheID == "") && needsCacheKey {
 			logCachePush(cacheKey)
 			if err = s.pushCache(ctx, imgID, cacheKey); err != nil {
-				return "", nil, err
+				return "", nil, false, err
 			}
 		}
 
 		if lastInstruction && lastStage {
-			if s.executor.squash {
-				// Create a squashed version of this image
-				// if we're supposed to create one and this
-				// is the last instruction of the last stage.
-				imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, true)
+			if s.executor.squash || s.executor.confidentialWorkload.Convert || len(s.executor.sbomScanOptions) != 0 {
+				// If this is the last instruction of the last stage,
+				// create a squashed or confidential workload
+				// version of the image if that's what we're after,
+				// or a normal one if we need to scan the image while
+				// committing it.
+				imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, s.executor.squash || s.executor.confidentialWorkload.Convert, lastStage && lastInstruction)
 				if err != nil {
-					return "", nil, fmt.Errorf("committing final squash step %+v: %w", *step, err)
+					return "", nil, false, fmt.Errorf("committing final squash step %+v: %w", *step, err)
 				}
 				// Generate build output if needed.
 				if canGenerateBuildOutput {
 					if err := s.generateBuildOutput(buildOutputOption); err != nil {
-						return "", nil, err
+						return "", nil, false, err
 					}
 				}
 			} else if cacheID != "" {
@@ -1476,7 +1706,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				// Generate build output if needed.
 				if canGenerateBuildOutput {
 					if err := s.generateBuildOutput(buildOutputOption); err != nil {
-						return "", nil, err
+						return "", nil, false, err
 					}
 				}
 			}
@@ -1507,11 +1737,12 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// ID that we really should not be pulling anymore (see
 			// containers/podman/issues/10307).
 			if _, err := s.prepare(ctx, imgID, false, true, true, define.PullNever); err != nil {
-				return "", nil, fmt.Errorf("preparing container for next step: %w", err)
+				return "", nil, false, fmt.Errorf("preparing container for next step: %w", err)
 			}
 		}
 	}
-	return imgID, ref, nil
+
+	return imgID, ref, onlyBaseImage, nil
 }
 
 func historyEntriesEqual(base, derived v1.History) bool {
@@ -1604,11 +1835,22 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		buildArgs := s.getBuildArgsKey()
 		return "/bin/sh -c #(nop) ARG " + buildArgs
 	case "RUN":
+		shArg := ""
 		buildArgs := s.getBuildArgsResolvedForRun()
-		if buildArgs != "" {
-			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + node.Original[4:]
+		if len(node.Original) > 4 {
+			shArg = node.Original[4:]
 		}
-		return "/bin/sh -c " + node.Original[4:]
+		if buildArgs != "" {
+			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + shArg
+		}
+		result := "/bin/sh -c " + shArg
+		if len(node.Heredocs) > 0 {
+			for _, doc := range node.Heredocs {
+				heredocContent := strings.TrimSpace(doc.Content)
+				result = result + "\n" + heredocContent
+			}
+		}
+		return result
 	case "ADD", "COPY":
 		destination := node
 		for destination.Next != nil {
@@ -1630,9 +1872,9 @@ func (s *StageExecutor) getBuildArgsResolvedForRun() string {
 	dockerConfig := s.stage.Builder.Config()
 
 	for _, env := range dockerConfig.Env {
-		splitv := strings.SplitN(env, "=", 2)
-		if len(splitv) == 2 {
-			configuredEnvs[splitv[0]] = splitv[1]
+		key, val, hasVal := strings.Cut(env, "=")
+		if hasVal {
+			configuredEnvs[key] = val
 		}
 	}
 
@@ -1732,7 +1974,7 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 	if err != nil {
 		return "", nil, fmt.Errorf("computing digest of manifest for image %q: %w", cacheID, err)
 	}
-	img, err := is.Transport.GetStoreImage(s.executor.store, dest)
+	_, img, err := is.ResolveReference(dest)
 	if err != nil {
 		return "", nil, fmt.Errorf("locating new copy of image %q (i.e., %q): %w", cacheID, transports.ImageName(dest), err)
 	}
@@ -1818,6 +2060,12 @@ func (s *StageExecutor) pushCache(ctx context.Context, src, cacheKey string) err
 			MaxRetries:          s.executor.maxPullPushRetries,
 			RetryDelay:          s.executor.retryPullPushDelay,
 		}
+		if s.executor.cachePushSourceLookupReferenceFunc != nil {
+			options.SourceLookupReferenceFunc = s.executor.cachePushSourceLookupReferenceFunc(dest)
+		}
+		if s.executor.cachePushDestinationLookupReferenceFunc != nil {
+			options.DestinationLookupReferenceFunc = s.executor.cachePushDestinationLookupReferenceFunc
+		}
 		ref, digest, err := buildah.Push(ctx, src, dest, options)
 		if err != nil {
 			return fmt.Errorf("failed pushing cache to %q: %w", dest, err)
@@ -1839,7 +2087,8 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 		return nil, "", err
 	}
 	for _, src := range srcList {
-		logrus.Debugf("trying to pull cache from remote repo: %+v", src.DockerReference())
+		srcDockerRef := src.DockerReference()
+		logrus.Debugf("trying to pull cache from remote repo: %+v", srcDockerRef)
 		options := buildah.PullOptions{
 			SignaturePolicyPath: s.executor.signaturePolicyPath,
 			Store:               s.executor.store,
@@ -1851,11 +2100,18 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 			ReportWriter:        nil,
 			PullPolicy:          define.PullIfNewer,
 		}
-		id, err := buildah.Pull(ctx, src.DockerReference().String(), options)
+		if s.executor.cachePullSourceLookupReferenceFunc != nil {
+			options.SourceLookupReferenceFunc = s.executor.cachePullSourceLookupReferenceFunc
+		}
+		if s.executor.cachePullDestinationLookupReferenceFunc != nil {
+			options.DestinationLookupReferenceFunc = s.executor.cachePullDestinationLookupReferenceFunc(src)
+		}
+
+		id, err := buildah.Pull(ctx, srcDockerRef.String(), options)
 		if err != nil {
 			logrus.Debugf("failed pulling cache from source %s: %v", src, err)
 			continue // failed pulling this one try next
-			//return "", fmt.Errorf("failed while pulling cache from %q: %w", src, err)
+			// return "", fmt.Errorf("failed while pulling cache from %q: %w", src, err)
 		}
 		logrus.Debugf("successfully pulled cache from repo %s: %s", src, id)
 		return src.DockerReference(), id, nil
@@ -1941,7 +2197,7 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 // commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
 // or commit via any custom exporter if specified.
-func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer bool, output string, squash bool) (string, reference.Canonical, error) {
+func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer bool, output string, squash, finalInstruction bool) (string, reference.Canonical, error) {
 	ib := s.stage.Builder
 	var imageRef types.ImageReference
 	if output != "" {
@@ -1984,8 +2240,8 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		s.builder.SetPort(string(p))
 	}
 	for _, envSpec := range config.Env {
-		spec := strings.SplitN(envSpec, "=", 2)
-		s.builder.SetEnv(spec[0], spec[1])
+		key, val, _ := strings.Cut(envSpec, "=")
+		s.builder.SetEnv(key, val)
 	}
 	for _, envSpec := range s.executor.unsetEnvs {
 		s.builder.UnsetEnv(envSpec)
@@ -2005,30 +2261,39 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	s.builder.SetStopSignal(config.StopSignal)
 	if config.Healthcheck != nil {
 		s.builder.SetHealthcheck(&buildahdocker.HealthConfig{
-			Test:        append([]string{}, config.Healthcheck.Test...),
-			Interval:    config.Healthcheck.Interval,
-			Timeout:     config.Healthcheck.Timeout,
-			StartPeriod: config.Healthcheck.StartPeriod,
-			Retries:     config.Healthcheck.Retries,
+			Test:          append([]string{}, config.Healthcheck.Test...),
+			Interval:      config.Healthcheck.Interval,
+			Timeout:       config.Healthcheck.Timeout,
+			StartPeriod:   config.Healthcheck.StartPeriod,
+			StartInterval: config.Healthcheck.StartInterval,
+			Retries:       config.Healthcheck.Retries,
 		})
 	} else {
 		s.builder.SetHealthcheck(nil)
 	}
 	s.builder.ClearLabels()
 
+	if output == "" {
+		// If output is not set then we are committing
+		// an intermediate image, in such case we must
+		// honor layer labels if they are configured.
+		for _, labelString := range s.executor.layerLabels {
+			labelk, labelv, _ := strings.Cut(labelString, "=")
+			s.builder.SetLabel(labelk, labelv)
+		}
+	}
 	for k, v := range config.Labels {
 		s.builder.SetLabel(k, v)
 	}
 	if s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolUndefined || s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolTrue {
 		s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 	}
+	for _, key := range s.executor.unsetLabels {
+		s.builder.UnsetLabel(key)
+	}
 	for _, annotationSpec := range s.executor.annotations {
-		annotation := strings.SplitN(annotationSpec, "=", 2)
-		if len(annotation) > 1 {
-			s.builder.SetAnnotation(annotation[0], annotation[1])
-		} else {
-			s.builder.SetAnnotation(annotation[0], "")
-		}
+		annotationk, annotationv, _ := strings.Cut(annotationSpec, "=")
+		s.builder.SetAnnotation(annotationk, annotationv)
 	}
 	if imageRef != nil {
 		logName := transports.ImageName(imageRef)
@@ -2055,6 +2320,11 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		RetryDelay:            s.executor.retryPullPushDelay,
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
+		CompatSetParent:       s.executor.compatSetParent,
+	}
+	if finalInstruction {
+		options.ConfidentialWorkloadOptions = s.executor.confidentialWorkload
+		options.SBOMScanOptions = s.executor.sbomScanOptions
 	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {
@@ -2105,9 +2375,11 @@ func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOp
 }
 
 func (s *StageExecutor) EnsureContainerPath(path string) error {
+	logrus.Debugf("EnsureContainerPath %q in %q", path, s.builder.ContainerID)
 	return s.builder.EnsureContainerPathAs(path, "", nil)
 }
 
 func (s *StageExecutor) EnsureContainerPathAs(path, user string, mode *os.FileMode) error {
+	logrus.Debugf("EnsureContainerPath %q (owner %q, mode %o) in %q", path, user, mode, s.builder.ContainerID)
 	return s.builder.EnsureContainerPathAs(path, user, mode)
 }

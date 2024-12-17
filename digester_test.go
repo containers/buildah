@@ -133,7 +133,7 @@ func TestCompositeDigester(t *testing.T) {
 						hdr := &tar.Header{
 							Name:     "content",
 							Size:     size,
-							Mode:     0640,
+							Mode:     0o640,
 							ModTime:  time.Now(),
 							Typeflag: tar.TypeReg,
 						}

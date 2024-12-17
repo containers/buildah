@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/containers/buildah"
@@ -13,6 +15,7 @@ import (
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/completion"
+	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/shortnames"
 	storageTransport "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -26,7 +29,10 @@ type commitInputOptions struct {
 	omitHistory        bool
 	blobCache          string
 	certDir            string
+	changes            []string
+	configFile         string
 	creds              string
+	cwOptions          string
 	disableCompression bool
 	format             string
 	iidfile            string
@@ -36,6 +42,17 @@ type commitInputOptions struct {
 	quiet              bool
 	referenceTime      string
 	rm                 bool
+	pull               string
+	pullAlways         bool
+	pullNever          bool
+	sbomImgOutput      string
+	sbomImgPurlOutput  string
+	sbomMergeStrategy  string
+	sbomOutput         string
+	sbomPreset         string
+	sbomPurlOutput     string
+	sbomScannerCommand []string
+	sbomScannerImage   string
 	signaturePolicy    string
 	signBy             string
 	squash             bool
@@ -44,6 +61,7 @@ type commitInputOptions struct {
 	encryptionKeys     []string
 	encryptLayers      []int
 	unsetenvs          []string
+	addFile            []string
 }
 
 func init() {
@@ -65,13 +83,13 @@ func init() {
 	commitCommand.SetUsageTemplate(UsageTemplate())
 	commitListFlagSet(commitCommand, &opts)
 	rootCmd.AddCommand(commitCommand)
-
 }
 
 func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
 
+	flags.StringArrayVar(&opts.addFile, "add-file", nil, "add contents of a file to the image at a specified path (`source:destination`)")
 	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	_ = cmd.RegisterFlagCompletionFunc("authfile", completion.AutocompleteDefault)
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
@@ -83,10 +101,14 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	flags.IntSliceVar(&opts.encryptLayers, "encrypt-layer", nil, "layers to encrypt, 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified")
 	_ = cmd.RegisterFlagCompletionFunc("encryption-key", completion.AutocompleteNone)
 
+	flags.StringArrayVarP(&opts.changes, "change", "c", nil, "apply containerfile `instruction`s to the committed image")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	_ = cmd.RegisterFlagCompletionFunc("cert-dir", completion.AutocompleteDefault)
+	flags.StringVar(&opts.configFile, "config", "", "apply configuration JSON `file` to the committed image")
+	_ = cmd.RegisterFlagCompletionFunc("config", completion.AutocompleteDefault)
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	_ = cmd.RegisterFlagCompletionFunc("creds", completion.AutocompleteNone)
+	flags.StringVar(&opts.cwOptions, "cw", "", "confidential workload `options`")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", true, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	_ = cmd.RegisterFlagCompletionFunc("format", completion.AutocompleteNone)
@@ -100,6 +122,36 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
 	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
 	_ = cmd.RegisterFlagCompletionFunc("reference-time", completion.AutocompleteNone)
+
+	flags.StringVar(&opts.pull, "pull", "true", "pull SBOM scanner images from the registry if newer or not present in store, if false, only pull SBOM scanner images if not present, if always, pull SBOM scanner images even if the named images are present in store, if never, only use images present in store if available")
+	flags.Lookup("pull").NoOptDefVal = "true" // allow `--pull ` to be set to `true` as expected.
+
+	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
+	if err := flags.MarkHidden("pull-always"); err != nil {
+		panic(fmt.Sprintf("error marking the pull-always flag as hidden: %v", err))
+	}
+	flags.BoolVar(&opts.pullNever, "pull-never", false, "do not pull the image, use the image present in store if available")
+	if err := flags.MarkHidden("pull-never"); err != nil {
+		panic(fmt.Sprintf("error marking the pull-never flag as hidden: %v", err))
+	}
+
+	flags.StringVar(&opts.sbomPreset, "sbom", "", "scan working container using `preset` configuration")
+	_ = cmd.RegisterFlagCompletionFunc("sbom", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomScannerImage, "sbom-scanner-image", "", "scan working container using scanner command from `image`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-scanner-image", completion.AutocompleteNone)
+	flags.StringArrayVar(&opts.sbomScannerCommand, "sbom-scanner-command", nil, "scan working container using `command` in scanner image")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-scanner-command", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomMergeStrategy, "sbom-merge-strategy", "", "merge scan results using `strategy`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-merge-strategy", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomOutput, "sbom-output", "", "save scan results to `file`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-output", completion.AutocompleteDefault)
+	flags.StringVar(&opts.sbomImgOutput, "sbom-image-output", "", "add scan results to image as `path`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-image-output", completion.AutocompleteNone)
+	flags.StringVar(&opts.sbomPurlOutput, "sbom-purl-output", "", "save scan results to `file``")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-purl-output", completion.AutocompleteDefault)
+	flags.StringVar(&opts.sbomImgPurlOutput, "sbom-image-purl-output", "", "add scan results to image as `path`")
+	_ = cmd.RegisterFlagCompletionFunc("sbom-image-purl-output", completion.AutocompleteNone)
+
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	_ = cmd.RegisterFlagCompletionFunc("sign-by", completion.AutocompleteNone)
 	if err := flags.MarkHidden("omit-timestamp"); err != nil {
@@ -202,6 +254,40 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
 
+	var overrideConfig *manifest.Schema2Config
+	if c.Flag("config").Changed {
+		configBytes, err := os.ReadFile(iopts.configFile)
+		if err != nil {
+			return fmt.Errorf("reading configuration blob from file: %w", err)
+		}
+		overrideConfig = &manifest.Schema2Config{}
+		if err := json.Unmarshal(configBytes, &overrideConfig); err != nil {
+			return fmt.Errorf("parsing configuration blob from %q: %w", iopts.configFile, err)
+		}
+	}
+
+	var addFiles map[string]string
+	if len(iopts.addFile) > 0 {
+		addFiles = make(map[string]string)
+		for _, spec := range iopts.addFile {
+			specSlice := strings.SplitN(spec, ":", 2)
+			if len(specSlice) == 1 {
+				specSlice = []string{specSlice[0], specSlice[0]}
+			}
+			if len(specSlice) != 2 {
+				return fmt.Errorf("parsing add-file argument %q: expected 1 or 2 parts, got %d", spec, len(strings.SplitN(spec, ":", 2)))
+			}
+			st, err := os.Stat(specSlice[0])
+			if err != nil {
+				return fmt.Errorf("parsing add-file argument %q: source %q: %w", spec, specSlice[0], err)
+			}
+			if st.IsDir() {
+				return fmt.Errorf("parsing add-file argument %q: source %q is not a regular file", spec, specSlice[0])
+			}
+			addFiles[specSlice[1]] = specSlice[0]
+		}
+	}
+
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Manifest:              iopts.manifest,
@@ -216,6 +302,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		OciEncryptConfig:      encConfig,
 		OciEncryptLayers:      encLayers,
 		UnsetEnvs:             iopts.unsetenvs,
+		OverrideChanges:       iopts.changes,
+		OverrideConfig:        overrideConfig,
+		ExtraImageContent:     addFiles,
 	}
 	exclusiveFlags := 0
 	if c.Flag("reference-time").Changed {
@@ -237,6 +326,30 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		exclusiveFlags++
 		timestamp := time.Unix(0, 0).UTC()
 		options.HistoryTimestamp = &timestamp
+	}
+
+	if iopts.cwOptions != "" {
+		confidentialWorkloadOptions, err := parse.GetConfidentialWorkloadOptions(iopts.cwOptions)
+		if err != nil {
+			return fmt.Errorf("parsing --cw arguments: %w", err)
+		}
+		options.ConfidentialWorkloadOptions = confidentialWorkloadOptions
+	}
+
+	pullPolicy, err := parse.PullPolicyFromOptions(c)
+	if err != nil {
+		return err
+	}
+
+	if c.Flag("sbom").Changed || c.Flag("sbom-scanner-command").Changed || c.Flag("sbom-scanner-image").Changed || c.Flag("sbom-image-output").Changed || c.Flag("sbom-merge-strategy").Changed || c.Flag("sbom-output").Changed || c.Flag("sbom-image-output").Changed || c.Flag("sbom-purl-output").Changed || c.Flag("sbom-image-purl-output").Changed {
+		var sbomOptions []define.SBOMScanOptions
+		sbomOption, err := parse.SBOMScanOptions(c)
+		if err != nil {
+			return err
+		}
+		sbomOption.PullPolicy = pullPolicy
+		sbomOptions = append(sbomOptions, *sbomOption)
+		options.SBOMScanOptions = sbomOptions
 	}
 
 	if exclusiveFlags > 1 {

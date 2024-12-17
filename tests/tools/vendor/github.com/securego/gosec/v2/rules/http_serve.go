@@ -4,10 +4,11 @@ import (
 	"go/ast"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type httpServeWithoutTimeouts struct {
-	gosec.MetaData
+	issue.MetaData
 	pkg   string
 	calls []string
 }
@@ -16,23 +17,23 @@ func (r *httpServeWithoutTimeouts) ID() string {
 	return r.MetaData.ID
 }
 
-func (r *httpServeWithoutTimeouts) Match(n ast.Node, c *gosec.Context) (gi *gosec.Issue, err error) {
+func (r *httpServeWithoutTimeouts) Match(n ast.Node, c *gosec.Context) (gi *issue.Issue, err error) {
 	if _, matches := gosec.MatchCallByPackage(n, c, r.pkg, r.calls...); matches {
-		return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+		return c.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 	}
 	return nil, nil
 }
 
 // NewHTTPServeWithoutTimeouts detects use of net/http serve functions that have no support for setting timeouts.
-func NewHTTPServeWithoutTimeouts(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewHTTPServeWithoutTimeouts(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	return &httpServeWithoutTimeouts{
 		pkg:   "net/http",
 		calls: []string{"ListenAndServe", "ListenAndServeTLS", "Serve", "ServeTLS"},
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
 			What:       "Use of net/http serve function that has no support for setting timeouts",
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}
 }

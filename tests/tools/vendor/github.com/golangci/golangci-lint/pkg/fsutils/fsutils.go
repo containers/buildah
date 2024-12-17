@@ -12,10 +12,12 @@ func IsDir(filename string) bool {
 	return err == nil && fi.IsDir()
 }
 
-var cachedWd string
-var cachedWdError error
-var getWdOnce sync.Once
-var useCache = true
+var (
+	cachedWd      string
+	cachedWdError error
+	getWdOnce     sync.Once
+	useCache      = true
+)
 
 func UseWdCache(use bool) {
 	useCache = use
@@ -34,7 +36,7 @@ func Getwd() (string, error) {
 
 		evaledWd, err := EvalSymlinks(cachedWd)
 		if err != nil {
-			cachedWd, cachedWdError = "", fmt.Errorf("can't eval symlinks on wd %s: %s", cachedWd, err)
+			cachedWd, cachedWdError = "", fmt.Errorf("can't eval symlinks on wd %s: %w", cachedWd, err)
 			return
 		}
 
@@ -70,13 +72,13 @@ func ShortestRelPath(path, wd string) (string, error) {
 		var err error
 		wd, err = Getwd()
 		if err != nil {
-			return "", fmt.Errorf("can't get working directory: %s", err)
+			return "", fmt.Errorf("can't get working directory: %w", err)
 		}
 	}
 
 	evaledPath, err := EvalSymlinks(path)
 	if err != nil {
-		return "", fmt.Errorf("can't eval symlinks for path %s: %s", path, err)
+		return "", fmt.Errorf("can't eval symlinks for path %s: %w", path, err)
 	}
 	path = evaledPath
 
@@ -92,7 +94,7 @@ func ShortestRelPath(path, wd string) (string, error) {
 
 	relPath, err := filepath.Rel(wd, absPath)
 	if err != nil {
-		return "", fmt.Errorf("can't get relative path for path %s and root %s: %s",
+		return "", fmt.Errorf("can't get relative path for path %s and root %s: %w",
 			absPath, wd, err)
 	}
 

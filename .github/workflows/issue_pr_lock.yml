@@ -1,0 +1,20 @@
+---
+
+# See also:
+# https://github.com/containers/podman/blob/main/.github/workflows/issue_pr_lock.yml
+
+on:
+  schedule:
+    - cron:  '0 0 * * *'
+  # Debug: Allow triggering job manually in github-actions WebUI
+  workflow_dispatch: {}
+
+jobs:
+  # Ref: https://docs.github.com/en/actions/using-workflows/reusing-workflows
+  closed_issue_discussion_lock:
+    uses: containers/podman/.github/workflows/issue_pr_lock.yml@main
+    secrets: inherit
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write

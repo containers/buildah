@@ -18,35 +18,37 @@ import (
 )
 
 type configResults struct {
-	addHistory             bool
-	annotation             []string
-	arch                   string
-	author                 string
-	cmd                    string
-	comment                string
-	createdBy              string
-	domainName             string
-	entrypoint             string
-	env                    []string
-	healthcheck            string
-	healthcheckInterval    string
-	healthcheckRetries     int
-	healthcheckStartPeriod string
-	healthcheckTimeout     string
-	historyComment         string
-	hostname               string
-	label                  []string
-	onbuild                []string
-	os                     string
-	osfeature              []string
-	osversion              string
-	ports                  []string
-	shell                  string
-	stopSignal             string
-	user                   string
-	variant                string
-	volume                 []string
-	workingDir             string
+	addHistory               bool
+	annotation               []string
+	arch                     string
+	author                   string
+	cmd                      string
+	comment                  string
+	createdBy                string
+	domainName               string
+	entrypoint               string
+	env                      []string
+	healthcheck              string
+	healthcheckInterval      string
+	healthcheckRetries       int
+	healthcheckStartPeriod   string
+	healthcheckStartInterval string
+	healthcheckTimeout       string
+	historyComment           string
+	hostname                 string
+	label                    []string
+	onbuild                  []string
+	os                       string
+	osfeature                []string
+	osversion                string
+	ports                    []string
+	shell                    string
+	stopSignal               string
+	user                     string
+	variant                  string
+	volume                   []string
+	workingDir               string
+	unsetLabels              []string
 }
 
 func init() {
@@ -83,6 +85,7 @@ func init() {
 	flags.StringVar(&opts.healthcheckInterval, "healthcheck-interval", "", "set the `interval` between runs of the `healthcheck` command for the target image")
 	flags.IntVar(&opts.healthcheckRetries, "healthcheck-retries", 0, "set the `number` of times the `healthcheck` command has to fail")
 	flags.StringVar(&opts.healthcheckStartPeriod, "healthcheck-start-period", "", "set the amount of `time` to wait after starting a container before a failed `healthcheck` command will count as a failure")
+	flags.StringVar(&opts.healthcheckStartInterval, "healthcheck-start-interval", "", "set the time between health checks during the start period. Only available with format `docker`")
 	flags.StringVar(&opts.healthcheckTimeout, "healthcheck-timeout", "", "set the maximum amount of `time` to wait for a `healthcheck` command for the target image")
 	flags.StringVar(&opts.historyComment, "history-comment", "", "set a `comment` for the history of the target image")
 	flags.StringVar(&opts.hostname, "hostname", "", "set a host`name` for containers based on image")
@@ -98,9 +101,9 @@ func init() {
 	flags.StringVar(&opts.variant, "variant", "", "set architecture `variant` of the target image")
 	flags.StringSliceVarP(&opts.volume, "volume", "v", []string{}, "add default `volume` path to be created for containers based on image (default [])")
 	flags.StringVar(&opts.workingDir, "workingdir", "", "set working `directory` for containers based on image")
+	flags.StringSliceVar(&opts.unsetLabels, "unsetlabel", nil, "remove image configuration label")
 
 	rootCmd.AddCommand(configCommand)
-
 }
 
 func updateCmd(builder *buildah.Builder, cmd string) error {
@@ -302,6 +305,10 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		}
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.label, " "))
 	}
+	// unset labels if any
+	for _, key := range iopts.unsetLabels {
+		builder.UnsetLabel(key)
+	}
 	if c.Flag("workingdir").Changed {
 		builder.SetWorkDir(iopts.workingDir)
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) WORKDIR %s", iopts.workingDir)
@@ -378,8 +385,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck-retries").Changed {
 			healthcheck.Retries = iopts.healthcheckRetries
 			args = args + "--retries=" + strconv.Itoa(iopts.healthcheckRetries) + " "
-			//args = fmt.Sprintf("%s --retries=%d ", args, iopts.healthcheckRetries)
-
+			// args = fmt.Sprintf("%s --retries=%d ", args, iopts.healthcheckRetries)
 		}
 		if c.Flag("healthcheck-start-period").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckStartPeriod)
@@ -388,6 +394,14 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 			}
 			healthcheck.StartPeriod = duration
 			args = args + "--start-period=" + iopts.healthcheckStartPeriod + " "
+		}
+		if c.Flag("healthcheck-start-interval").Changed {
+			duration, err := time.ParseDuration(iopts.healthcheckStartInterval)
+			if err != nil {
+				return fmt.Errorf("parsing --healthcheck-start-interval %q: %w", iopts.healthcheckStartInterval, err)
+			}
+			healthcheck.StartInterval = duration
+			args = args + "--start-interval=" + iopts.healthcheckStartInterval + " "
 		}
 		if c.Flag("healthcheck-timeout").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckTimeout)

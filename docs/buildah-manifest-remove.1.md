@@ -6,11 +6,12 @@ buildah\-manifest\-remove - Remove an image from a manifest list or image index.
 
 ## SYNOPSIS
 
-**buildah manifest remove** *listNameOrIndexName* *imageManifestDigest*
+**buildah manifest remove** *listNameOrIndexName* *imageNameOrManifestDigestOrArtifactName*
 
 ## DESCRIPTION
 
-Removes the image with the specified digest from the specified manifest list or image index.
+Removes the image with the specified name or digest from the specified manifest
+list or image index, or the specified artifact from the specified image index.
 
 ## RETURN VALUE
 

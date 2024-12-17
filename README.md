@@ -1,4 +1,5 @@
-![buildah logo](https://cdn.rawgit.com/containers/buildah/main/logos/buildah-logo_large.png)
+![buildah logo (light)](logos/buildah-logo_large.png#gh-light-mode-only)
+![buildah logo (dark)](logos/buildah-logo_reverse_large.png#gh-dark-mode-only)
 
 # [Buildah](https://www.youtube.com/embed/YVk5NgSiUw8) - a tool that facilitates building [Open Container Initiative (OCI)](https://www.opencontainers.org/) container images
 
@@ -18,6 +19,8 @@ The Buildah package provides a command line tool that can be used to
 ## Buildah Information for Developers
 
 For blogs, release announcements and more, please checkout the [buildah.io](https://buildah.io) website!
+
+**[Buildah Container Images](https://github.com/containers/image_build/blob/main/buildah/README.md)**
 
 **[Buildah Demos](demos)**
 

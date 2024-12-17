@@ -1,8 +1,8 @@
-FROM ubuntu:latest
+ARG SAFEIMAGE
+FROM $SAFEIMAGE
 
 ENV MYUSER=myuser
-
-RUN useradd --create-home --home /"${MYUSER}" "${MYUSER}"
+RUN adduser -D -h /"${MYUSER}" "${MYUSER}"
 COPY --chown="${MYUSER}" ./copychown.txt /somewhere
 
-RUN ls -alF /somewhere
+RUN stat -c "%U:%G" /somewhere

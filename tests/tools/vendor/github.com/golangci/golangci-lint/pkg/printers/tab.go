@@ -1,7 +1,6 @@
 package printers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"text/tabwriter"
@@ -14,24 +13,32 @@ import (
 
 type Tab struct {
 	printLinterName bool
-	log             logutils.Log
-	w               io.Writer
+	useColors       bool
+
+	log logutils.Log
+	w   io.Writer
 }
 
-func NewTab(printLinterName bool, log logutils.Log, w io.Writer) *Tab {
+func NewTab(printLinterName, useColors bool, log logutils.Log, w io.Writer) *Tab {
 	return &Tab{
 		printLinterName: printLinterName,
+		useColors:       useColors,
 		log:             log,
 		w:               w,
 	}
 }
 
-func (p *Tab) SprintfColored(ca color.Attribute, format string, args ...interface{}) string {
+func (p *Tab) SprintfColored(ca color.Attribute, format string, args ...any) string {
 	c := color.New(ca)
+
+	if !p.useColors {
+		c.DisableColor()
+	}
+
 	return c.Sprintf(format, args...)
 }
 
-func (p *Tab) Print(ctx context.Context, issues []result.Issue) error {
+func (p *Tab) Print(issues []result.Issue) error {
 	w := tabwriter.NewWriter(p.w, 0, 0, 2, ' ', 0)
 
 	for i := range issues {
@@ -45,15 +52,15 @@ func (p *Tab) Print(ctx context.Context, issues []result.Issue) error {
 	return nil
 }
 
-func (p *Tab) printIssue(i *result.Issue, w io.Writer) {
-	text := p.SprintfColored(color.FgRed, "%s", i.Text)
+func (p *Tab) printIssue(issue *result.Issue, w io.Writer) {
+	text := p.SprintfColored(color.FgRed, "%s", issue.Text)
 	if p.printLinterName {
-		text = fmt.Sprintf("%s\t%s", i.FromLinter, text)
+		text = fmt.Sprintf("%s\t%s", issue.FromLinter, text)
 	}
 
-	pos := p.SprintfColored(color.Bold, "%s:%d", i.FilePath(), i.Line())
-	if i.Pos.Column != 0 {
-		pos += fmt.Sprintf(":%d", i.Pos.Column)
+	pos := p.SprintfColored(color.Bold, "%s:%d", issue.FilePath(), issue.Line())
+	if issue.Pos.Column != 0 {
+		pos += fmt.Sprintf(":%d", issue.Pos.Column)
 	}
 
 	fmt.Fprintf(w, "%s\t%s\n", pos, text)

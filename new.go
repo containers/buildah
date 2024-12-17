@@ -21,6 +21,8 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/imagebuilder"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -140,7 +142,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	systemContext := getSystemContext(store, options.SystemContext, options.SignaturePolicyPath)
 
-	if options.FromImage != "" && options.FromImage != "scratch" {
+	if options.FromImage != "" && options.FromImage != BaseImageFakeName {
 		imageRuntime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 		if err != nil {
 			return nil, err
@@ -241,7 +243,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	suffixDigitsModulo := 100
 	for {
-
 		var flags map[string]interface{}
 		// check if we have predefined ProcessLabel and MountLabel
 		// this could be true if this is another stage in a build
@@ -313,15 +314,17 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			UIDMap:         uidmap,
 			GIDMap:         gidmap,
 		},
-		Capabilities:     copyStringSlice(options.Capabilities),
+		Capabilities:     slices.Clone(options.Capabilities),
 		CommonBuildOpts:  options.CommonBuildOpts,
 		TopLayer:         topLayer,
-		Args:             copyStringStringMap(options.Args),
+		Args:             maps.Clone(options.Args),
 		Format:           options.Format,
 		TempVolumes:      map[string]bool{},
 		Devices:          options.Devices,
+		DeviceSpecs:      options.DeviceSpecs,
 		Logger:           options.Logger,
 		NetworkInterface: options.NetworkInterface,
+		CDIConfigDir:     options.CDIConfigDir,
 	}
 
 	if options.Mount {
@@ -331,7 +334,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		}
 	}
 
-	if err := builder.initConfig(ctx, src, systemContext); err != nil {
+	if err := builder.initConfig(ctx, systemContext, src, &options); err != nil {
 		return nil, fmt.Errorf("preparing image configuration: %w", err)
 	}
 

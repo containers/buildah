@@ -24,7 +24,7 @@ import (
 	"github.com/containers/ocicrypt/config"
 	"github.com/containers/ocicrypt/keywrap"
 	"github.com/containers/ocicrypt/utils"
-	jose "gopkg.in/square/go-jose.v2"
+	"github.com/go-jose/go-jose/v4"
 )
 
 type jweKeyWrapper struct {
@@ -65,7 +65,11 @@ func (kw *jweKeyWrapper) WrapKeys(ec *config.EncryptConfig, optsData []byte) ([]
 }
 
 func (kw *jweKeyWrapper) UnwrapKey(dc *config.DecryptConfig, jweString []byte) ([]byte, error) {
-	jwe, err := jose.ParseEncrypted(string(jweString))
+	// cf. list of algorithms in func addPubKeys() below
+	keyEncryptionAlgorithms := []jose.KeyAlgorithm{jose.RSA_OAEP, jose.RSA_OAEP_256, jose.ECDH_ES_A128KW, jose.ECDH_ES_A192KW, jose.ECDH_ES_A256KW}
+	// accept all algorithms defined in RFC 7518, section 5.1
+	contentEncryption := []jose.ContentEncryption{jose.A128CBC_HS256, jose.A192CBC_HS384, jose.A256CBC_HS512, jose.A128GCM, jose.A192GCM, jose.A256GCM}
+	jwe, err := jose.ParseEncrypted(string(jweString), keyEncryptionAlgorithms, contentEncryption)
 	if err != nil {
 		return nil, errors.New("jose.ParseEncrypted failed")
 	}
@@ -123,9 +127,24 @@ func addPubKeys(joseRecipients *[]jose.Recipient, pubKeys [][]byte) error {
 		}
 
 		alg := jose.RSA_OAEP
-		switch key.(type) {
+		switch key := key.(type) {
 		case *ecdsa.PublicKey:
 			alg = jose.ECDH_ES_A256KW
+		case *jose.JSONWebKey:
+			if key.Algorithm != "" {
+				alg = jose.KeyAlgorithm(key.Algorithm)
+				switch alg {
+				/* accepted algorithms */
+				case jose.RSA_OAEP:
+				case jose.RSA_OAEP_256:
+				case jose.ECDH_ES_A128KW:
+				case jose.ECDH_ES_A192KW:
+				case jose.ECDH_ES_A256KW:
+				/* all others are rejected */
+				default:
+					return fmt.Errorf("%s is an unsupported JWE key algorithm", alg)
+				}
+			}
 		}
 
 		*joseRecipients = append(*joseRecipients, jose.Recipient{

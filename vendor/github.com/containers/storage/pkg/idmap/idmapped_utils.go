@@ -1,15 +1,17 @@
 //go:build linux
-// +build linux
 
 package idmap
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"runtime"
 	"syscall"
 
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -25,7 +27,7 @@ func CreateIDMappedMount(source, target string, pid int) error {
 
 	targetDirFd, err := unix.OpenTree(0, source, unix.OPEN_TREE_CLONE)
 	if err != nil {
-		return err
+		return &os.PathError{Op: "open_tree", Path: source, Err: err}
 	}
 	defer unix.Close(targetDirFd)
 
@@ -34,13 +36,16 @@ func CreateIDMappedMount(source, target string, pid int) error {
 			Attr_set:  unix.MOUNT_ATTR_IDMAP,
 			Userns_fd: uint64(userNsFile.Fd()),
 		}); err != nil {
-		return err
+		return &os.PathError{Op: "mount_setattr", Path: source, Err: err}
 	}
-	if err := os.Mkdir(target, 0o700); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(target, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 
-	return unix.MoveMount(targetDirFd, "", 0, target, unix.MOVE_MOUNT_F_EMPTY_PATH)
+	if err := unix.MoveMount(targetDirFd, "", 0, target, unix.MOVE_MOUNT_F_EMPTY_PATH); err != nil {
+		return &os.PathError{Op: "move_mount", Path: target, Err: err}
+	}
+	return nil
 }
 
 // CreateUsernsProcess forks the current process and creates a user namespace using the specified
@@ -61,12 +66,20 @@ func CreateUsernsProcess(uidMaps []idtools.IDMap, gidMaps []idtools.IDMap) (int,
 		_ = unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGKILL), 0, 0, 0)
 		// just wait for the SIGKILL
 		for {
-			syscall.Pause()
+			_ = syscall.Pause()
 		}
 	}
 	cleanupFunc := func() {
-		unix.Kill(int(pid), unix.SIGKILL)
-		_, _ = unix.Wait4(int(pid), nil, 0, nil)
+		err1 := unix.Kill(int(pid), unix.SIGKILL)
+		if err1 != nil && err1 != syscall.ESRCH {
+			logrus.Warnf("kill process pid: %d with SIGKILL ended with error: %v", int(pid), err1)
+		}
+		if err1 != nil {
+			return
+		}
+		if _, err := unix.Wait4(int(pid), nil, 0, nil); err != nil {
+			logrus.Warnf("wait4 pid: %d ended with error: %v", int(pid), err)
+		}
 	}
 	writeMappings := func(fname string, idmap []idtools.IDMap) error {
 		mappings := ""

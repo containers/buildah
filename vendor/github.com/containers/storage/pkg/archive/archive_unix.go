@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package archive
 
@@ -14,6 +13,31 @@ import (
 	"github.com/containers/storage/pkg/system"
 	"golang.org/x/sys/unix"
 )
+
+func init() {
+	sysStatOverride = statUnix
+}
+
+// statUnix populates hdr from system-dependent fields of fi without performing
+// any OS lookups.
+// Adapted from Moby.
+func statUnix(fi os.FileInfo, hdr *tar.Header) error {
+	s, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return nil
+	}
+
+	hdr.Uid = int(s.Uid)
+	hdr.Gid = int(s.Gid)
+
+	if s.Mode&unix.S_IFBLK != 0 ||
+		s.Mode&unix.S_IFCHR != 0 {
+		hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) //nolint: unconvert
+		hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) //nolint: unconvert
+	}
+
+	return nil
+}
 
 // fixVolumePathPrefix does platform specific processing to ensure that if
 // the path being passed in is not in a volume path format, convert it to one.

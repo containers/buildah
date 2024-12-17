@@ -7,9 +7,12 @@
 %global debug_package   %{nil}
 %endif
 
-%if %{defined rhel} && 0%{?rhel} == 8
-# RHEL 8's default %%gobuild macro doesn't account for the BUILDTAGS variable, so we
-# set it separately here and do not depend on RHEL 8's go-srpm-macros package.
+# RHEL's default %%gobuild macro doesn't account for the BUILDTAGS variable, so we
+# set it separately here and do not depend on RHEL's go-[s]rpm-macros package
+# until that's fixed.
+# c9s bz: https://bugzilla.redhat.com/show_bug.cgi?id=2227328
+# c8s bz: https://bugzilla.redhat.com/show_bug.cgi?id=2227331
+%if %{defined rhel}
 %define gobuild(o:) go build -buildmode pie -compiler gc -tags="rpm_crashtraceback libtrust_openssl ${BUILDTAGS:-}" -ldflags "-linkmode=external -compressdwarf=false ${LDFLAGS:-} -B 0x$(head -c20 /dev/urandom|od -An -tx1|tr -d ' \\n') -extldflags '%__global_ldflags'" -a -v -x %{?**};
 %endif
 
@@ -25,6 +28,8 @@ Name: buildah
 # Set different Epoch for copr
 %if %{defined copr_username}
 Epoch: 102
+%else
+Epoch: 2
 %endif
 # DO NOT TOUCH the Version string!
 # The TRUE source of this specfile is:
@@ -33,7 +38,8 @@ Epoch: 102
 # copr and koji builds.
 # If you're reading this on dist-git, the version is automatically filled in by Packit.
 Version: 0
-License: Apache-2.0 and BSD-2-Clause and BSD-3-Clause and ISC and MIT and MPL-2.0
+# The `AND` needs to be uppercase in the License for SPDX compatibility
+License: Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0
 Release: %autorelease
 %if %{defined golang_arches_future}
 ExclusiveArch: %{golang_arches_future}
@@ -44,7 +50,6 @@ Summary: A command line tool used for creating OCI Images
 URL: https://%{name}.io
 # Tarball fetched from upstream
 Source: %{git0}/archive/v%{version}.tar.gz
-BuildRequires: %{_bindir}/go-md2man
 BuildRequires: device-mapper-devel
 BuildRequires: git-core
 BuildRequires: golang >= 1.16.6
@@ -82,8 +87,10 @@ or
 %package tests
 Summary: Tests for %{name}
 
-Requires: %{name} = %{version}-%{release}
+Requires: %{name} = %{epoch}:%{version}-%{release}
+%if %{defined fedora}
 Requires: bats
+%endif
 Requires: bzip2
 Requires: podman
 Requires: golang
@@ -117,33 +124,35 @@ export CGO_CFLAGS+=" -m64 -mtune=generic -fcf-protection=full"
 export CNI_VERSION=`grep '^# github.com/containernetworking/cni ' src/modules.txt | sed 's,.* ,,'`
 export LDFLAGS="-X main.buildInfo=`date +%s` -X main.cniVersion=${CNI_VERSION}"
 
-export BUILDTAGS='seccomp exclude_graphdriver_devicemapper $(hack/systemd_tag.sh) $hack/libsubid_tag.sh)'
+export BUILDTAGS="seccomp $(hack/systemd_tag.sh) $(hack/libsubid_tag.sh)"
 %if !%{defined build_with_btrfs}
-export BUILDTAGS+=' btrfs_noversion exclude_graphdriver_btrfs'
+export BUILDTAGS+=" btrfs_noversion exclude_graphdriver_btrfs"
 %endif
 
 %gobuild -o bin/%{name} ./cmd/%{name}
 %gobuild -o bin/imgtype ./tests/imgtype
 %gobuild -o bin/copy ./tests/copy
 %gobuild -o bin/tutorial ./tests/tutorial
-GOMD2MAN=go-md2man %{__make} -C docs
+%gobuild -o bin/inet ./tests/inet
+%{__make} docs
 
 %install
-export GOPATH=$(pwd)/_build:$(pwd)
 make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
-make DESTDIR=%{buildroot} PREFIX=%{_prefix} -C docs install
 
 install -d -p %{buildroot}/%{_datadir}/%{name}/test/system
 cp -pav tests/. %{buildroot}/%{_datadir}/%{name}/test/system
 cp bin/imgtype %{buildroot}/%{_bindir}/%{name}-imgtype
 cp bin/copy    %{buildroot}/%{_bindir}/%{name}-copy
 cp bin/tutorial %{buildroot}/%{_bindir}/%{name}-tutorial
+cp bin/inet     %{buildroot}/%{_bindir}/%{name}-inet
+
+rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
 
 %files
-%license LICENSE
+%license LICENSE vendor/modules.txt
 %doc README.md
 %{_bindir}/%{name}
 %{_mandir}/man1/%{name}*
@@ -156,6 +165,7 @@ cp bin/tutorial %{buildroot}/%{_bindir}/%{name}-tutorial
 %{_bindir}/%{name}-imgtype
 %{_bindir}/%{name}-copy
 %{_bindir}/%{name}-tutorial
+%{_bindir}/%{name}-inet
 %{_datadir}/%{name}/test
 
 %changelog

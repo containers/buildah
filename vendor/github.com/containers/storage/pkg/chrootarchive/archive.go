@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/unshare"
 )
@@ -76,11 +77,17 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 	rootIDs := idMappings.RootPair()
 
 	dest = filepath.Clean(dest)
-	if _, err := os.Stat(dest); os.IsNotExist(err) {
+	if err := fileutils.Exists(dest); os.IsNotExist(err) {
 		if err := idtools.MkdirAllAndChownNew(dest, 0o755, rootIDs); err != nil {
 			return err
 		}
 	}
+
+	destVal, err := newUnpackDestination(root, dest)
+	if err != nil {
+		return err
+	}
+	defer destVal.Close()
 
 	r := tarArchive
 	if decompress {
@@ -92,7 +99,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 		r = decompressedArchive
 	}
 
-	return invokeUnpack(r, dest, options, root)
+	return invokeUnpack(r, destVal, options)
 }
 
 // Tar tars the requested path while chrooted to the specified root.

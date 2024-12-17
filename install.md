@@ -10,7 +10,7 @@
 sudo pacman -S buildah
 ```
 
-#### [CentOS](https://www.centos.org)
+### [CentOS](https://www.centos.org)
 
 Buildah is available in the default Extras repos for CentOS 7 and in
 the AppStream repo for CentOS 8 and Stream, however the available version often
@@ -20,14 +20,14 @@ lags the upstream release.
 sudo yum -y install buildah
 ```
 
-#### [Debian](https://debian.org)
+### [Debian](https://debian.org)
 
 The buildah package is available in
-the [Bullseye](https://packages.debian.org/bullseye/buildah), which
-is the current stable release (Debian 11), as well as Debian Unstable/Sid.
+the [Bookworm](https://packages.debian.org/bookworm/buildah), which
+is the current stable release (Debian 12), as well as Debian Unstable/Sid.
 
 ```bash
-# Debian Stable/Bullseye or Unstable/Sid
+# Debian Stable/Bookworm or Unstable/Sid
 sudo apt-get update
 sudo apt-get -y install buildah
 ```
@@ -194,11 +194,8 @@ In Fedora, you can use this command:
 Then to install Buildah on Fedora follow the steps in this example:
 
 ```
-  mkdir ~/buildah
-  cd ~/buildah
-  export GOPATH=`pwd`
-  git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
-  cd ./src/github.com/containers/buildah
+  git clone https://github.com/containers/buildah
+  cd buildah
   make
   sudo make install
   buildah --help
@@ -252,18 +249,10 @@ In Ubuntu 22.10 (Karmic) or Debian 12 (Bookworm) you can use these commands:
 
 ```
   sudo apt-get -y -qq update
-  sudo apt-get -y install bats btrfs-progs git go-md2man golang libapparmor-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev make skopeo
+  sudo apt-get -y install bats btrfs-progs git go-md2man golang libapparmor-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev make runc skopeo libbtrfs-dev
 ```
 
-Then to install Buildah follow the steps in this example:
-
-```
-  git clone https://github.com/containers/buildah
-  cd buildah
-  make runc all SECURITYTAGS="apparmor seccomp"
-  sudo make install install.runc
-  buildah --help
-```
+The build steps for Buildah on Debian or Ubuntu are the same as for Fedora, above.
 
 ## Vendoring - Dependency Management
 

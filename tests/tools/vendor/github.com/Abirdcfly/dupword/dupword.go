@@ -52,6 +52,7 @@ This analyzer checks miswritten duplicate words in comments or package doc or st
 var (
 	defaultWord = []string{}
 	// defaultWord = []string{"the", "and", "a"}
+	ignoreWord = map[string]bool{}
 )
 
 type analyzer struct {
@@ -70,7 +71,31 @@ func (a *analyzer) Set(w string) error {
 	return nil
 }
 
+type ignore struct {
+}
+
+func (a *ignore) String() string {
+	t := make([]string, 0, len(ignoreWord))
+	for k := range ignoreWord {
+		t = append(t, k)
+	}
+	return strings.Join(t, ",")
+}
+
+func (a *ignore) Set(w string) error {
+	for _, k := range strings.Split(w, ",") {
+		ignoreWord[k] = true
+	}
+	return nil
+}
+
+// for test only
+func ClearIgnoreWord() {
+	ignoreWord = map[string]bool{}
+}
+
 func NewAnalyzer() *analysis.Analyzer {
+	ignore := &ignore{}
 	analyzer := &analyzer{KeyWord: defaultWord}
 	a := &analysis.Analyzer{
 		Name:             Name,
@@ -80,7 +105,8 @@ func NewAnalyzer() *analysis.Analyzer {
 		RunDespiteErrors: true,
 	}
 	a.Flags.Init(Name, flag.ExitOnError)
-	a.Flags.Var(analyzer, "keyword", "key words for detecting duplicate words")
+	a.Flags.Var(analyzer, "keyword", "keywords for detecting duplicate words")
+	a.Flags.Var(ignore, "ignore", "ignore words")
 	a.Flags.Var(version{}, "V", "print version and exit")
 	return a
 }
@@ -102,7 +128,12 @@ func (a *analyzer) run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func (a *analyzer) fixDuplicateWordInComment(pass *analysis.Pass, f *ast.File) {
+	isTestFile := strings.HasSuffix(pass.Fset.File(f.FileStart).Name(), "_test.go")
 	for _, cg := range f.Comments {
+		// avoid checking example outputs for duplicate words
+		if isTestFile && isExampleOutputStart(cg.List[0].Text) {
+			continue
+		}
 		var preLine *ast.Comment
 		for _, c := range cg.List {
 			update, keyword, find := a.Check(c.Text)
@@ -176,7 +207,7 @@ func (a *analyzer) fixDuplicateWordInString(pass *analysis.Pass, lit *ast.BasicL
 	}
 }
 
-// CheckOneKey use to check there is defined duplicate word in a string.
+// CheckOneKey use to check there is a defined duplicate word in a string.
 // raw is checked line. key is the keyword to check. empty means just check duplicate word.
 func CheckOneKey(raw, key string) (new string, findWord string, find bool) {
 	if key == "" {
@@ -298,5 +329,15 @@ func ExcludeWords(word string) (exclude bool) {
 	if unicode.IsSymbol(firstRune) {
 		return true
 	}
+	if _, exist := ignoreWord[word]; exist {
+		return true
+	}
 	return false
+}
+
+func isExampleOutputStart(comment string) bool {
+	return strings.HasPrefix(comment, "// Output:") ||
+		strings.HasPrefix(comment, "// output:") ||
+		strings.HasPrefix(comment, "// Unordered output:") ||
+		strings.HasPrefix(comment, "// unordered output:")
 }

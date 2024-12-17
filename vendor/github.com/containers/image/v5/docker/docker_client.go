@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -19,12 +18,15 @@ import (
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/internal/iolimits"
+	"github.com/containers/image/v5/internal/multierr"
+	"github.com/containers/image/v5/internal/set"
 	"github.com/containers/image/v5/internal/useragent"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/docker/config"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	"github.com/containers/image/v5/pkg/tlsclientconfig"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
@@ -40,7 +42,6 @@ const (
 	dockerRegistry   = "registry-1.docker.io"
 
 	resolvedPingV2URL       = "%s://%s/v2/"
-	resolvedPingV1URL       = "%s://%s/v1/_ping"
 	tagsPath                = "/v2/%s/tags/list"
 	manifestPath            = "/v2/%s/manifests/%s"
 	blobsPath               = "/v2/%s/blobs/%s"
@@ -84,11 +85,9 @@ type extensionSignatureList struct {
 	Signatures []extensionSignature `json:"signatures"`
 }
 
+// bearerToken records a cached token we can use to authenticate.
 type bearerToken struct {
-	Token          string    `json:"token"`
-	AccessToken    string    `json:"access_token"`
-	ExpiresIn      int       `json:"expires_in"`
-	IssuedAt       time.Time `json:"issued_at"`
+	token          string
 	expirationTime time.Time
 }
 
@@ -121,6 +120,9 @@ type dockerClient struct {
 	// Private state for detectProperties:
 	detectPropertiesOnce  sync.Once // detectPropertiesOnce is used to execute detectProperties() at most once.
 	detectPropertiesError error     // detectPropertiesError caches the initial error.
+	// Private state for logResponseWarnings
+	reportedWarningsLock sync.Mutex
+	reportedWarnings     *set.Set[string]
 }
 
 type authScope struct {
@@ -141,25 +143,6 @@ const (
 	// no authentication, works for both v1 and v2.
 	noAuth
 )
-
-func newBearerTokenFromJSONBlob(blob []byte) (*bearerToken, error) {
-	token := new(bearerToken)
-	if err := json.Unmarshal(blob, &token); err != nil {
-		return nil, err
-	}
-	if token.Token == "" {
-		token.Token = token.AccessToken
-	}
-	if token.ExpiresIn < minimumTokenLifetimeSeconds {
-		token.ExpiresIn = minimumTokenLifetimeSeconds
-		logrus.Debugf("Increasing token expiration to: %d seconds", token.ExpiresIn)
-	}
-	if token.IssuedAt.IsZero() {
-		token.IssuedAt = time.Now().UTC()
-	}
-	token.expirationTime = token.IssuedAt.Add(time.Duration(token.ExpiresIn) * time.Second)
-	return token, nil
-}
 
 // dockerCertDir returns a path to a directory to be consumed by tlsclientconfig.SetupCertificates() depending on ctx and hostPort.
 func dockerCertDir(sys *types.SystemContext, hostPort string) (string, error) {
@@ -183,7 +166,7 @@ func dockerCertDir(sys *types.SystemContext, hostPort string) (string, error) {
 		}
 
 		fullCertDirPath = filepath.Join(hostCertDir, hostPort)
-		_, err := os.Stat(fullCertDirPath)
+		err := fileutils.Exists(fullCertDirPath)
 		if err == nil {
 			break
 		}
@@ -281,10 +264,11 @@ func newDockerClient(sys *types.SystemContext, registry, reference string) (*doc
 	}
 
 	return &dockerClient{
-		sys:             sys,
-		registry:        registry,
-		userAgent:       userAgent,
-		tlsClientConfig: tlsClientConfig,
+		sys:              sys,
+		registry:         registry,
+		userAgent:        userAgent,
+		tlsClientConfig:  tlsClientConfig,
+		reportedWarnings: set.New[string](),
 	}, nil
 }
 
@@ -359,6 +343,11 @@ func SearchRegistry(ctx context.Context, sys *types.SystemContext, registry, ima
 	hostname := registry
 	if registry == dockerHostname {
 		hostname = dockerV1Hostname
+		// A search term of library/foo does not find the library/foo image on the docker.io servers,
+		// which is surprising - and that Docker is modifying the search term client-side this same way,
+		// and it seems convenient to do the same thing.
+		// Read more here: https://github.com/containers/image/pull/2133#issue-1928524334
+		image = strings.TrimPrefix(image, "library/")
 	}
 
 	client, err := newDockerClient(sys, hostname, registry)
@@ -488,8 +477,8 @@ func (c *dockerClient) resolveRequestURL(path string) (*url.URL, error) {
 // Checks if the auth headers in the response contain an indication of a failed
 // authorizdation because of an "insufficient_scope" error. If that's the case,
 // returns the required scope to be used for fetching a new token.
-func needsRetryWithUpdatedScope(err error, res *http.Response) (bool, *authScope) {
-	if err == nil && res.StatusCode == http.StatusUnauthorized {
+func needsRetryWithUpdatedScope(res *http.Response) (bool, *authScope) {
+	if res.StatusCode == http.StatusUnauthorized {
 		challenges := parseAuthHeader(res.Header)
 		for _, challenge := range challenges {
 			if challenge.Scheme == "bearer" {
@@ -548,6 +537,9 @@ func (c *dockerClient) makeRequestToResolvedURL(ctx context.Context, method stri
 	attempts := 0
 	for {
 		res, err := c.makeRequestToResolvedURLOnce(ctx, method, requestURL, headers, stream, streamLen, auth, extraScope)
+		if err != nil {
+			return nil, err
+		}
 		attempts++
 
 		// By default we use pre-defined scopes per operation. In
@@ -563,27 +555,29 @@ func (c *dockerClient) makeRequestToResolvedURL(ctx context.Context, method stri
 		// We also cannot retry with a body (stream != nil) as stream
 		// was already read
 		if attempts == 1 && stream == nil && auth != noAuth {
-			if retry, newScope := needsRetryWithUpdatedScope(err, res); retry {
+			if retry, newScope := needsRetryWithUpdatedScope(res); retry {
 				logrus.Debug("Detected insufficient_scope error, will retry request with updated scope")
+				res.Body.Close()
 				// Note: This retry ignores extraScope. That’s, strictly speaking, incorrect, but we don’t currently
 				// expect the insufficient_scope errors to happen for those callers. If that changes, we can add support
 				// for more than one extra scope.
 				res, err = c.makeRequestToResolvedURLOnce(ctx, method, requestURL, headers, stream, streamLen, auth, newScope)
+				if err != nil {
+					return nil, err
+				}
 				extraScope = newScope
 			}
 		}
-		if res == nil || res.StatusCode != http.StatusTooManyRequests || // Only retry on StatusTooManyRequests, success or other failure is returned to caller immediately
+
+		if res.StatusCode != http.StatusTooManyRequests || // Only retry on StatusTooManyRequests, success or other failure is returned to caller immediately
 			stream != nil || // We can't retry with a body (which is not restartable in the general case)
 			attempts == backoffNumIterations {
-			return res, err
+			return res, nil
 		}
 		// close response body before retry or context done
 		res.Body.Close()
 
-		delay = parseRetryAfter(res, delay)
-		if delay > backoffMaxDelay {
-			delay = backoffMaxDelay
-		}
+		delay = min(parseRetryAfter(res, delay), backoffMaxDelay)
 		logrus.Debugf("Too many requests to %s: sleeping for %f seconds before next attempt", requestURL.Redacted(), delay.Seconds())
 		select {
 		case <-ctx.Done():
@@ -624,7 +618,78 @@ func (c *dockerClient) makeRequestToResolvedURLOnce(ctx context.Context, method 
 	if err != nil {
 		return nil, err
 	}
+	if warnings := res.Header.Values("Warning"); len(warnings) != 0 {
+		c.logResponseWarnings(res, warnings)
+	}
 	return res, nil
+}
+
+// logResponseWarnings logs warningHeaders from res, if any.
+func (c *dockerClient) logResponseWarnings(res *http.Response, warningHeaders []string) {
+	c.reportedWarningsLock.Lock()
+	defer c.reportedWarningsLock.Unlock()
+
+	for _, header := range warningHeaders {
+		warningString := parseRegistryWarningHeader(header)
+		if warningString == "" {
+			logrus.Debugf("Ignored Warning: header from registry: %q", header)
+		} else {
+			if !c.reportedWarnings.Contains(warningString) {
+				c.reportedWarnings.Add(warningString)
+				// Note that reportedWarnings is based only on warningString, so that we don’t
+				// repeat the same warning for every request - but the warning includes the URL;
+				// so it may not be specific to that URL.
+				logrus.Warnf("Warning from registry (first encountered at %q): %q", res.Request.URL.Redacted(), warningString)
+			} else {
+				logrus.Debugf("Repeated warning from registry at %q: %q", res.Request.URL.Redacted(), warningString)
+			}
+		}
+	}
+}
+
+// parseRegistryWarningHeader parses a Warning: header per RFC 7234, limited to the warning
+// values allowed by opencontainers/distribution-spec.
+// It returns the warning string if the header has the expected format, or "" otherwise.
+func parseRegistryWarningHeader(header string) string {
+	const expectedPrefix = `299 - "`
+	const expectedSuffix = `"`
+
+	// warning-value = warn-code SP warn-agent SP warn-text	[ SP warn-date ]
+	// distribution-spec requires warn-code=299, warn-agent="-", warn-date missing
+	header, ok := strings.CutPrefix(header, expectedPrefix)
+	if !ok {
+		return ""
+	}
+	header, ok = strings.CutSuffix(header, expectedSuffix)
+	if !ok {
+		return ""
+	}
+
+	// ”Recipients that process the value of a quoted-string MUST handle a quoted-pair
+	// as if it were replaced by the octet following the backslash.”, so let’s do that…
+	res := strings.Builder{}
+	afterBackslash := false
+	for _, c := range []byte(header) { // []byte because escaping is defined in terms of bytes, not Unicode code points
+		switch {
+		case c == 0x7F || (c < ' ' && c != '\t'):
+			return "" // Control characters are forbidden
+		case afterBackslash:
+			res.WriteByte(c)
+			afterBackslash = false
+		case c == '"':
+			// This terminates the warn-text and warn-date, forbidden by distribution-spec, follows,
+			// or completely invalid input.
+			return ""
+		case c == '\\':
+			afterBackslash = true
+		default:
+			res.WriteByte(c)
+		}
+	}
+	if afterBackslash {
+		return ""
+	}
+	return res.String()
 }
 
 // we're using the challenges from the /v2/ ping response and not the one from the destination
@@ -687,7 +752,7 @@ func (c *dockerClient) setupRequestAuth(req *http.Request, extraScope *authScope
 					token = *t
 					c.tokenCache.Store(cacheKey, token)
 				}
-				registryToken = token.Token
+				registryToken = token.token
 			}
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", registryToken))
 			return nil
@@ -740,12 +805,7 @@ func (c *dockerClient) getBearerTokenOAuth2(ctx context.Context, challenge chall
 		return nil, err
 	}
 
-	tokenBlob, err := iolimits.ReadAtMost(res.Body, iolimits.MaxAuthTokenBodySize)
-	if err != nil {
-		return nil, err
-	}
-
-	return newBearerTokenFromJSONBlob(tokenBlob)
+	return newBearerTokenFromHTTPResponseBody(res)
 }
 
 func (c *dockerClient) getBearerToken(ctx context.Context, challenge challenge,
@@ -791,12 +851,50 @@ func (c *dockerClient) getBearerToken(ctx context.Context, challenge challenge,
 	if err := httpResponseToError(res, "Requesting bearer token"); err != nil {
 		return nil, err
 	}
-	tokenBlob, err := iolimits.ReadAtMost(res.Body, iolimits.MaxAuthTokenBodySize)
+
+	return newBearerTokenFromHTTPResponseBody(res)
+}
+
+// newBearerTokenFromHTTPResponseBody parses a http.Response to obtain a bearerToken.
+// The caller is still responsible for ensuring res.Body is closed.
+func newBearerTokenFromHTTPResponseBody(res *http.Response) (*bearerToken, error) {
+	blob, err := iolimits.ReadAtMost(res.Body, iolimits.MaxAuthTokenBodySize)
 	if err != nil {
 		return nil, err
 	}
 
-	return newBearerTokenFromJSONBlob(tokenBlob)
+	var token struct {
+		Token          string    `json:"token"`
+		AccessToken    string    `json:"access_token"`
+		ExpiresIn      int       `json:"expires_in"`
+		IssuedAt       time.Time `json:"issued_at"`
+		expirationTime time.Time
+	}
+	if err := json.Unmarshal(blob, &token); err != nil {
+		const bodySampleLength = 50
+		bodySample := blob
+		if len(bodySample) > bodySampleLength {
+			bodySample = bodySample[:bodySampleLength]
+		}
+		return nil, fmt.Errorf("decoding bearer token (last URL %q, body start %q): %w", res.Request.URL.Redacted(), string(bodySample), err)
+	}
+
+	bt := &bearerToken{
+		token: token.Token,
+	}
+	if bt.token == "" {
+		bt.token = token.AccessToken
+	}
+
+	if token.ExpiresIn < minimumTokenLifetimeSeconds {
+		token.ExpiresIn = minimumTokenLifetimeSeconds
+		logrus.Debugf("Increasing token expiration to: %d seconds", token.ExpiresIn)
+	}
+	if token.IssuedAt.IsZero() {
+		token.IssuedAt = time.Now().UTC()
+	}
+	bt.expirationTime = token.IssuedAt.Add(time.Duration(token.ExpiresIn) * time.Second)
+	return bt, nil
 }
 
 // detectPropertiesHelper performs the work of detectProperties which executes
@@ -837,34 +935,6 @@ func (c *dockerClient) detectPropertiesHelper(ctx context.Context) error {
 	}
 	if err != nil {
 		err = fmt.Errorf("pinging container registry %s: %w", c.registry, err)
-		if c.sys != nil && c.sys.DockerDisableV1Ping {
-			return err
-		}
-		// best effort to understand if we're talking to a V1 registry
-		pingV1 := func(scheme string) bool {
-			pingURL, err := url.Parse(fmt.Sprintf(resolvedPingV1URL, scheme, c.registry))
-			if err != nil {
-				return false
-			}
-			resp, err := c.makeRequestToResolvedURL(ctx, http.MethodGet, pingURL, nil, nil, -1, noAuth, nil)
-			if err != nil {
-				logrus.Debugf("Ping %s err %s (%#v)", pingURL.Redacted(), err.Error(), err)
-				return false
-			}
-			defer resp.Body.Close()
-			logrus.Debugf("Ping %s status %d", pingURL.Redacted(), resp.StatusCode)
-			if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
-				return false
-			}
-			return true
-		}
-		isV1 := pingV1("https")
-		if !isV1 && c.tlsClientConfig.InsecureSkipVerify {
-			isV1 = pingV1("http")
-		}
-		if isV1 {
-			err = ErrV1NotSupported
-		}
 	}
 	return err
 }
@@ -876,6 +946,8 @@ func (c *dockerClient) detectProperties(ctx context.Context) error {
 	return c.detectPropertiesError
 }
 
+// fetchManifest fetches a manifest for (the repo of ref) + tagOrDigest.
+// The caller is responsible for ensuring tagOrDigest uses the expected format.
 func (c *dockerClient) fetchManifest(ctx context.Context, ref dockerReference, tagOrDigest string) ([]byte, string, error) {
 	path := fmt.Sprintf(manifestPath, reference.Path(ref.ref), tagOrDigest)
 	headers := map[string][]string{
@@ -902,13 +974,10 @@ func (c *dockerClient) fetchManifest(ctx context.Context, ref dockerReference, t
 // This function can return nil reader when no url is supported by this function. In this case, the caller
 // should fallback to fetch the non-external blob (i.e. pull from the registry).
 func (c *dockerClient) getExternalBlob(ctx context.Context, urls []string) (io.ReadCloser, int64, error) {
-	var (
-		resp *http.Response
-		err  error
-	)
 	if len(urls) == 0 {
 		return nil, 0, errors.New("internal error: getExternalBlob called with no URLs")
 	}
+	var remoteErrors []error
 	for _, u := range urls {
 		blobURL, err := url.Parse(u)
 		if err != nil || (blobURL.Scheme != "http" && blobURL.Scheme != "https") {
@@ -917,24 +986,24 @@ func (c *dockerClient) getExternalBlob(ctx context.Context, urls []string) (io.R
 		// NOTE: we must not authenticate on additional URLs as those
 		//       can be abused to leak credentials or tokens.  Please
 		//       refer to CVE-2020-15157 for more information.
-		resp, err = c.makeRequestToResolvedURL(ctx, http.MethodGet, blobURL, nil, nil, -1, noAuth, nil)
-		if err == nil {
-			if resp.StatusCode != http.StatusOK {
-				err = fmt.Errorf("error fetching external blob from %q: %d (%s)", u, resp.StatusCode, http.StatusText(resp.StatusCode))
-				logrus.Debug(err)
-				resp.Body.Close()
-				continue
-			}
-			break
+		resp, err := c.makeRequestToResolvedURL(ctx, http.MethodGet, blobURL, nil, nil, -1, noAuth, nil)
+		if err != nil {
+			remoteErrors = append(remoteErrors, err)
+			continue
 		}
+		if resp.StatusCode != http.StatusOK {
+			err := fmt.Errorf("error fetching external blob from %q: %d (%s)", u, resp.StatusCode, http.StatusText(resp.StatusCode))
+			remoteErrors = append(remoteErrors, err)
+			logrus.Debug(err)
+			resp.Body.Close()
+			continue
+		}
+		return resp.Body, getBlobSize(resp), nil
 	}
-	if resp == nil && err == nil {
+	if remoteErrors == nil {
 		return nil, 0, nil // fallback to non-external blob
 	}
-	if err != nil {
-		return nil, 0, err
-	}
-	return resp.Body, getBlobSize(resp), nil
+	return nil, 0, fmt.Errorf("failed fetching external blob from all urls: %w", multierr.Format("", ", ", "", remoteErrors))
 }
 
 func getBlobSize(resp *http.Response) int64 {
@@ -958,6 +1027,9 @@ func (c *dockerClient) getBlob(ctx context.Context, ref dockerReference, info ty
 		}
 	}
 
+	if err := info.Digest.Validate(); err != nil { // Make sure info.Digest.String() does not contain any unexpected characters
+		return nil, 0, err
+	}
 	path := fmt.Sprintf(blobsPath, reference.Path(ref.ref), info.Digest.String())
 	logrus.Debugf("Downloading %s", path)
 	res, err := c.makeRequest(ctx, http.MethodGet, path, nil, nil, v2Auth, nil)
@@ -1008,9 +1080,15 @@ func isManifestUnknownError(err error) bool {
 	if errors.As(err, &e) && e.ErrorCode() == errcode.ErrorCodeUnknown && e.Message == "Not Found" {
 		return true
 	}
-	// ALSO registry.redhat.io as of October 2022
+	// Harbor v2.10.2
+	if errors.As(err, &e) && e.ErrorCode() == errcode.ErrorCodeUnknown && strings.Contains(strings.ToLower(e.Message), "not found") {
+		return true
+	}
+
+	// opencontainers/distribution-spec does not require the errcode.Error payloads to be used,
+	// but specifies that the HTTP status must be 404.
 	var unexpected *unexpectedHTTPResponseError
-	if errors.As(err, &unexpected) && unexpected.StatusCode == http.StatusNotFound && bytes.Contains(unexpected.Response, []byte("Not found")) {
+	if errors.As(err, &unexpected) && unexpected.StatusCode == http.StatusNotFound {
 		return true
 	}
 	return false
@@ -1020,7 +1098,10 @@ func isManifestUnknownError(err error) bool {
 // digest in ref.
 // It returns (nil, nil) if the manifest does not exist.
 func (c *dockerClient) getSigstoreAttachmentManifest(ctx context.Context, ref dockerReference, digest digest.Digest) (*manifest.OCI1, error) {
-	tag := sigstoreAttachmentTag(digest)
+	tag, err := sigstoreAttachmentTag(digest)
+	if err != nil {
+		return nil, err
+	}
 	sigstoreRef, err := reference.WithTag(reference.TrimNamed(ref.ref), tag)
 	if err != nil {
 		return nil, err
@@ -1053,6 +1134,9 @@ func (c *dockerClient) getSigstoreAttachmentManifest(ctx context.Context, ref do
 // getExtensionsSignatures returns signatures from the X-Registry-Supports-Signatures API extension,
 // using the original data structures.
 func (c *dockerClient) getExtensionsSignatures(ctx context.Context, ref dockerReference, manifestDigest digest.Digest) (*extensionSignatureList, error) {
+	if err := manifestDigest.Validate(); err != nil { // Make sure manifestDigest.String() does not contain any unexpected characters
+		return nil, err
+	}
 	path := fmt.Sprintf(extensionsSignaturePath, reference.Path(ref.ref), manifestDigest)
 	res, err := c.makeRequest(ctx, http.MethodGet, path, nil, nil, v2Auth, nil)
 	if err != nil {
@@ -1076,8 +1160,11 @@ func (c *dockerClient) getExtensionsSignatures(ctx context.Context, ref dockerRe
 }
 
 // sigstoreAttachmentTag returns a sigstore attachment tag for the specified digest.
-func sigstoreAttachmentTag(d digest.Digest) string {
-	return strings.Replace(d.String(), ":", "-", 1) + ".sig"
+func sigstoreAttachmentTag(d digest.Digest) (string, error) {
+	if err := d.Validate(); err != nil { // Make sure d.String() doesn’t contain any unexpected characters
+		return "", err
+	}
+	return strings.Replace(d.String(), ":", "-", 1) + ".sig", nil
 }
 
 // Close removes resources associated with an initialized dockerClient, if any.

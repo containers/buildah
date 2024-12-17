@@ -56,7 +56,7 @@ func (*DeferRule) allowFromArgs(args lint.Arguments) map[string]bool {
 		return allow
 	}
 
-	aa, ok := args[0].([]interface{})
+	aa, ok := args[0].([]any)
 	if !ok {
 		panic(fmt.Sprintf("Invalid argument '%v' for 'defer' rule. Expecting []string, got %T", args[0], args[0]))
 	}
@@ -97,18 +97,21 @@ func (w lintDeferRule) Visit(node ast.Node) ast.Visitor {
 			w.newFailure("return in a defer function has no effect", n, 1.0, "logic", "return")
 		}
 	case *ast.CallExpr:
-		if !w.inADefer && isIdent(n.Fun, "recover") {
+		isCallToRecover := isIdent(n.Fun, "recover")
+		switch {
+		case !w.inADefer && isCallToRecover:
 			// func fn() { recover() }
 			//
 			// confidence is not 1 because recover can be in a function that is deferred elsewhere
 			w.newFailure("recover must be called inside a deferred function", n, 0.8, "logic", "recover")
-		} else if w.inADefer && !w.inAFuncLit && isIdent(n.Fun, "recover") {
+		case w.inADefer && !w.inAFuncLit && isCallToRecover:
 			// defer helper(recover())
 			//
 			// confidence is not truly 1 because this could be in a correctly-deferred func,
 			// but it is very likely to be a misunderstanding of defer's behavior around arguments.
 			w.newFailure("recover must be called inside a deferred function, this is executing recover immediately", n, 1, "logic", "immediate-recover")
 		}
+
 	case *ast.DeferStmt:
 		if isIdent(n.Call.Fun, "recover") {
 			// defer recover()
@@ -119,7 +122,12 @@ func (w lintDeferRule) Visit(node ast.Node) ast.Visitor {
 		}
 		w.visitSubtree(n.Call.Fun, true, false, false)
 		for _, a := range n.Call.Args {
-			w.visitSubtree(a, true, false, false) // check arguments, they should not contain recover()
+			switch a.(type) {
+			case *ast.FuncLit:
+				continue // too hard to analyze deferred calls with func literals args
+			default:
+				w.visitSubtree(a, true, false, false) // check arguments, they should not contain recover()
+			}
 		}
 
 		if w.inALoop {
@@ -137,6 +145,7 @@ func (w lintDeferRule) Visit(node ast.Node) ast.Visitor {
 				}
 			}
 		}
+
 		return nil
 	}
 

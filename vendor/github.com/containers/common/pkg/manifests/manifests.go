@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 
+	"github.com/containers/common/internal"
 	"github.com/containers/image/v5/manifest"
 	digest "github.com/opencontainers/go-digest"
 	imgspec "github.com/opencontainers/image-spec/specs-go"
@@ -19,6 +22,7 @@ type List interface {
 	Remove(instanceDigest digest.Digest) error
 	SetURLs(instanceDigest digest.Digest, urls []string) error
 	URLs(instanceDigest digest.Digest) ([]string, error)
+	ClearAnnotations(instanceDigest *digest.Digest) error
 	SetAnnotations(instanceDigest *digest.Digest, annotations map[string]string) error
 	Annotations(instanceDigest *digest.Digest) (map[string]string, error)
 	SetOS(instanceDigest digest.Digest, os string) error
@@ -33,6 +37,12 @@ type List interface {
 	Features(instanceDigest digest.Digest) ([]string, error)
 	SetOSFeatures(instanceDigest digest.Digest, osFeatures []string) error
 	OSFeatures(instanceDigest digest.Digest) ([]string, error)
+	SetMediaType(instanceDigest digest.Digest, mediaType string) error
+	MediaType(instanceDigest digest.Digest) (string, error)
+	SetArtifactType(instanceDigest *digest.Digest, artifactType string) error
+	ArtifactType(instanceDigest *digest.Digest) (string, error)
+	SetSubject(subject *v1.Descriptor) error
+	Subject() (*v1.Descriptor, error)
 	Serialize(mimeType string) ([]byte, error)
 	Instances() []digest.Digest
 	OCIv1() *v1.Index
@@ -71,10 +81,18 @@ func Create() List {
 	}
 }
 
+func sliceToMap(s []string) map[string]string {
+	m := make(map[string]string, len(s))
+	for _, spec := range s {
+		key, value, _ := strings.Cut(spec, "=")
+		m[key] = value
+	}
+	return m
+}
+
 // AddInstance adds an entry for the specified manifest digest, with assorted
 // additional information specified in parameters, to the list or index.
 func (l *list) AddInstance(manifestDigest digest.Digest, manifestSize int64, manifestType, osName, architecture, osVersion string, osFeatures []string, variant string, features, annotations []string) error { // nolint:revive
-	// FIXME: the annotations argument is currently ignored
 	if err := l.Remove(manifestDigest); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -96,18 +114,22 @@ func (l *list) AddInstance(manifestDigest digest.Digest, manifestSize int64, man
 		Platform: schema2platform,
 	})
 
-	ociv1platform := v1.Platform{
+	ociv1platform := &v1.Platform{
 		Architecture: architecture,
 		OS:           osName,
 		OSVersion:    osVersion,
 		OSFeatures:   osFeatures,
 		Variant:      variant,
 	}
+	if ociv1platform.Architecture == "" && ociv1platform.OS == "" && ociv1platform.OSVersion == "" && ociv1platform.Variant == "" && len(ociv1platform.OSFeatures) == 0 {
+		ociv1platform = nil
+	}
 	l.oci.Manifests = append(l.oci.Manifests, v1.Descriptor{
-		MediaType: manifestType,
-		Size:      manifestSize,
-		Digest:    manifestDigest,
-		Platform:  &ociv1platform,
+		MediaType:   manifestType,
+		Size:        manifestSize,
+		Digest:      manifestDigest,
+		Platform:    ociv1platform,
+		Annotations: sliceToMap(annotations),
 	})
 
 	return nil
@@ -166,7 +188,13 @@ func (l *list) SetURLs(instanceDigest digest.Digest, urls []string) error {
 		return err
 	}
 	oci.URLs = append([]string{}, urls...)
+	if len(oci.URLs) == 0 {
+		oci.URLs = nil
+	}
 	docker.URLs = append([]string{}, urls...)
+	if len(docker.URLs) == 0 {
+		docker.URLs = nil
+	}
 	return nil
 }
 
@@ -179,7 +207,24 @@ func (l *list) URLs(instanceDigest digest.Digest) ([]string, error) {
 	return append([]string{}, oci.URLs...), nil
 }
 
-// SetAnnotations sets annotations on the image index, or on a specific manifest.
+// ClearAnnotations removes all annotations from the image index, or from a
+// specific manifest.
+// The field is specific to the OCI image index format, and is not present in Docker manifest lists.
+func (l *list) ClearAnnotations(instanceDigest *digest.Digest) error {
+	a := &l.oci.Annotations
+	if instanceDigest != nil {
+		oci, err := l.findOCIv1(*instanceDigest)
+		if err != nil {
+			return err
+		}
+		a = &oci.Annotations
+	}
+	*a = nil
+	return nil
+}
+
+// SetAnnotations sets annotations on the image index, or on a specific
+// manifest.
 // The field is specific to the OCI image index format, and is not present in Docker manifest lists.
 func (l *list) SetAnnotations(instanceDigest *digest.Digest, annotations map[string]string) error {
 	a := &l.oci.Annotations
@@ -190,9 +235,14 @@ func (l *list) SetAnnotations(instanceDigest *digest.Digest, annotations map[str
 		}
 		a = &oci.Annotations
 	}
-	(*a) = make(map[string]string)
+	if *a == nil {
+		(*a) = make(map[string]string)
+	}
 	for k, v := range annotations {
 		(*a)[k] = v
+	}
+	if len(*a) == 0 {
+		*a = nil
 	}
 	return nil
 }
@@ -226,7 +276,13 @@ func (l *list) SetOS(instanceDigest digest.Digest, os string) error {
 		return err
 	}
 	docker.Platform.OS = os
+	if oci.Platform == nil {
+		oci.Platform = &v1.Platform{}
+	}
 	oci.Platform.OS = os
+	if oci.Platform.Architecture == "" && oci.Platform.OS == "" && oci.Platform.OSVersion == "" && oci.Platform.Variant == "" && len(oci.Platform.OSFeatures) == 0 {
+		oci.Platform = nil
+	}
 	return nil
 }
 
@@ -236,7 +292,11 @@ func (l *list) OS(instanceDigest digest.Digest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return oci.Platform.OS, nil
+	platform := oci.Platform
+	if platform == nil {
+		platform = &v1.Platform{}
+	}
+	return platform.OS, nil
 }
 
 // SetArchitecture sets the Architecture field in the platform information associated with the instance with the specified digest.
@@ -250,7 +310,13 @@ func (l *list) SetArchitecture(instanceDigest digest.Digest, arch string) error 
 		return err
 	}
 	docker.Platform.Architecture = arch
+	if oci.Platform == nil {
+		oci.Platform = &v1.Platform{}
+	}
 	oci.Platform.Architecture = arch
+	if oci.Platform.Architecture == "" && oci.Platform.OS == "" && oci.Platform.OSVersion == "" && oci.Platform.Variant == "" && len(oci.Platform.OSFeatures) == 0 {
+		oci.Platform = nil
+	}
 	return nil
 }
 
@@ -260,7 +326,11 @@ func (l *list) Architecture(instanceDigest digest.Digest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return oci.Platform.Architecture, nil
+	platform := oci.Platform
+	if platform == nil {
+		platform = &v1.Platform{}
+	}
+	return platform.Architecture, nil
 }
 
 // SetOSVersion sets the OSVersion field in the platform information associated with the instance with the specified digest.
@@ -274,7 +344,13 @@ func (l *list) SetOSVersion(instanceDigest digest.Digest, osVersion string) erro
 		return err
 	}
 	docker.Platform.OSVersion = osVersion
+	if oci.Platform == nil {
+		oci.Platform = &v1.Platform{}
+	}
 	oci.Platform.OSVersion = osVersion
+	if oci.Platform.Architecture == "" && oci.Platform.OS == "" && oci.Platform.OSVersion == "" && oci.Platform.Variant == "" && len(oci.Platform.OSFeatures) == 0 {
+		oci.Platform = nil
+	}
 	return nil
 }
 
@@ -284,7 +360,11 @@ func (l *list) OSVersion(instanceDigest digest.Digest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return oci.Platform.OSVersion, nil
+	platform := oci.Platform
+	if platform == nil {
+		platform = &v1.Platform{}
+	}
+	return platform.OSVersion, nil
 }
 
 // SetVariant sets the Variant field in the platform information associated with the instance with the specified digest.
@@ -298,7 +378,13 @@ func (l *list) SetVariant(instanceDigest digest.Digest, variant string) error {
 		return err
 	}
 	docker.Platform.Variant = variant
+	if oci.Platform == nil {
+		oci.Platform = &v1.Platform{}
+	}
 	oci.Platform.Variant = variant
+	if oci.Platform.Architecture == "" && oci.Platform.OS == "" && oci.Platform.OSVersion == "" && oci.Platform.Variant == "" && len(oci.Platform.OSFeatures) == 0 {
+		oci.Platform = nil
+	}
 	return nil
 }
 
@@ -308,7 +394,11 @@ func (l *list) Variant(instanceDigest digest.Digest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return oci.Platform.Variant, nil
+	platform := oci.Platform
+	if platform == nil {
+		platform = &v1.Platform{}
+	}
+	return platform.Variant, nil
 }
 
 // SetFeatures sets the features list in the platform information associated with the instance with the specified digest.
@@ -319,6 +409,9 @@ func (l *list) SetFeatures(instanceDigest digest.Digest, features []string) erro
 		return err
 	}
 	docker.Platform.Features = append([]string{}, features...)
+	if len(docker.Platform.Features) == 0 {
+		docker.Platform.Features = nil
+	}
 	// no OCI equivalent
 	return nil
 }
@@ -344,7 +437,16 @@ func (l *list) SetOSFeatures(instanceDigest digest.Digest, osFeatures []string) 
 		return err
 	}
 	docker.Platform.OSFeatures = append([]string{}, osFeatures...)
+	if oci.Platform == nil {
+		oci.Platform = &v1.Platform{}
+	}
 	oci.Platform.OSFeatures = append([]string{}, osFeatures...)
+	if len(oci.Platform.OSFeatures) == 0 {
+		oci.Platform.OSFeatures = nil
+	}
+	if oci.Platform.Architecture == "" && oci.Platform.OS == "" && oci.Platform.OSVersion == "" && oci.Platform.Variant == "" && len(oci.Platform.OSFeatures) == 0 {
+		oci.Platform = nil
+	}
 	return nil
 }
 
@@ -354,7 +456,77 @@ func (l *list) OSFeatures(instanceDigest digest.Digest) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append([]string{}, oci.Platform.OSFeatures...), nil
+	platform := oci.Platform
+	if platform == nil {
+		platform = &v1.Platform{}
+	}
+	return append([]string{}, platform.OSFeatures...), nil
+}
+
+// SetMediaType sets the MediaType field in the instance with the specified digest.
+func (l *list) SetMediaType(instanceDigest digest.Digest, mediaType string) error {
+	oci, err := l.findOCIv1(instanceDigest)
+	if err != nil {
+		return err
+	}
+	oci.MediaType = mediaType
+	return nil
+}
+
+// MediaType retrieves the MediaType field in the instance with the specified digest.
+func (l *list) MediaType(instanceDigest digest.Digest) (string, error) {
+	oci, err := l.findOCIv1(instanceDigest)
+	if err != nil {
+		return "", err
+	}
+	return oci.MediaType, nil
+}
+
+// SetArtifactType sets the ArtifactType field in the instance with the specified digest.
+func (l *list) SetArtifactType(instanceDigest *digest.Digest, artifactType string) error {
+	artifactTypePtr := &l.oci.ArtifactType
+	if instanceDigest != nil {
+		oci, err := l.findOCIv1(*instanceDigest)
+		if err != nil {
+			return err
+		}
+		artifactTypePtr = &oci.ArtifactType
+	}
+	*artifactTypePtr = artifactType
+	return nil
+}
+
+// ArtifactType retrieves the ArtifactType field in the instance with the specified digest.
+func (l *list) ArtifactType(instanceDigest *digest.Digest) (string, error) {
+	artifactTypePtr := &l.oci.ArtifactType
+	if instanceDigest != nil {
+		oci, err := l.findOCIv1(*instanceDigest)
+		if err != nil {
+			return "", err
+		}
+		artifactTypePtr = &oci.ArtifactType
+	}
+	return *artifactTypePtr, nil
+}
+
+// SetSubject sets the image index's subject.
+// The field is specific to the OCI image index format, and is not present in Docker manifest lists.
+func (l *list) SetSubject(subject *v1.Descriptor) error {
+	if subject != nil {
+		subject = internal.DeepCopyDescriptor(subject)
+	}
+	l.oci.Subject = subject
+	return nil
+}
+
+// Subject retrieves the subject which might have been set on the image index.
+// The field is specific to the OCI image index format, and is not present in Docker manifest lists.
+func (l *list) Subject() (*v1.Descriptor, error) {
+	s := l.oci.Subject
+	if s != nil {
+		s = internal.DeepCopyDescriptor(s)
+	}
+	return s, nil
 }
 
 // FromBlob builds a list from an encoded manifest list or image index.
@@ -400,11 +572,19 @@ func FromBlob(manifestBytes []byte) (List, error) {
 			if platform == nil {
 				platform = &v1.Platform{}
 			}
+			if m.Platform != nil && m.Platform.OSFeatures != nil {
+				platform.OSFeatures = slices.Clone(m.Platform.OSFeatures)
+			}
+			var urls []string
+			if m.URLs != nil {
+				urls = slices.Clone(m.URLs)
+			}
 			list.docker.Manifests = append(list.docker.Manifests, manifest.Schema2ManifestDescriptor{
 				Schema2Descriptor: manifest.Schema2Descriptor{
 					MediaType: m.MediaType,
 					Size:      m.Size,
 					Digest:    m.Digest,
+					URLs:      urls,
 				},
 				Platform: manifest.Schema2PlatformSpec{
 					Architecture: platform.Architecture,
@@ -421,11 +601,23 @@ func FromBlob(manifestBytes []byte) (List, error) {
 
 func (l *list) preferOCI() bool {
 	// If we have any data that's only in the OCI format, use that.
+	if l.oci.ArtifactType != "" {
+		return true
+	}
+	if l.oci.Subject != nil {
+		return true
+	}
+	if len(l.oci.Annotations) > 0 {
+		return true
+	}
 	for _, m := range l.oci.Manifests {
-		if len(m.URLs) > 0 {
+		if m.ArtifactType != "" {
 			return true
 		}
 		if len(m.Annotations) > 0 {
+			return true
+		}
+		if len(m.Data) > 0 {
 			return true
 		}
 	}

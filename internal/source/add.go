@@ -10,6 +10,7 @@ import (
 
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/fileutils"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -26,14 +27,14 @@ func (o *AddOptions) annotations() (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	for _, unparsed := range o.Annotations {
-		parsed := strings.SplitN(unparsed, "=", 2)
-		if len(parsed) != 2 {
+		key, value, hasValue := strings.Cut(unparsed, "=")
+		if !hasValue {
 			return nil, fmt.Errorf("invalid annotation %q (expected format is \"key=value\")", unparsed)
 		}
-		if _, exists := annotations[parsed[0]]; exists {
-			return nil, fmt.Errorf("annotation %q specified more than once", parsed[0])
+		if _, exists := annotations[key]; exists {
+			return nil, fmt.Errorf("annotation %q specified more than once", key)
 		}
-		annotations[parsed[0]] = parsed[1]
+		annotations[key] = value
 	}
 
 	return annotations, nil
@@ -44,7 +45,7 @@ func (o *AddOptions) annotations() (map[string]string, error) {
 // tar ball.  Add attempts to auto-tar and auto-compress only if necessary.
 func Add(ctx context.Context, sourcePath string, artifactPath string, options AddOptions) error {
 	// Let's first make sure `sourcePath` exists and that we can access it.
-	if _, err := os.Stat(sourcePath); err != nil {
+	if err := fileutils.Exists(sourcePath); err != nil {
 		return err
 	}
 
@@ -129,5 +130,5 @@ func updateIndexWithNewManifestDescriptor(manifest *specV1.Descriptor, sourcePat
 		return err
 	}
 
-	return os.WriteFile(indexPath, rawData, 0644)
+	return os.WriteFile(indexPath, rawData, 0o644)
 }

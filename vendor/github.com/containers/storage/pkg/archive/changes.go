@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/pools"
 	"github.com/containers/storage/pkg/system"
@@ -96,8 +98,7 @@ func aufsDeletedFile(root, path string, fi os.FileInfo) (string, error) {
 	f := filepath.Base(path)
 
 	// If there is a whiteout, then the file was removed
-	if strings.HasPrefix(f, WhiteoutPrefix) {
-		originalFile := f[len(WhiteoutPrefix):]
+	if originalFile, ok := strings.CutPrefix(f, WhiteoutPrefix); ok {
 		return filepath.Join(filepath.Dir(path), originalFile), nil
 	}
 
@@ -106,7 +107,7 @@ func aufsDeletedFile(root, path string, fi os.FileInfo) (string, error) {
 
 func aufsWhiteoutPresent(root, path string) (bool, error) {
 	f := filepath.Join(filepath.Dir(path), WhiteoutPrefix+filepath.Base(path))
-	_, err := os.Stat(filepath.Join(root, f))
+	err := fileutils.Exists(filepath.Join(root, f))
 	if err == nil {
 		return true, nil
 	}
@@ -318,9 +319,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 	// otherwise any previous delete/change is considered recursive
 	oldChildren := make(map[string]*FileInfo)
 	if oldInfo != nil && info.isDir() {
-		for k, v := range oldInfo.children {
-			oldChildren[k] = v
-		}
+		maps.Copy(oldChildren, oldInfo.children)
 	}
 
 	for name, newChild := range info.children {

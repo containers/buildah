@@ -1,6 +1,8 @@
 package unused
 
-import "go/types"
+import (
+	"go/types"
+)
 
 // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
 func lookupMethod(T *types.Interface, pkg *types.Package, name string) (int, *types.Func) {
@@ -60,6 +62,7 @@ func implements(V types.Type, T *types.Interface, msV *types.MethodSet) ([]*type
 
 	// A concrete type implements T if it implements all methods of T.
 	var sels []*types.Selection
+	var c methodsChecker
 	for i := 0; i < T.NumMethods(); i++ {
 		m := T.Method(i)
 		sel := msV.Lookup(m.Pkg(), m.Name())
@@ -72,11 +75,77 @@ func implements(V types.Type, T *types.Interface, msV *types.MethodSet) ([]*type
 			return nil, false
 		}
 
-		if !types.Identical(f.Type(), m.Type()) {
+		if !c.methodIsCompatible(f, m) {
 			return nil, false
 		}
 
 		sels = append(sels, sel)
 	}
 	return sels, true
+}
+
+type methodsChecker struct {
+	typeParams map[*types.TypeParam]types.Type
+}
+
+// Currently, this doesn't support methods like `foo(x []T)`.
+func (c *methodsChecker) methodIsCompatible(implFunc *types.Func, interfaceFunc *types.Func) bool {
+	if types.Identical(implFunc.Type(), interfaceFunc.Type()) {
+		return true
+	}
+	implSig, implOk := implFunc.Type().(*types.Signature)
+	interfaceSig, interfaceOk := interfaceFunc.Type().(*types.Signature)
+	if !implOk || !interfaceOk {
+		// probably not reachable. handle conservatively.
+		return false
+	}
+
+	if !c.typesAreCompatible(implSig.Params(), interfaceSig.Params()) {
+		return false
+	}
+
+	if !c.typesAreCompatible(implSig.Results(), interfaceSig.Results()) {
+		return false
+	}
+
+	return true
+}
+
+func (c *methodsChecker) typesAreCompatible(implTypes, interfaceTypes *types.Tuple) bool {
+	if implTypes.Len() != interfaceTypes.Len() {
+		return false
+	}
+	for i := 0; i < implTypes.Len(); i++ {
+		if !c.typeIsCompatible(implTypes.At(i).Type(), interfaceTypes.At(i).Type()) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *methodsChecker) typeIsCompatible(implType, interfaceType types.Type) bool {
+	if types.Identical(implType, interfaceType) {
+		return true
+	}
+	// We only support trivial use of type parameters. This isn't fully compatible with compiler type checking yet.
+	tp, ok := interfaceType.(*types.TypeParam)
+	if !ok {
+		return false
+	}
+	if c.typeParams == nil {
+		c.typeParams = make(map[*types.TypeParam]types.Type)
+	}
+	if c.typeParams[tp] == nil {
+		if !satisfiesConstraint(implType, tp) {
+			return false
+		}
+		c.typeParams[tp] = implType
+		return true
+	}
+	return types.Identical(c.typeParams[tp], implType)
+}
+
+func satisfiesConstraint(t types.Type, tp *types.TypeParam) bool {
+	bound := tp.Constraint().Underlying().(*types.Interface)
+	return types.Satisfies(t, bound)
 }

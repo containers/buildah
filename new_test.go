@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/containers/storage"
+	"github.com/openshift/imagebuilder"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetImageName(t *testing.T) {
@@ -25,4 +27,9 @@ func TestGetImageName(t *testing.T) {
 			t.Errorf("test case '%s' failed: expected %#v but got %#v", tc.caseName, tc.expected, res)
 		}
 	}
+}
+
+func TestNoBaseImageSpecifierIsScratch(t *testing.T) {
+	assert.Equal(t, "scratch", imagebuilder.NoBaseImageSpecifier) // juuuuust in case
+	assert.Equal(t, "scratch", BaseImageFakeName)
 }

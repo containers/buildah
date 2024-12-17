@@ -14,21 +14,20 @@ import (
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-var (
-	// configuration, including customizations made in containers.conf
-	needToShutdownStore = false
-)
+// configuration, including customizations made in containers.conf
+var needToShutdownStore = false
 
 func getStore(c *cobra.Command) (storage.Store, error) {
 	if err := setXDGRuntimeDir(); err != nil {
 		return nil, err
 	}
-	options, err := storage.DefaultStoreOptions(unshare.GetRootlessUID() > 0, unshare.GetRootlessUID())
+	options, err := storage.DefaultStoreOptions()
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +105,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 // setXDGRuntimeDir sets XDG_RUNTIME_DIR when if it is unset under rootless
 func setXDGRuntimeDir() error {
 	if unshare.IsRootless() && os.Getenv("XDG_RUNTIME_DIR") == "" {
-		runtimeDir, err := storage.GetRootlessRuntimeDir(unshare.GetRootlessUID())
+		runtimeDir, err := homedir.GetRuntimeDir()
 		if err != nil {
 			return err
 		}
@@ -224,8 +223,8 @@ func Tail(a []string) []string {
 	return []string{}
 }
 
-// UsageTemplate returns the usage template for podman commands
-// This blocks the displaying of the global options. The main podman
+// UsageTemplate returns the usage template for buildah commands
+// This blocks the displaying of the global options. The main buildah
 // command should not use this.
 func UsageTemplate() string {
 	return `Usage:{{if .Runnable}}

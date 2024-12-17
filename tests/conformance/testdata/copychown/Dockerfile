@@ -1,4 +1,4 @@
-FROM centos:8
+FROM quay.io/libpod/centos:7
 COPY --chown=1:2    script /usr/bin/script.12
 COPY --chown=1:adm  script /usr/bin/script.1-adm
 COPY --chown=1      script /usr/bin/script.1

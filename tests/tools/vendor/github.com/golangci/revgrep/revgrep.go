@@ -1,3 +1,4 @@
+// Package revgrep filter static analysis tools to only lines changed based on a commit reference.
 package revgrep
 
 import (
@@ -17,31 +18,26 @@ import (
 // Checker provides APIs to filter static analysis tools to specific commits,
 // such as showing only issues since last commit.
 type Checker struct {
-	// Patch file (unified) to read to detect lines being changed, if nil revgrep
-	// will attempt to detect the VCS and generate an appropriate patch. Auto
-	// detection will search for uncommitted changes first, if none found, will
-	// generate a patch from last committed change. File paths within patches
-	// must be relative to current working directory.
+	// Patch file (unified) to read to detect lines being changed,
+	// if nil revgrep will attempt to detect the VCS and generate an appropriate patch.
+	// Auto-detection will search for uncommitted changes first,
+	// if none found, will generate a patch from last committed change.
+	// File paths within patches must be relative to current working directory.
 	Patch io.Reader
-	// NewFiles is a list of file names (with absolute paths) where the entire
-	// contents of the file is new.
+	// NewFiles is a list of file names (with absolute paths) where the entire contents of the file is new.
 	NewFiles []string
 	// Debug sets the debug writer for additional output.
 	Debug io.Writer
-	// RevisionFrom check revision starting at, leave blank for auto detection
-	// ignored if patch is set.
+	// RevisionFrom check revision starting at, leave blank for auto-detection ignored if patch is set.
 	RevisionFrom string
-	// WholeFiles indicates that the user wishes to see all issues that comes up
-	// anywhere in any file that has been changed in this revision or patch.
+	// WholeFiles indicates that the user wishes to see all issues that comes up anywhere in any file that has been changed in this revision or patch.
 	WholeFiles bool
-	// RevisionTo checks revision finishing at, leave blank for auto detection
-	// ignored if patch is set.
+	// RevisionTo checks revision finishing at, leave blank for auto-detection ignored if patch is set.
 	RevisionTo string
 	// Regexp to match path, line number, optional column number, and message.
 	Regexp string
-	// AbsPath is used to make an absolute path of an issue's filename to be
-	// relative in order to match patch file. If not set, current working
-	// directory is used.
+	// AbsPath is used to make an absolute path of an issue's filename to be relative in order to match patch file.
+	// If not set, current working directory is used.
 	AbsPath string
 
 	// Calculated changes for next calls to IsNewIssue
@@ -56,9 +52,7 @@ type Issue struct {
 	LineNo int
 	// ColNo is the column number or 0 if none could be parsed.
 	ColNo int
-	// HunkPos is position from file's first @@, for new files this will be the
-	// line number.
-	//
+	// HunkPos is position from file's first @@, for new files this will be the line number.
 	// See also: https://developer.github.com/v3/pulls/comments/#create-a-comment
 	HunkPos int
 	// Issue text as it appeared from the tool.
@@ -135,16 +129,14 @@ func (c *Checker) IsNewIssue(i InputIssue) (hunkPos int, isNew bool) {
 	return 0, false
 }
 
-// Check scans reader and writes any lines to writer that have been added in
-// Checker.Patch.
+// Check scans reader and writes any lines to writer that have been added in Checker.Patch.
 //
 // Returns the issues written to writer when no error occurs.
 //
-// If no VCS could be found or other VCS errors occur, all issues are written
-// to writer and an error is returned.
+// If no VCS could be found or other VCS errors occur,
+// all issues are written to writer and an error is returned.
 //
-// File paths in reader must be relative to current working directory or
-// absolute.
+// File paths in reader must be relative to current working directory or absolute.
 func (c *Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err error) {
 	returnErr := c.Prepare()
 	writeAll := returnErr != nil
@@ -265,8 +257,7 @@ func (c *Checker) preparePatch() error {
 }
 
 // linesChanges returns a map of file names to line numbers being changed.
-// If key is nil, the file has been recently added, else it contains a slice
-// of positions that have been added.
+// If key is nil, the file has been recently added, else it contains a slice of positions that have been added.
 func (c *Checker) linesChanged() map[string][]pos {
 	type state struct {
 		file    string
@@ -343,17 +334,15 @@ func (c *Checker) linesChanged() map[string][]pos {
 	return changes
 }
 
-// GitPatch returns a patch from a git repository, if no git repository was
-// was found and no errors occurred, nil is returned, else an error is returned
-// revisionFrom and revisionTo defines the git diff parameters, if left blank
-// and there are unstaged changes or untracked files, only those will be returned
-// else only check changes since HEAD~. If revisionFrom is set but revisionTo
-// is not, untracked files will be included, to exclude untracked files set
-// revisionTo to HEAD~. It's incorrect to specify revisionTo without a
-// revisionFrom.
+// GitPatch returns a patch from a git repository.
+// If no git repository was found and no errors occurred, nil is returned,
+// else an error is returned revisionFrom and revisionTo defines the git diff parameters,
+// if left blank and there are unstaged changes or untracked files,
+// only those will be returned else only check changes since HEAD~.
+// If revisionFrom is set but revisionTo is not,
+// untracked files will be included, to exclude untracked files set revisionTo to HEAD~.
+// It's incorrect to specify revisionTo without a revisionFrom.
 func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
-	var patch bytes.Buffer
-
 	// check if git repo exists
 	if err := exec.Command("git", "status", "--porcelain").Run(); err != nil {
 		// don't return an error, we assume the error is not repo exists
@@ -370,53 +359,125 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 	for _, file := range bytes.Split(ls, []byte{'\n'}) {
 		if len(file) == 0 || bytes.HasSuffix(file, []byte{'/'}) {
 			// ls-files was sometimes showing directories when they were ignored
-			// I couldn't create a test case for this as I couldn't reproduce correctly
-			// for the moment, just exclude files with trailing /
+			// I couldn't create a test case for this as I couldn't reproduce correctly for the moment,
+			// just exclude files with trailing /
 			continue
 		}
+
 		newFiles = append(newFiles, string(file))
 	}
 
 	if revisionFrom != "" {
-		cmd := exec.Command("git", "diff", "--color=never", "--relative", revisionFrom)
-		if revisionTo != "" {
-			cmd.Args = append(cmd.Args, revisionTo)
-		}
-		cmd.Args = append(cmd.Args, "--")
+		args := []string{revisionFrom}
 
-		cmd.Stdout = &patch
-		if err := cmd.Run(); err != nil {
-			return nil, nil, fmt.Errorf("error executing git diff %q %q: %w", revisionFrom, revisionTo, err)
+		if revisionTo != "" {
+			args = append(args, revisionTo)
+		}
+
+		args = append(args, "--")
+
+		patch, errDiff := gitDiff(args...)
+		if errDiff != nil {
+			return nil, nil, errDiff
 		}
 
 		if revisionTo == "" {
-			return &patch, newFiles, nil
+			return patch, newFiles, nil
 		}
-		return &patch, nil, nil
+
+		return patch, nil, nil
 	}
 
 	// make a patch for unstaged changes
-	// use --no-prefix to remove b/ given: +++ b/main.go
-	cmd := exec.Command("git", "diff", "--color=never", "--relative", "--")
-	cmd.Stdout = &patch
-	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("error executing git diff: %w", err)
+	patch, err := gitDiff("--")
+	if err != nil {
+		return nil, nil, err
 	}
+
 	unstaged := patch.Len() > 0
 
-	// If there's unstaged changes OR untracked changes (or both), then this is
-	// a suitable patch
+	// If there's unstaged changes OR untracked changes (or both),
+	// then this is a suitable patch
 	if unstaged || newFiles != nil {
-		return &patch, newFiles, nil
+		return patch, newFiles, nil
 	}
 
 	// check for changes in recent commit
-
-	cmd = exec.Command("git", "diff", "--color=never", "--relative", "HEAD~", "--")
-	cmd.Stdout = &patch
-	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("error executing git diff HEAD~: %w", err)
+	patch, err = gitDiff("HEAD~", "--")
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return &patch, nil, nil
+	return patch, nil, nil
+}
+
+func gitDiff(extraArgs ...string) (*bytes.Buffer, error) {
+	cmd := exec.Command("git", "diff", "--color=never", "--no-ext-diff")
+
+	if isSupportedByGit(2, 41, 0) {
+		cmd.Args = append(cmd.Args, "--default-prefix")
+	}
+
+	cmd.Args = append(cmd.Args, "--relative")
+	cmd.Args = append(cmd.Args, extraArgs...)
+
+	patch := new(bytes.Buffer)
+	errBuff := new(bytes.Buffer)
+
+	cmd.Stdout = patch
+	cmd.Stderr = errBuff
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("error executing %q: %w: %w", strings.Join(cmd.Args, " "), err, readAsError(errBuff))
+	}
+
+	return patch, nil
+}
+
+func readAsError(buff io.Reader) error {
+	output, err := io.ReadAll(buff)
+	if err != nil {
+		return fmt.Errorf("read stderr: %w", err)
+	}
+
+	return errors.New(string(output))
+}
+
+func isSupportedByGit(major, minor, patch int) bool {
+	output, err := exec.Command("git", "version").CombinedOutput()
+	if err != nil {
+		return false
+	}
+
+	parts := bytes.Split(bytes.TrimSpace(output), []byte(" "))
+	if len(parts) < 3 {
+		return false
+	}
+
+	v := string(parts[2])
+	if v == "" {
+		return false
+	}
+
+	vp := regexp.MustCompile(`^(\d+)\.(\d+)(?:\.(\d+))?.*$`).FindStringSubmatch(v)
+	if len(vp) < 4 {
+		return false
+	}
+
+	currentMajor, err := strconv.Atoi(vp[1])
+	if err != nil {
+		return false
+	}
+
+	currentMinor, err := strconv.Atoi(vp[2])
+	if err != nil {
+		return false
+	}
+
+	currentPatch, err := strconv.Atoi(vp[3])
+	if err != nil {
+		return false
+	}
+
+	return currentMajor*1_000_000_000+currentMinor*1_000_000+currentPatch*1_000 >= major*1_000_000_000+minor*1_000_000+patch*1_000
 }

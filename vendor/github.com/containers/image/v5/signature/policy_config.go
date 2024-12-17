@@ -24,6 +24,7 @@ import (
 	"github.com/containers/image/v5/signature/internal"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/regexp"
 )
@@ -50,28 +51,39 @@ func (err InvalidPolicyFormatError) Error() string {
 // NOTE: When this function returns an error, report it to the user and abort.
 // DO NOT hard-code fallback policies in your application.
 func DefaultPolicy(sys *types.SystemContext) (*Policy, error) {
-	return NewPolicyFromFile(defaultPolicyPath(sys))
+	policyPath, err := defaultPolicyPath(sys)
+	if err != nil {
+		return nil, err
+	}
+	return NewPolicyFromFile(policyPath)
 }
 
-// defaultPolicyPath returns a path to the default policy of the system.
-func defaultPolicyPath(sys *types.SystemContext) string {
-	return defaultPolicyPathWithHomeDir(sys, homedir.Get())
+// defaultPolicyPath returns a path to the relevant policy of the system, or an error if the policy is missing.
+func defaultPolicyPath(sys *types.SystemContext) (string, error) {
+	policyFilePath, err := defaultPolicyPathWithHomeDir(sys, homedir.Get(), systemDefaultPolicyPath)
+	if err != nil {
+		return "", err
+	}
+	return policyFilePath, nil
 }
 
 // defaultPolicyPathWithHomeDir is an internal implementation detail of defaultPolicyPath,
-// it exists only to allow testing it with an artificial home directory.
-func defaultPolicyPathWithHomeDir(sys *types.SystemContext, homeDir string) string {
+// it exists only to allow testing it with artificial paths.
+func defaultPolicyPathWithHomeDir(sys *types.SystemContext, homeDir string, systemPolicyPath string) (string, error) {
 	if sys != nil && sys.SignaturePolicyPath != "" {
-		return sys.SignaturePolicyPath
+		return sys.SignaturePolicyPath, nil
 	}
 	userPolicyFilePath := filepath.Join(homeDir, userPolicyFile)
-	if _, err := os.Stat(userPolicyFilePath); err == nil {
-		return userPolicyFilePath
+	if err := fileutils.Exists(userPolicyFilePath); err == nil {
+		return userPolicyFilePath, nil
 	}
 	if sys != nil && sys.RootForImplicitAbsolutePaths != "" {
-		return filepath.Join(sys.RootForImplicitAbsolutePaths, systemDefaultPolicyPath)
+		return filepath.Join(sys.RootForImplicitAbsolutePaths, systemPolicyPath), nil
 	}
-	return systemDefaultPolicyPath
+	if err := fileutils.Exists(systemPolicyPath); err == nil {
+		return systemPolicyPath, nil
+	}
+	return "", fmt.Errorf("no policy.json file found at any of the following: %q, %q", userPolicyFilePath, systemPolicyPath)
 }
 
 // NewPolicyFromFile returns a policy configured in the specified file.
@@ -246,7 +258,7 @@ func newPolicyRequirementFromJSON(data []byte) (PolicyRequirement, error) {
 	case prTypeSigstoreSigned:
 		res = &prSigstoreSigned{}
 	default:
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy requirement type \"%s\"", typeField.Type))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy requirement type %q", typeField.Type))
 	}
 	if err := json.Unmarshal(data, &res); err != nil {
 		return nil, err
@@ -278,7 +290,7 @@ func (pr *prInsecureAcceptAnything) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prTypeInsecureAcceptAnything {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*pr = *newPRInsecureAcceptAnything()
 	return nil
@@ -308,7 +320,7 @@ func (pr *prReject) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prTypeReject {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*pr = *newPRReject()
 	return nil
@@ -317,7 +329,7 @@ func (pr *prReject) UnmarshalJSON(data []byte) error {
 // newPRSignedBy returns a new prSignedBy if parameters are valid.
 func newPRSignedBy(keyType sbKeyType, keyPath string, keyPaths []string, keyData []byte, signedIdentity PolicyReferenceMatch) (*prSignedBy, error) {
 	if !keyType.IsValid() {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("invalid keyType \"%s\"", keyType))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("invalid keyType %q", keyType))
 	}
 	keySources := 0
 	if keyPath != "" {
@@ -409,7 +421,7 @@ func (pr *prSignedBy) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prTypeSignedBy {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	if signedIdentity == nil {
 		tmp.SignedIdentity = NewPRMMatchRepoDigestOrExact()
@@ -465,7 +477,7 @@ func (kt *sbKeyType) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if !sbKeyType(s).IsValid() {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unrecognized keyType value \"%s\"", s))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unrecognized keyType value %q", s))
 	}
 	*kt = sbKeyType(s)
 	return nil
@@ -503,7 +515,7 @@ func (pr *prSignedBaseLayer) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prTypeSignedBaseLayer {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	bli, err := newPolicyReferenceMatchFromJSON(baseLayerIdentity)
 	if err != nil {
@@ -539,7 +551,7 @@ func newPolicyReferenceMatchFromJSON(data []byte) (PolicyReferenceMatch, error) 
 	case prmTypeRemapIdentity:
 		res = &prmRemapIdentity{}
 	default:
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy reference match type \"%s\"", typeField.Type))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy reference match type %q", typeField.Type))
 	}
 	if err := json.Unmarshal(data, &res); err != nil {
 		return nil, err
@@ -571,7 +583,7 @@ func (prm *prmMatchExact) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeMatchExact {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*prm = *newPRMMatchExact()
 	return nil
@@ -601,7 +613,7 @@ func (prm *prmMatchRepoDigestOrExact) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeMatchRepoDigestOrExact {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*prm = *newPRMMatchRepoDigestOrExact()
 	return nil
@@ -631,7 +643,7 @@ func (prm *prmMatchRepository) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeMatchRepository {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*prm = *newPRMMatchRepository()
 	return nil
@@ -641,10 +653,10 @@ func (prm *prmMatchRepository) UnmarshalJSON(data []byte) error {
 func newPRMExactReference(dockerReference string) (*prmExactReference, error) {
 	ref, err := reference.ParseNormalizedNamed(dockerReference)
 	if err != nil {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerReference %s: %s", dockerReference, err.Error()))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerReference %q: %s", dockerReference, err.Error()))
 	}
 	if reference.IsNameOnly(ref) {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("dockerReference %s contains neither a tag nor digest", dockerReference))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("dockerReference %q contains neither a tag nor digest", dockerReference))
 	}
 	return &prmExactReference{
 		prmCommon:       prmCommon{Type: prmTypeExactReference},
@@ -672,7 +684,7 @@ func (prm *prmExactReference) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeExactReference {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 
 	res, err := newPRMExactReference(tmp.DockerReference)
@@ -686,7 +698,7 @@ func (prm *prmExactReference) UnmarshalJSON(data []byte) error {
 // newPRMExactRepository is NewPRMExactRepository, except it returns the private type.
 func newPRMExactRepository(dockerRepository string) (*prmExactRepository, error) {
 	if _, err := reference.ParseNormalizedNamed(dockerRepository); err != nil {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerRepository %s: %s", dockerRepository, err.Error()))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerRepository %q: %s", dockerRepository, err.Error()))
 	}
 	return &prmExactRepository{
 		prmCommon:        prmCommon{Type: prmTypeExactRepository},
@@ -714,7 +726,7 @@ func (prm *prmExactRepository) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeExactRepository {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 
 	res, err := newPRMExactRepository(tmp.DockerRepository)
@@ -787,7 +799,7 @@ func (prm *prmRemapIdentity) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeRemapIdentity {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 
 	res, err := newPRMRemapIdentity(tmp.Prefix, tmp.SignedPrefix)

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package copier
 
@@ -58,7 +57,7 @@ func lchown(path string, uid, gid int) error {
 	return os.Lchown(path, uid, gid)
 }
 
-func lutimes(isSymlink bool, path string, atime, mtime time.Time) error {
+func lutimes(_ bool, path string, atime, mtime time.Time) error {
 	if atime.IsZero() || mtime.IsZero() {
 		now := time.Now()
 		if atime.IsZero() {
@@ -78,12 +77,12 @@ func sameDevice(a, b os.FileInfo) bool {
 	if aSys == nil || bSys == nil {
 		return true
 	}
-	au, aok := aSys.(*syscall.Stat_t)
-	bu, bok := bSys.(*syscall.Stat_t)
-	if !aok || !bok {
+	uA, okA := aSys.(*syscall.Stat_t)
+	uB, okB := bSys.(*syscall.Stat_t)
+	if !okA || !okB {
 		return true
 	}
-	return au.Dev == bu.Dev
+	return uA.Dev == uB.Dev
 }
 
 const (

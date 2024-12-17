@@ -18,8 +18,8 @@ var basicFunctions = template.FuncMap{
 		// Remove the trailing new line added by the encoder
 		return strings.TrimSpace(buf.String())
 	},
-	"split":    strings.Split,
-	"join":     strings.Join,
+	"split": strings.Split,
+	"join":  strings.Join,
 	// strings.Title is deprecated since go 1.18
 	// However for our use case it is still fine. The recommended replacement
 	// is adding about 400kb binary size so lets keep using this for now.
@@ -48,7 +48,7 @@ var headerFunctions = template.FuncMap{
 	"upper": func(v string) string {
 		return v
 	},
-	"truncate": func(v string, l int) string {
+	"truncate": func(v string, _ int) string {
 		return v
 	},
 }

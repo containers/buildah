@@ -14,13 +14,14 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
 	"dario.cat/mergo"
+	"github.com/containers/image/v5/internal/multierr"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -364,7 +365,7 @@ func validateClusterInfo(clusterName string, clusterInfo clientcmdCluster) []err
 	if len(clusterInfo.CertificateAuthority) != 0 {
 		err := validateFileIsReadable(clusterInfo.CertificateAuthority)
 		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("unable to read certificate-authority %v for %v due to %v", clusterInfo.CertificateAuthority, clusterName, err))
+			validationErrors = append(validationErrors, fmt.Errorf("unable to read certificate-authority %v for %v due to %w", clusterInfo.CertificateAuthority, clusterName, err))
 		}
 	}
 
@@ -402,13 +403,13 @@ func validateAuthInfo(authInfoName string, authInfo clientcmdAuthInfo) []error {
 		if len(authInfo.ClientCertificate) != 0 {
 			err := validateFileIsReadable(authInfo.ClientCertificate)
 			if err != nil {
-				validationErrors = append(validationErrors, fmt.Errorf("unable to read client-cert %v for %v due to %v", authInfo.ClientCertificate, authInfoName, err))
+				validationErrors = append(validationErrors, fmt.Errorf("unable to read client-cert %v for %v due to %w", authInfo.ClientCertificate, authInfoName, err))
 			}
 		}
 		if len(authInfo.ClientKey) != 0 {
 			err := validateFileIsReadable(authInfo.ClientKey)
 			if err != nil {
-				validationErrors = append(validationErrors, fmt.Errorf("unable to read client-key %v for %v due to %v", authInfo.ClientKey, authInfoName, err))
+				validationErrors = append(validationErrors, fmt.Errorf("unable to read client-key %v for %v due to %w", authInfo.ClientKey, authInfoName, err))
 			}
 		}
 	}
@@ -459,12 +460,6 @@ func (config *directClientConfig) getCluster() clientcmdCluster {
 	return mergedClusterInfo
 }
 
-// aggregateErr is a modified copy of k8s.io/apimachinery/pkg/util/errors.aggregate.
-// This helper implements the error and Errors interfaces.  Keeping it private
-// prevents people from making an aggregate of 0 errors, which is not
-// an error, but does satisfy the error interface.
-type aggregateErr []error
-
 // newAggregate is a modified copy of k8s.io/apimachinery/pkg/util/errors.NewAggregate.
 // NewAggregate converts a slice of errors into an Aggregate interface, which
 // is itself an implementation of the error interface.  If the slice is empty,
@@ -485,28 +480,8 @@ func newAggregate(errlist []error) error {
 	if len(errs) == 0 {
 		return nil
 	}
-	return aggregateErr(errs)
+	return multierr.Format("[", ", ", "]", errs)
 }
-
-// Error is a modified copy of k8s.io/apimachinery/pkg/util/errors.aggregate.Error.
-// Error is part of the error interface.
-func (agg aggregateErr) Error() string {
-	if len(agg) == 0 {
-		// This should never happen, really.
-		return ""
-	}
-	if len(agg) == 1 {
-		return agg[0].Error()
-	}
-	result := fmt.Sprintf("[%s", agg[0].Error())
-	for i := 1; i < len(agg); i++ {
-		result += fmt.Sprintf(", %s", agg[i].Error())
-	}
-	result += "]"
-	return result
-}
-
-// REMOVED: aggregateErr.Errors
 
 // errConfigurationInvalid is a modified? copy of k8s.io/kubernetes/pkg/client/unversioned/clientcmd.errConfigurationInvalid.
 // errConfigurationInvalid is a set of errors indicating the configuration is invalid.
@@ -578,7 +553,7 @@ func (rules *clientConfigLoadingRules) Load() (*clientcmdConfig, error) {
 			continue
 		}
 		if err != nil {
-			errlist = append(errlist, fmt.Errorf("loading config file \"%s\": %w", filename, err))
+			errlist = append(errlist, fmt.Errorf("loading config file %q: %w", filename, err))
 			continue
 		}
 

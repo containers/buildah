@@ -142,9 +142,27 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 		options.Filters = append(options.Filters, "intermediate=false")
 	}
 
-	images, err := runtime.ListImages(ctx, args, options)
+	images, err := runtime.ListImages(ctx, options)
 	if err != nil {
 		return err
+	}
+
+	if len(args) > 0 {
+		imagesMatchName, err := runtime.ListImagesByNames(args)
+		if err != nil {
+			return err
+		}
+		imagesIDs := map[string]struct{}{}
+		for _, image := range imagesMatchName {
+			imagesIDs[image.ID()] = struct{}{}
+		}
+		var imagesMatchNameAndFilter []*libimage.Image
+		for _, image := range images {
+			if _, ok := imagesIDs[image.ID()]; ok {
+				imagesMatchNameAndFilter = append(imagesMatchNameAndFilter, image)
+			}
+		}
+		images = imagesMatchNameAndFilter
 	}
 
 	if iopts.quiet && iopts.format != "" {

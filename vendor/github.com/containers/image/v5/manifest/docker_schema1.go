@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/internal/manifest"
 	"github.com/containers/image/v5/internal/set"
+	compressiontypes "github.com/containers/image/v5/pkg/compression/types"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/regexp"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/opencontainers/go-digest"
-	"golang.org/x/exp/slices"
 )
 
 // Schema1FSLayers is an entry of the "fsLayers" array in docker/distribution schema 1.
@@ -142,6 +143,15 @@ func (m *Schema1) LayerInfos() []LayerInfo {
 	return layers
 }
 
+const fakeSchema1MIMEType = DockerV2Schema2LayerMediaType // Used only in schema1CompressionMIMETypeSets
+var schema1CompressionMIMETypeSets = []compressionMIMETypeSet{
+	{
+		mtsUncompressed:                    fakeSchema1MIMEType,
+		compressiontypes.GzipAlgorithmName: fakeSchema1MIMEType,
+		compressiontypes.ZstdAlgorithmName: mtsUnsupportedMIMEType,
+	},
+}
+
 // UpdateLayerInfos replaces the original layers with the specified BlobInfos (size+digest+urls), in order (the root layer first, and then successive layered layers)
 func (m *Schema1) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 	// Our LayerInfos includes empty layers (where m.ExtractedV1Compatibility[].ThrowAway), so expect them to be included here as well.
@@ -150,10 +160,18 @@ func (m *Schema1) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 	}
 	m.FSLayers = make([]Schema1FSLayers, len(layerInfos))
 	for i, info := range layerInfos {
+		// There are no MIME types in schema1, but we do a “conversion” here to reject unsupported compression algorithms,
+		// in a way that is consistent with the other schema implementations.
+		if _, err := updatedMIMEType(schema1CompressionMIMETypeSets, fakeSchema1MIMEType, info); err != nil {
+			return fmt.Errorf("preparing updated manifest, layer %q: %w", info.Digest, err)
+		}
 		// (docker push) sets up m.ExtractedV1Compatibility[].{Id,Parent} based on values of info.Digest,
 		// but (docker pull) ignores them in favor of computing DiffIDs from uncompressed data, except verifying the child->parent links and uniqueness.
 		// So, we don't bother recomputing the IDs in m.History.V1Compatibility.
 		m.FSLayers[(len(layerInfos)-1)-i].BlobSum = info.Digest
+		if info.CryptoOperation != types.PreserveOriginalCrypto {
+			return fmt.Errorf("encryption change (for layer %q) is not supported in schema1 manifests", info.Digest)
+		}
 	}
 	return nil
 }
@@ -203,7 +221,7 @@ func (m *Schema1) fixManifestLayers() error {
 			m.History = slices.Delete(m.History, i, i+1)
 			m.ExtractedV1Compatibility = slices.Delete(m.ExtractedV1Compatibility, i, i+1)
 		} else if m.ExtractedV1Compatibility[i].Parent != m.ExtractedV1Compatibility[i+1].ID {
-			return fmt.Errorf("Invalid parent ID. Expected %v, got %v", m.ExtractedV1Compatibility[i+1].ID, m.ExtractedV1Compatibility[i].Parent)
+			return fmt.Errorf("Invalid parent ID. Expected %v, got %q", m.ExtractedV1Compatibility[i+1].ID, m.ExtractedV1Compatibility[i].Parent)
 		}
 	}
 	return nil
@@ -300,20 +318,20 @@ func (m *Schema1) ToSchema2Config(diffIDs []digest.Digest) ([]byte, error) {
 	// Add the history and rootfs information.
 	rootfs, err := json.Marshal(rootFS)
 	if err != nil {
-		return nil, fmt.Errorf("error encoding rootfs information %#v: %v", rootFS, err)
+		return nil, fmt.Errorf("error encoding rootfs information %#v: %w", rootFS, err)
 	}
 	rawRootfs := json.RawMessage(rootfs)
 	raw["rootfs"] = &rawRootfs
 	history, err := json.Marshal(convertedHistory)
 	if err != nil {
-		return nil, fmt.Errorf("error encoding history information %#v: %v", convertedHistory, err)
+		return nil, fmt.Errorf("error encoding history information %#v: %w", convertedHistory, err)
 	}
 	rawHistory := json.RawMessage(history)
 	raw["history"] = &rawHistory
 	// Encode the result.
 	config, err = json.Marshal(raw)
 	if err != nil {
-		return nil, fmt.Errorf("error re-encoding compat image config %#v: %v", s1, err)
+		return nil, fmt.Errorf("error re-encoding compat image config %#v: %w", s1, err)
 	}
 	return config, nil
 }
@@ -324,5 +342,5 @@ func (m *Schema1) ImageID(diffIDs []digest.Digest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return digest.FromBytes(image).Hex(), nil
+	return digest.FromBytes(image).Encoded(), nil
 }

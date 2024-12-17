@@ -12,8 +12,10 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/aliases"
 )
 
 const Doc = `check for calls of reflect.DeepEqual on error values
@@ -28,11 +30,16 @@ errors is discouraged.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "deepequalerrors",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/deepequalerrors",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	if !analysisutil.Imports(pass.Pkg, "reflect") {
+		return nil, nil // doesn't directly import reflect
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -40,11 +47,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
-		fn, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
-		if !ok {
-			return
-		}
-		if fn.FullName() == "reflect.DeepEqual" && hasError(pass, call.Args[0]) && hasError(pass, call.Args[1]) {
+		fn, _ := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
+		if analysisutil.IsFunctionNamed(fn, "reflect", "DeepEqual") && hasError(pass, call.Args[0]) && hasError(pass, call.Args[1]) {
 			pass.ReportRangef(call, "avoid using reflect.DeepEqual with errors")
 		}
 	})
@@ -98,7 +102,7 @@ func containsError(typ types.Type) bool {
 					return true
 				}
 			}
-		case *types.Named:
+		case *types.Named, *aliases.Alias:
 			return check(t.Underlying())
 
 		// We list the remaining valid type kinds for completeness.

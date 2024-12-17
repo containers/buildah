@@ -1,5 +1,4 @@
 //go:build linux || freebsd
-// +build linux freebsd
 
 package chrootuser
 
@@ -76,9 +75,7 @@ func openChrootedFile(rootdir, filename string) (*exec.Cmd, io.ReadCloser, error
 	return cmd, stdout, nil
 }
 
-var (
-	lookupUser, lookupGroup sync.Mutex
-)
+var lookupUser, lookupGroup sync.Mutex
 
 type lookupPasswdEntry struct {
 	name string
@@ -90,6 +87,19 @@ type lookupGroupEntry struct {
 	name string
 	gid  uint64
 	user string
+}
+
+func scanWithoutComments(rc *bufio.Scanner) (string, bool) {
+	for {
+		if !rc.Scan() {
+			return "", false
+		}
+		line := rc.Text()
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		return line, true
+	}
 }
 
 func parseNextPasswd(rc *bufio.Scanner) *lookupPasswdEntry {
@@ -118,10 +128,13 @@ func parseNextPasswd(rc *bufio.Scanner) *lookupPasswdEntry {
 }
 
 func parseNextGroup(rc *bufio.Scanner) *lookupGroupEntry {
-	if !rc.Scan() {
+	// On FreeBSD, /etc/group may contain comments:
+	//   https://man.freebsd.org/cgi/man.cgi?query=group&sektion=5&format=html
+	// We need to ignore those lines rather than trying to parse them.
+	line, ok := scanWithoutComments(rc)
+	if !ok {
 		return nil
 	}
-	line := rc.Text()
 	fields := strings.Split(line, ":")
 	if len(fields) != 4 {
 		return nil

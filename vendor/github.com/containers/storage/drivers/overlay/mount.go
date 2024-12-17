@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package overlay
 
@@ -103,20 +102,20 @@ func mountOverlayFromMain() {
 	// paths, but we don't want to mess with other options.
 	var upperk, upperv, workk, workv, lowerk, lowerv, labelk, labelv, others string
 	for _, arg := range strings.Split(options.Label, ",") {
-		kv := strings.SplitN(arg, "=", 2)
-		switch kv[0] {
+		key, val, _ := strings.Cut(arg, "=")
+		switch key {
 		case "upperdir":
 			upperk = "upperdir="
-			upperv = kv[1]
+			upperv = val
 		case "workdir":
 			workk = "workdir="
-			workv = kv[1]
+			workv = val
 		case "lowerdir":
 			lowerk = "lowerdir="
-			lowerv = kv[1]
+			lowerv = val
 		case "label":
 			labelk = "label="
-			labelv = kv[1]
+			labelv = val
 		default:
 			if others == "" {
 				others = arg
@@ -141,14 +140,27 @@ func mountOverlayFromMain() {
 	// the new value for the list of lowers, because it's shorter.
 	if lowerv != "" {
 		lowers := strings.Split(lowerv, ":")
-		for i := range lowers {
-			lowerFd, err := unix.Open(lowers[i], unix.O_RDONLY, 0)
+		var newLowers []string
+		dataOnly := false
+		for _, lowerPath := range lowers {
+			if lowerPath == "" {
+				dataOnly = true
+				continue
+			}
+			lowerFd, err := unix.Open(lowerPath, unix.O_RDONLY, 0)
 			if err != nil {
 				fatal(err)
 			}
-			lowers[i] = fmt.Sprintf("%d", lowerFd)
+			var lower string
+			if dataOnly {
+				lower = fmt.Sprintf(":%d", lowerFd)
+				dataOnly = false
+			} else {
+				lower = fmt.Sprintf("%d", lowerFd)
+			}
+			newLowers = append(newLowers, lower)
 		}
-		lowerv = strings.Join(lowers, ":")
+		lowerv = strings.Join(newLowers, ":")
 	}
 
 	// Reconstruct the Label field.

@@ -7,6 +7,8 @@ import (
 
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
 )
@@ -20,16 +22,17 @@ type PushOptions struct {
 	Credentials string
 	// Quiet the progress bars when pushing.
 	Quiet bool
+	// If set after copying the artifact, write the digest of the resulting image to the file
+	DigestFile string
 }
 
 // Push the source image at `sourcePath` to `imageInput` at a container
 // registry.
 func Push(ctx context.Context, sourcePath string, imageInput string, options PushOptions) error {
-	ociSource, err := openOrCreateSourceImage(ctx, sourcePath)
+	srcRef, err := layout.ParseReference(sourcePath)
 	if err != nil {
 		return err
 	}
-
 	destRef, err := stringToImageReference(imageInput)
 	if err != nil {
 		return err
@@ -61,8 +64,19 @@ func Push(ctx context.Context, sourcePath string, imageInput string, options Pus
 	if !options.Quiet {
 		copyOpts.ReportWriter = os.Stderr
 	}
-	if _, err := copy.Image(ctx, policyContext, destRef, ociSource.Reference(), copyOpts); err != nil {
+	manifestBytes, err := copy.Image(ctx, policyContext, destRef, srcRef, copyOpts)
+	if err != nil {
 		return fmt.Errorf("pushing source image: %w", err)
+	}
+
+	if options.DigestFile != "" {
+		manifestDigest, err := manifest.Digest(manifestBytes)
+		if err != nil {
+			return fmt.Errorf("computing digest of manifest of source: %w", err)
+		}
+		if err = os.WriteFile(options.DigestFile, []byte(manifestDigest.String()), 0o644); err != nil {
+			return fmt.Errorf("failed to write digest to file %q: %w", options.DigestFile, err)
+		}
 	}
 
 	return nil

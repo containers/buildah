@@ -65,6 +65,10 @@ func newOpenshiftClient(ref openshiftReference) (*openshiftClient, error) {
 	}, nil
 }
 
+func (c *openshiftClient) close() {
+	c.httpClient.CloseIdleConnections()
+}
+
 // doRequest performs a correctly authenticated request to a specified path, and returns response body or an error object.
 func (c *openshiftClient) doRequest(ctx context.Context, method, path string, requestBody []byte) ([]byte, error) {
 	requestURL := *c.baseURL
@@ -148,7 +152,7 @@ func (c *openshiftClient) getImage(ctx context.Context, imageStreamImageName str
 func (c *openshiftClient) convertDockerImageReference(ref string) (string, error) {
 	_, repo, gotRepo := strings.Cut(ref, "/")
 	if !gotRepo {
-		return "", fmt.Errorf("Invalid format of docker reference %s: missing '/'", ref)
+		return "", fmt.Errorf("Invalid format of docker reference %q: missing '/'", ref)
 	}
 	return reference.Domain(c.ref.dockerReference) + "/" + repo, nil
 }

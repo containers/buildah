@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package overlay
 
@@ -263,7 +262,11 @@ func supportsIdmappedLowerLayers(home string) (bool, error) {
 	if err := idmap.CreateIDMappedMount(lowerDir, lowerMappedDir, int(pid)); err != nil {
 		return false, fmt.Errorf("create mapped mount: %w", err)
 	}
-	defer unix.Unmount(lowerMappedDir, unix.MNT_DETACH)
+	defer func() {
+		if err := unix.Unmount(lowerMappedDir, unix.MNT_DETACH); err != nil {
+			logrus.Warnf("Unmount %q: %v", lowerMappedDir, err)
+		}
+	}()
 
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerMappedDir, upperDir, workDir)
 	flags := uintptr(0)
@@ -273,5 +276,38 @@ func supportsIdmappedLowerLayers(home string) (bool, error) {
 	defer func() {
 		_ = unix.Unmount(mergedDir, unix.MNT_DETACH)
 	}()
+	return true, nil
+}
+
+// supportsDataOnlyLayers checks if the kernel supports mounting a overlay file system
+// that uses data-only layers.
+func supportsDataOnlyLayers(home string) (bool, error) {
+	layerDir, err := os.MkdirTemp(home, "compat")
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		_ = os.RemoveAll(layerDir)
+	}()
+
+	mergedDir := filepath.Join(layerDir, "merged")
+	lowerDir := filepath.Join(layerDir, "lower")
+	lowerDirDataOnly := filepath.Join(layerDir, "lower-data")
+	upperDir := filepath.Join(layerDir, "upper")
+	workDir := filepath.Join(layerDir, "work")
+
+	_ = idtools.MkdirAs(mergedDir, 0o700, 0, 0)
+	_ = idtools.MkdirAs(lowerDir, 0o700, 0, 0)
+	_ = idtools.MkdirAs(lowerDirDataOnly, 0o700, 0, 0)
+	_ = idtools.MkdirAs(upperDir, 0o700, 0, 0)
+	_ = idtools.MkdirAs(workDir, 0o700, 0, 0)
+
+	opts := fmt.Sprintf("lowerdir=%s::%s,upperdir=%s,workdir=%s,metacopy=on", lowerDir, lowerDirDataOnly, upperDir, workDir)
+	flags := uintptr(0)
+	if err := unix.Mount("overlay", mergedDir, "overlay", flags, opts); err != nil {
+		return false, err
+	}
+	_ = unix.Unmount(mergedDir, unix.MNT_DETACH)
+
 	return true, nil
 }

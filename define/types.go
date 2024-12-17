@@ -29,7 +29,7 @@ const (
 	// identify working containers.
 	Package = "buildah"
 	// Version for the Package. Also used by .packit.sh for Packit builds.
-	Version = "1.32.0-dev"
+	Version = "1.39.0-dev"
 
 	// DefaultRuntime if containers.conf fails.
 	DefaultRuntime = "runc"
@@ -47,11 +47,22 @@ const (
 	OCI = "oci"
 	// DOCKER used to define the "docker" image format
 	DOCKER = "docker"
+
+	// SEV is a known trusted execution environment type: AMD-SEV (secure encrypted virtualization using encrypted state, requires epyc 1000 "naples")
+	SEV TeeType = "sev"
+	// SNP is a known trusted execution environment type: AMD-SNP (SEV secure nested pages) (requires epyc 3000 "milan")
+	SNP TeeType = "snp"
 )
 
+// DefaultRlimitValue is the value set by default for nofile and nproc
+const RLimitDefaultValue = uint64(1048576)
+
+// TeeType is a supported trusted execution environment type.
+type TeeType string
+
 var (
-	// DefaultCapabilities is the list of capabilities which we grant by
-	// default to containers which are running under UID 0.
+	// Deprecated: DefaultCapabilities values should be retrieved from
+	// github.com/containers/common/pkg/config
 	DefaultCapabilities = []string{
 		"CAP_AUDIT_WRITE",
 		"CAP_CHOWN",
@@ -67,8 +78,8 @@ var (
 		"CAP_SETUID",
 		"CAP_SYS_CHROOT",
 	}
-	// DefaultNetworkSysctl is the list of Kernel parameters which we
-	// grant by default to containers which are running under UID 0.
+	// Deprecated: DefaultNetworkSysctl values should be retrieved from
+	// github.com/containers/common/pkg/config
 	DefaultNetworkSysctl = map[string]string{
 		"net.ipv4.ping_group_range": "0 0",
 	}
@@ -103,6 +114,59 @@ type BuildOutputOption struct {
 	Path     string // Only valid if !IsStdout
 	IsDir    bool
 	IsStdout bool
+}
+
+// ConfidentialWorkloadOptions encapsulates options which control whether or not
+// we output an image whose rootfs contains a LUKS-compatibly-encrypted disk image
+// instead of the usual rootfs contents.
+type ConfidentialWorkloadOptions struct {
+	Convert                  bool
+	AttestationURL           string
+	CPUs                     int
+	Memory                   int
+	TempDir                  string // used for the temporary plaintext copy of the disk image
+	TeeType                  TeeType
+	IgnoreAttestationErrors  bool
+	WorkloadID               string
+	DiskEncryptionPassphrase string
+	Slop                     string
+	FirmwareLibrary          string
+}
+
+// SBOMMergeStrategy tells us how to merge multiple SBOM documents into one.
+type SBOMMergeStrategy string
+
+const (
+	// SBOMMergeStrategyCat literally concatenates the documents.
+	SBOMMergeStrategyCat SBOMMergeStrategy = "cat"
+	// SBOMMergeStrategyCycloneDXByComponentNameAndVersion adds components
+	// from the second document to the first, so long as they have a
+	// name+version combination which is not already present in the
+	// components array.
+	SBOMMergeStrategyCycloneDXByComponentNameAndVersion SBOMMergeStrategy = "merge-cyclonedx-by-component-name-and-version"
+	// SBOMMergeStrategySPDXByPackageNameAndVersionInfo adds packages from
+	// the second document to the first, so long as they have a
+	// name+versionInfo combination which is not already present in the
+	// first document's packages array, and adds hasExtractedLicensingInfos
+	// items from the second document to the first, so long as they include
+	// a licenseId value which is not already present in the first
+	// document's hasExtractedLicensingInfos array.
+	SBOMMergeStrategySPDXByPackageNameAndVersionInfo SBOMMergeStrategy = "merge-spdx-by-package-name-and-versioninfo"
+)
+
+// SBOMScanOptions encapsulates options which control whether or not we run a
+// scanner on the rootfs that we're about to commit, and how.
+type SBOMScanOptions struct {
+	Type            []string          // a shorthand name for a defined group of these options
+	Image           string            // the scanner image to use
+	PullPolicy      PullPolicy        // how to get the scanner image
+	Commands        []string          // one or more commands to invoke for the image rootfs or ContextDir locations
+	ContextDir      []string          // one or more "source" directory locations
+	SBOMOutput      string            // where to save SBOM scanner output outside of the image (i.e., the local filesystem)
+	PURLOutput      string            // where to save PURL list outside of the image (i.e., the local filesystem)
+	ImageSBOMOutput string            // where to save SBOM scanner output in the image
+	ImagePURLOutput string            // where to save PURL list in the image
+	MergeStrategy   SBOMMergeStrategy // how to merge the outputs of multiple scans
 }
 
 // TempDirForURL checks if the passed-in string looks like a URL or -.  If it is,
@@ -190,9 +254,16 @@ func parseGitBuildContext(url string) (string, string, string) {
 	return gitBranchPart[0], gitSubdir, gitBranch
 }
 
+func isGitTag(remote, ref string) bool {
+	if _, err := exec.Command("git", "ls-remote", "--exit-code", remote, ref).Output(); err != nil {
+		return true
+	}
+	return false
+}
+
 func cloneToDirectory(url, dir string) ([]byte, string, error) {
 	var cmd *exec.Cmd
-	gitRepo, gitSubdir, gitBranch := parseGitBuildContext(url)
+	gitRepo, gitSubdir, gitRef := parseGitBuildContext(url)
 	// init repo
 	cmd = exec.Command("git", "init", dir)
 	combinedOutput, err := cmd.CombinedOutput()
@@ -206,27 +277,23 @@ func cloneToDirectory(url, dir string) ([]byte, string, error) {
 	if err != nil {
 		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git remote add`: %w", err)
 	}
-	// fetch required branch or commit and perform checkout
-	// Always default to `HEAD` if nothing specified
-	fetch := "HEAD"
-	if gitBranch != "" {
-		fetch = gitBranch
+
+	if gitRef != "" {
+		if ok := isGitTag(url, gitRef); ok {
+			gitRef += ":refs/tags/" + gitRef
+		}
 	}
-	logrus.Debugf("fetching repo %q and branch (or commit ID) %q to %q", gitRepo, fetch, dir)
-	cmd = exec.Command("git", "fetch", "--depth=1", "origin", "--", fetch)
+
+	logrus.Debugf("fetching repo %q and branch (or commit ID) %q to %q", gitRepo, gitRef, dir)
+	args := []string{"fetch", "-u", "--depth=1", "origin", "--", gitRef}
+	cmd = exec.Command("git", args...)
 	cmd.Dir = dir
 	combinedOutput, err = cmd.CombinedOutput()
 	if err != nil {
 		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git fetch`: %w", err)
 	}
-	if fetch == "HEAD" {
-		// We fetched default branch therefore
-		// we don't have any valid `branch` or
-		// `commit` name hence checkout detached
-		// `FETCH_HEAD`
-		fetch = "FETCH_HEAD"
-	}
-	cmd = exec.Command("git", "checkout", fetch)
+
+	cmd = exec.Command("git", "checkout", "FETCH_HEAD")
 	cmd.Dir = dir
 	combinedOutput, err = cmd.CombinedOutput()
 	if err != nil {
@@ -260,7 +327,7 @@ func downloadToDirectory(url, dir string) error {
 		}
 		dockerfile := filepath.Join(dir, "Dockerfile")
 		// Assume this is a Dockerfile
-		if err := ioutils.AtomicWriteFile(dockerfile, body, 0600); err != nil {
+		if err := ioutils.AtomicWriteFile(dockerfile, body, 0o600); err != nil {
 			return fmt.Errorf("failed to write %q to %q: %w", url, dockerfile, err)
 		}
 	}
@@ -278,7 +345,7 @@ func stdinToDirectory(dir string) error {
 	if err := chrootarchive.Untar(reader, dir, nil); err != nil {
 		dockerfile := filepath.Join(dir, "Dockerfile")
 		// Assume this is a Dockerfile
-		if err := ioutils.AtomicWriteFile(dockerfile, b, 0600); err != nil {
+		if err := ioutils.AtomicWriteFile(dockerfile, b, 0o600); err != nil {
 			return fmt.Errorf("failed to write bytes to %q: %w", dockerfile, err)
 		}
 	}

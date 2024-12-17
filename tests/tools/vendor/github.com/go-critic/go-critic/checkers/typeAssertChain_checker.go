@@ -6,7 +6,8 @@ import (
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/astp"
@@ -15,7 +16,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "typeAssertChain"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects repeated type assertions and suggests to replace them with type switch statement"
 	info.Before = `
 if x, ok := v.(T1); ok {

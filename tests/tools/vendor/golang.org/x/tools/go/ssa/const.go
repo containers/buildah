@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -45,9 +46,9 @@ func soleTypeKind(typ types.Type) types.BasicInfo {
 	// Candidates (perhaps all) are eliminated during the type-set
 	// iteration, which executes at least once.
 	state := types.IsBoolean | types.IsInteger | types.IsString
-	underIs(typeSetOf(typ), func(t types.Type) bool {
+	underIs(typeSetOf(typ), func(ut types.Type) bool {
 		var c types.BasicInfo
-		if t, ok := t.(*types.Basic); ok {
+		if t, ok := ut.(*types.Basic); ok {
 			c = t.Info()
 		}
 		if c&types.IsNumeric != 0 { // int/float/complex
@@ -113,7 +114,7 @@ func zeroString(t types.Type, from *types.Package) string {
 		}
 	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
 		return "nil"
-	case *types.Named:
+	case *types.Named, *aliases.Alias:
 		return zeroString(t.Underlying(), from)
 	case *types.Array, *types.Struct:
 		return relType(t, from) + "{}"
@@ -125,7 +126,7 @@ func zeroString(t types.Type, from *types.Package) string {
 			components[i] = zeroString(t.At(i).Type(), from)
 		}
 		return "(" + strings.Join(components, ", ") + ")"
-	case *typeparams.TypeParam:
+	case *types.TypeParam:
 		return "*new(" + relType(t, from) + ")"
 	}
 	panic(fmt.Sprint("zeroString: unexpected ", t))

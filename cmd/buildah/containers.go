@@ -76,7 +76,7 @@ func init() {
 		Aliases: []string{"list", "ls", "ps"},
 		Short:   "List working containers and their base images",
 		Long:    containersDescription,
-		//Flags:                  sortFlags(containersFlags),
+		// Flags:                  sortFlags(containersFlags),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return containersCmd(cmd, args, opts)
 		},
@@ -168,11 +168,13 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 				continue
 			}
 			if opts.json {
-				JSONContainers = append(JSONContainers, jsonContainer{ID: builder.ContainerID,
+				JSONContainers = append(JSONContainers, jsonContainer{
+					ID:            builder.ContainerID,
 					Builder:       true,
 					ImageID:       builder.FromImageID,
 					ImageName:     image,
-					ContainerName: builder.Container})
+					ContainerName: builder.Container,
+				})
 				continue
 			}
 			output := containerOutputParams{
@@ -208,11 +210,13 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 				continue
 			}
 			if opts.json {
-				JSONContainers = append(JSONContainers, jsonContainer{ID: container.ID,
+				JSONContainers = append(JSONContainers, jsonContainer{
+					ID:            container.ID,
 					Builder:       ours,
 					ImageID:       container.ImageID,
 					ImageName:     imageNameForID(container.ImageID),
-					ContainerName: name})
+					ContainerName: name,
+				})
 				continue
 			}
 			output := containerOutputParams{

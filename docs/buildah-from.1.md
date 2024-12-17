@@ -17,7 +17,7 @@ Multiple transports are supported:
   An existing local directory _path_ containing the manifest, layer tarballs, and signatures in individual files. This is a non-standardized format, primarily useful for debugging or noninvasive image inspection.
 
   **docker://**_docker-reference_ (Default)
-  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG\_RUNTIME\_DIR/containers/auth.json`, which is set using `(buildah login)`.  If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG_RUNTIME_DIR/containers/auth.json`, which is set using `(buildah login)`.  See containers-auth.json(5) for more information. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
   If _docker-reference_ does not include a registry name, *localhost* will be consulted first, followed by any registries named in the registries configuration.
 
   **docker-archive:**_path_
@@ -55,7 +55,7 @@ Set the ARCH of the image to be pulled to the provided value instead of using th
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. See containers-auth.json(5) for more information. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -177,7 +177,23 @@ The [key[:passphrase]] to be used for decryption of images. Key can point to key
 
 **--device**=*device*
 
-Add a host device or devices under a directory to the container. The format is `<device-on-host>[:<device-on-container>][:<permissions>]` (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+Add a host device, or devices under a directory, to the environment of
+subsequent **buildah run** invocations for the new working container.  The
+optional *permissions* parameter can be used to specify device permissions,
+using any one or more of **r** for read, **w** for write, and **m** for
+**mknod**(2).
+
+Example: **--device=/dev/sdc:/dev/xvdc:rwm**.
+
+Note: if _host-device_ is a symbolic link then it will be resolved first.
+The container will only store the major and minor numbers of the host device.
+
+The device to share can also be specified using a Container Device Interface
+(CDI) specification (https://github.com/cncf-tags/container-device-interface).
+
+Note: if the user only has access rights via a group, accessing the device
+from inside a rootless container will fail. The **crun**(1) runtime offers a
+workaround for this by adding the option **--annotation run.oci.keep_original_groups=1**.
 
 **--dns**=[]
 
@@ -372,24 +388,23 @@ the help of emulation provided by packages like `qemu-user-static`.
 
 **--pull**
 
-When the flag is enabled or set explicitly to `true` (with *--pull=true*), attempt to pull the latest image from the registries
-listed in registries.conf if a local image does not exist or the image is newer
-than the one in storage. Raise an error if the image is not in any listed
-registry and is not present locally.
+Pull image policy. The default is **missing**.
 
-If the flag is disabled (with *--pull=false*), do not pull the image from the
-registry, use only the local version. Raise an error if the image is not
-present locally.
+- **always**: Pull base and SBOM scanner images from the registries listed in
+registries.conf.  Raise an error if a base or SBOM scanner image is not found
+in the registries, even if an image with the same name is present locally.
 
-If the pull flag is set to `always` (with *--pull=always*),
-pull the image from the first registry it is found in as listed in registries.conf.
-Raise an error if not found in the registries, even if the image is present locally.
+- **missing**: SBOM scanner images only if they could not be found in the local
+containers storage.  Raise an error if no image could be found and the pull
+fails.
 
-If the pull flag is set to `never` (with *--pull=never*),
-Do not pull the image from the registry, use only the local version. Raise an error
-if the image is not present locally.
+- **never**: Do not pull base and SBOM scanner images from registries, use only
+the local versions.  Raise an error if the image is not present locally.
 
-Defaults to *true*.
+- **newer**: Pull base and SBOM scanner images from the registries listed in
+registries.conf if newer.  Raise an error if a base or SBOM scanner image is
+not found in the registries when image with the same name is not present
+locally.
 
 **--quiet**, **-q**
 
@@ -587,12 +602,12 @@ Set the architecture variant of the image to be pulled.
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
    bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-   container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
+   container. The `OPTIONS` are a comma delimited list and can be:
 
    * [rw|ro]
    * [U]
    * [z|Z|O]
-   * [`[r]shared`|`[r]slave`|`[r]private`|`[r]unbindable`]
+   * [`[r]shared`|`[r]slave`|`[r]private`|`[r]unbindable`] <sup>[[1]](#Footnote1)</sup>
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 must be an absolute path as well. Buildah bind-mounts the `HOST-DIR` to the
@@ -640,9 +655,9 @@ Only the current container can use a private volume.
 
   Note:
 
-     - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
+   - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
        On SELinux systems, labels in the source directory need to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
-     - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
+   - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
 
 By default bind mounted volumes are `private`. That means any mounts done
 inside container will not be visible on the host and vice versa. This behavior can
@@ -737,7 +752,7 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-pull(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), containers.conf(5)
+buildah(1), buildah-pull(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), containers.conf(5), containers-auth.json(5)
 
 ## FOOTNOTES
 <a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.

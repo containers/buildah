@@ -93,8 +93,8 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 			}
 			c.Call.Args = []Value{
 				v,
-				emitConst(fn, stringConst(deref(sel.Recv()).String())),
-				emitConst(fn, stringConst(sel.Obj().Name())),
+				emitConst(fn, stringConst(deref(sel.Recv()).String(), nil)),
+				emitConst(fn, stringConst(sel.Obj().Name(), nil)),
 			}
 			c.setType(v.Type())
 			v = fn.emit(&c, nil)
@@ -116,7 +116,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 	// address of implicit  C field.
 
 	var c Call
-	if r := recvType(obj); !isInterface(r) { // concrete method
+	if r := recvType(obj); !types.IsInterface(r) { // concrete method
 		if !isPointer(r) {
 			v = emitLoad(fn, v, nil)
 		}
@@ -140,7 +140,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 func createParams(fn *Function, start int) {
 	tparams := fn.Signature.Params()
 	for i, n := start, tparams.Len(); i < n; i++ {
-		fn.addParamObj(tparams.At(i), nil)
+		fn.addParamVar(tparams.At(i), nil)
 	}
 }
 
@@ -173,42 +173,37 @@ func createParams(fn *Function, start int) {
 func makeBound(prog *Program, obj *types.Func) *Function {
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
-	fn, ok := prog.bounds[obj]
-	if !ok {
-		if prog.mode&LogSource != 0 {
-			defer logStack("%s", SyntheticBound)()
-		}
-		fn = &Function{
-			name:         obj.Name() + "$bound",
-			object:       obj,
-			Signature:    changeRecv(obj.Type().(*types.Signature), nil), // drop receiver
-			Synthetic:    SyntheticBound,
-			Prog:         prog,
-			functionBody: new(functionBody),
-		}
-		fn.initHTML(prog.PrintFunc)
-
-		fv := &FreeVar{name: "recv", typ: recvType(obj), parent: fn}
-		fn.FreeVars = []*FreeVar{fv}
-		fn.startBody()
-		createParams(fn, 0)
-		var c Call
-
-		if !isInterface(recvType(obj)) { // concrete
-			c.Call.Value = prog.declaredFunc(obj)
-			c.Call.Args = []Value{fv}
-		} else {
-			c.Call.Value = fv
-			c.Call.Method = obj
-		}
-		for _, arg := range fn.Params {
-			c.Call.Args = append(c.Call.Args, arg)
-		}
-		emitTailCall(fn, &c, nil)
-		fn.finishBody()
-
-		prog.bounds[obj] = fn
+	if prog.mode&LogSource != 0 {
+		defer logStack("%s", SyntheticBound)()
 	}
+	fn := &Function{
+		name:         obj.Name() + "$bound",
+		object:       obj,
+		Signature:    changeRecv(obj.Type().(*types.Signature), nil), // drop receiver
+		Synthetic:    SyntheticBound,
+		Prog:         prog,
+		functionBody: new(functionBody),
+	}
+	fn.initHTML(prog.PrintFunc)
+
+	fv := &FreeVar{name: "recv", typ: recvType(obj), parent: fn}
+	fn.FreeVars = []*FreeVar{fv}
+	fn.startBody()
+	createParams(fn, 0)
+	var c Call
+
+	if !types.IsInterface(recvType(obj)) { // concrete
+		c.Call.Value = prog.declaredFunc(obj)
+		c.Call.Args = []Value{fv}
+	} else {
+		c.Call.Value = fv
+		c.Call.Method = obj
+	}
+	for _, arg := range fn.Params {
+		c.Call.Args = append(c.Call.Args, arg)
+	}
+	emitTailCall(fn, &c, nil)
+	fn.finishBody()
 	return fn
 }
 
@@ -231,57 +226,24 @@ func makeBound(prog *Program, obj *types.Func) *Function {
 //
 //	f := func(t T) { return t.meth() }
 //
-// TODO(adonovan): opt: currently the stub is created even when used
-// directly in a function call: C.f(i, 0).  This is less efficient
-// than inlining the stub.
-//
 // EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
 func makeThunk(prog *Program, sel *types.Selection) *Function {
 	if sel.Kind() != types.MethodExpr {
 		panic(sel)
 	}
 
-	key := selectionKey{
-		kind:     sel.Kind(),
-		recv:     sel.Recv(),
-		obj:      sel.Obj(),
-		index:    fmt.Sprint(sel.Index()),
-		indirect: sel.Indirect(),
-	}
-
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
 
-	// Canonicalize key.recv to avoid constructing duplicate thunks.
-	canonRecv, ok := prog.canon.At(key.recv)
-	if !ok {
-		canonRecv = key.recv
-		prog.canon.Set(key.recv, canonRecv)
-	}
-	key.recv = canonRecv
-
-	fn, ok := prog.thunks[key]
-	if !ok {
-		fn = makeWrapper(prog, sel)
-		if fn.Signature.Recv() != nil {
-			panic(fn) // unexpected receiver
-		}
-		prog.thunks[key] = fn
+	fn := makeWrapper(prog, sel)
+	if fn.Signature.Recv() != nil {
+		panic(fn) // unexpected receiver
 	}
 	return fn
 }
 
 func changeRecv(s *types.Signature, recv *types.Var) *types.Signature {
 	return types.NewSignatureType(recv, nil, nil, s.Params(), s.Results(), s.Variadic())
-}
-
-// selectionKey is like types.Selection but a usable map key.
-type selectionKey struct {
-	kind     types.SelectionKind
-	recv     types.Type // canonicalized via Program.canon
-	obj      types.Object
-	index    string
-	indirect bool
 }
 
 // makeInstance creates a wrapper function with signature sig that calls the generic function fn.
@@ -291,7 +253,7 @@ func makeInstance(prog *Program, fn *Function, sig *types.Signature, targs *type
 	if sig.Recv() != nil {
 		assert(targs == nil)
 		// Methods don't have their own type parameters, but the receiver does
-		targs = deref(sig.Recv().Type()).(*types.Named).TypeArgs()
+		targs = types.Unalias(deref(sig.Recv().Type())).(*types.Named).TypeArgs()
 	} else {
 		assert(targs != nil)
 	}
@@ -318,7 +280,7 @@ func makeInstance(prog *Program, fn *Function, sig *types.Signature, targs *type
 	w.initHTML(prog.PrintFunc)
 	w.startBody()
 	if sig.Recv() != nil {
-		w.addParamObj(sig.Recv(), nil)
+		w.addParamVar(sig.Recv(), nil)
 	}
 	createParams(w, 0)
 	var c Call

@@ -2,7 +2,9 @@ package manifest
 
 import (
 	"encoding/json"
+	"slices"
 
+	compressiontypes "github.com/containers/image/v5/pkg/compression/types"
 	"github.com/containers/libtrust"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -14,7 +16,7 @@ import (
 const (
 	// DockerV2Schema1MediaType MIME type represents Docker manifest schema 1
 	DockerV2Schema1MediaType = "application/vnd.docker.distribution.manifest.v1+json"
-	// DockerV2Schema1MediaType MIME type represents Docker manifest schema 1 with a JWS signature
+	// DockerV2Schema1SignedMediaType MIME type represents Docker manifest schema 1 with a JWS signature
 	DockerV2Schema1SignedMediaType = "application/vnd.docker.distribution.manifest.v1+prettyjws"
 	// DockerV2Schema2MediaType MIME type represents Docker manifest schema 2
 	DockerV2Schema2MediaType = "application/vnd.docker.distribution.manifest.v2+json"
@@ -164,4 +166,61 @@ func NormalizedMIMEType(input string) string {
 		// network which is configured that way. See https://bugzilla.redhat.com/show_bug.cgi?id=1389442
 		return DockerV2Schema1SignedMediaType
 	}
+}
+
+// CompressionAlgorithmIsUniversallySupported returns true if MIMETypeSupportsCompressionAlgorithm(mimeType, algo) returns true for all mimeType values.
+func CompressionAlgorithmIsUniversallySupported(algo compressiontypes.Algorithm) bool {
+	// Compare the discussion about BaseVariantName in MIMETypeSupportsCompressionAlgorithm().
+	switch algo.Name() {
+	case compressiontypes.GzipAlgorithmName:
+		return true
+	default:
+		return false
+	}
+}
+
+// MIMETypeSupportsCompressionAlgorithm returns true if mimeType can represent algo.
+func MIMETypeSupportsCompressionAlgorithm(mimeType string, algo compressiontypes.Algorithm) bool {
+	if CompressionAlgorithmIsUniversallySupported(algo) {
+		return true
+	}
+	// This does not use BaseVariantName: Plausibly a manifest format might support zstd but not have annotation fields.
+	// The logic might have to be more complex (and more ad-hoc) if more manifest formats, with more capabilities, emerge.
+	switch algo.Name() {
+	case compressiontypes.ZstdAlgorithmName, compressiontypes.ZstdChunkedAlgorithmName:
+		return mimeType == imgspecv1.MediaTypeImageManifest
+	default: // Includes Bzip2AlgorithmName and XzAlgorithmName, which are defined names but are not supported anywhere
+		return false
+	}
+}
+
+// ReuseConditions are an input to CandidateCompressionMatchesReuseConditions;
+// it is a struct to allow longer and better-documented field names.
+type ReuseConditions struct {
+	PossibleManifestFormats []string                    // If set, a set of possible manifest formats; at least one should support the reused layer
+	RequiredCompression     *compressiontypes.Algorithm // If set, only reuse layers with a matching algorithm
+}
+
+// CandidateCompressionMatchesReuseConditions returns true if a layer with candidateCompression
+// (which can be nil to represent uncompressed or unknown) matches reuseConditions.
+func CandidateCompressionMatchesReuseConditions(c ReuseConditions, candidateCompression *compressiontypes.Algorithm) bool {
+	if c.RequiredCompression != nil {
+		if candidateCompression == nil ||
+			(c.RequiredCompression.Name() != candidateCompression.Name() && c.RequiredCompression.Name() != candidateCompression.BaseVariantName()) {
+			return false
+		}
+	}
+
+	// For candidateCompression == nil, we can’t tell the difference between “uncompressed” and “unknown”;
+	// and “uncompressed” is acceptable in all known formats (well, it seems to work in practice for schema1),
+	// so don’t impose any restrictions if candidateCompression == nil
+	if c.PossibleManifestFormats != nil && candidateCompression != nil {
+		if !slices.ContainsFunc(c.PossibleManifestFormats, func(mt string) bool {
+			return MIMETypeSupportsCompressionAlgorithm(mt, *candidateCompression)
+		}) {
+			return false
+		}
+	}
+
+	return true
 }

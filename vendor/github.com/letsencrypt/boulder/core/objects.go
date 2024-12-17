@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-jose/go-jose/v4"
 	"golang.org/x/crypto/ocsp"
-	"gopkg.in/go-jose/go-jose.v2"
 
 	"github.com/letsencrypt/boulder/identifier"
 	"github.com/letsencrypt/boulder/probs"
@@ -75,11 +75,16 @@ type OCSPStatus string
 const (
 	OCSPStatusGood    = OCSPStatus("good")
 	OCSPStatusRevoked = OCSPStatus("revoked")
+	// Not a real OCSP status. This is a placeholder we write before the
+	// actual precertificate is issued, to ensure we never return "good" before
+	// issuance succeeds, for BR compliance reasons.
+	OCSPStatusNotReady = OCSPStatus("wait")
 )
 
 var OCSPStatusToInt = map[OCSPStatus]int{
-	OCSPStatusGood:    ocsp.Good,
-	OCSPStatusRevoked: ocsp.Revoked,
+	OCSPStatusGood:     ocsp.Good,
+	OCSPStatusRevoked:  ocsp.Revoked,
+	OCSPStatusNotReady: -1,
 }
 
 // DNSPrefix is attached to DNS names in DNS challenges
@@ -114,13 +119,13 @@ type Registration struct {
 }
 
 // ValidationRecord represents a validation attempt against a specific URL/hostname
-// and the IP addresses that were resolved and used
+// and the IP addresses that were resolved and used.
 type ValidationRecord struct {
 	// SimpleHTTP only
 	URL string `json:"url,omitempty"`
 
 	// Shared
-	Hostname          string   `json:"hostname"`
+	Hostname          string   `json:"hostname,omitempty"`
 	Port              string   `json:"port,omitempty"`
 	AddressesResolved []net.IP `json:"addressesResolved,omitempty"`
 	AddressUsed       net.IP   `json:"addressUsed,omitempty"`
@@ -139,20 +144,17 @@ type ValidationRecord struct {
 	//   ...
 	// }
 	AddressesTried []net.IP `json:"addressesTried,omitempty"`
-}
-
-func looksLikeKeyAuthorization(str string) error {
-	parts := strings.Split(str, ".")
-	if len(parts) != 2 {
-		return fmt.Errorf("Invalid key authorization: does not look like a key authorization")
-	} else if !LooksLikeAToken(parts[0]) {
-		return fmt.Errorf("Invalid key authorization: malformed token")
-	} else if !LooksLikeAToken(parts[1]) {
-		// Thumbprints have the same syntax as tokens in boulder
-		// Both are base64-encoded and 32 octets
-		return fmt.Errorf("Invalid key authorization: malformed key thumbprint")
-	}
-	return nil
+	// ResolverAddrs is the host:port of the DNS resolver(s) that fulfilled the
+	// lookup for AddressUsed. During recursive A and AAAA lookups, a record may
+	// instead look like A:host:port or AAAA:host:port
+	ResolverAddrs []string `json:"resolverAddrs,omitempty"`
+	// UsedRSAKEX is a *temporary* addition to the validation record, so we can
+	// see how many servers that we reach out to during HTTP-01 and TLS-ALPN-01
+	// validation are only willing to negotiate RSA key exchange mechanisms. The
+	// field is not included in the serialized json to avoid cluttering the
+	// database and log lines.
+	// TODO(#7321): Remove this when we have collected sufficient data.
+	UsedRSAKEX bool `json:"-"`
 }
 
 // Challenge is an aggregate of all data needed for any challenges.
@@ -161,38 +163,38 @@ func looksLikeKeyAuthorization(str string) error {
 // challenge, we just throw all the elements into one bucket,
 // together with the common metadata elements.
 type Challenge struct {
-	// The type of challenge
+	// Type is the type of challenge encoded in this object.
 	Type AcmeChallenge `json:"type"`
 
-	// The status of this challenge
-	Status AcmeStatus `json:"status,omitempty"`
-
-	// Contains the error that occurred during challenge validation, if any
-	Error *probs.ProblemDetails `json:"error,omitempty"`
-
-	// A URI to which a response can be POSTed
-	URI string `json:"uri,omitempty"`
-
-	// For the V2 API the "URI" field is deprecated in favour of URL.
+	// URL is the URL to which a response can be posted. Required for all types.
 	URL string `json:"url,omitempty"`
 
-	// Used by http-01, tls-sni-01, tls-alpn-01 and dns-01 challenges
+	// Status is the status of this challenge. Required for all types.
+	Status AcmeStatus `json:"status,omitempty"`
+
+	// Validated is the time at which the server validated the challenge. Required
+	// if status is valid.
+	Validated *time.Time `json:"validated,omitempty"`
+
+	// Error contains the error that occurred during challenge validation, if any.
+	// If set, the Status must be "invalid".
+	Error *probs.ProblemDetails `json:"error,omitempty"`
+
+	// Token is a random value that uniquely identifies the challenge. It is used
+	// by all current challenges (http-01, tls-alpn-01, and dns-01).
 	Token string `json:"token,omitempty"`
 
-	// The expected KeyAuthorization for validation of the challenge. Populated by
-	// the RA prior to passing the challenge to the VA. For legacy reasons this
-	// field is called "ProvidedKeyAuthorization" because it was initially set by
-	// the content of the challenge update POST from the client. It is no longer
-	// set that way and should be renamed to "KeyAuthorization".
-	// TODO(@cpu): Rename `ProvidedKeyAuthorization` to `KeyAuthorization`.
+	// ProvidedKeyAuthorization used to carry the expected key authorization from
+	// the RA to the VA. However, since this field is never presented to the user
+	// via the ACME API, it should not be on this type.
+	//
+	// Deprecated: use vapb.PerformValidationRequest.ExpectedKeyAuthorization instead.
+	// TODO(#7514): Remove this.
 	ProvidedKeyAuthorization string `json:"keyAuthorization,omitempty"`
 
 	// Contains information about URLs used or redirected to and IPs resolved and
 	// used
 	ValidationRecord []ValidationRecord `json:"validationRecord,omitempty"`
-	// The time at which the server validated the challenge. Required by
-	// RFC8555 if status is valid.
-	Validated *time.Time `json:"validated,omitempty"`
 }
 
 // ExpectedKeyAuthorization computes the expected KeyAuthorization value for
@@ -220,6 +222,8 @@ func (ch Challenge) RecordsSane() bool {
 	switch ch.Type {
 	case ChallengeTypeHTTP01:
 		for _, rec := range ch.ValidationRecord {
+			// TODO(#7140): Add a check for ResolverAddress == "" only after the
+			// core.proto change has been deployed.
 			if rec.URL == "" || rec.Hostname == "" || rec.Port == "" || rec.AddressUsed == nil ||
 				len(rec.AddressesResolved) == 0 {
 				return false
@@ -232,6 +236,8 @@ func (ch Challenge) RecordsSane() bool {
 		if ch.ValidationRecord[0].URL != "" {
 			return false
 		}
+		// TODO(#7140): Add a check for ResolverAddress == "" only after the
+		// core.proto change has been deployed.
 		if ch.ValidationRecord[0].Hostname == "" || ch.ValidationRecord[0].Port == "" ||
 			ch.ValidationRecord[0].AddressUsed == nil || len(ch.ValidationRecord[0].AddressesResolved) == 0 {
 			return false
@@ -240,6 +246,8 @@ func (ch Challenge) RecordsSane() bool {
 		if len(ch.ValidationRecord) > 1 {
 			return false
 		}
+		// TODO(#7140): Add a check for ResolverAddress == "" only after the
+		// core.proto change has been deployed.
 		if ch.ValidationRecord[0].Hostname == "" {
 			return false
 		}
@@ -251,43 +259,18 @@ func (ch Challenge) RecordsSane() bool {
 	return true
 }
 
-// CheckConsistencyForClientOffer checks the fields of a challenge object before it is
-// given to the client.
-func (ch Challenge) CheckConsistencyForClientOffer() error {
-	err := ch.checkConsistency()
-	if err != nil {
-		return err
-	}
-
-	// Before completion, the key authorization field should be empty
-	if ch.ProvidedKeyAuthorization != "" {
-		return fmt.Errorf("A response to this challenge was already submitted.")
-	}
-	return nil
-}
-
-// CheckConsistencyForValidation checks the fields of a challenge object before it is
-// given to the VA.
-func (ch Challenge) CheckConsistencyForValidation() error {
-	err := ch.checkConsistency()
-	if err != nil {
-		return err
-	}
-
-	// If the challenge is completed, then there should be a key authorization
-	return looksLikeKeyAuthorization(ch.ProvidedKeyAuthorization)
-}
-
-// checkConsistency checks the sanity of a challenge object before issued to the client.
-func (ch Challenge) checkConsistency() error {
+// CheckPending ensures that a challenge object is pending and has a token.
+// This is used before offering the challenge to the client, and before actually
+// validating a challenge.
+func (ch Challenge) CheckPending() error {
 	if ch.Status != StatusPending {
-		return fmt.Errorf("The challenge is not pending.")
+		return fmt.Errorf("challenge is not pending")
 	}
 
-	// There always needs to be a token
-	if !LooksLikeAToken(ch.Token) {
-		return fmt.Errorf("The token is missing.")
+	if !looksLikeAToken(ch.Token) {
+		return fmt.Errorf("token is missing or malformed")
 	}
+
 	return nil
 }
 
@@ -337,11 +320,18 @@ type Authorization struct {
 	// slice and the order of these challenges may not be predictable.
 	Challenges []Challenge `json:"challenges,omitempty" db:"-"`
 
-	// Wildcard is a Boulder-specific Authorization field that indicates the
-	// authorization was created as a result of an order containing a name with
-	// a `*.`wildcard prefix. This will help convey to users that an
-	// Authorization with the identifier `example.com` and one DNS-01 challenge
-	// corresponds to a name `*.example.com` from an associated order.
+	// https://datatracker.ietf.org/doc/html/rfc8555#page-29
+	//
+	// wildcard (optional, boolean):  This field MUST be present and true
+	//   for authorizations created as a result of a newOrder request
+	//   containing a DNS identifier with a value that was a wildcard
+	//   domain name.  For other authorizations, it MUST be absent.
+	//   Wildcard domain names are described in Section 7.1.3.
+	//
+	// This is not represented in the database because we calculate it from
+	// the identifier stored in the database. Unlike the identifier returned
+	// as part of the authorization, the identifier we store in the database
+	// can contain an asterisk.
 	Wildcard bool `json:"wildcard,omitempty" db:"-"`
 }
 
@@ -406,53 +396,46 @@ type Certificate struct {
 }
 
 // CertificateStatus structs are internal to the server. They represent the
-// latest data about the status of the certificate, required for OCSP updating
-// and for validating that the subscriber has accepted the certificate.
+// latest data about the status of the certificate, required for generating new
+// OCSP responses and determining if a certificate has been revoked.
 type CertificateStatus struct {
 	ID int64 `db:"id"`
 
 	Serial string `db:"serial"`
 
 	// status: 'good' or 'revoked'. Note that good, expired certificates remain
-	//   with status 'good' but don't necessarily get fresh OCSP responses.
+	// with status 'good' but don't necessarily get fresh OCSP responses.
 	Status OCSPStatus `db:"status"`
 
 	// ocspLastUpdated: The date and time of the last time we generated an OCSP
-	//   response. If we have never generated one, this has the zero value of
-	//   time.Time, i.e. Jan 1 1970.
+	// response. If we have never generated one, this has the zero value of
+	// time.Time, i.e. Jan 1 1970.
 	OCSPLastUpdated time.Time `db:"ocspLastUpdated"`
 
 	// revokedDate: If status is 'revoked', this is the date and time it was
-	//   revoked. Otherwise it has the zero value of time.Time, i.e. Jan 1 1970.
+	// revoked. Otherwise it has the zero value of time.Time, i.e. Jan 1 1970.
 	RevokedDate time.Time `db:"revokedDate"`
 
 	// revokedReason: If status is 'revoked', this is the reason code for the
-	//   revocation. Otherwise it is zero (which happens to be the reason
-	//   code for 'unspecified').
+	// revocation. Otherwise it is zero (which happens to be the reason
+	// code for 'unspecified').
 	RevokedReason revocation.Reason `db:"revokedReason"`
 
 	LastExpirationNagSent time.Time `db:"lastExpirationNagSent"`
 
-	// The encoded and signed OCSP response.
-	OCSPResponse []byte `db:"ocspResponse"`
-
-	// For performance reasons[0] we duplicate the `Expires` field of the
-	// `Certificates` object/table in `CertificateStatus` to avoid a costly `JOIN`
-	// later on just to retrieve this `Time` value. This helps both the OCSP
-	// updater and the expiration-mailer stay performant.
-	//
-	// Similarly, we add an explicit `IsExpired` boolean to `CertificateStatus`
-	// table that the OCSP updater so that the database can create a meaningful
-	// index on `(isExpired, ocspLastUpdated)` without a `JOIN` on `certificates`.
-	// For more detail see Boulder #1864[0].
-	//
-	// [0]: https://github.com/letsencrypt/boulder/issues/1864
+	// NotAfter and IsExpired are convenience columns which allow expensive
+	// queries to quickly filter out certificates that we don't need to care about
+	// anymore. These are particularly useful for the expiration mailer and CRL
+	// updater. See https://github.com/letsencrypt/boulder/issues/1864.
 	NotAfter  time.Time `db:"notAfter"`
 	IsExpired bool      `db:"isExpired"`
 
-	// TODO(#5152): Change this to an issuance.Issuer(Name)ID after it no longer
-	// has to support both IssuerNameIDs and IssuerIDs.
-	IssuerID int64
+	// Note: this is not an issuance.IssuerNameID because that would create an
+	// import cycle between core and issuance.
+	// Note2: This field used to be called `issuerID`. We keep the old name in
+	// the DB, but update the Go field name to be clear which type of ID this
+	// is.
+	IssuerNameID int64 `db:"issuerID"`
 }
 
 // FQDNSet contains the SHA256 hash of the lowercased, comma joined dNSNames
@@ -478,6 +461,12 @@ type SuggestedWindow struct {
 	End   time.Time `json:"end"`
 }
 
+// IsWithin returns true if the given time is within the suggested window,
+// inclusive of the start time and exclusive of the end time.
+func (window SuggestedWindow) IsWithin(now time.Time) bool {
+	return !now.Before(window.Start) && now.Before(window.End)
+}
+
 // RenewalInfo is a type which is exposed to clients which query the renewalInfo
 // endpoint specified in draft-aaron-ari.
 type RenewalInfo struct {
@@ -501,7 +490,7 @@ func RenewalInfoSimple(issued time.Time, expires time.Time) RenewalInfo {
 }
 
 // RenewalInfoImmediate constructs a `RenewalInfo` object with a suggested
-// window in the past. Per the draft-ietf-acme-ari-00 spec, clients should
+// window in the past. Per the draft-ietf-acme-ari-01 spec, clients should
 // attempt to renew immediately if the suggested window is in the past. The
 // passed `now` is assumed to be a timestamp representing the current moment in
 // time.

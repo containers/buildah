@@ -1,0 +1,3 @@
+from alpine
+RUN mv /etc /usr/
+RUN ls -l /etc

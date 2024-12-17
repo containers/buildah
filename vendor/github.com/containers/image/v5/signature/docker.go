@@ -5,13 +5,13 @@ package signature
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/signature/internal"
 	"github.com/opencontainers/go-digest"
-	"golang.org/x/exp/slices"
 )
 
 // SignOptions includes optional parameters for signing container images.
@@ -76,10 +76,10 @@ func VerifyImageManifestSignatureUsingKeyIdentityList(unverifiedSignature, unver
 		validateSignedDockerReference: func(signedDockerReference string) error {
 			signedRef, err := reference.ParseNormalizedNamed(signedDockerReference)
 			if err != nil {
-				return internal.NewInvalidSignatureError(fmt.Sprintf("Invalid docker reference %s in signature", signedDockerReference))
+				return internal.NewInvalidSignatureError(fmt.Sprintf("Invalid docker reference %q in signature", signedDockerReference))
 			}
 			if signedRef.String() != expectedRef.String() {
-				return internal.NewInvalidSignatureError(fmt.Sprintf("Docker reference %s does not match %s",
+				return internal.NewInvalidSignatureError(fmt.Sprintf("Docker reference %q does not match %q",
 					signedDockerReference, expectedDockerReference))
 			}
 			return nil

@@ -18,10 +18,19 @@ The list image's ID and the digest of the image's manifest.
 
 ## OPTIONS
 
+**--add-compression** *compression*
+
+Makes sure that requested compression variant for each platform is added to the manifest list keeping original instance
+intact in the same manifest list. Supported values are (`gzip`, `zstd` and `zstd:chunked`)
+
+Note: This is different than `--compression` which replaces the instance with requested with specified compression
+while `--add-compression` makes sure than each instance has it variant added to manifest list without modifying the
+original instance.
+
 **--all**
 
 Push the images mentioned in the manifest list or image index, in addition to
-the list or index itself.
+the list or index itself. (Default true)
 
 **--authfile** *path*
 
@@ -33,6 +42,16 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 The default certificates directory is _/etc/containers/certs.d_.
 
+**--compression-format** *format*
+
+Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+
+**--compression-level** *level*
+
+Specify the compression level used with the compression.
+
+Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
+
 **--creds** *creds*
 
 The [username[:password]] to use to authenticate with the registry if required.
@@ -42,6 +61,11 @@ value can be entered.  The password is entered without echo.
 **--digestfile** *Digestfile*
 
 After copying the image, write the digest of the resulting image to the file.
+
+**--force-compression**
+
+If set, push uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to `true` if `--compression-format` is explicitly specified on the command-line, `false` otherwise.
 
 **--format**, **-f**
 
@@ -54,6 +78,18 @@ Don't output progress information when pushing lists.
 **--remove-signatures**
 
 Don't copy signatures when pushing images.
+
+**--retry** *attempts*
+
+Number of times to retry in case of failure when performing push of images to registry.
+
+Defaults to `3`.
+
+**--retry-delay** *duration*
+
+Duration of delay between retry attempts in case of failure when performing push of images to registry.
+
+Defaults to `2s`.
 
 **--rm**
 

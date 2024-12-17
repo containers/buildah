@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -25,16 +26,16 @@ func New() *analysis.Analyzer {
 type stringSet = map[string]struct{}
 
 var (
-	imports = []ast.Node{(*ast.ImportSpec)(nil)}
-	types   = []ast.Node{(*ast.TypeSpec)(nil)}
-	funcs   = []ast.Node{(*ast.FuncDecl)(nil)}
+	importNodes = []ast.Node{(*ast.ImportSpec)(nil)}
+	typeNodes   = []ast.Node{(*ast.TypeSpec)(nil)}
+	funcNodes   = []ast.Node{(*ast.FuncDecl)(nil)}
 )
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	pkgAliases := map[string]string{}
-	insp.Preorder(imports, func(node ast.Node) {
+	insp.Preorder(importNodes, func(node ast.Node) {
 		i := node.(*ast.ImportSpec)
 		if n := i.Name; n != nil && i.Path != nil {
 			if path, err := strconv.Unquote(i.Path.Value); err == nil {
@@ -45,14 +46,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	allTypes := stringSet{}
 	typesSpecs := map[string]*ast.TypeSpec{}
-	insp.Preorder(types, func(node ast.Node) {
+	insp.Preorder(typeNodes, func(node ast.Node) {
 		t := node.(*ast.TypeSpec)
 		allTypes[t.Name.Name] = struct{}{}
 		typesSpecs[t.Name.Name] = t
 	})
 
 	errorTypes := stringSet{}
-	insp.Preorder(funcs, func(node ast.Node) {
+	insp.Preorder(funcNodes, func(node ast.Node) {
 		f := node.(*ast.FuncDecl)
 		t, ok := isMethodError(f)
 		if !ok {
@@ -62,7 +63,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		tSpec, ok := typesSpecs[t]
 		if !ok {
-			panic("no specification for type " + t)
+			panic(fmt.Sprintf("no specification for type %q", t))
 		}
 
 		if _, ok := tSpec.Type.(*ast.ArrayType); ok {
@@ -75,7 +76,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	})
 
 	errorFuncs := stringSet{}
-	insp.Preorder(funcs, func(node ast.Node) {
+	insp.Preorder(funcNodes, func(node ast.Node) {
 		f := node.(*ast.FuncDecl)
 		if isFuncReturningErr(f.Type, allTypes, errorTypes) {
 			errorFuncs[f.Name.Name] = struct{}{}

@@ -21,7 +21,7 @@ var (
 	// Abbreviations to exclude from capital letters check.
 	abbreviations = []string{"i.e.", "i. e.", "e.g.", "e. g.", "etc."}
 
-	// Special tags in comments like "// nolint:", or "// +k8s:".
+	// Special tags in comments like "//nolint:", or "//+k8s:".
 	tags = regexp.MustCompile(`^\+?[a-z0-9]+:`)
 
 	// Special hashtags in comments like "// #nosec".
@@ -31,18 +31,24 @@ var (
 	endURL = regexp.MustCompile(`[a-z]+://[^\s]+$`)
 )
 
+// position is a position inside a comment (might be multiline comment).
+type position struct {
+	line   int // starts at 1
+	column int // starts at 1, byte count
+}
+
 // checkComments checks every comment accordings to the rules from
 // `settings` argument.
 func checkComments(comments []comment, settings Settings) []Issue {
-	var issues []Issue // nolint: prealloc
+	var issues []Issue
 	for _, c := range comments {
 		if settings.Period {
-			if iss := checkCommentForPeriod(c); iss != nil {
+			if iss := checkPeriod(c); iss != nil {
 				issues = append(issues, *iss)
 			}
 		}
 		if settings.Capital {
-			if iss := checkCommentForCapital(c); len(iss) > 0 {
+			if iss := checkCapital(c); len(iss) > 0 {
 				issues = append(issues, iss...)
 			}
 		}
@@ -50,13 +56,33 @@ func checkComments(comments []comment, settings Settings) []Issue {
 	return issues
 }
 
-// checkCommentForPeriod checks that the last sentense of the comment ends
+// checkPeriod checks that the last sentense of the comment ends
 // in a period.
-func checkCommentForPeriod(c comment) *Issue {
-	pos, ok := checkPeriod(c.text)
-	if ok {
+func checkPeriod(c comment) *Issue {
+	// Check last non-empty line
+	var found bool
+	var line string
+	var pos position
+	lines := strings.Split(c.text, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line = strings.TrimRightFunc(lines[i], unicode.IsSpace)
+		if line == "" {
+			continue
+		}
+		found = true
+		pos.line = i + 1
+		break
+	}
+	// All lines are empty
+	if !found {
 		return nil
 	}
+	// Correct line
+	if hasSuffix(line, lastChars) {
+		return nil
+	}
+
+	pos.column = len(line) + 1
 
 	// Shift position to its real value. `c.text` doesn't contain comment's
 	// special symbols: /* or //, and line indentations inside. It also
@@ -94,11 +120,62 @@ func checkCommentForPeriod(c comment) *Issue {
 	return &iss
 }
 
-// checkCommentForCapital checks that each sentense of the comment starts with
+// checkCapital checks that each sentense of the comment starts with
 // a capital letter.
-// nolint: unparam
-func checkCommentForCapital(c comment) []Issue {
-	pp := checkCapital(c.text, c.decl)
+//
+//nolint:cyclop,funlen
+func checkCapital(c comment) []Issue {
+	// Remove common abbreviations from the comment
+	for _, abbr := range abbreviations {
+		repl := strings.ReplaceAll(abbr, ".", "_")
+		c.text = strings.ReplaceAll(c.text, abbr, repl)
+	}
+
+	// List of states during the scan: `empty` - nothing special,
+	// `endChar` - found one of sentence ending chars (.!?),
+	// `endOfSentence` - found `endChar`, and then space or newline.
+	const empty, endChar, endOfSentence = 1, 2, 3
+
+	var pp []position
+	pos := position{line: 1}
+	state := endOfSentence
+	if c.decl {
+		// Skip first
+		state = empty
+	}
+	for _, r := range c.text {
+		s := string(r)
+
+		pos.column++
+		if s == "\n" {
+			pos.line++
+			pos.column = 0
+			if state == endChar {
+				state = endOfSentence
+			}
+			continue
+		}
+		if s == "." || s == "!" || s == "?" {
+			state = endChar
+			continue
+		}
+		if s == ")" && state == endChar {
+			continue
+		}
+		if s == " " {
+			if state == endChar {
+				state = endOfSentence
+			}
+			continue
+		}
+		if state == endOfSentence && unicode.IsLower(r) {
+			pp = append(pp, position{
+				line:   pos.line,
+				column: runeToByteColumn(c.lines[pos.line-1], pos.column),
+			})
+		}
+		state = empty
+	}
 	if len(pp) == 0 {
 		return nil
 	}
@@ -144,93 +221,6 @@ func checkCommentForCapital(c comment) []Issue {
 	return issues
 }
 
-// checkPeriod checks that the last sentense of the text ends in a period.
-// NOTE: Returned position is a position inside given text, not in the
-// original file.
-func checkPeriod(comment string) (pos position, ok bool) {
-	// Check last non-empty line
-	var found bool
-	var line string
-	lines := strings.Split(comment, "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		line = strings.TrimRightFunc(lines[i], unicode.IsSpace)
-		if line == "" {
-			continue
-		}
-		found = true
-		pos.line = i + 1
-		break
-	}
-	// All lines are empty
-	if !found {
-		return position{}, true
-	}
-	// Correct line
-	if hasSuffix(line, lastChars) {
-		return position{}, true
-	}
-
-	pos.column = len(line) + 1
-	return pos, false
-}
-
-// checkCapital checks that each sentense of the text starts with
-// a capital letter.
-// NOTE: First letter is not checked in declaration comments, because they
-// can describe unexported functions, which start with small letter.
-func checkCapital(comment string, skipFirst bool) (pp []position) {
-	// Remove common abbreviations from the comment
-	for _, abbr := range abbreviations {
-		repl := strings.ReplaceAll(abbr, ".", "_")
-		comment = strings.ReplaceAll(comment, abbr, repl)
-	}
-
-	// List of states during the scan: `empty` - nothing special,
-	// `endChar` - found one of sentence ending chars (.!?),
-	// `endOfSentence` - found `endChar`, and then space or newline.
-	const empty, endChar, endOfSentence = 1, 2, 3
-
-	pos := position{line: 1}
-	state := endOfSentence
-	if skipFirst {
-		state = empty
-	}
-	for _, r := range comment {
-		s := string(r)
-
-		pos.column++
-		if s == "\n" {
-			pos.line++
-			pos.column = 0
-			if state == endChar {
-				state = endOfSentence
-			}
-			continue
-		}
-		if s == "." || s == "!" || s == "?" {
-			state = endChar
-			continue
-		}
-		if s == ")" && state == endChar {
-			continue
-		}
-		if s == " " {
-			if state == endChar {
-				state = endOfSentence
-			}
-			continue
-		}
-		if state == endOfSentence && unicode.IsLower(r) {
-			pp = append(pp, position{
-				line:   pos.line,
-				column: runeToByteColumn(comment, pos.column),
-			})
-		}
-		state = empty
-	}
-	return pp
-}
-
 // isSpecialBlock checks that given block of comment lines is special and
 // shouldn't be checked as a regular sentence.
 func isSpecialBlock(comment string) bool {
@@ -240,10 +230,14 @@ func isSpecialBlock(comment string) bool {
 		strings.Contains(comment, "#define")) {
 		return true
 	}
+	if strings.HasPrefix(comment, "// Output:") ||
+		strings.HasPrefix(comment, "// Unordered output:") {
+		return true
+	}
 	return false
 }
 
-// isSpecialBlock checks that given comment line is special and
+// isSpecialLine checks that given comment line is special and
 // shouldn't be checked as a regular sentence.
 func isSpecialLine(comment string) bool {
 	// Skip cgo export tags: https://golang.org/cmd/cgo/#hdr-C_references_to_Go

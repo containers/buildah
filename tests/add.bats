@@ -265,7 +265,7 @@ stuff/mystuff"
 }
 
 @test "add from image" {
-  _prefetch busybox
+  _prefetch busybox ubuntu
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah add --quiet $WITH_POLICY_JSON --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
@@ -280,4 +280,57 @@ stuff/mystuff"
   ubuntu=$output
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd2
+}
+
+@test "add url with checksum flag" {
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah add --checksum=sha256:4fd3aed66b5488b45fe83dd11842c2324fadcc38e1217bb45fbd28d660afdd39 $cid https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md /
+  run_buildah run $cid ls /README.md
+}
+
+@test "add url with bad checksum" {
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah 125 add --checksum=sha256:0000000000000000000000000000000000000000000000000000000000000000 $cid https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md /
+  expect_output --substring "unexpected response digest for \"https://raw.githubusercontent.com/containers/buildah/bf3b55ba74102cc2503eccbaeffe011728d46b20/README.md\": sha256:4fd3aed66b5488b45fe83dd11842c2324fadcc38e1217bb45fbd28d660afdd39, want sha256:0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+@test "add path with checksum flag" {
+  _prefetch busybox
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah 125 add --checksum=sha256:0000000000000000000000000000000000000000000000000000000000000000 $cid ${TEST_SCRATCH_DIR}/randomfile /
+  expect_output --substring "checksum flag is not supported for local sources"
+}
+
+@test "add https retry ca" {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  mkdir -p ${TEST_SCRATCH_DIR}/private
+  starthttpd ${TEST_SCRATCH_DIR} "" ${TEST_SCRATCH_DIR}/localhost.crt ${TEST_SCRATCH_DIR}/private/localhost.key
+  run_buildah from --quiet scratch
+  cid=$output
+  run_buildah add --retry-delay=0.142857s --retry=14 --cert-dir ${TEST_SCRATCH_DIR} $cid https://localhost:${HTTP_SERVER_PORT}/randomfile
+  run_buildah add --retry-delay=0.142857s --retry=14 --tls-verify=false $cid https://localhost:${HTTP_SERVER_PORT}/randomfile
+  run_buildah 125 add --retry-delay=0.142857s --retry=14 $cid https://localhost:${HTTP_SERVER_PORT}/randomfile
+  assert "$output" =~ "x509: certificate signed by unknown authority"
+  stophttpd
+  run_buildah 125 add --retry-delay=0.142857s --retry=14 --cert-dir ${TEST_SCRATCH_DIR} $cid https://localhost:${HTTP_SERVER_PORT}/randomfile
+  assert "$output" =~ "retrying in 142.*ms .*14/14.*"
+}
+
+@test "add file with IMA xattr" {
+    if ! getfattr -d -n 'security.ima' /usr/libexec/catatonit/catatonit | grep -q ima; then
+	skip "catatonit does not have IMA xattr, cannot perform test"
+    fi
+
+    run_buildah from --quiet scratch
+    cid=$output
+
+    # We do not care if the attribute was actually added, as rootless is allowed to discard it.
+    # Only that the add was actually successful.
+    run_buildah add $cid /usr/libexec/catatonit/catatonit /catatonit
 }

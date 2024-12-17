@@ -3,12 +3,13 @@ package manifest
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	platform "github.com/containers/image/v5/internal/pkg/platform"
+	compression "github.com/containers/image/v5/pkg/compression/types"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/exp/slices"
 )
 
 // Schema2PlatformSpec describes the platform which a particular manifest is
@@ -57,11 +58,15 @@ func (list *Schema2ListPublic) Instances() []digest.Digest {
 func (list *Schema2ListPublic) Instance(instanceDigest digest.Digest) (ListUpdate, error) {
 	for _, manifest := range list.Manifests {
 		if manifest.Digest == instanceDigest {
-			return ListUpdate{
+			ret := ListUpdate{
 				Digest:    manifest.Digest,
 				Size:      manifest.Size,
 				MediaType: manifest.MediaType,
-			}, nil
+			}
+			ret.ReadOnly.CompressionAlgorithmNames = []string{compression.GzipAlgorithmName}
+			platform := ociPlatformFromSchema2PlatformSpec(manifest.Platform)
+			ret.ReadOnly.Platform = &platform
+			return ret, nil
 		}
 	}
 	return ListUpdate{}, fmt.Errorf("unable to find instance %s passed to Schema2List.Instances", instanceDigest)
@@ -109,23 +114,28 @@ func (index *Schema2ListPublic) editInstances(editInstances []ListEdit) error {
 			}
 			index.Manifests[targetIndex].MediaType = editInstance.UpdateMediaType
 		case ListOpAdd:
-			addInstance := Schema2ManifestDescriptor{
-				Schema2Descriptor{Digest: editInstance.AddDigest, Size: editInstance.AddSize, MediaType: editInstance.AddMediaType},
-				Schema2PlatformSpec{
-					OS:           editInstance.AddPlatform.OS,
-					Architecture: editInstance.AddPlatform.Architecture,
-					OSVersion:    editInstance.AddPlatform.OSVersion,
-					OSFeatures:   editInstance.AddPlatform.OSFeatures,
-					Variant:      editInstance.AddPlatform.Variant,
-				},
+			if editInstance.AddPlatform == nil {
+				// Should we create a struct with empty fields instead?
+				// Right now ListOpAdd is only called when an instance with the same platform value
+				// already exists in the manifest, so this should not be reached in practice.
+				return fmt.Errorf("adding a schema2 list instance with no platform specified is not supported")
 			}
-			addedEntries = append(addedEntries, addInstance)
+			addedEntries = append(addedEntries, Schema2ManifestDescriptor{
+				Schema2Descriptor{
+					Digest:    editInstance.AddDigest,
+					Size:      editInstance.AddSize,
+					MediaType: editInstance.AddMediaType,
+				},
+				schema2PlatformSpecFromOCIPlatform(*editInstance.AddPlatform),
+			})
 		default:
 			return fmt.Errorf("internal error: invalid operation: %d", editInstance.ListOperation)
 		}
 	}
 	if len(addedEntries) != 0 {
-		index.Manifests = append(index.Manifests, addedEntries...)
+		// slices.Clone() here to ensure a private backing array;
+		// an external caller could have manually created Schema2ListPublic with a slice with extra capacity.
+		index.Manifests = append(slices.Clone(index.Manifests), addedEntries...)
 	}
 	return nil
 }
@@ -142,25 +152,16 @@ func (list *Schema2ListPublic) ChooseInstanceByCompression(ctx *types.SystemCont
 // ChooseInstance parses blob as a schema2 manifest list, and returns the digest
 // of the image which is appropriate for the current environment.
 func (list *Schema2ListPublic) ChooseInstance(ctx *types.SystemContext) (digest.Digest, error) {
-	wantedPlatforms, err := platform.WantedPlatforms(ctx)
-	if err != nil {
-		return "", fmt.Errorf("getting platform information %#v: %w", ctx, err)
-	}
+	wantedPlatforms := platform.WantedPlatforms(ctx)
 	for _, wantedPlatform := range wantedPlatforms {
 		for _, d := range list.Manifests {
-			imagePlatform := imgspecv1.Platform{
-				Architecture: d.Platform.Architecture,
-				OS:           d.Platform.OS,
-				OSVersion:    d.Platform.OSVersion,
-				OSFeatures:   slices.Clone(d.Platform.OSFeatures),
-				Variant:      d.Platform.Variant,
-			}
+			imagePlatform := ociPlatformFromSchema2PlatformSpec(d.Platform)
 			if platform.MatchesPlatform(imagePlatform, wantedPlatform) {
 				return d.Digest, nil
 			}
 		}
 	}
-	return "", fmt.Errorf("no image found in manifest list for architecture %s, variant %q, OS %s", wantedPlatforms[0].Architecture, wantedPlatforms[0].Variant, wantedPlatforms[0].OS)
+	return "", fmt.Errorf("no image found in manifest list for architecture %q, variant %q, OS %q", wantedPlatforms[0].Architecture, wantedPlatforms[0].Variant, wantedPlatforms[0].OS)
 }
 
 // Serialize returns the list in a blob format.
@@ -214,20 +215,14 @@ func Schema2ListPublicClone(list *Schema2ListPublic) *Schema2ListPublic {
 func (list *Schema2ListPublic) ToOCI1Index() (*OCI1IndexPublic, error) {
 	components := make([]imgspecv1.Descriptor, 0, len(list.Manifests))
 	for _, manifest := range list.Manifests {
-		converted := imgspecv1.Descriptor{
+		platform := ociPlatformFromSchema2PlatformSpec(manifest.Platform)
+		components = append(components, imgspecv1.Descriptor{
 			MediaType: manifest.MediaType,
 			Size:      manifest.Size,
 			Digest:    manifest.Digest,
 			URLs:      slices.Clone(manifest.URLs),
-			Platform: &imgspecv1.Platform{
-				OS:           manifest.Platform.OS,
-				Architecture: manifest.Platform.Architecture,
-				OSFeatures:   slices.Clone(manifest.Platform.OSFeatures),
-				OSVersion:    manifest.Platform.OSVersion,
-				Variant:      manifest.Platform.Variant,
-			},
-		}
-		components = append(components, converted)
+			Platform:  &platform,
+		})
 	}
 	oci := OCI1IndexPublicFromComponents(components, nil)
 	return oci, nil
@@ -301,4 +296,16 @@ func Schema2ListFromManifest(manifest []byte) (*Schema2List, error) {
 		return nil, err
 	}
 	return schema2ListFromPublic(public), nil
+}
+
+// ociPlatformFromSchema2PlatformSpec converts a schema2 platform p to the OCI struccture.
+func ociPlatformFromSchema2PlatformSpec(p Schema2PlatformSpec) imgspecv1.Platform {
+	return imgspecv1.Platform{
+		Architecture: p.Architecture,
+		OS:           p.OS,
+		OSVersion:    p.OSVersion,
+		OSFeatures:   slices.Clone(p.OSFeatures),
+		Variant:      p.Variant,
+		// Features is not supported in OCI, and discarded.
+	}
 }

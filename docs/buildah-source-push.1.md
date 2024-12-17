@@ -20,6 +20,10 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--digestfile** *digestfile*
+
+After copying the image, write the digest of the resulting image to the file.
+
 **--quiet**, **-q**
 
 Suppress the progress output when pushing a source image.
