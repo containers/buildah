@@ -979,6 +979,34 @@ _EOF
 
 }
 
+@test "build-test use image from cache with --mount and burst when image is changed" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN touch firstfile
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile
+
+  cat > $contextdir/Containerfile2 << _EOF
+FROM alpine
+
+RUN --mount=type=bind,source=.,target=/build,from=source ls /build
+
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --layers -t source2 -f $contextdir/Containerfile2
+  expect_output --substring "firstfile"
+
+  # Building again must use cache
+  run_buildah build $WITH_POLICY_JSON --layers -t source2 -f $contextdir/Containerfile2
+  expect_output --substring "Using cache"
+  assert "$output" !~ "firstfile"
+}
+
 # Verify: https://github.com/containers/buildah/issues/4572
 @test "build-test verify no dangling containers are left" {
   _prefetch alpine busybox
@@ -1549,6 +1577,30 @@ _EOF
   # Additional context for RUN --mount is file on host
   run_buildah build $WITH_POLICY_JSON --build-context some-stage=$contextdir -t test -f $contextdir/Dockerfile2
   expect_output --substring "world"
+}
+
+@test "build-with-additional-build-context must use cache if built with layers" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+  echo world > $contextdir/hello
+
+  cat > $contextdir/Containerfile2 << _EOF
+FROM alpine as some-stage
+RUN echo some_text
+
+# hello should get copied since we are giving priority to additional context
+FROM alpine
+RUN --mount=type=bind,from=some-stage,target=/test,z cat /test/hello
+_EOF
+
+  # Additional context for RUN --mount is file on host
+  run_buildah build $WITH_POLICY_JSON --layers --build-context some-stage=$contextdir -t test -f $contextdir/Containerfile2
+  expect_output --substring "world"
+
+  run_buildah build $WITH_POLICY_JSON --layers --build-context some-stage=$contextdir -t test -f $contextdir/Containerfile2
+  expect_output --substring "Using cache"
+  assert "$output" !~ "world"
 }
 
 # Test usage of RUN --mount=from=<name> with additional context is URL and mount source is relative using src
