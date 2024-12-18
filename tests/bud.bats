@@ -7125,3 +7125,16 @@ EOF
   echo RUN --mount=type=tmpfs,target=tmpfssubdir test '`stat -f -c %i .`' '!=' '`stat -f -c %i tmpfssubdir`' >> ${TEST_SCRATCH_DIR}/Containerfile
   run_buildah build --security-opt label=disable ${TEST_SCRATCH_DIR}
 }
+
+@test "build-security-opt-mask" {
+  base=busybox
+  _prefetch $base
+  run_buildah build bud/masks
+  expect_output --substring "masked" "Everything should be masked"
+  run_buildah build --security-opt unmask=all bud/masks
+  expect_output --substring "unmasked" "Everything should be masked"
+  run_buildah build --security-opt unmask=/proc/* bud/masks
+  expect_output --substring "unmasked" "Everything should be masked"
+  run_buildah build --security-opt unmask=/proc/acpi bud/masks
+  expect_output --substring "unmasked" "Everything should be masked"
+}

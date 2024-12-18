@@ -1,0 +1,4 @@
+FROM alpine
+COPY --chmod=700 test.sh /
+RUN /test.sh
+

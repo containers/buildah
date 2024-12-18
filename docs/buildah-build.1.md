@@ -935,10 +935,16 @@ Security Options
   "label=type:TYPE"       : Set the label type for the container
   "label=level:LEVEL"     : Set the label level for the container
   "label=disable"         : Turn off label confinement for the container
+
+  "mask=_/path/1:/path/2_": The paths to mask separated by a colon. A masked path cannot be accessed inside the container.
+
   "no-new-privileges"     : Disable container processes from gaining additional privileges
 
   "seccomp=unconfined"    : Turn off seccomp confinement for the container
   "seccomp=profile.json   : JSON configuration for a seccomp filter
+
+  "unmask=_ALL_ or _/path/1:/path/2_, or shell expanded paths (/proc/*): Paths to unmask separated by a colon. If set to **ALL**, it unmasks all the paths that are masked or made read-only by default.
+  The default masked paths are **/proc/acpi, /proc/kcore, /proc/keys, /proc/latency_stats, /proc/sched_debug, /proc/scsi, /proc/timer_list, /proc/timer_stats, /sys/firmware, and /sys/fs/selinux**, **/sys/devices/virtual/powercap**.  The default paths that are read-only are **/proc/asound**, **/proc/bus**, **/proc/fs**, **/proc/irq**, **/proc/sys**, **/proc/sysrq-trigger**, **/sys/fs/cgroup**.
 
 **--shm-size**=""
 

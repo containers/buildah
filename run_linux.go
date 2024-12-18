@@ -328,7 +328,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 	}
 
-	setupMaskedPaths(g)
+	setupMaskedPaths(g, b.CommonBuildOpts)
 	setupReadOnlyPaths(g)
 
 	setupTerminal(g, options.Terminal, options.TerminalSize)
@@ -1199,8 +1199,14 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 	return mounts, nil
 }
 
-func setupMaskedPaths(g *generate.Generator) {
-	for _, mp := range config.DefaultMaskedPaths {
+func setupMaskedPaths(g *generate.Generator, opts *define.CommonBuildOptions) {
+	if slices.Contains(opts.Unmasks, "all") {
+		return
+	}
+	for _, mp := range append(config.DefaultMaskedPaths, opts.Masks...) {
+		if slices.Contains(opts.Unmasks, mp) {
+			continue
+		}
 		g.AddLinuxMaskedPaths(mp)
 	}
 }
