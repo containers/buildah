@@ -1271,7 +1271,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 
 	if len(children) == 0 {
 		// There are no steps.
-		if s.builder.FromImageID == "" || s.executor.squash || s.executor.confidentialWorkload.Convert || len(s.executor.labels) > 0 || len(s.executor.annotations) > 0 || len(s.executor.unsetEnvs) > 0 || len(s.executor.unsetLabels) > 0 || len(s.executor.sbomScanOptions) > 0 {
+		if s.builder.FromImageID == "" || s.executor.squash || s.executor.confidentialWorkload.Convert || len(s.executor.labels) > 0 || len(s.executor.annotations) > 0 || len(s.executor.unexposePorts) > 0 || len(s.executor.unsetEnvs) > 0 || len(s.executor.unsetLabels) > 0 || len(s.executor.sbomScanOptions) > 0 {
 			// We either don't have a base image, or we need to
 			// transform the contents of the base image, or we need
 			// to make some changes to just the config blob.  Whichever
@@ -2254,7 +2254,9 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	s.builder.SetUser(config.User)
 	s.builder.ClearPorts()
 	for p := range config.ExposedPorts {
-		s.builder.SetPort(string(p))
+		if !slices.Contains(s.executor.unexposePorts, string(p)) {
+			s.builder.SetPort(string(p))
+		}
 	}
 	for _, envSpec := range config.Env {
 		key, val, _ := strings.Cut(envSpec, "=")

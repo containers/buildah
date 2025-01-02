@@ -1029,6 +1029,10 @@ include:
   "sigpending": maximum number of pending signals (ulimit -i)
   "stack": maximum stack size (ulimit -s)
 
+**--unexpose** *port*
+
+Unexpose port which was exposed from base image.
+
 **--unsetenv** *env*
 
 Unset environment variables from the final image.

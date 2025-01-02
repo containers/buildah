@@ -7125,3 +7125,33 @@ EOF
   echo RUN --mount=type=tmpfs,target=tmpfssubdir test '`stat -f -c %i .`' '!=' '`stat -f -c %i tmpfssubdir`' >> ${TEST_SCRATCH_DIR}/Containerfile
   run_buildah build --security-opt label=disable ${TEST_SCRATCH_DIR}
 }
+
+@test "bud and test --unexpose" {
+  _prefetch alpine
+  target=exp
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile <<EOF
+FROM alpine
+expose 1234
+EOF
+
+  run_buildah build -q --no-cache ${TEST_SCRATCH_DIR}
+  img=$output
+
+  run_buildah inspect --format '{{ .Docker.Config.ExposedPorts }}' $img
+  expect_output "map[1234/tcp:{}]" "Ports exposed"
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile <<EOF
+FROM $img
+EOF
+
+  run_buildah build -q --no-cache ${TEST_SCRATCH_DIR}
+  img2=$output
+  run_buildah inspect --format '{{ .Docker.Config.ExposedPorts }}' $img2
+  expect_output "map[1234/tcp:{}]" "Ports exposed"
+
+  run_buildah build -q --unexpose 1234/tcp --no-cache ${TEST_SCRATCH_DIR}
+  img2=$output
+  run_buildah inspect --format '{{ .Docker.Config.ExposedPorts }}' $img2
+  expect_output "map[]" "No ports exposed"
+}

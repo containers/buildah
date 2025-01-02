@@ -326,6 +326,8 @@ type BuildOptions struct {
 	// to match the set of platforms for which all of the build's base
 	// images are available.  If this field is set, Platforms is ignored.
 	AllPlatforms bool
+	// UnexposePorts is a list of ports to not expose from final image.
+	UnexposePorts []string
 	// UnsetEnvs is a list of environments to not add to final image.
 	UnsetEnvs []string
 	// UnsetLabels is a list of labels to not add to final image from base image.

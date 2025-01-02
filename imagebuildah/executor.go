@@ -149,6 +149,7 @@ type Executor struct {
 	secrets                                 map[string]define.Secret
 	sshsources                              map[string]*sshagent.Source
 	logPrefix                               string
+	unexposePorts                           []string
 	unsetEnvs                               []string
 	unsetLabels                             []string
 	processLabel                            string // Shares processLabel of first stage container with containers of other stages in same build
@@ -311,6 +312,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		secrets:                                 secrets,
 		sshsources:                              sshsources,
 		logPrefix:                               logPrefix,
+		unexposePorts:                           slices.Clone(options.UnexposePorts),
 		unsetEnvs:                               slices.Clone(options.UnsetEnvs),
 		unsetLabels:                             slices.Clone(options.UnsetLabels),
 		buildOutput:                             options.BuildOutput,
