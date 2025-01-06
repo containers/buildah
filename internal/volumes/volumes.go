@@ -196,7 +196,7 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 	// buildkit parity: support absolute path for sources from current build context
 	if contextDir != "" {
 		// path should be /contextDir/specified path
-		evaluated, err := copier.Eval(contextDir, newMount.Source, copier.EvalOptions{})
+		evaluated, err := copier.Eval(contextDir, string(filepath.Separator)+newMount.Source, copier.EvalOptions{})
 		if err != nil {
 			return newMount, "", err
 		}
@@ -358,13 +358,10 @@ func GetCacheMount(args []string, _ storage.Store, _ string, additionalMountPoin
 	}
 
 	if fromStage != "" {
-		// do not create and use a cache directory on the host,
-		// instead use the location in the mounted stage or
-		// temporary directory as the cache
 		mountPoint := ""
 		if additionalMountPoints != nil {
 			if val, ok := additionalMountPoints[fromStage]; ok {
-				if val.IsStage {
+				if !val.IsImage {
 					mountPoint = val.MountPoint
 				}
 			}
@@ -372,7 +369,7 @@ func GetCacheMount(args []string, _ storage.Store, _ string, additionalMountPoin
 		// Cache does not support using an image so if there's no such
 		// stage or temporary directory, return an error
 		if mountPoint == "" {
-			return newMount, nil, fmt.Errorf("no stage found with name %s", fromStage)
+			return newMount, nil, fmt.Errorf("no stage or additional build context found with name %s", fromStage)
 		}
 		// path should be /contextDir/specified path
 		evaluated, err := copier.Eval(mountPoint, string(filepath.Separator)+newMount.Source, copier.EvalOptions{})
