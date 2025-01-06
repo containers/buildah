@@ -5103,7 +5103,7 @@ _EOF
 
   # try reading something from persistent cache in a different build
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/bud/buildkit-mount-from/Dockerfilecachefromimage
-  expect_output --substring "no stage found with name buildkitbase"
+  expect_output --substring "no stage or additional build context found with name buildkitbase"
   run_buildah rmi -f buildkitbase
 }
 
