@@ -6368,9 +6368,8 @@ _EOF
   run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
 
   # try reading something from persistent cache in a different build
-  run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
-  expect_output --substring "no stage found with name buildkitbase"
-  run_buildah rmi -f buildkitbase
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
+  expect_output --substring "no stage or additional build context found with name buildkitbase"
 }
 
 @test "bud-with-mount-cache-multiple-from-like-buildkit" {
