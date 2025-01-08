@@ -166,6 +166,24 @@ func separateDevicesFromRuntimeSpec(g *generate.Generator) define.ContainerDevic
 
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
+	var runArtifacts *runMountArtifacts
+	if len(options.ExternalImageMounts) > 0 {
+		defer func() {
+			if runArtifacts == nil {
+				// we didn't add ExternalImageMounts to the
+				// list of images that we're going to unmount
+				// yet and make a deferred call that cleans
+				// them up, but the caller is expecting us to
+				// unmount these for them because we offered to
+				for _, image := range options.ExternalImageMounts {
+					if _, err := b.store.UnmountImage(image, false); err != nil {
+						logrus.Debugf("umounting image %q: %v", image, err)
+					}
+				}
+			}
+		}()
+	}
+
 	if os.Getenv("container") != "" {
 		os, arch, variant, err := parse.Platform("")
 		if err != nil {
@@ -499,7 +517,7 @@ rootless=%d
 		SystemContext:    options.SystemContext,
 	}
 
-	runArtifacts, err := b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, options.CompatBuiltinVolumes, b.CommonBuildOpts.Volumes, options.RunMounts, runMountInfo)
+	runArtifacts, err = b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, options.CompatBuiltinVolumes, b.CommonBuildOpts.Volumes, options.RunMounts, runMountInfo)
 	if err != nil {
 		return fmt.Errorf("resolving mountpoints for container %q: %w", b.ContainerID, err)
 	}
