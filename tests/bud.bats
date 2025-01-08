@@ -895,8 +895,40 @@ _EOF
   expect_output --substring "Groups:	1000"
 }
 
+@test "build-mount-cache-with-id-mappings" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir ${contextdir}
+
+  # with no ID mappings
+  local cacheid=${SRANDOM}
+  cat > ${contextdir}/Dockerfile << EOF
+  FROM alpine
+  USER 1000:1000
+  RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 stat / /var/tmp
+  RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 test \`stat -c %u /var/tmp\` -eq 1000
+  RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 touch /var/tmp/should-be-able-to-write
+EOF
+  run_buildah build $WITH_POLICY_JSON ${contextdir}
+
+  # with non-default ID mappings
+  local cacheid=${SRANDOM}
+  cat > ${contextdir}/Dockerfile << EOF
+  FROM alpine
+  USER 1000:1000
+  RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 stat / /var/tmp
+  RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 test \`stat -c %u /var/tmp\` -eq 1000
+  RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 touch /var/tmp/should-be-able-to-write
+EOF
+  if test `id -u` -eq 0 ; then
+    run_buildah build --userns-uid-map 0:1:1023 --userns-gid-map 0:1:1023 $WITH_POLICY_JSON ${contextdir}
+  else
+    run_buildah build --userns auto:size=1023 $WITH_POLICY_JSON ${contextdir}
+  fi
+}
+
 @test "build test if supplemental groups has gid with --isolation chroot" {
-  test -z "${BUILDAH_ISOLATION}" || skip "BUILDAH_ISOLATION=${BUILDAH_ISOLATION} overrides --isolation"
+  test "${BUILDAH_ISOLATION}" != chroot || skip "BUILDAH_ISOLATION=${BUILDAH_ISOLATION} overrides --isolation"
 
   _prefetch alpine
   run_buildah build --isolation chroot $WITH_POLICY_JSON -t source -f $BUDFILES/supplemental-groups/Dockerfile
@@ -6676,20 +6708,17 @@ _EOF
   expect_output --substring "hello"
 }
 
-# following test must fail
 @test "bud-with-mount-cache-image-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
   _prefetch alpine
-  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
-  cp -R $BUDFILES/buildkit-mount-from $contextdir
+  local contextdir=${BUDFILES}/buildkit-mount-from
 
   # build base image which we will use as our `from`
   TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
 
   # try reading something from persistent cache in a different build
-  TMPDIR=${TEST_SCRATCH_DIR} run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
-  expect_output --substring "no stage or additional build context found with name buildkitbase"
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
 }
 
 @test "bud-with-mount-cache-multiple-from-like-buildkit" {

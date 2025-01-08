@@ -27,6 +27,7 @@ import (
 	nettypes "github.com/containers/common/libnetwork/types"
 	netUtil "github.com/containers/common/libnetwork/util"
 	"github.com/containers/common/pkg/config"
+	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/lockfile"
 	"github.com/containers/storage/pkg/stringid"
@@ -373,11 +374,12 @@ func setupSpecialMountSpecChanges(spec *specs.Spec, shmSize string) ([]specs.Mou
 }
 
 // If this succeeded, the caller would be expected to, after the command which
-// uses the mount exits, unmount the mounted filesystem and remove its
-// mountpoint (if we provided the path to its mountpoint), and release the lock
-// (if we took one).
-func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, *lockfile.LockFile, error) {
-	return nil, "", nil, errors.New("cache mounts not supported on freebsd")
+// uses the mount exits, clean up the overlay filesystem (if we returned one),
+// unmount the mounted filesystem (if we provided the path to its mountpoint)
+// and remove its mountpoint, unmount the image (if we mounted one), and
+// release the lock (if we took one).
+func (b *Builder) getCacheMount(tokens []string, sys *types.SystemContext, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, *lockfile.LockFile, error) {
+	return nil, "", "", "", nil, errors.New("cache mounts not supported on freebsd")
 }
 
 func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, Err error) {

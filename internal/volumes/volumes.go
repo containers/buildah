@@ -18,6 +18,7 @@ import (
 	"github.com/containers/buildah/internal/tmpdir"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/overlay"
+	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/parse"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -139,7 +140,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 	mountReadability := ""
 	setDest := ""
 	bindNonRecursive := false
-	fromImage := ""
+	fromWhere := ""
 
 	for _, val := range args {
 		argName, argValue, hasArgValue := strings.Cut(val, "=")
@@ -179,7 +180,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			if !hasArgValue || argValue == "" {
 				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
-			fromImage = argValue
+			fromWhere = argValue
 		case "bind-propagation":
 			if !hasArgValue || argValue == "" {
 				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionArg)
@@ -242,17 +243,17 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 	// Following variable ensures that we return imagename only if we did additional mount
 	succeeded := false
 	mountedImage := ""
-	if fromImage != "" {
+	if fromWhere != "" {
 		mountPoint := ""
 		if additionalMountPoints != nil {
-			if val, ok := additionalMountPoints[fromImage]; ok {
+			if val, ok := additionalMountPoints[fromWhere]; ok {
 				mountPoint = val.MountPoint
 			}
 		}
 		// if mountPoint of image was not found in additionalMap
 		// or additionalMap was nil, try mounting image
 		if mountPoint == "" {
-			image, err := internalUtil.LookupImage(sys, store, fromImage)
+			image, err := internalUtil.LookupImage(sys, store, fromWhere)
 			if err != nil {
 				return newMount, "", "", "", err
 			}
@@ -266,7 +267,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			defer func() {
 				if !succeeded {
 					if _, err := store.UnmountImage(mountedImage, false); err != nil {
-						logrus.Debugf("unmounting bind-mounted image %q: %v", fromImage, err)
+						logrus.Debugf("unmounting bind-mounted image %q: %v", fromWhere, err)
 					}
 				}
 			}()
@@ -339,14 +340,17 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 
 // GetCacheMount parses a single cache mount entry from the --mount flag.
 //
-// Returns a Mount to add to the runtime spec's list of mounts, the path of a
-// mounted filesystem if one needs to be unmounted, and an optional lock that
-// needs to be released, or an error.
+// Returns a Mount to add to the runtime spec's list of mounts, the ID of the
+// image we mounted if we mounted one, the path of a mounted filesystem if one
+// needs to be unmounted, the path of an overlay if one needs to be cleaned up,
+// and an optional lock that needs to be released, or an error.
 //
 // The caller is expected to, after the command which uses the mount exits,
-// unmount and remove the mountpoint of the mounted filesystem (if we provided
-// the path to its mountpoint) and release the lock (if we took one).
-func GetCacheMount(args []string, additionalMountPoints map[string]internal.StageMountDetails, workDir, tmpDir string) (specs.Mount, string, *lockfile.LockFile, error) {
+// clean up the overlay filesystem (if we provided the path of one), unmount
+// and remove the mountpoint of the mounted filesystem (if we provided the path
+// to its mountpoint), unmount the image (if we mounted one), and release the
+// lock (if we took one).
+func GetCacheMount(sys *types.SystemContext, args []string, store storage.Store, mountLabel string, additionalMountPoints map[string]internal.StageMountDetails, uidmap, gidmap []specs.LinuxIDMapping, workDir, tmpDir string) (specs.Mount, string, string, string, *lockfile.LockFile, error) {
 	var err error
 	var mode uint64
 	var buildahLockFilesDir string
@@ -354,7 +358,7 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 	setDest := ""
 	setRelabel := ""
 	setReadOnly := ""
-	fromStage := ""
+	fromWhere := ""
 	newMount := specs.Mount{
 		Type: define.TypeBind,
 	}
@@ -363,9 +367,9 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 	// buildkit parity: cache directory defaults to 0o755
 	mode = 0o755
 	// buildkit parity: cache directory defaults to uid 0 if not specified
-	uid := 0
+	uid := uint64(0)
 	// buildkit parity: cache directory defaults to gid 0 if not specified
-	gid := 0
+	gid := uint64(0)
 	// sharing mode
 	sharing := "shared"
 
@@ -377,135 +381,166 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 			continue
 		case "nosuid", "nodev", "noexec", "U":
 			if hasArgValue {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
 			}
 			newMount.Options = append(newMount.Options, argName)
 		case "rw", "readwrite":
 			if hasArgValue {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
 			}
 			newMount.Options = append(newMount.Options, "rw")
 			setReadOnly = "rw"
 		case "readonly", "ro":
 			if hasArgValue {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
 			}
 			newMount.Options = append(newMount.Options, "ro")
 			setReadOnly = "ro"
 		case "Z", "z":
 			if hasArgValue {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
 			}
 			newMount.Options = append(newMount.Options, argName)
 			setRelabel = argName
 		case "shared", "rshared", "private", "rprivate", "slave", "rslave":
 			if hasArgValue {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
 			}
 			newMount.Options = append(newMount.Options, argName)
 			setShared = true
 		case "sharing":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			sharing = argValue
 		case "bind-propagation":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			switch argValue {
 			default:
-				return newMount, "", nil, fmt.Errorf("%v: %q: %w", argName, argValue, errBadMntOption)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %q: %w", argName, argValue, errBadMntOption)
 			case "shared", "rshared", "private", "rprivate", "slave", "rslave":
 				// this should be the relevant parts of the same list of options we accepted above
 			}
 			newMount.Options = append(newMount.Options, argValue)
+			setShared = true
 		case "id":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			id = argValue
 		case "from":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
-			fromStage = argValue
+			fromWhere = argValue
 		case "target", "dst", "destination":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			targetPath := argValue
 			if !path.IsAbs(targetPath) {
 				targetPath = filepath.Join(workDir, targetPath)
 			}
 			if err := parse.ValidateVolumeCtrDir(targetPath); err != nil {
-				return newMount, "", nil, err
+				return newMount, "", "", "", nil, err
 			}
 			newMount.Destination = targetPath
 			setDest = targetPath
 		case "src", "source":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			newMount.Source = argValue
 		case "mode":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			mode, err = strconv.ParseUint(argValue, 8, 32)
 			if err != nil {
-				return newMount, "", nil, fmt.Errorf("unable to parse cache mode: %w", err)
+				return newMount, "", "", "", nil, fmt.Errorf("unable to parse cache mode %q: %w", argValue, err)
 			}
 		case "uid":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
-			uid, err = strconv.Atoi(argValue)
+			uid, err = strconv.ParseUint(argValue, 10, 32)
 			if err != nil {
-				return newMount, "", nil, fmt.Errorf("unable to parse cache uid: %w", err)
+				return newMount, "", "", "", nil, fmt.Errorf("unable to parse cache uid %q: %w", argValue, err)
 			}
 		case "gid":
 			if !hasArgValue || argValue == "" {
-				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+				return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
-			gid, err = strconv.Atoi(argValue)
+			gid, err = strconv.ParseUint(argValue, 10, 32)
 			if err != nil {
-				return newMount, "", nil, fmt.Errorf("unable to parse cache gid: %w", err)
+				return newMount, "", "", "", nil, fmt.Errorf("unable to parse cache gid %q: %w", argValue, err)
 			}
 		default:
-			return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadMntOption)
+			return newMount, "", "", "", nil, fmt.Errorf("%v: %w", argName, errBadMntOption)
 		}
 	}
 
 	// If selinux is enabled and no selinux option was configured
 	// default to `z` i.e shared content label.
-	if setRelabel == "" && (selinux.EnforceMode() != selinux.Disabled) && fromStage == "" {
+	if setRelabel == "" && (selinux.EnforceMode() != selinux.Disabled) && fromWhere == "" {
 		newMount.Options = append(newMount.Options, "z")
 	}
 
 	if setDest == "" {
-		return newMount, "", nil, errBadVolDest
+		return newMount, "", "", "", nil, errBadVolDest
 	}
 
+	hostUID, hostGID, err := util.GetHostIDs(uidmap, gidmap, uint32(uid), uint32(gid))
+	if err != nil {
+		return newMount, "", "", "", nil, err
+	}
+
+	succeeded := false
+	needToOverlay := false
+	mountedImage := ""
 	thisCacheRoot := ""
-	if fromStage != "" {
+	if fromWhere != "" {
 		// do not create and use a cache directory on the host,
 		// instead use the location in the mounted stage or
 		// temporary directory as the cache
 		mountPoint := ""
 		if additionalMountPoints != nil {
-			if val, ok := additionalMountPoints[fromStage]; ok {
-				if !val.IsImage {
-					mountPoint = val.MountPoint
-				}
+			if val, ok := additionalMountPoints[fromWhere]; ok {
+				mountPoint = val.MountPoint
+				needToOverlay = val.IsImage
 			}
 		}
-		// Cache does not support using an image so if there's no such
-		// stage or temporary directory, return an error
+		// it's not an additional build context, stage, or
+		// already-mounted image, but it might still be an image
 		if mountPoint == "" {
-			return newMount, "", nil, fmt.Errorf("no stage or additional build context found with name %s", fromStage)
+			image, err := internalUtil.LookupImage(sys, store, fromWhere)
+			if err != nil {
+				return newMount, "", "", "", nil, err
+			}
+
+			mountPoint, err = image.Mount(context.Background(), nil, mountLabel)
+			if err != nil {
+				return newMount, "", "", "", nil, err
+			}
+			// unmount the image if we don't end up returning successfully
+			mountedImage = image.ID()
+			defer func() {
+				if !succeeded {
+					if _, err := store.UnmountImage(mountedImage, false); err != nil {
+						logrus.Debugf("unmounting image %q: %v", fromWhere, err)
+					}
+				}
+			}()
+			needToOverlay = true
 		}
 		thisCacheRoot = mountPoint
+
+		// decide where the lock file for this cache's root should go, if we need one
+		cacheParent := CacheParent()
+		mountPointID := digest.FromString(mountPoint).Encoded()[:16]
+		buildahLockFilesDir = filepath.Join(cacheParent, BuildahCacheLockfileDir, mountPointID)
 	} else {
 		// we need to create the cache directory on the host if no stage is being used
 
@@ -519,56 +554,56 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 		// create cache on host if not present
 		err = os.MkdirAll(cacheParent, os.FileMode(0o755))
 		if err != nil {
-			return newMount, "", nil, fmt.Errorf("unable to create build cache directory: %w", err)
+			return newMount, "", "", "", nil, fmt.Errorf("unable to create build cache directory: %w", err)
 		}
 
 		if id != "" {
 			// Don't let the user control where we place the directory.
 			dirID := digest.FromString(id).Encoded()[:16]
 			thisCacheRoot = filepath.Join(cacheParent, dirID)
-			buildahLockFilesDir = filepath.Join(BuildahCacheLockfileDir, dirID)
+			buildahLockFilesDir = filepath.Join(cacheParent, BuildahCacheLockfileDir, dirID)
 		} else {
 			// Don't let the user control where we place the directory.
 			dirID := digest.FromString(newMount.Destination).Encoded()[:16]
 			thisCacheRoot = filepath.Join(cacheParent, dirID)
-			buildahLockFilesDir = filepath.Join(BuildahCacheLockfileDir, dirID)
+			buildahLockFilesDir = filepath.Join(cacheParent, BuildahCacheLockfileDir, dirID)
 		}
 
 		idPair := idtools.IDPair{
-			UID: uid,
-			GID: gid,
+			UID: int(hostUID),
+			GID: int(hostGID),
 		}
+
 		// buildkit parity: change uid and gid if specified, otherwise keep `0`
 		err = idtools.MkdirAllAndChownNew(thisCacheRoot, os.FileMode(mode), idPair)
 		if err != nil {
-			return newMount, "", nil, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
-		}
-
-		// create a subdirectory inside `cacheParent` just to store lockfiles
-		buildahLockFilesDir = filepath.Join(cacheParent, buildahLockFilesDir)
-		err = os.MkdirAll(buildahLockFilesDir, os.FileMode(0o700))
-		if err != nil {
-			return newMount, "", nil, fmt.Errorf("unable to create build cache lockfiles directory: %w", err)
+			return newMount, "", "", "", nil, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
 		}
 	}
 
 	// path should be /mountPoint/specified path
 	evaluated, err := copier.Eval(thisCacheRoot, thisCacheRoot+string(filepath.Separator)+newMount.Source, copier.EvalOptions{})
 	if err != nil {
-		return newMount, "", nil, err
+		return newMount, "", "", "", nil, err
 	}
 	newMount.Source = evaluated
 
-	succeeded := false
 	var targetLock *lockfile.LockFile
 	switch sharing {
 	case "locked":
+		// create cache parent directories on host if not already present
+		err = os.MkdirAll(buildahLockFilesDir, os.FileMode(0o755))
+		if err != nil {
+			return newMount, "", "", "", nil, fmt.Errorf("unable to create build cache directory: %w", err)
+		}
+
 		// lock parent cache
 		lockfile, err := lockfile.GetLockFile(filepath.Join(buildahLockFilesDir, BuildahCacheLockfile))
 		if err != nil {
-			return newMount, "", nil, fmt.Errorf("unable to acquire lock when sharing mode is locked: %w", err)
+			return newMount, "", "", "", nil, fmt.Errorf("unable to acquire lock when sharing mode is locked: %w", err)
 		}
-		// Will be unlocked after the RUN step is executed.
+
+		// will be unlocked after the RUN step is executed
 		lockfile.Lock()
 		targetLock = lockfile
 		defer func() {
@@ -581,7 +616,7 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 		break
 	default:
 		// error out for unknown values
-		return newMount, "", nil, fmt.Errorf("unrecognized value %q for field `sharing`: %w", sharing, err)
+		return newMount, "", "", "", nil, fmt.Errorf("unrecognized value %q for field `sharing`: %w", sharing, err)
 	}
 
 	// buildkit parity: default sharing should be shared
@@ -599,7 +634,7 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 
 	opts, err := parse.ValidateVolumeOpts(newMount.Options)
 	if err != nil {
-		return newMount, "", nil, err
+		return newMount, "", "", "", nil, err
 	}
 	newMount.Options = opts
 
@@ -607,12 +642,12 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 	if newMount.Source != thisCacheRoot {
 		rel, err := filepath.Rel(thisCacheRoot, newMount.Source)
 		if err != nil {
-			return newMount, "", nil, fmt.Errorf("computing pathname of cache subdirectory: %w", err)
+			return newMount, "", "", "", nil, fmt.Errorf("computing pathname of cache subdirectory: %w", err)
 		}
 		if rel != "." && rel != "/" {
 			mnt, err := bindFromChroot(thisCacheRoot, rel, tmpDir)
 			if err != nil {
-				return newMount, "", nil, fmt.Errorf("sanitizing cache subdirectory %q: %w", newMount.Source, err)
+				return newMount, "", "", "", nil, fmt.Errorf("sanitizing cache subdirectory %q: %w", newMount.Source, err)
 			}
 			logrus.Debugf("bind-mounted %q under %q to %q", rel, thisCacheRoot, mnt)
 			intermediateMount = mnt
@@ -620,8 +655,15 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 		}
 	}
 
+	overlayDir := ""
+	if needToOverlay {
+		if newMount, overlayDir, err = convertToOverlay(newMount, store, mountLabel, tmpDir, 0, 0); err != nil {
+			return newMount, "", "", "", nil, err
+		}
+	}
+
 	succeeded = true
-	return newMount, intermediateMount, targetLock, nil
+	return newMount, mountedImage, intermediateMount, overlayDir, targetLock, nil
 }
 
 func getVolumeMounts(volumes []string) (map[string]specs.Mount, error) {
@@ -658,8 +700,8 @@ func UnlockLockArray(locks []*lockfile.LockFile) {
 // mountpoints for the bind-mounted paths, unmount any images we mounted, and
 // release the locks we returned (either using UnlockLockArray() or by
 // iterating over them and unlocking them).
-func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string, volumes []string, mounts []string, contextDir, workDir, tmpDir string) ([]specs.Mount, []string, []string, []string, []*lockfile.LockFile, error) {
-	unifiedMounts, mountedImages, intermediateMounts, overlayMounts, targetLocks, err := getMounts(ctx, store, mountLabel, mounts, contextDir, workDir, tmpDir)
+func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string, volumes []string, mounts []string, contextDir string, idMaps define.IDMappingOptions, workDir, tmpDir string) ([]specs.Mount, []string, []string, []string, []*lockfile.LockFile, error) {
+	unifiedMounts, mountedImages, intermediateMounts, overlayMounts, targetLocks, err := getMounts(ctx, store, mountLabel, mounts, contextDir, idMaps.UIDMap, idMaps.GIDMap, workDir, tmpDir)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -721,7 +763,7 @@ func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string
 // to mountpoints), unmount any mounted images (if we provided the IDs of any),
 // and then unlock the locks we returned (either using UnlockLockArray() or by
 // iterating over them and unlocking them).
-func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string, mounts []string, contextDir, workDir, tmpDir string) (map[string]specs.Mount, []string, []string, []string, []*lockfile.LockFile, error) {
+func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string, mounts []string, contextDir string, uidmap, gidmap []specs.LinuxIDMapping, workDir, tmpDir string) (map[string]specs.Mount, []string, []string, []string, []*lockfile.LockFile, error) {
 	// If `type` is not set default to "bind"
 	mountType := define.TypeBind
 	finalMounts := make(map[string]specs.Mount, len(mounts))
@@ -790,12 +832,18 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string,
 			}
 			finalMounts[mount.Destination] = mount
 		case TypeCache:
-			mount, intermediateMount, tl, err := GetCacheMount(tokens, nil, workDir, tmpDir)
+			mount, image, intermediateMount, overlayMount, tl, err := GetCacheMount(ctx, tokens, store, "", nil, uidmap, gidmap, workDir, tmpDir)
 			if err != nil {
 				return nil, nil, nil, nil, nil, err
 			}
+			if image != "" {
+				mountedImages = append(mountedImages, image)
+			}
 			if intermediateMount != "" {
 				intermediateMounts = append(intermediateMounts, intermediateMount)
+			}
+			if overlayMount != "" {
+				overlayMounts = append(overlayMounts, overlayMount)
 			}
 			if tl != nil {
 				targetLocks = append(targetLocks, tl)

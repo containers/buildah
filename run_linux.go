@@ -36,6 +36,7 @@ import (
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/hooks"
 	hooksExec "github.com/containers/common/pkg/hooks/exec"
+	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
@@ -1427,27 +1428,40 @@ func checkIDsGreaterThan5(ids []specs.LinuxIDMapping) bool {
 	return false
 }
 
-// Returns a Mount to add to the runtime spec's list of mounts, an optional
-// path of a mounted filesystem, unmounted, and an optional lock, or an error.
+// Returns a Mount to add to the runtime spec's list of mounts, the ID of an
+// image, the path to a mounted filesystem, and the path to an overlay
+// filesystem, and an optional lock, or an error.
 //
 // The caller is expected to, after the command which uses the mount exits,
-// unmount the mounted filesystem (if we provided the path to its mountpoint)
-// and remove its mountpoint, , and release the lock (if we took one).
-func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, *lockfile.LockFile, error) {
+// clean up the overlay filesystem (if we returned one), unmount the mounted
+// filesystem (if we provided the path to its mountpoint) and remove its
+// mountpoint, unmount the image (if we mounted one), and release the lock (if
+// we took one).
+func (b *Builder) getCacheMount(tokens []string, sys *types.SystemContext, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps, workDir, tmpDir string) (*specs.Mount, string, string, string, *lockfile.LockFile, error) {
 	var optionMounts []specs.Mount
-	optionMount, intermediateMount, targetLock, err := volumes.GetCacheMount(tokens, stageMountPoints, workDir, tmpDir)
+	optionMount, mountedImage, intermediateMount, overlayMount, targetLock, err := volumes.GetCacheMount(sys, tokens, b.store, b.MountLabel, stageMountPoints, idMaps.uidmap, idMaps.gidmap, workDir, tmpDir)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", "", "", nil, err
 	}
 	succeeded := false
 	defer func() {
 		if !succeeded {
+			if overlayMount != "" {
+				if err := overlay.RemoveTemp(overlayMount); err != nil {
+					b.Logger.Debug(err.Error())
+				}
+			}
 			if intermediateMount != "" {
 				if err := mount.Unmount(intermediateMount); err != nil {
 					b.Logger.Debugf("unmounting %q: %v", intermediateMount, err)
 				}
 				if err := os.Remove(intermediateMount); err != nil {
 					b.Logger.Debugf("removing should-be-empty directory %q: %v", intermediateMount, err)
+				}
+			}
+			if mountedImage != "" {
+				if _, err := b.store.UnmountImage(mountedImage, false); err != nil {
+					b.Logger.Debugf("unmounting image %q: %v", mountedImage, err)
 				}
 			}
 			if targetLock != nil {
@@ -1458,8 +1472,8 @@ func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]int
 	optionMounts = append(optionMounts, optionMount)
 	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", "", "", nil, err
 	}
 	succeeded = true
-	return &volumes[0], intermediateMount, targetLock, nil
+	return &volumes[0], mountedImage, intermediateMount, overlayMount, targetLock, nil
 }
