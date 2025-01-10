@@ -103,13 +103,13 @@ type BuildOutputOption struct {
 	IsStdout bool
 }
 
-// TempDirForURL checks if the passed-in string looks like a URL or -.  If it is,
-// TempDirForURL creates a temporary directory, arranges for its contents to be
-// the contents of that URL, and returns the temporary directory's path, along
-// with the name of a subdirectory which should be used as the build context
-// (which may be empty or ".").  Removal of the temporary directory is the
-// responsibility of the caller.  If the string doesn't look like a URL,
-// TempDirForURL returns empty strings and a nil error code.
+// TempDirForURL checks if the passed-in string looks like a URL or "-".  If it
+// is, TempDirForURL creates a temporary directory, arranges for its contents
+// to be the contents of that URL, and returns the temporary directory's path,
+// along with the relative name of a subdirectory which should be used as the
+// build context (which may be empty or ".").  Removal of the temporary
+// directory is the responsibility of the caller.  If the string doesn't look
+// like a URL or "-", TempDirForURL returns empty strings and a nil error code.
 func TempDirForURL(dir, prefix, url string) (name string, subdir string, err error) {
 	if !strings.HasPrefix(url, "http://") &&
 		!strings.HasPrefix(url, "https://") &&
@@ -122,19 +122,24 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error creating temporary directory for %q", url)
 	}
+	downloadDir := filepath.Join(name, "download")
+	if err = os.MkdirAll(downloadDir, 0o700); err != nil {
+		return "", "", fmt.Errorf("creating directory %q for %q: %w", downloadDir, url, err)
+	}
 	urlParsed, err := urlpkg.Parse(url)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error parsing url %q", url)
 	}
 	if strings.HasPrefix(url, "git://") || strings.HasSuffix(urlParsed.Path, ".git") {
-		combinedOutput, err := cloneToDirectory(url, name)
+		combinedOutput, err := cloneToDirectory(url, downloadDir)
 		if err != nil {
 			if err2 := os.RemoveAll(name); err2 != nil {
 				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 			}
 			return "", "", errors.Wrapf(err, "cloning %q to %q:\n%s", url, name, string(combinedOutput))
 		}
-		return name, "", nil
+		logrus.Debugf("Build context is at %q", downloadDir)
+		return name, filepath.Base(downloadDir), nil
 	}
 	if strings.HasPrefix(url, "github.com/") {
 		ghurl := url
@@ -143,28 +148,29 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 		subdir = path.Base(ghurl) + "-master"
 	}
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		err = downloadToDirectory(url, name)
+		err = downloadToDirectory(url, downloadDir)
 		if err != nil {
 			if err2 := os.RemoveAll(name); err2 != nil {
 				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 			}
-			return "", subdir, err
+			return "", "", err
 		}
-		return name, subdir, nil
+		logrus.Debugf("Build context is at %q", filepath.Join(downloadDir, subdir))
+		return name, filepath.Join(filepath.Base(downloadDir), subdir), nil
 	}
 	if url == "-" {
-		err = stdinToDirectory(name)
+		err = stdinToDirectory(downloadDir)
 		if err != nil {
 			if err2 := os.RemoveAll(name); err2 != nil {
 				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 			}
-			return "", subdir, err
+			return "", "", err
 		}
-		logrus.Debugf("Build context is at %q", name)
-		return name, subdir, nil
+		logrus.Debugf("Build context is at %q", filepath.Join(downloadDir, subdir))
+		return name, filepath.Join(filepath.Base(downloadDir), subdir), nil
 	}
 	logrus.Debugf("don't know how to retrieve %q", url)
-	if err2 := os.Remove(name); err2 != nil {
+	if err2 := os.RemoveAll(name); err2 != nil {
 		logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 	}
 	return "", "", errors.Errorf("unreachable code reached")
