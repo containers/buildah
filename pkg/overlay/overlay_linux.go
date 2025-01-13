@@ -79,5 +79,17 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 	mount.Type = "overlay"
 	mount.Options = strings.Split(overlayOptions, ",")
 
+	if opts.ForceMount {
+		if err := mountNatively(overlayOptions, mergeDir); err != nil {
+			return mount, err
+		}
+
+		mount.Source = mergeDir
+		mount.Destination = dest
+		mount.Type = "bind"
+		mount.Options = []string{"bind", "slave"}
+		return mount, nil
+	}
+
 	return mount, nil
 }
