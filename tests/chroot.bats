@@ -87,6 +87,10 @@ load helpers
       done
     done
   done
+  # copy binaries to a location where parent directory permissions are less
+  # likely to interfere with running them from a different UID
+  cp ${COPY_BINARY} ${TEST_SCRATCH_DIR}/copy
+  cp ${BUILDAH_BINARY} ${TEST_SCRATCH_DIR}/buildah
   # make sure that RUN doesn't just break when we try to use volume mounts with
   # flags set that we're not allowed to modify
   echo FROM $baseimage > $context/Dockerfile
@@ -96,9 +100,9 @@ load helpers
   # and --map-groups, but fedora 37's is too old, so the older OUTER,INNER,SIZE
   # (using commas instead of colons as field separators) will have to do
   echo "env | sort" >> ${TEST_SCRATCH_DIR}/script.sh
-  echo "env _CONTAINERS_USERNS_CONFIGURED=done unshare -Umpf --mount-proc --setuid 0 --setgid 0 --map-users=${subid},0,${rangesize} --map-groups=${subid},0,${rangesize} ${COPY_BINARY} ${storageopts} dir:$_BUILDAH_IMAGE_CACHEDIR/$baseimagef containers-storage:$baseimage" >> ${TEST_SCRATCH_DIR}/script.sh
+  echo "env _CONTAINERS_USERNS_CONFIGURED=done unshare -Umpf --mount-proc --setuid 0 --setgid 0 --map-users=${subid},0,${rangesize} --map-groups=${subid},0,${rangesize} ${TEST_SCRATCH_DIR}/copy ${storageopts} dir:$_BUILDAH_IMAGE_CACHEDIR/$baseimagef containers-storage:$baseimage" >> ${TEST_SCRATCH_DIR}/script.sh
   # try to do a build with all of the volume mounts
-  echo "env _CONTAINERS_USERNS_CONFIGURED=done unshare -Umpf --mount-proc --setuid 0 --setgid 0 --map-users=${subid},0,${rangesize} --map-groups=${subid},0,${rangesize} ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${storageopts} build --isolation chroot --pull=never $mounts $context" >> ${TEST_SCRATCH_DIR}/script.sh
+  echo "env _CONTAINERS_USERNS_CONFIGURED=done unshare -Umpf --mount-proc --setuid 0 --setgid 0 --map-users=${subid},0,${rangesize} --map-groups=${subid},0,${rangesize} ${TEST_SCRATCH_DIR}/buildah ${BUILDAH_REGISTRY_OPTS} ${storageopts} build --isolation chroot --pull=never $mounts $context" >> ${TEST_SCRATCH_DIR}/script.sh
   # run that whole script in a nested mount namespace with no $XDG_...
   # variables leaked into it
   if is_rootless ; then
