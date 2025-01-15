@@ -14,6 +14,7 @@ import (
 	"github.com/containers/storage/pkg/system"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -55,6 +56,8 @@ type Options struct {
 	// attempting to optimize by having the runtime actually mount and
 	// manage the overlay filesystem.
 	ForceMount bool
+	// MountLabel is a label to force for the overlay filesystem.
+	MountLabel string
 }
 
 // TempDir generates an overlay Temp directory in the container content
@@ -197,6 +200,9 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 			}
 		}
 		overlayOptions = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,private", escapeColon(source), upperDir, workDir)
+	}
+	if opts.MountLabel != "" {
+		overlayOptions = overlayOptions + "," + label.FormatMountLabel("", opts.MountLabel)
 	}
 
 	mountProgram := findMountProgram(opts.GraphOpts)
