@@ -2053,8 +2053,8 @@ func setPdeathsig(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
 }
 
-func relabel(path, mountLabel string, recurse bool) error {
-	if err := label.Relabel(path, mountLabel, recurse); err != nil {
+func relabel(path, mountLabel string, shared bool) error {
+	if err := label.Relabel(path, mountLabel, shared); err != nil {
 		if !errors.Is(err, syscall.ENOTSUP) {
 			return err
 		}
