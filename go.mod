@@ -8,10 +8,10 @@ require (
 	github.com/containerd/platforms v0.2.1
 	github.com/containernetworking/cni v1.2.3
 	github.com/containers/common v0.61.0
-	github.com/containers/image/v5 v5.33.0
+	github.com/containers/image/v5 v5.33.1
 	github.com/containers/luksy v0.0.0-20250106202729-a3a812db5b72
 	github.com/containers/ocicrypt v1.2.1
-	github.com/containers/storage v1.56.0
+	github.com/containers/storage v1.56.1
 	github.com/cyphar/filepath-securejoin v0.3.6
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v27.5.0+incompatible
