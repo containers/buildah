@@ -54,6 +54,8 @@ type Options struct {
 	// attempting to optimize by having the runtime actually mount and
 	// manage the overlay filesystem.
 	ForceMount bool
+	// MountLabel is a label to force for the overlay filesystem.
+	MountLabel string
 }
 
 // TempDir generates an overlay Temp directory in the container content
