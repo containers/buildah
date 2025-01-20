@@ -5,7 +5,7 @@ module github.com/containers/buildah
 go 1.22.6
 
 require (
-	github.com/containerd/platforms v0.2.1
+	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containernetworking/cni v1.2.3
 	github.com/containers/common v0.61.1
 	github.com/containers/image/v5 v5.33.1
@@ -20,7 +20,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.12.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
-	github.com/moby/buildkit v0.18.2
+	github.com/moby/buildkit v0.19.0
 	github.com/moby/sys/capability v0.4.0
 	github.com/moby/sys/userns v0.1.0
 	github.com/opencontainers/go-digest v1.0.0
@@ -57,10 +57,10 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/containerd/cgroups/v3 v3.0.3 // indirect
-	github.com/containerd/errdefs v0.3.0 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
 	github.com/containerd/typeurl/v2 v2.2.3 // indirect
 	github.com/containernetworking/plugins v1.5.1 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
@@ -137,20 +137,20 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/vbatts/tar-split v0.11.6 // indirect
 	github.com/vbauerster/mpb/v8 v8.8.3 // indirect
-	github.com/vishvananda/netlink v1.3.0 // indirect
+	github.com/vishvananda/netlink v1.3.1-0.20240922070040-084abd93d350 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
-	go.opentelemetry.io/otel v1.28.0 // indirect
-	go.opentelemetry.io/otel/metric v1.28.0 // indirect
-	go.opentelemetry.io/otel/trace v1.28.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.56.0 // indirect
+	go.opentelemetry.io/otel v1.31.0 // indirect
+	go.opentelemetry.io/otel/metric v1.31.0 // indirect
+	go.opentelemetry.io/otel/trace v1.31.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
 	google.golang.org/grpc v1.68.1 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	google.golang.org/protobuf v1.35.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.8.0 // indirect
