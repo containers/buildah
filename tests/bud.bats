@@ -6368,9 +6368,8 @@ _EOF
   run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
 
   # try reading something from persistent cache in a different build
-  run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
-  expect_output --substring "no stage found with name buildkitbase"
-  run_buildah rmi -f buildkitbase
+  TMPDIR=${TEST_SCRATCH_DIR} run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
+  expect_output --substring "no stage or additional build context found with name buildkitbase"
 }
 
 @test "bud-with-mount-cache-multiple-from-like-buildkit" {
@@ -6661,4 +6660,93 @@ _EOF
   rm -f /BIND_BREAKOUT
   assert "$status" -eq 2 "exit code from ls"
   expect_output --substring "No such file or directory"
+}
+
+@test "build-validates-bind-bind-propagation" {
+  _prefetch alpine
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine as base
+FROM alpine
+RUN --mount=type=bind,from=base,source=/,destination=/var/empty,rw,bind-propagation=suid pwd
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "invalid mount option"
+}
+
+@test "build-validates-cache-bind-propagation" {
+  _prefetch alpine
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=cache,destination=/var/empty,rw,bind-propagation=suid pwd
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "invalid mount option"
+}
+
+@test "build-check-cve-2024-9675" {
+  _prefetch alpine
+
+  touch ${TEST_SCRATCH_DIR}/file.txt
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile <<EOF
+FROM alpine
+RUN --mount=type=cache,id=../../../../../../../../../../../$TEST_SCRATCH_DIR,target=/var/tmp \
+ls -l /var/tmp && cat /var/tmp/file.txt
+EOF
+
+  run_buildah 1 build --no-cache ${TEST_SCRATCH_DIR}
+  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+
+  cat > ${TEST_SCRATCH_DIR}/Containerfile <<EOF
+FROM alpine
+RUN --mount=type=cache,source=../../../../../../../../../../../$TEST_SCRATCH_DIR,target=/var/tmp \
+ls -l /var/tmp && cat /var/tmp/file.txt
+EOF
+
+  run_buildah 125 build --no-cache ${TEST_SCRATCH_DIR}
+  expect_output --substring "no such file or directory"
+
+  mkdir ${TEST_SCRATCH_DIR}/cve20249675
+  cat > ${TEST_SCRATCH_DIR}/cve20249675/Containerfile <<EOF
+FROM alpine
+RUN --mount=type=cache,from=testbuild,source=../,target=/var/tmp \
+ls -l /var/tmp && cat /var/tmp/file.txt
+EOF
+
+  run_buildah 1 build --security-opt label=disable --build-context testbuild=${TEST_SCRATCH_DIR}/cve20249675/ --no-cache ${TEST_SCRATCH_DIR}/cve20249675/
+  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+
+  mkdir ${TEST_SCRATCH_DIR}/cachedir
+
+  run_buildah 1 build --security-opt label=disable --build-context testbuild=${TEST_SCRATCH_DIR}/cachedir/ --no-cache ${TEST_SCRATCH_DIR}/cve20249675/
+  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+}
+
+@test "build-mounts-build-context-rw" {
+  zflag=
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+    if selinuxenabled ; then
+      zflag=,z
+    fi
+  fi
+  base=busybox
+  _prefetch $base
+  mkdir -p ${TEST_SCRATCH_DIR}/buildcontext
+  cat > ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile << EOF
+  FROM $base
+  RUN --mount=type=bind,dst=/dst,source=/,rw${zflag} \
+    mkdir /dst/subdir ; \
+    chown 1000:1000 /dst/subdir ; \
+    chmod 777 /dst/subdir ; \
+    touch /dst/subdir/file-suid ; \
+    chmod 4777 /dst/subdir/file-suid
+EOF
+  run_buildah build ${TEST_SCRATCH_DIR}/buildcontext
+  run find ${TEST_SCRATCH_DIR}/buildcontext -name file-suid -ls
+  find ${TEST_SCRATCH_DIR}/buildcontext -ls
+  expect_output "" "build should not be able to write to build context"
 }
