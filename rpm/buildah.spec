@@ -22,6 +22,12 @@
 %define build_with_btrfs 1
 %endif
 
+# Adjust/Remove after epel10 gets bats
+# Ref: https://bugzilla.redhat.com/show_bug.cgi?id=2329315
+%if %{defined fedora} || %{defined rhel} && 0%{?rhel} == 9
+%define bats_epel 1
+%endif
+
 %global git0 https://github.com/containers/%{name}
 
 Name: buildah
@@ -84,12 +90,16 @@ or
 * save container's root file system layer to create a new image
 * delete a working container or an image
 
+# This subpackage is only intended for CI testing.
+# Not meant for end user/customer usage.
 %package tests
 Summary: Tests for %{name}
 
 Requires: %{name} = %{epoch}:%{version}-%{release}
-%if %{defined fedora}
+%if %{defined bats_epel}
 Requires: bats
+%else
+Recommends: bats
 %endif
 Requires: bzip2
 Requires: podman
