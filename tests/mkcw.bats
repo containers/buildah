@@ -22,6 +22,7 @@ function mkcw_check_image() {
 
   # Decrypt, mount, and take a look around.
   uuid=$(cryptsetup luksUUID "$mountpoint"/disk.img)
+  echo "# uuid=$uuid" >&3
   cryptsetup luksOpen --key-file "$TEST_SCRATCH_DIR"/key "$mountpoint"/disk.img "$uuid"
   mkdir -p "$TEST_SCRATCH_DIR"/mount
   mount /dev/mapper/"$uuid" "$TEST_SCRATCH_DIR"/mount

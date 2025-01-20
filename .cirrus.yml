@@ -234,6 +234,7 @@ integration_task:
 
     gce_instance:
         image_name: "$IMAGE_NAME"
+        cpu: 4
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
@@ -281,6 +282,7 @@ integration_rootless_task:
 
     gce_instance:
         image_name: "$IMAGE_NAME"
+        cpu: 4
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
