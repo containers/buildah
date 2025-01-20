@@ -6637,7 +6637,7 @@ _EOF
 
   # try reading something from persistent cache in a different build
   TMPDIR=${TEST_SCRATCH_DIR} run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefromimage
-  expect_output --substring "no stage found with name buildkitbase"
+  expect_output --substring "no stage or additional build context found with name buildkitbase"
 }
 
 @test "bud-with-mount-cache-multiple-from-like-buildkit" {
@@ -7044,8 +7044,8 @@ RUN --mount=type=cache,source=../../../../../../../../../../../$TEST_SCRATCH_DIR
 ls -l /var/tmp && cat /var/tmp/file.txt
 EOF
 
-  run_buildah 1 build --no-cache ${TEST_SCRATCH_DIR}
-  expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
+  run_buildah 125 build --no-cache ${TEST_SCRATCH_DIR}
+  expect_output --substring "no such file or directory"
 
   mkdir ${TEST_SCRATCH_DIR}/cve20249675
   cat > ${TEST_SCRATCH_DIR}/cve20249675/Containerfile <<EOF
@@ -7054,7 +7054,9 @@ RUN --mount=type=cache,from=testbuild,source=../,target=/var/tmp \
 ls -l /var/tmp && cat /var/tmp/file.txt
 EOF
 
-  run_buildah 1 build --security-opt label=disable --build-context testbuild=${TEST_SCRATCH_DIR}/cve20249675/ --no-cache ${TEST_SCRATCH_DIR}/cve20249675/
+  mkdir ${TEST_SCRATCH_DIR}/cachedir
+
+  run_buildah 1 build --security-opt label=disable --build-context testbuild=${TEST_SCRATCH_DIR}/cachedir/ --no-cache ${TEST_SCRATCH_DIR}/cve20249675/
   expect_output --substring "cat: can't open '/var/tmp/file.txt': No such file or directory"
 }
 
@@ -7070,4 +7072,29 @@ EOF
   echo RUN --mount=type=cache,id=cash,target=cachesubdir2 test -s cachesubdir2/cachefile >> ${TEST_SCRATCH_DIR}/Containerfile
   echo RUN --mount=type=tmpfs,target=tmpfssubdir test '`stat -f -c %i .`' '!=' '`stat -f -c %i tmpfssubdir`' >> ${TEST_SCRATCH_DIR}/Containerfile
   run_buildah build --security-opt label=disable ${TEST_SCRATCH_DIR}
+}
+
+@test "build-mounts-build-context-rw" {
+  zflag=
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+    if selinuxenabled ; then
+      zflag=,z
+    fi
+  fi
+  base=busybox
+  _prefetch $base
+  mkdir -p ${TEST_SCRATCH_DIR}/buildcontext
+  cat > ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile << EOF
+  FROM $base
+  RUN --mount=type=bind,dst=/dst,source=/,rw${zflag} \
+    mkdir /dst/subdir ; \
+    chown 1000:1000 /dst/subdir ; \
+    chmod 777 /dst/subdir ; \
+    touch /dst/subdir/file-suid ; \
+    chmod 4777 /dst/subdir/file-suid
+EOF
+  run_buildah build ${TEST_SCRATCH_DIR}/buildcontext
+  run find ${TEST_SCRATCH_DIR}/buildcontext -name file-suid -ls
+  find ${TEST_SCRATCH_DIR}/buildcontext -ls
+  expect_output "" "build should not be able to write to build context"
 }
