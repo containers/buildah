@@ -7,11 +7,11 @@ go 1.22.8
 require (
 	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containernetworking/cni v1.2.3
-	github.com/containers/common v0.61.1
-	github.com/containers/image/v5 v5.33.2-0.20250122193521-b10f5bdaa76f
+	github.com/containers/common v0.61.1-0.20250121185748-34a90afcdc6d
+	github.com/containers/image/v5 v5.33.2-0.20250122233652-b5c6aff95ca7
 	github.com/containers/luksy v0.0.0-20250106202729-a3a812db5b72
 	github.com/containers/ocicrypt v1.2.1
-	github.com/containers/storage v1.56.2-0.20250121150636-c2cdd500e4ef
+	github.com/containers/storage v1.56.2-0.20250123125217-80d3c0e77d29
 	github.com/cyphar/filepath-securejoin v0.3.6
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v27.5.1+incompatible
@@ -144,7 +144,7 @@ require (
 	go.opentelemetry.io/otel v1.31.0 // indirect
 	go.opentelemetry.io/otel/metric v1.31.0 // indirect
 	go.opentelemetry.io/otel/trace v1.31.0 // indirect
-	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67 // indirect
+	golang.org/x/exp v0.0.0-20250103183323-7d7fa50e5329 // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
