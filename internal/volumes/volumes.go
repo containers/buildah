@@ -47,11 +47,12 @@ const (
 )
 
 var (
-	errBadMntOption  = errors.New("invalid mount option")
-	errBadOptionArg  = errors.New("must provide an argument for option")
-	errBadVolDest    = errors.New("must set volume destination")
-	errBadVolSrc     = errors.New("must set volume source")
-	errDuplicateDest = errors.New("duplicate mount destination")
+	errBadMntOption   = errors.New("invalid mount option")
+	errBadOptionArg   = errors.New("must provide an argument for option")
+	errBadOptionNoArg = errors.New("must not provide an argument for option")
+	errBadVolDest     = errors.New("must set volume destination")
+	errBadVolSrc      = errors.New("must set volume source")
+	errDuplicateDest  = errors.New("duplicate mount destination")
 )
 
 // CacheParent returns a cache parent for --mount=type=cache
@@ -144,33 +145,43 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 		argName, argValue, hasArgValue := strings.Cut(val, "=")
 		switch argName {
 		case "type":
-			// This is already processed
+			// This is already processed, and should be "bind"
 			continue
 		case "bind-nonrecursive":
+			if hasArgValue {
+				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, "bind")
 			bindNonRecursive = true
 		case "nosuid", "nodev", "noexec":
-			// TODO: detect duplication of these options.
-			// (Is this necessary?)
+			if hasArgValue {
+				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, argName)
 		case "rw", "readwrite":
+			if hasArgValue {
+				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, "rw")
 			mountReadability = "rw"
 		case "ro", "readonly":
+			if hasArgValue {
+				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, "ro")
 			mountReadability = "ro"
 		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U", "no-dereference":
 			if hasArgValue {
-				return newMount, "", "", "", fmt.Errorf("%v: %w", val, errBadOptionArg)
+				return newMount, "", "", "", fmt.Errorf("%v: %w", val, errBadOptionNoArg)
 			}
 			newMount.Options = append(newMount.Options, argName)
 		case "from":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			fromImage = argValue
 		case "bind-propagation":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			switch argValue {
@@ -181,12 +192,12 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			}
 			newMount.Options = append(newMount.Options, argValue)
 		case "src", "source":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			newMount.Source = argValue
 		case "target", "dst", "destination":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			targetPath := argValue
@@ -199,6 +210,9 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			}
 			newMount.Destination = targetPath
 		case "relabel":
+			if !hasArgValue || argValue == "" {
+				return newMount, "", "", "", fmt.Errorf("%v: %w", argName, errBadOptionArg)
+			}
 			if setRelabel != "" {
 				return newMount, "", "", "", fmt.Errorf("cannot pass 'relabel' option more than once: %w", errBadOptionArg)
 			}
@@ -248,6 +262,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 				return newMount, "", "", "", err
 			}
 			mountedImage = image.ID()
+			// unmount the image if we don't end up returning successfully
 			defer func() {
 				if !succeeded {
 					if _, err := store.UnmountImage(mountedImage, false); err != nil {
@@ -335,12 +350,10 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 	var err error
 	var mode uint64
 	var buildahLockFilesDir string
-	var (
-		setDest           bool
-		setShared         bool
-		setReadOnly       bool
-		foundSElinuxLabel bool
-	)
+	var setShared bool
+	setDest := ""
+	setRelabel := ""
+	setReadOnly := ""
 	fromStage := ""
 	newMount := specs.Mount{
 		Type: define.TypeBind,
@@ -360,28 +373,44 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 		argName, argValue, hasArgValue := strings.Cut(val, "=")
 		switch argName {
 		case "type":
-			// This is already processed
+			// This is already processed, and should be "cache"
 			continue
-		case "nosuid", "nodev", "noexec":
-			// TODO: detect duplication of these options.
-			// (Is this necessary?)
+		case "nosuid", "nodev", "noexec", "U":
+			if hasArgValue {
+				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, argName)
 		case "rw", "readwrite":
+			if hasArgValue {
+				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, "rw")
+			setReadOnly = "rw"
 		case "readonly", "ro":
-			// Alias for "ro"
+			if hasArgValue {
+				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, "ro")
-			setReadOnly = true
+			setReadOnly = "ro"
 		case "Z", "z":
+			if hasArgValue {
+				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, argName)
-			foundSElinuxLabel = true
-		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "U":
+			setRelabel = argName
+		case "shared", "rshared", "private", "rprivate", "slave", "rslave":
+			if hasArgValue {
+				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, argName)
 			setShared = true
 		case "sharing":
+			if !hasArgValue || argValue == "" {
+				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
+			}
 			sharing = argValue
 		case "bind-propagation":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			switch argValue {
@@ -392,17 +421,17 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 			}
 			newMount.Options = append(newMount.Options, argValue)
 		case "id":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			id = argValue
 		case "from":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			fromStage = argValue
 		case "target", "dst", "destination":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			targetPath := argValue
@@ -413,14 +442,14 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 				return newMount, "", nil, err
 			}
 			newMount.Destination = targetPath
-			setDest = true
+			setDest = targetPath
 		case "src", "source":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			newMount.Source = argValue
 		case "mode":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			mode, err = strconv.ParseUint(argValue, 8, 32)
@@ -428,7 +457,7 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 				return newMount, "", nil, fmt.Errorf("unable to parse cache mode: %w", err)
 			}
 		case "uid":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			uid, err = strconv.Atoi(argValue)
@@ -436,7 +465,7 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 				return newMount, "", nil, fmt.Errorf("unable to parse cache uid: %w", err)
 			}
 		case "gid":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, "", nil, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			gid, err = strconv.Atoi(argValue)
@@ -450,11 +479,11 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 
 	// If selinux is enabled and no selinux option was configured
 	// default to `z` i.e shared content label.
-	if !foundSElinuxLabel && (selinux.EnforceMode() != selinux.Disabled) && fromStage == "" {
+	if setRelabel == "" && (selinux.EnforceMode() != selinux.Disabled) && fromStage == "" {
 		newMount.Options = append(newMount.Options, "z")
 	}
 
-	if !setDest {
+	if setDest == "" {
 		return newMount, "", nil, errBadVolDest
 	}
 
@@ -478,7 +507,7 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 		}
 		thisCacheRoot = mountPoint
 	} else {
-		// we need to create the cache directory on the host if no image is being used
+		// we need to create the cache directory on the host if no stage is being used
 
 		// since type is cache and a cache can be reused by consecutive builds
 		// create a common cache directory, which persists on hosts within temp lifecycle
@@ -561,8 +590,8 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 		newMount.Options = append(newMount.Options, "shared")
 	}
 
-	// buildkit parity: cache must writable unless `ro` or `readonly` is configured explicitly
-	if !setReadOnly {
+	// buildkit parity: cache must be writable unless `ro` or `readonly` is configured explicitly
+	if setReadOnly == "" {
 		newMount.Options = append(newMount.Options, "rw")
 	}
 
@@ -727,9 +756,6 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string,
 
 	errInvalidSyntax := errors.New("incorrect mount format: should be --mount type=<bind|tmpfs>,[src=<host-dir>,]target=<ctr-dir>[,options]")
 
-	// TODO(vrothberg): the manual parsing can be replaced with a regular expression
-	//                  to allow a more robust parsing of the mount format and to give
-	//                  precise errors regarding supported format versus supported options.
 	for _, mount := range mounts {
 		tokens := strings.Split(mount, ",")
 		if len(tokens) < 2 {
@@ -809,30 +835,36 @@ func GetTmpfsMount(args []string, workDir string) (specs.Mount, error) {
 		argName, argValue, hasArgValue := strings.Cut(val, "=")
 		switch argName {
 		case "type":
-			// This is already processed
+			// This is already processed, and should be "tmpfs"
 			continue
-		case "ro", "nosuid", "nodev", "noexec":
+		case "nosuid", "nodev", "noexec":
+			if hasArgValue {
+				return newMount, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, argName)
-		case "readonly":
-			// Alias for "ro"
+		case "ro", "readonly":
+			if hasArgValue {
+				return newMount, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			newMount.Options = append(newMount.Options, "ro")
 		case "tmpcopyup":
+			if hasArgValue {
+				return newMount, fmt.Errorf("%v: %w", argName, errBadOptionNoArg)
+			}
 			// the path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
 			newMount.Options = append(newMount.Options, argName)
 		case "tmpfs-mode":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			newMount.Options = append(newMount.Options, fmt.Sprintf("mode=%s", argValue))
 		case "tmpfs-size":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			newMount.Options = append(newMount.Options, fmt.Sprintf("size=%s", argValue))
-		case "src", "source":
-			return newMount, errors.New("source is not supported with tmpfs mounts")
 		case "target", "dst", "destination":
-			if !hasArgValue {
+			if !hasArgValue || argValue == "" {
 				return newMount, fmt.Errorf("%v: %w", argName, errBadOptionArg)
 			}
 			targetPath := argValue
