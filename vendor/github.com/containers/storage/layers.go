@@ -336,6 +336,9 @@ type rwLayerStore interface {
 
 	// Clean up unreferenced layers
 	GarbageCollect() error
+
+	// Dedup deduplicates layers in the store.
+	dedup(drivers.DedupArgs) (drivers.DedupResult, error)
 }
 
 type multipleLockFile struct {
@@ -2599,6 +2602,11 @@ func (r *layerStore) LayersByUncompressedDigest(d digest.Digest) ([]Layer, error
 // Requires startReading or startWriting.
 func (r *layerStore) LayersByTOCDigest(d digest.Digest) ([]Layer, error) {
 	return r.layersByDigestMap(r.bytocsum, d)
+}
+
+// Requires startWriting.
+func (r *layerStore) dedup(req drivers.DedupArgs) (drivers.DedupResult, error) {
+	return r.driver.Dedup(req)
 }
 
 func closeAll(closes ...func() error) (rErr error) {
