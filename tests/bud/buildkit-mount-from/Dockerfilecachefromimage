@@ -1,5 +1,8 @@
 FROM alpine
 RUN mkdir /test
 # use another image as cache source
-# following should fail as cache does not supports mounting image
 RUN --mount=type=cache,from=buildkitbase,target=/test cat /test/hello
+# should be able to "write" to the cache
+RUN --mount=type=cache,from=buildkitbase,target=/test rm /test/hello
+# should be able to "write" to the cache again, since that last write was discarded
+RUN --mount=type=cache,from=buildkitbase,target=/test rm /test/hello
