@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -44,7 +44,6 @@ import (
 	"github.com/openshift/imagebuilder/dockerfile/command"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
 )
 
 // StageExecutor bundles up what we need to know when executing one stage of a
@@ -1931,7 +1930,7 @@ func (s *StageExecutor) getBuildArgsResolvedForRun() string {
 			}
 		}
 	}
-	sort.Strings(envs)
+	slices.Sort(envs)
 	return strings.Join(envs, " ")
 }
 
@@ -1944,7 +1943,7 @@ func (s *StageExecutor) getBuildArgsKey() string {
 			args = append(args, key)
 		}
 	}
-	sort.Strings(args)
+	slices.Sort(args)
 	return strings.Join(args, " ")
 }
 
