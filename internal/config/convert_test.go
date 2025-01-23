@@ -2,6 +2,7 @@ package config
 
 import (
 	"reflect"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -9,7 +10,6 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slices"
 )
 
 // fillAllFields recursively fills in 1 or "1" for every field in the passed-in
