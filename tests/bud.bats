@@ -4668,8 +4668,8 @@ EOM
   echo FROM localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest > $contextdir/Dockerfile
 
   # Try to build from encrypted image without key
-  run_buildah 1 build $WITH_POLICY_JSON --tls-verify=false  --creds testuser:testpassword -t ${target} -f $contextdir/Dockerfile
-  assert "$output" =~ "archive/tar: invalid tar header"
+  run_buildah 125 build $WITH_POLICY_JSON --tls-verify=false  --creds testuser:testpassword -t ${target} -f $contextdir/Dockerfile
+  assert "$output" =~ "does not match config's DiffID"
 
   # Try to build from encrypted image with wrong key
   run_buildah 125 build $WITH_POLICY_JSON --tls-verify=false  --creds testuser:testpassword --decryption-key $contextdir/mykey2.pem -t ${target} -f $contextdir/Dockerfile
