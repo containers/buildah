@@ -143,6 +143,8 @@ _EOF
 
 @test "bud: build push with --force-compression" {
   skip_if_no_podman
+  blobcachedir=${TEST_SCRATCH_DIR}/blobcachelocal
+  mkdir -p ${blobcachedir}
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p $contextdir
 
@@ -165,6 +167,7 @@ _EOF
   # Helper function. push our image with the given options, and run skopeo inspect
   function _test_buildah_push() {
     run_buildah push \
+                --blob-cache=${blobcachedir} \
                 $WITH_POLICY_JSON \
                 --authfile ${TEST_SCRATCH_DIR}/test.auth \
                 --tls-verify=false \

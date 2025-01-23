@@ -63,6 +63,8 @@ function _check_matches() {
 
 # Integration test for https://github.com/containers/image/pull/1645
 @test "blobcache: blobs must be reused when pushing across registry" {
+	blobcachedir=${TEST_SCRATCH_DIR}/cachereuse
+	mkdir -p ${blobcachedir}
 	start_registry
 
 	imgname=blobimg-$(random_string | tr A-Z a-z)
@@ -71,10 +73,10 @@ function _check_matches() {
 	mkdir -p ${outputdir}
 	podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --mount type=bind,src=${outputdir},target=/output,Z --net host quay.io/skopeo/stable copy --preserve-digests --authfile=/test.auth --tls-verify=false docker://registry.fedoraproject.org/fedora-minimal dir:/output
 	run_buildah rmi --all -f
-	run_buildah pull dir:${outputdir}
+	run_buildah pull --blob-cache=${blobcachedir} dir:${outputdir}
 	run_buildah images -a --format '{{.ID}}'
 	cid=$output
-	run_buildah --log-level debug push --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/$imgname
+	run_buildah --log-level debug push --blob-cache=${blobcachedir} --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/$imgname
 	# must not contain "Skipping blob" since push must happen
 	assert "$output" !~ "Skipping blob"
 
@@ -85,15 +87,14 @@ function _check_matches() {
 	then
 		cachedir=$HOME/.local/share
 	fi
-	cachefile=$cachedir/containers/cache/blob-info-cache-v1.sqlite
-	run rm $cachefile
+	run rm -rf $blobcachedir/*
 	assert "$status" -eq 0 "status of `run rm $cachefile` must be 0"
 
 	# In first push blob must be skipped after vendoring https://github.com/containers/image/pull/1645
 	run_buildah pull dir:${outputdir}
 	run_buildah images -a --format '{{.ID}}'
 	cid=$output
-	run_buildah --log-level debug push --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/$imgname
+	run_buildah --log-level debug push --blob-cache=${blobcachedir} --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth $cid docker://localhost:${REGISTRY_PORT}/$imgname
 	expect_output --substring "Skipping blob"
 }
 
