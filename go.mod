@@ -7,7 +7,7 @@ go 1.22.8
 require (
 	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containernetworking/cni v1.2.3
-	github.com/containers/common v0.61.1-0.20250121185748-34a90afcdc6d
+	github.com/containers/common v0.61.1
 	github.com/containers/image/v5 v5.33.2-0.20250122233652-b5c6aff95ca7
 	github.com/containers/luksy v0.0.0-20250106202729-a3a812db5b72
 	github.com/containers/ocicrypt v1.2.1
