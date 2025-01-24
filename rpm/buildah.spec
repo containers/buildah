@@ -150,6 +150,9 @@ rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
 
+# Include check to silence rpmlint.
+%check
+
 %files
 %license LICENSE vendor/modules.txt
 %doc README.md
