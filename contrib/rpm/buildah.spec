@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.26.8
+Version:        1.26.9
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,19 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Fri Jan 24 2025 David Shea <dshea@redhat.com> 1.26.9-1
+- Add build-tag comments
+- Fix cache locks with multiple mounts
+- Disable windows cross compile targets
+- Fix TOCTOU error when bind and cache mounts use "src" values
+- define.TempDirForURL(): always use an intermediate subdirectory
+- internal/volume.GetBindMount(): discard writes in bind mounts
+- pkg/overlay: add a MountLabel flag to Options
+- pkg/overlay: add a ForceMount flag to Options
+- Add internal/volumes.bindFromChroot()
+- Add an internal/open package
+- Allow cache mounts to be stages or additional build contexts
+
 * Mon Oct 21 2024 David Shea <dshea@redhat.com> 1.26.8-1
 - Properly validate cache IDs and sources
 
