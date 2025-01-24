@@ -394,13 +394,25 @@ function configure_and_check_user() {
 	mkdir -p ${TEST_SCRATCH_DIR}/was:empty
 	# As a baseline, this should succeed.
 	run_buildah run --mount type=tmpfs,dst=/var/tmpfs-not-empty                                           $cid touch /var/tmpfs-not-empty/testfile
+	# This should succeed, but the writes should effectively be discarded
 	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,rw${zflag:+,${zflag}}      $cid touch /var/not-empty/testfile
+	if test -r ${TEST_SCRATCH_DIR}/was:empty/testfile ; then
+		die write to mounted type=bind was not discarded, ${TEST_SCRATCH_DIR}/was:empty/testfile exists
+	fi
 	# If we're parsing the options at all, this should be read-only, so it should fail.
 	run_buildah 1 run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
-	# Even if the parent directory doesn't exist yet, this should succeed.
-	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/multi-level/subdirectory,rw          $cid touch /var/multi-level/subdirectory/testfile
-	# And check the same for file volumes.
-	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile,rw        $cid touch /var/different-multi-level/subdirectory/testfile
+	# Even if the parent directory doesn't exist yet, this should succeed, but again the write should be discarded.
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/multi-level/subdirectory,rw${zflag:+,${zflag}}       $cid touch /var/multi-level/subdirectory/testfile
+	if test -r ${TEST_SCRATCH_DIR}/was:empty/testfile ; then
+		die write to mounted type=bind was not discarded, ${TEST_SCRATCH_DIR}/was:empty/testfile exists
+	fi
+	# And check the same for file volumes, which make life harder because the kernel's overlay
+	# filesystem really only wants to be dealing with directories.
+	: > ${TEST_SCRATCH_DIR}/was:empty/testfile
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile,rw${zflag:+,${zflag}}        $cid sh -c 'echo wrote > /var/different-multi-level/subdirectory/testfile'
+	if test -s ${TEST_SCRATCH_DIR}/was:empty/testfile ; then
+		die write to mounted type=bind was not discarded, ${TEST_SCRATCH_DIR}/was:empty/testfile was written to
+	fi
 }
 
 @test "run --mount=type=bind with from like buildkit" {
@@ -408,16 +420,17 @@ function configure_and_check_user() {
 	zflag=
 	if which selinuxenabled > /dev/null 2> /dev/null ; then
 		if selinuxenabled ; then
-			skip "skip if selinux enabled, since stages have different selinux label"
+			zflag=,z
 		fi
 	fi
 	run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $BUDFILES/buildkit-mount-from/Dockerfilebuildkitbase $BUDFILES/buildkit-mount-from/
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	run_buildah run --mount type=bind,source=.,from=buildkitbase,target=/test,z  $cid cat /test/hello
-	expect_output --substring "hello"
-	run_buildah rmi -f buildkitbase
+	run_buildah run --mount type=bind,source=.,from=buildkitbase,target=/test${zflag}  $cid cat /test/hello1
+	expect_output --substring "hello1"
+	run_buildah run --mount type=bind,source=subdir,from=buildkitbase,target=/test${zflag}  $cid cat /test/hello
+	expect_output --substring "hello2"
 }
 
 @test "run --mount=type=cache like buildkit" {
@@ -425,14 +438,14 @@ function configure_and_check_user() {
 	zflag=
 	if which selinuxenabled > /dev/null 2> /dev/null ; then
 		if selinuxenabled ; then
-			skip "skip if selinux enabled, since stages have different selinux label"
+			zflag=,z
 		fi
 	fi
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	run_buildah run --mount type=cache,target=/test,z  $cid sh -c 'echo "hello" > /test/hello && cat /test/hello'
-	run_buildah run --mount type=cache,target=/test,z  $cid cat /test/hello
+	run_buildah run --mount type=cache,target=/test${zflag}  $cid sh -c 'mkdir -p /test/subdir && echo "hello" > /test/subdir/h.txt && cat /test/subdir/h.txt'
+	run_buildah run --mount type=cache,src=subdir,target=/test${zflag}  $cid cat /test/h.txt
 	expect_output --substring "hello"
 }
 
