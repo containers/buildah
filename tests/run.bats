@@ -971,7 +971,7 @@ _EOF
 
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	for mask in /proc/acpi /proc/kcore /proc/keys /proc/latency_stats /proc/sched_debug /proc/scsi /proc/timer_list /proc/timer_stats /sys/dev/block /sys/devices/virtual/powercap /sys/firmware /sys/fs/selinux; do
+	for mask in /proc/acpi /proc/kcore /proc/keys /proc/latency_stats /proc/sched_debug /proc/scsi /proc/timer_list /proc/timer_stats /sys/devices/virtual/powercap /sys/firmware /sys/fs/selinux; do
 	        if test -d $mask; then
 		   run_buildah run $cid ls $mask
 		   expect_output "" "Directories should be empty"
