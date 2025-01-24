@@ -1,3 +1,18 @@
+- Changelog for v1.35.5 (2025-01-20)
+  * Fix TOCTOU error when bind and cache mounts use "src" values
+  * define.TempDirForURL(): always use an intermediate subdirectory
+  * internal/volume.GetBindMount(): discard writes in bind mounts
+  * pkg/overlay: add a MountLabel flag to Options
+  * pkg/overlay: add a ForceMount flag to Options
+  * Add internal/volumes.bindFromChroot()
+  * Add an internal/open package
+  * Properly validate cache IDs and sources
+  * CVE-2024-9407: validate "bind-propagation" flag settings
+  * Allow cache mounts to be stages or additional build contexts
+  * Integration tests: switch some base images
+  * Disable most packit copr targets
+  * Cross-build on Fedora
+
 - Changelog for v1.35.4 (2024-05-09)
   * [release-1.35] CVE-2024-3727 updates
   * integration test: handle new labels in "bud and test --unsetlabel"
