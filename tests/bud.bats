@@ -354,6 +354,151 @@ _EOF
   run_buildah 1 run myctr ls -l subdir/
 }
 
+@test "bud --layers with --mount type bind should burst cache if symlink is changed" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/samplefile1 << _EOF
+First symlink content
+_EOF
+
+  cat > $contextdir/samplefile2 << _EOF
+Second symlink content
+_EOF
+
+  # Create symlink to samplefile1 and we will mount that
+  ln -s samplefile1 $contextdir/tomount
+  pwd
+  ls $contextdir/
+  cat $contextdir/tomount
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=bind,source=tomount,target=file,Z cat file
+_EOF
+
+  # on first run since there is no cache so `samplefile1` must be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  expect_output --substring "First symlink content"
+
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  # output should not contain content from the file since entire build is cached
+  assert "$output" !~ "First symlink content"
+
+  # Modify the symlink
+  ln -sf samplefile2 $contextdir/tomount 
+
+  # on third run since we have changed symlink so cache must burst.
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  expect_output --substring "Second symlink content"
+}
+
+@test "bud --layers with --mount type bind should burst cache if content is changed" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/samplefile << _EOF
+samplefile
+_EOF
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=bind,target=/test,Z ls /test
+_EOF
+
+  # on first run since there is no cache so `samplefile` must be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  expect_output --substring "samplefile"
+
+  # on second run since there is cache so `samplefile` should not be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  # output should not contain `samplefile`
+  assert "$output" !~ "samplefile"
+
+  cat > $contextdir/anotherfile << _EOF
+anotherfile
+_EOF
+
+  # on third run since we have added new file `anotherfile` so cache must burst.
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  expect_output --substring "samplefile"
+  expect_output --substring "anotherfile"
+}
+
+@test "bud --layers with --mount type bind should burst and multiple mounts cache if content is changed" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/samplefile << _EOF
+samplefile
+_EOF
+
+  cat > $contextdir/testfile << _EOF
+Helloworld
+_EOF
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=bind,target=/test,Z --mount=type=bind,source=testfile,target=testfile,Z ls /test && cat testfile
+_EOF
+
+  # on first run since there is no cache so `samplefile` must be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  expect_output --substring "samplefile"
+  expect_output --substring "Helloworld"
+
+  # on second run since there is cache so `samplefile` should not be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  # output should not contain `samplefile`
+  assert "$output" !~ "samplefile"
+
+  # Modify sample file 2
+  cat > $contextdir/testfile << _EOF
+Helloworld2
+_EOF
+
+  # on third run since we have modified `testfile` so cache must burst.
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  expect_output --substring "samplefile"
+  expect_output --substring "Helloworld2"
+}
+
+@test "bud --layers with --mount type bind should burst cache if content is changed - source is additional build context" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/samplefile << _EOF
+samplefile2
+_EOF
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=bind,from=one,target=/test,Z ls /test
+_EOF
+
+  # on first run since there is no cache so `samplefile` must be printed
+  run_buildah build $WITH_POLICY_JSON --build-context one=$contextdir --layers -t source -f $contextdir/Containerfile
+  expect_output --substring "samplefile"
+
+  # on second run since there is cache so `samplefile` should not be printed
+  run_buildah build $WITH_POLICY_JSON --build-context one=$contextdir --layers -t source -f $contextdir/Containerfile
+  # output should not `samplefile` since cache is being used
+  assert "$output" !~ "samplefile"
+
+  cat > $contextdir/anotherfile << _EOF
+anotherfile2
+_EOF
+
+  # on third run since we have added new file `anotherfile` so cache must burst.
+  run_buildah build $WITH_POLICY_JSON --build-context one=$contextdir --layers -t source -f $contextdir/Containerfile
+  expect_output --substring "samplefile"
+  expect_output --substring "anotherfile"
+}
+
 @test "bud --layers should not hit cache if heredoc is changed" {
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
