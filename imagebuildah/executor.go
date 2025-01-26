@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"slices"
 	"strconv"
@@ -163,6 +164,7 @@ type Executor struct {
 	compatVolumes                           types.OptionalBool
 	compatScratchConfig                     types.OptionalBool
 	noPivotRoot                             bool
+	argResult                               map[string]map[string]string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -323,6 +325,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		compatVolumes:                           options.CompatVolumes,
 		compatScratchConfig:                     options.CompatScratchConfig,
 		noPivotRoot:                             options.NoPivotRoot,
+		argResult:                               make(map[string]map[string]string),
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -412,7 +415,7 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 // that the specified stage has finished.  If there is no stage defined by that
 // name, then it will return (false, nil).  If there is a stage defined by that
 // name, it will return true along with any error it encounters.
-func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, error) {
+func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, map[string]string, error) {
 	found := false
 	for _, otherStage := range stages {
 		if otherStage.Name == name || strconv.Itoa(otherStage.Position) == name {
@@ -421,30 +424,39 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 		}
 	}
 	if !found {
-		return false, nil
+		return false, nil, nil
 	}
 	for {
 		if b.lastError != nil {
-			return true, b.lastError
+			return true, nil, b.lastError
 		}
 
 		b.stagesLock.Lock()
 		terminationError, terminated := b.terminatedStage[name]
+		args := b.argResult[name]
 		b.stagesLock.Unlock()
 
 		if terminationError != nil {
-			return false, terminationError
+			return false, nil, terminationError
 		}
 		if terminated {
-			return true, nil
+			return true, nil, nil
 		}
 
 		b.stagesSemaphore.Release(1)
 		time.Sleep(time.Millisecond * 10)
 		if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
-			return true, fmt.Errorf("reacquiring job semaphore: %w", err)
+			return true, args, fmt.Errorf("reacquiring job semaphore: %w", err)
 		}
 	}
+}
+
+// freezeArgs stores a copy of the argument map for further use in dependent stages
+func (b *Executor) freezeArgs(name string, args map[string]string) {
+	copiedArgs := maps.Clone(args)
+	b.stagesLock.Lock()
+	b.argResult[name] = copiedArgs
+	b.stagesLock.Unlock()
 }
 
 // getImageTypeAndHistoryAndDiffIDs returns the manifest type, history, and diff IDs list of imageID.
