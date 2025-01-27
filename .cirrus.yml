@@ -301,6 +301,9 @@ in_podman_task:
     skip: *not_build_docs
     depends_on: *smoke_vendor
 
+    gce_instance:
+        cpu: 4
+
     env:
         # This is key, cause the scripts to re-execute themselves inside a container.
         IN_PODMAN: 'true'
