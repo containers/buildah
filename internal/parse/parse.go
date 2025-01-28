@@ -777,7 +777,7 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string,
 			finalMounts[mount.Destination] = mount
 		case TypeCache:
 			mount, intermediateMount, lockedPaths, err := GetCacheMount(tokens, nil, tmpDir)
-			lockedTargets = lockedPaths
+			lockedTargets = append(lockedTargets, lockedPaths...)
 			if err != nil {
 				return nil, nil, nil, nil, nil, err
 			}
