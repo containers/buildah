@@ -10,6 +10,7 @@ import (
 )
 
 func TestBindFdToPath(t *testing.T) {
+	t.Parallel()
 	first := t.TempDir()
 	sampleData := []byte("sample data")
 	err := os.WriteFile(filepath.Join(first, "testfile"), sampleData, 0o600)

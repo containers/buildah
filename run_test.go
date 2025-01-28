@@ -10,6 +10,7 @@ import (
 )
 
 func TestAddRlimits(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
 		name   string
 		ulimit []string

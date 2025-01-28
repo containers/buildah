@@ -25,6 +25,7 @@ func (c *CompositeDigester) isOpen() bool {
 }
 
 func TestCompositeDigester(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		itemTypes  []string
@@ -186,6 +187,7 @@ func TestCompositeDigester(t *testing.T) {
 }
 
 func TestTarFilterer(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		input, output map[string]string

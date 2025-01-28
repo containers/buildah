@@ -41,6 +41,7 @@ func (ts *testRetryCopyImageWrappedStore) CreateImage(id string, names []string,
 }
 
 func TestRetryCopyImage(t *testing.T) {
+	t.Parallel()
 	ctx := context.TODO()
 
 	graphDriverName := os.Getenv("STORAGE_DRIVER")

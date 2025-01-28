@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestRusage(t *testing.T) {
+	t.Parallel()
 	if !Supported() {
 		t.Skip("not supported on this platform")
 	}

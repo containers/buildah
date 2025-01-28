@@ -8,6 +8,7 @@ import (
 )
 
 func TestPreset(t *testing.T) {
+	t.Parallel()
 	for presetName, expectToFind := range map[string]bool{
 		"":                true,
 		"syft":            true,

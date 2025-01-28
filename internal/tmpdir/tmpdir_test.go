@@ -11,6 +11,7 @@ import (
 )
 
 func TestGetTempDir(t *testing.T) {
+	t.Parallel()
 	// test default
 	err := os.Unsetenv("TMPDIR")
 	require.NoError(t, err)

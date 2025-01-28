@@ -148,6 +148,7 @@ func checkValue(t *testing.T, value reflect.Value, name string, kind reflect.Kin
 }
 
 func TestGoDockerclientConfigFromSchema2Config(t *testing.T) {
+	t.Parallel()
 	var input manifest.Schema2Config
 	fillAllFields(t, &input)
 	output := GoDockerclientConfigFromSchema2Config(&input)
@@ -157,6 +158,7 @@ func TestGoDockerclientConfigFromSchema2Config(t *testing.T) {
 }
 
 func TestSchema2ConfigFromGoDockerclientConfig(t *testing.T) {
+	t.Parallel()
 	var input dockerclient.Config
 	fillAllFields(t, &input)
 	output := Schema2ConfigFromGoDockerclientConfig(&input)

@@ -5,6 +5,7 @@ import (
 )
 
 func TestSizeFormatting(t *testing.T) {
+	t.Parallel()
 	size := formattedSize(0)
 	if size != "0 B" {
 		t.Errorf("Error formatting size: expected '%s' got '%s'", "0 B", size)
@@ -22,6 +23,7 @@ func TestSizeFormatting(t *testing.T) {
 }
 
 func TestMatchWithTag(t *testing.T) {
+	t.Parallel()
 	isMatch := matchesReference("gcr.io/pause:latest", "pause:latest")
 	if !isMatch {
 		t.Error("expected match, got not match")
@@ -34,6 +36,7 @@ func TestMatchWithTag(t *testing.T) {
 }
 
 func TestNoMatchesReferenceWithTag(t *testing.T) {
+	t.Parallel()
 	isMatch := matchesReference("gcr.io/pause:latest", "redis:latest")
 	if isMatch {
 		t.Error("expected no match, got match")
@@ -46,6 +49,7 @@ func TestNoMatchesReferenceWithTag(t *testing.T) {
 }
 
 func TestMatchesReferenceWithoutTag(t *testing.T) {
+	t.Parallel()
 	isMatch := matchesReference("gcr.io/pause:latest", "pause")
 	if !isMatch {
 		t.Error("expected match, got not match")
@@ -58,6 +62,7 @@ func TestMatchesReferenceWithoutTag(t *testing.T) {
 }
 
 func TestNoMatchesReferenceWithoutTag(t *testing.T) {
+	t.Parallel()
 	isMatch := matchesReference("gcr.io/pause:latest", "redis")
 	if isMatch {
 		t.Error("expected no match, got match")
