@@ -11,6 +11,7 @@ import (
 )
 
 func TestHistoryEntriesEqual(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		a, b  string
 		equal bool

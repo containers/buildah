@@ -10,6 +10,7 @@ import (
 )
 
 func TestBindFromChroot(t *testing.T) {
+	t.Parallel()
 	if os.Getuid() != 0 {
 		t.Skip("not running as root, assuming we can't mount or chroot")
 	}

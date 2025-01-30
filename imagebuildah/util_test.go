@@ -12,6 +12,7 @@ import (
 )
 
 func TestGeneratePathChecksum(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	tempFile, err := os.CreateTemp(tempDir, "testfile")

@@ -10,6 +10,7 @@ import (
 )
 
 func TestEncodeJSON(t *testing.T) {
+	t.Parallel()
 	tmp := t.TempDir()
 	map1 := map[string]any{
 		"string": "yeah",
@@ -56,6 +57,7 @@ func TestEncodeJSON(t *testing.T) {
 }
 
 func TestDecodeJSON(t *testing.T) {
+	t.Parallel()
 	tmp := t.TempDir()
 	var map1, map2, map3 map[string]any
 	err := os.WriteFile(filepath.Join(tmp, "1.json"), []byte(`
@@ -93,6 +95,7 @@ func TestDecodeJSON(t *testing.T) {
 }
 
 func TestGetComponentNameVersionPurl(t *testing.T) {
+	t.Parallel()
 	input := map[string]any{
 		"name":    "alice",
 		"version": "1.0",
@@ -123,6 +126,7 @@ func TestGetComponentNameVersionPurl(t *testing.T) {
 }
 
 func TestGetLicenseID(t *testing.T) {
+	t.Parallel()
 	input := map[string]any{
 		"licenseId": "driver",
 	}
@@ -132,6 +136,7 @@ func TestGetLicenseID(t *testing.T) {
 }
 
 func TestGetPackageNameVersionInfoPurl(t *testing.T) {
+	t.Parallel()
 	input := map[string]any{
 		"name":        "alice",
 		"versionInfo": "1.0",
@@ -194,6 +199,7 @@ func TestGetPackageNameVersionInfoPurl(t *testing.T) {
 }
 
 func TestMergeSlicesWithoutDuplicatesFixed(t *testing.T) {
+	t.Parallel()
 	base := map[string]any{
 		"array": []any{
 			map[string]any{"first": 1},
@@ -217,6 +223,7 @@ func TestMergeSlicesWithoutDuplicatesFixed(t *testing.T) {
 }
 
 func TestMergeSlicesWithoutDuplicatesDynamic(t *testing.T) {
+	t.Parallel()
 	base := map[string]any{
 		"array": []any{
 			map[string]any{"first": 1},
@@ -246,6 +253,7 @@ func TestMergeSlicesWithoutDuplicatesDynamic(t *testing.T) {
 }
 
 func TestMergeSlicesWithoutDuplicatesNoop(t *testing.T) {
+	t.Parallel()
 	base := map[string]any{
 		"array": []any{
 			map[string]any{"first": 1},
@@ -269,6 +277,7 @@ func TestMergeSlicesWithoutDuplicatesNoop(t *testing.T) {
 }
 
 func TestMergeSlicesWithoutDuplicatesMissing(t *testing.T) {
+	t.Parallel()
 	base := map[string]any{
 		"array": []any{
 			map[string]any{"first": 1},

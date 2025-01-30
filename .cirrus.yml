@@ -154,6 +154,8 @@ cross_build_task:
 
 unit_task:
     name: 'Unit tests w/ $STORAGE_DRIVER'
+    gce_instance:
+      cpu: 4
     alias: unit
     skip: &not_build_docs >-
         $CIRRUS_CHANGE_TITLE =~ '.*CI:DOCS.*' ||

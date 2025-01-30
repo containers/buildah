@@ -10,6 +10,7 @@ import (
 )
 
 func TestReadWriteWorkloadConfig(t *testing.T) {
+	t.Parallel()
 	// Create a temporary file to stand in for a disk image.
 	temp := filepath.Join(t.TempDir(), "disk.img")
 	f, err := os.OpenFile(temp, os.O_CREATE|os.O_RDWR, 0o600)

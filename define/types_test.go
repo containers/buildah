@@ -7,6 +7,7 @@ import (
 )
 
 func TestParseGitBuildContext(t *testing.T) {
+	t.Parallel()
 	// Tests with only repo
 	repo, subdir, branch := parseGitBuildContext("https://github.com/containers/repo.git")
 	assert.Equal(t, repo, "https://github.com/containers/repo.git")
