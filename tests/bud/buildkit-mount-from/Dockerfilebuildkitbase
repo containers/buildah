@@ -1,2 +1,3 @@
 FROM scratch
-COPY hello .
+COPY hello hello1 .
+COPY hello2 /subdir/hello
