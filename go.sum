@@ -73,8 +73,8 @@ github.com/containers/luksy v0.0.0-20250106202729-a3a812db5b72 h1:hdBIFaml6hO+Ba
 github.com/containers/luksy v0.0.0-20250106202729-a3a812db5b72/go.mod h1:UpMgEjd9XelIA/iK+qD3hWIrZY/M3eaepn+gm5U8OYE=
 github.com/containers/ocicrypt v1.2.1 h1:0qIOTT9DoYwcKmxSt8QJt+VzMY18onl9jUXsxpVhSmM=
 github.com/containers/ocicrypt v1.2.1/go.mod h1:aD0AAqfMp0MtwqWgHM1bUwe1anx0VazI108CRrSKINQ=
-github.com/containers/storage v1.57.0 h1:ANTF3oOC62wym590lkFuGCg1IIedobfHIUg7zw61awc=
-github.com/containers/storage v1.57.0/go.mod h1:i/Hb4lu7YgFr9G0K6BMjqW0BLJO1sFsnWQwj2UoWCUM=
+github.com/containers/storage v1.57.1 h1:hKPoFsuBcB3qTzBxa4IFpZMRzUuL5Xhv/BE44W0XHx8=
+github.com/containers/storage v1.57.1/go.mod h1:i/Hb4lu7YgFr9G0K6BMjqW0BLJO1sFsnWQwj2UoWCUM=
 github.com/coreos/go-systemd/v22 v22.5.0 h1:RrqgGjYQKalulkV8NGVIfkXQf6YYmOyiJKk8iXXhfZs=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
