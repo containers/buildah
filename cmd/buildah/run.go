@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
-	internalParse "github.com/containers/buildah/internal/parse"
 	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/internal/volumes"
 	buildahcli "github.com/containers/buildah/pkg/cli"

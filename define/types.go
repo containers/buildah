@@ -48,7 +48,15 @@ const (
 	OCI = "oci"
 	// DOCKER used to define the "docker" image format
 	DOCKER = "docker"
+
+	// SEV is a known trusted execution environment type: AMD-SEV (secure encrypted virtualization using encrypted state, requires epyc 1000 "naples")
+        SEV TeeType = "sev"
+        // SNP is a known trusted execution environment type: AMD-SNP (SEV secure nested pages) (requires epyc 3000 "milan")
+        SNP TeeType = "snp"
 )
+
+// TeeType is a supported trusted execution environment type.
+type TeeType string
 
 var (
 	// DefaultCapabilities is the list of capabilities which we grant by
@@ -115,6 +123,7 @@ type ConfidentialWorkloadOptions struct {
 	CPUs                     int
 	Memory                   int
 	TempDir                  string
+	TeeType                  TeeType
 	IgnoreAttestationErrors  bool
 	WorkloadID               string
 	DiskEncryptionPassphrase string

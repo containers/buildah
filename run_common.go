@@ -27,7 +27,6 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
 	internalParse "github.com/containers/buildah/internal/parse"
-	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/internal/volumes"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/sshagent"
@@ -1523,7 +1522,7 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 	for _, mount := range mounts {
 		var mountSpec *specs.Mount
 		var err error
-		var envFile, image, bundleMountsDir, overlayDir, intermediateMount string
+		var image, bundleMountsDir, overlayDir, intermediateMount string
 		var agent *sshagent.AgentServer
 		var tl *lockfile.LockFile
 
@@ -1557,7 +1556,6 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 			}
 			if mountSpec != nil {
 				finalMounts = append(finalMounts, *mountSpec)
-				mountTargets = append(mountTargets, mount.Destination)
 				agents = append(agents, agent)
 				if len(agents) == 0 {
 					defaultSSHSock = mountSpec.Destination
@@ -1575,7 +1573,6 @@ func (b *Builder) runSetupRunMounts(mountPoint, bundlePath string, mounts []stri
 				return nil, nil, err
 			}
 			finalMounts = append(finalMounts, *mountSpec)
-			mountTargets = append(mountTargets, mount.Destination)
 			if image != "" {
 				mountImages = append(mountImages, image)
 			}
