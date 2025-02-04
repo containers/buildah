@@ -609,6 +609,10 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 // items in the passed-in mounts list which include a "from=" value.
 func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]internal.StageMountDetails, error) {
 	stageMountPoints := make(map[string]internal.StageMountDetails)
+	stageMountPoints[""] = internal.StageMountDetails{
+		MountPoint:               s.executor.contextDir,
+		IsWritesDiscardedOverlay: s.executor.contextDirWritesAreDiscarded,
+	}
 	for _, flag := range mountList {
 		if strings.Contains(flag, "from") {
 			tokens := strings.Split(flag, ",")
@@ -1012,16 +1016,6 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
 	if err != nil {
 		return nil, fmt.Errorf("creating build container: %w", err)
-	}
-
-	// If executor's ProcessLabel and MountLabel is empty means this is the first stage
-	// Make sure we share first stage's ProcessLabel and MountLabel with all other subsequent stages
-	// Doing this will ensure and one stage in same build can mount another stage even if `selinux`
-	// is enabled.
-
-	if s.executor.mountLabel == "" && s.executor.processLabel == "" {
-		s.executor.mountLabel = builder.MountLabel
-		s.executor.processLabel = builder.ProcessLabel
 	}
 
 	if initializeIBConfig {
