@@ -7,6 +7,7 @@ import (
 )
 
 func TestDiscoverContainerfile(t *testing.T) {
+	t.Parallel()
 	_, err := DiscoverContainerfile("./bogus")
 	assert.NotNil(t, err)
 

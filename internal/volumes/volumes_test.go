@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetMount(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 	rootDir := t.TempDir()
 	runDir := t.TempDir()

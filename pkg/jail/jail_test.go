@@ -10,6 +10,7 @@ import (
 )
 
 func TestParseVersion(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
 		version                  string
 		shouldFail               bool

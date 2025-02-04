@@ -66,6 +66,7 @@ func (d *dummyAttestationHandler) ServeHTTP(rw http.ResponseWriter, req *http.Re
 }
 
 func TestCWConvertImage(t *testing.T) {
+	t.Parallel()
 	ctx := context.TODO()
 	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
 		for _, ignoreChainRetrievalErrors := range []bool{false, true} {

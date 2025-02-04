@@ -19,6 +19,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestOpenInChroot(t *testing.T) {
+	t.Parallel()
 	tmpdir := t.TempDir()
 	firstContents := []byte{0, 1, 2, 3}
 	secondContents := []byte{4, 5, 6, 7}

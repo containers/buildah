@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestOpenBuilderCommonBuildOpts(t *testing.T) {
+	t.Parallel()
 	ctx := context.TODO()
 	store, err := storage.GetStore(types.StoreOptions{
 		RunRoot:         t.TempDir(),

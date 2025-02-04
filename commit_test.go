@@ -21,6 +21,7 @@ import (
 )
 
 func TestCommitLinkedLayers(t *testing.T) {
+	t.Parallel()
 	ctx := context.TODO()
 	now := time.Now()
 

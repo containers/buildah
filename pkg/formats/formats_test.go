@@ -11,6 +11,7 @@ type ImageData struct {
 }
 
 func TestSetJSONFormatEncoder(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
 		name       string
 		imageData  *ImageData

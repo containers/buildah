@@ -16,6 +16,7 @@ kmem:*:2:
 `
 
 func TestParseStripComments(t *testing.T) {
+	t.Parallel()
 	// Test reading group file, ignoring comment lines
 	rc := bufio.NewScanner(strings.NewReader(testGroupData))
 	line, ok := scanWithoutComments(rc)
@@ -24,6 +25,7 @@ func TestParseStripComments(t *testing.T) {
 }
 
 func TestParseNextGroup(t *testing.T) {
+	t.Parallel()
 	// Test parsing group file
 	rc := bufio.NewScanner(strings.NewReader(testGroupData))
 	expected := []lookupGroupEntry{
