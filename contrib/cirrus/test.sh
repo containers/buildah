@@ -67,7 +67,13 @@ else
             showrun make validate
             ;;
         unit)
-            showrun make test-unit
+            race=
+            if [[ -z "$CIRRUS_PR" ]]; then
+               # If not running on a PR then run unit tests
+               # with appropriate `-race` flags.
+               race="-race"
+            fi
+            showrun make test-unit RACEFLAGS=$race
             ;;
         conformance)
             # Typically it's undesirable to install packages at runtime.
