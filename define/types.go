@@ -115,7 +115,6 @@ type ConfidentialWorkloadOptions struct {
 	CPUs                     int
 	Memory                   int
 	TempDir                  string
-	TeeType                  TeeType
 	IgnoreAttestationErrors  bool
 	WorkloadID               string
 	DiskEncryptionPassphrase string
