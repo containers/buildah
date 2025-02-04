@@ -9017,3 +9017,45 @@ EOF
     done
   done
 }
+
+@test "build-oci-archive-switch" {
+  local base=busybox
+  _prefetch $base
+  run_buildah from -q $base
+  run_buildah inspect --format '{{.FromImageID}}' "$output"
+  local imageID="$output"
+  mkdir -p ${TEST_SCRATCH_DIR}/buildcontext
+  copy containers-storage:$imageID oci-archive:${TEST_SCRATCH_DIR}/buildcontext/source-oci-archive.tar
+  copy containers-storage:$imageID oci:${TEST_SCRATCH_DIR}/buildcontext/source-oci
+  copy containers-storage:$imageID docker-archive:${TEST_SCRATCH_DIR}/buildcontext/source-docker-archive.tar
+  copy containers-storage:$imageID dir:${TEST_SCRATCH_DIR}/buildcontext/source-dir
+  pushd ${TEST_SCRATCH_DIR}
+  cat > ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile << EOF
+  FROM $base
+  RUN --mount=type=bind,rw,target=/bc mkdir /bc/oci-archive /bc/oci /bc/docker-archive /bc/dir
+  RUN --mount=type=bind,rw,target=/bc cp /bc/source-oci-archive.tar /bc/oci-archive/archive.tar
+  RUN --mount=type=bind,rw,target=/bc cp -a /bc/source-oci/* /bc/oci/
+  RUN --mount=type=bind,rw,target=/bc cp /bc/source-docker-archive.tar /bc/docker-archive/archive.tar
+  RUN --mount=type=bind,rw,target=/bc cp -a /bc/source-dir/* /bc/dir/
+EOF
+  local stage=0
+  local mounts=
+  for base in oci-archive:oci-archive/archive.tar oci:oci docker-archive:docker-archive/archive.tar dir:dir ; do
+    local dirsuffix=
+    case $base in
+      dir:*|oci:*)
+        dirsuffix=/
+        ;;
+    esac
+    for prefix in "" / ./ ; do
+      for suffix in "" ${dirsuffix} ; do
+        local adjustedbase=${base/:/:${prefix}}${suffix}
+        echo FROM $adjustedbase >> ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile
+        mounts="$mounts --mount=type=bind,from=$stage,target=/var/tmp/$stage"
+        echo "RUN$mounts :" >> ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile
+        stage=$((stage+1))
+      done
+    done
+  done
+  run_buildah build ${TEST_SCRATCH_DIR}/buildcontext
+}

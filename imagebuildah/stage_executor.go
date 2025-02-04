@@ -20,6 +20,7 @@ import (
 	buildahdocker "github.com/containers/buildah/docker"
 	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/internal/metadata"
+	"github.com/containers/buildah/internal/sanitize"
 	"github.com/containers/buildah/internal/tmpdir"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
@@ -937,6 +938,29 @@ func (s *stageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 	return errors.New(err)
 }
 
+// sanitizeFrom limits which image names (with or without transport prefixes)
+// we'll accept.  For those it accepts which refer to filesystem objects, where
+// relative path names are evaluated relative to "contextDir", it will create a
+// copy of the original image, under "tmpdir", which contains no symbolic
+// links, and return either the original image reference or a reference to a
+// sanitized copy which should be used instead.
+func (s *stageExecutor) sanitizeFrom(from, tmpdir string) (newFrom string, err error) {
+	transportName, restOfImageName, maybeHasTransportName := strings.Cut(from, ":")
+	if !maybeHasTransportName || transports.Get(transportName) == nil {
+		if _, err = reference.ParseNormalizedNamed(from); err == nil {
+			// this is a normal-looking image-in-a-registry-or-named-in-storage name
+			return from, nil
+		}
+		if img, err := s.executor.store.Image(from); img != nil && err == nil {
+			// this is an image ID
+			return from, nil
+		}
+		return "", fmt.Errorf("parsing image name %q: %w", from, err)
+	}
+	// TODO: drop this part and just return an error... someday
+	return sanitize.ImageName(transportName, restOfImageName, s.executor.contextDir, tmpdir)
+}
+
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
@@ -952,6 +976,10 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			return nil, fmt.Errorf("determining starting point for build: %w", err)
 		}
 		from = base
+	}
+	sanitizedFrom, err := s.sanitizeFrom(from, tmpdir.GetTempDir())
+	if err != nil {
+		return nil, fmt.Errorf("invalid base image specification %q: %w", from, err)
 	}
 	displayFrom := from
 	if ib.Platform != "" {
@@ -992,7 +1020,7 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 
 	builderOptions := buildah.BuilderOptions{
 		Args:                  ib.Args,
-		FromImage:             from,
+		FromImage:             sanitizedFrom,
 		GroupAdd:              s.executor.groupAdd,
 		PullPolicy:            pullPolicy,
 		ContainerSuffix:       s.executor.containerSuffix,
