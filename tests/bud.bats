@@ -978,7 +978,7 @@ symlink(subdir)"
   _prefetch busybox
   run_buildah 125 build -t testbud3 $WITH_POLICY_JSON $BUDFILES/dockerignore3
   expect_output --substring 'building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
-  expect_output --substring $(realpath "$BUDFILES/dockerignore3/.dockerignore")
+  expect_output --substring 'filtered out using /[^ ]*/.dockerignore'
 }
 
 @test "bud with .dockerignore #4" {

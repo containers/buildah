@@ -168,7 +168,9 @@ type RunOptions struct {
 	SSHSources map[string]*sshagent.Source `json:"-"`
 	// RunMounts are unparsed mounts to be added for this run
 	RunMounts []string
-	// Map of stages and container mountpoint if any from stage executor
+	// Map of already-mounted stages, images, and container mountpoints
+	// which entries in `RunMounts` might be referring to.  If a value for
+	// the "" key is present, it points to the context directory.
 	StageMountPoints map[string]internal.StageMountDetails
 	// IDs of mounted images to be unmounted before returning
 	// Deprecated: before 1.39, these images would not be consistently

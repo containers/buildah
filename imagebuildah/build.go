@@ -284,6 +284,12 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		}
 
 		builds.Go(func() error {
+			contextDirectory, processLabel, mountLabel, usingContextOverlay, cleanupOverlay, err := platformSetupContextDirectoryOverlay(store, &options)
+			if err != nil {
+				return fmt.Errorf("mounting an overlay over build context directory: %w", err)
+			}
+			defer cleanupOverlay()
+			platformOptions.ContextDirectory = contextDirectory
 			loggerPerPlatform := logger
 			if platformOptions.LogFile != "" && platformOptions.LogSplitByPlatform {
 				logFile := platformOptions.LogFile + "_" + platformOptions.OS + "_" + platformOptions.Architecture
@@ -302,7 +308,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 				platformOptions.ReportWriter = reporter
 				platformOptions.Err = stderr
 			}
-			thisID, thisRef, err := buildDockerfilesOnce(ctx, store, loggerPerPlatform, logPrefix, platformOptions, paths, files)
+			thisID, thisRef, err := buildDockerfilesOnce(ctx, store, loggerPerPlatform, logPrefix, platformOptions, paths, files, processLabel, mountLabel, usingContextOverlay)
 			if err != nil {
 				if errorContext := strings.TrimSpace(logPrefix); errorContext != "" {
 					return fmt.Errorf("%s: %w", errorContext, err)
@@ -413,7 +419,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	return id, ref, nil
 }
 
-func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logrus.Logger, logPrefix string, options define.BuildOptions, containerFiles []string, dockerfilecontents [][]byte) (string, reference.Canonical, error) {
+func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logrus.Logger, logPrefix string, options define.BuildOptions, containerFiles []string, dockerfilecontents [][]byte, processLabel, mountLabel string, usingContextOverlay bool) (string, reference.Canonical, error) {
 	mainNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfilecontents[0]))
 	if err != nil {
 		return "", nil, fmt.Errorf("parsing main Dockerfile: %s: %w", containerFiles[0], err)
@@ -454,7 +460,7 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 		mainNode.Children = append(mainNode.Children, additionalNode.Children...)
 	}
 
-	exec, err := newExecutor(logger, logPrefix, store, options, mainNode, containerFiles)
+	exec, err := newExecutor(logger, logPrefix, store, options, mainNode, containerFiles, processLabel, mountLabel, usingContextOverlay)
 	if err != nil {
 		return "", nil, fmt.Errorf("creating build executor: %w", err)
 	}
