@@ -123,6 +123,7 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 }
 
 func TestNoop(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -130,6 +131,7 @@ func TestNoop(t *testing.T) {
 }
 
 func TestMinimalSkeleton(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -142,6 +144,7 @@ func TestMinimalSkeleton(t *testing.T) {
 }
 
 func TestProcessTerminal(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -160,6 +163,7 @@ func TestProcessTerminal(t *testing.T) {
 }
 
 func TestProcessConsoleSize(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -182,6 +186,7 @@ func TestProcessConsoleSize(t *testing.T) {
 }
 
 func TestProcessUser(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -205,6 +210,7 @@ func TestProcessUser(t *testing.T) {
 }
 
 func TestProcessEnv(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -226,6 +232,7 @@ func TestProcessEnv(t *testing.T) {
 }
 
 func TestProcessCwd(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -245,6 +252,7 @@ func TestProcessCwd(t *testing.T) {
 }
 
 func TestProcessCapabilities(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -289,6 +297,7 @@ func TestProcessCapabilities(t *testing.T) {
 }
 
 func TestProcessRlimits(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -327,6 +336,7 @@ func TestProcessRlimits(t *testing.T) {
 }
 
 func TestProcessNoNewPrivileges(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -348,6 +358,7 @@ func TestProcessNoNewPrivileges(t *testing.T) {
 }
 
 func TestProcessOOMScoreAdj(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -370,6 +381,7 @@ func TestProcessOOMScoreAdj(t *testing.T) {
 }
 
 func TestHostname(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -387,6 +399,7 @@ func TestHostname(t *testing.T) {
 }
 
 func TestMounts(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -547,6 +560,7 @@ func TestMounts(t *testing.T) {
 }
 
 func TestLinuxIDMapping(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
@@ -584,6 +598,7 @@ func TestLinuxIDMapping(t *testing.T) {
 }
 
 func TestLinuxIDMappingShift(t *testing.T) {
+	t.Parallel()
 	if unix.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}

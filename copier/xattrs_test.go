@@ -17,6 +17,7 @@ func init() {
 }
 
 func TestXattrs(t *testing.T) {
+	t.Parallel()
 	if !xattrsSupported {
 		t.Skipf("xattrs are not supported on this platform, skipping")
 	}

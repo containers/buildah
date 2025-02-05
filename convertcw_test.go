@@ -66,6 +66,12 @@ func (d *dummyAttestationHandler) ServeHTTP(rw http.ResponseWriter, req *http.Re
 }
 
 func TestCWConvertImage(t *testing.T) {
+	// This test cannot be parallized as this uses NewBuilder()
+	// which eventually and indirectly accesses a global variable
+	// defined in `go-selinux`, this must be fixed at `go-selinux`
+	// or builder must enable sometime of locking mechanism i.e if
+	// routine is creating Builder other's must wait for it.
+	// Tracked here: https://github.com/containers/buildah/issues/5967
 	ctx := context.TODO()
 	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
 		for _, ignoreChainRetrievalErrors := range []bool{false, true} {

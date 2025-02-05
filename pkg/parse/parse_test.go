@@ -14,6 +14,7 @@ import (
 )
 
 func TestCommonBuildOptionsFromFlagSet(t *testing.T) {
+	t.Parallel()
 	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
 	fs.String("memory", "1GB", "")
 	fs.String("shm-size", "5TB", "")
@@ -29,6 +30,7 @@ func TestCommonBuildOptionsFromFlagSet(t *testing.T) {
 
 // TestDeviceParser verifies the given device strings is parsed correctly
 func TestDeviceParser(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("Devices is only supported on Linux")
 	}
@@ -76,6 +78,7 @@ func TestDeviceParser(t *testing.T) {
 }
 
 func TestIsValidDeviceMode(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("Devices is only supported on Linux")
 	}
@@ -88,6 +91,7 @@ func TestIsValidDeviceMode(t *testing.T) {
 }
 
 func TestDeviceFromPath(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("Devices is only supported on Linux")
 	}
@@ -115,6 +119,7 @@ func TestDeviceFromPath(t *testing.T) {
 }
 
 func TestIDMappingOptions(t *testing.T) {
+	t.Parallel()
 	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
 	pfs := pflag.NewFlagSet("persist", pflag.PanicOnError)
 	fs.String("userns-uid-map-user", "", "")
@@ -134,6 +139,7 @@ func TestIDMappingOptions(t *testing.T) {
 }
 
 func TestIsolation(t *testing.T) {
+	t.Parallel()
 	def, err := defaultIsolation()
 	if err != nil {
 		assert.Error(t, err)
@@ -162,6 +168,7 @@ func TestIsolation(t *testing.T) {
 }
 
 func TestNamespaceOptions(t *testing.T) {
+	t.Parallel()
 	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
 	fs.String("cgroupns", "", "")
 	err := fs.Parse([]string{"--cgroupns", "private"})
@@ -176,6 +183,7 @@ func TestNamespaceOptions(t *testing.T) {
 }
 
 func TestParsePlatform(t *testing.T) {
+	t.Parallel()
 	os, arch, variant, err := Platform("a/b/c")
 	assert.NoError(t, err)
 	assert.NoError(t, err)
@@ -195,6 +203,7 @@ func TestParsePlatform(t *testing.T) {
 }
 
 func TestParsePullPolicy(t *testing.T) {
+	t.Parallel()
 	testCases := map[string]bool{
 		"missing":    true,
 		"ifmissing":  true,
@@ -221,6 +230,7 @@ func TestParsePullPolicy(t *testing.T) {
 }
 
 func TestSplitStringWithColonEscape(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		volume         string
 		expectedResult []string
@@ -237,6 +247,7 @@ func TestSplitStringWithColonEscape(t *testing.T) {
 }
 
 func TestSystemContextFromFlagSet(t *testing.T) {
+	t.Parallel()
 	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
 	fs.Bool("tls-verify", false, "")
 	err := fs.Parse([]string{"--tls-verify", "false"})

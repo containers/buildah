@@ -20,6 +20,7 @@ import (
 )
 
 func TestSlop(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		input  int64
 		slop   string
@@ -84,6 +85,7 @@ func (d *dummyAttestationHandler) ServeHTTP(rw http.ResponseWriter, req *http.Re
 }
 
 func TestArchive(t *testing.T) {
+	t.Parallel()
 	ociConfig := &v1.Image{
 		Config: v1.ImageConfig{
 			User:       "root",

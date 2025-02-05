@@ -9,6 +9,7 @@ import (
 )
 
 func TestGetImageName(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
 		caseName string
 		name     string
@@ -30,6 +31,7 @@ func TestGetImageName(t *testing.T) {
 }
 
 func TestNoBaseImageSpecifierIsScratch(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "scratch", imagebuilder.NoBaseImageSpecifier) // juuuuust in case
 	assert.Equal(t, "scratch", BaseImageFakeName)
 }

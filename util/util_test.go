@@ -11,6 +11,7 @@ import (
 )
 
 func TestMergeEnv(t *testing.T) {
+	t.Parallel()
 	tests := [][3][]string{
 		{
 			[]string{"A=B", "B=C", "C=D"},
@@ -44,6 +45,7 @@ func TestMergeEnv(t *testing.T) {
 }
 
 func TestRuntime(t *testing.T) {
+	t.Parallel()
 	os.Setenv("CONTAINERS_CONF", "/dev/null")
 	conf, _ := config.Default()
 	defaultRuntime := conf.Engine.OCIRuntime
@@ -60,6 +62,7 @@ func TestRuntime(t *testing.T) {
 }
 
 func TestMountsSort(t *testing.T) {
+	t.Parallel()
 	mounts1a := []specs.Mount{
 		{
 			Source:      "/a/bb/c",

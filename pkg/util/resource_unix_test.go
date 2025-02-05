@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseUlimit(t *testing.T) {
+	t.Parallel()
 	_, err := ParseUlimit("bogus")
 	assert.NotNil(t, err)
 
