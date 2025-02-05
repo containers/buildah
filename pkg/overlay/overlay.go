@@ -154,12 +154,6 @@ func mountWithMountProgram(mountProgram, overlayOptions, mergeDir string) error 
 	return nil
 }
 
-// mountNatively mounts an overlay at mergeDir using the kernel's mount()
-// system call.
-func mountNatively(overlayOptions, mergeDir string) error {
-	return mount.Mount("overlay", mergeDir, "overlay", overlayOptions)
-}
-
 // MountWithOptions creates a subdir of the contentDir based on the source directory
 // from the source system.  It then mounts up the source directory on to the
 // generated mount point and returns the mount point to the caller.
@@ -241,6 +235,12 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 	}
 
 	return mount, nil
+}
+
+// mountNatively mounts an overlay at mergeDir using the kernel's mount()
+// system call.
+func mountNatively(overlayOptions, mergeDir string) error {
+	return mount.Mount("overlay", mergeDir, "overlay", overlayOptions)
 }
 
 // Convert ":" to "\:", the path which will be overlay mounted need to be escaped

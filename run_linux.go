@@ -919,6 +919,9 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 				RootGID:                idMaps.rootGID,
 				UpperDirOptionFragment: upperDir,
 				WorkDirOptionFragment:  workDir,
+				// Backport note: Cannot use `GraphOpts: slices.Clone(b.store.GraphOptions()),`
+				// here because "golang.org/x/exp/slices" requires golang 1.18+ which is not
+				// compatible with the targets of this release branch.
 				GraphOpts:              graphOptsCopy,
 			}
 

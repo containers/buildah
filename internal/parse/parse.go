@@ -53,66 +53,6 @@ var (
 	errDuplicateDest = errors.New("duplicate mount destination")
 )
 
-func mountIsReadWrite(m specs.Mount) bool {
-	// in case of conflicts, the last one wins, so it's not enough
-	// to check for the presence of either "rw" or "ro" anywhere
-	// with e.g. slices.Contains()
-	rw := true
-	for _, option := range m.Options {
-		switch option {
-		case "rw":
-			rw = true
-		case "ro":
-			rw = false
-		}
-	}
-	return rw
-}
-
-func convertToOverlay(m specs.Mount, store storage.Store, mountLabel, tmpDir string, uid, gid int) (specs.Mount, string, error) {
-	overlayDir, err := overlay.TempDir(tmpDir, uid, gid)
-	if err != nil {
-		return specs.Mount{}, "", fmt.Errorf("setting up overlay for %q: %w", m.Destination, err)
-	}
-	graphOptions := store.GraphOptions()
-	graphOptsCopy := make([]string, len(graphOptions))
-	copy(graphOptsCopy, graphOptions)
-	options := overlay.Options{GraphOpts: graphOptsCopy, ForceMount: true, MountLabel: mountLabel}
-	fileInfo, err := os.Stat(m.Source)
-	if err != nil {
-		return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", m.Source, err)
-	}
-	// we might be trying to "overlay" for a non-directory, and the kernel doesn't like that very much
-	var mountThisInstead specs.Mount
-	if fileInfo.IsDir() {
-		// do the normal thing of mounting this directory as a lower with a temporary upper
-		mountThisInstead, err = overlay.MountWithOptions(overlayDir, m.Source, m.Destination, &options)
-		if err != nil {
-			return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", m.Source, err)
-		}
-	} else {
-		// mount the parent directory as the lower with a temporary upper, and return a
-		// bind mount from the non-directory in the merged directory to the destination
-		sourceDir := filepath.Dir(m.Source)
-		sourceBase := filepath.Base(m.Source)
-		destination := m.Destination
-		mountedOverlay, err := overlay.MountWithOptions(overlayDir, sourceDir, destination, &options)
-		if err != nil {
-			return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", sourceDir, err)
-		}
-		if mountedOverlay.Type != define.TypeBind {
-			if err2 := overlay.RemoveTemp(overlayDir); err2 != nil {
-				return specs.Mount{}, "", fmt.Errorf("cleaning up after failing to set up overlay: %v, while setting up overlay for %q: %w", err2, destination, err)
-			}
-			return specs.Mount{}, "", fmt.Errorf("setting up overlay for %q at %q: %w", mountedOverlay.Source, destination, err)
-		}
-		mountThisInstead = mountedOverlay
-		mountThisInstead.Source = filepath.Join(mountedOverlay.Source, sourceBase)
-		mountThisInstead.Destination = destination
-	}
-	return mountThisInstead, overlayDir, nil
-}
-
 // GetBindMount parses a single bind mount entry from the --mount flag.
 //
 // Returns a Mount to add to the runtime spec's list of mounts, the ID of the
@@ -307,6 +247,67 @@ func CleanCacheMount() error {
 	return os.RemoveAll(cacheParent)
 }
 
+func mountIsReadWrite(m specs.Mount) bool {
+	// in case of conflicts, the last one wins, so it's not enough
+	// to check for the presence of either "rw" or "ro" anywhere
+	// with e.g. slices.Contains()
+	rw := true
+	for _, option := range m.Options {
+		switch option {
+		case "rw":
+			rw = true
+		case "ro":
+			rw = false
+		}
+	}
+	return rw
+}
+
+func convertToOverlay(m specs.Mount, store storage.Store, mountLabel, tmpDir string, uid, gid int) (specs.Mount, string, error) {
+	overlayDir, err := overlay.TempDir(tmpDir, uid, gid)
+	if err != nil {
+		return specs.Mount{}, "", fmt.Errorf("setting up overlay for %q: %w", m.Destination, err)
+	}
+	graphOptions := store.GraphOptions()
+	graphOptsCopy := make([]string, len(graphOptions))
+	copy(graphOptsCopy, graphOptions)
+	options := overlay.Options{GraphOpts: graphOptsCopy, ForceMount: true, MountLabel: mountLabel}
+	fileInfo, err := os.Stat(m.Source)
+	if err != nil {
+		return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", m.Source, err)
+	}
+	// we might be trying to "overlay" for a non-directory, and the kernel doesn't like that very much
+	var mountThisInstead specs.Mount
+	if fileInfo.IsDir() {
+		// do the normal thing of mounting this directory as a lower with a temporary upper
+		mountThisInstead, err = overlay.MountWithOptions(overlayDir, m.Source, m.Destination, &options)
+		if err != nil {
+			return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", m.Source, err)
+		}
+	} else {
+		// mount the parent directory as the lower with a temporary upper, and return a
+		// bind mount from the non-directory in the merged directory to the destination
+		sourceDir := filepath.Dir(m.Source)
+		sourceBase := filepath.Base(m.Source)
+		destination := m.Destination
+		mountedOverlay, err := overlay.MountWithOptions(overlayDir, sourceDir, destination, &options)
+		if err != nil {
+			return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", sourceDir, err)
+		}
+		if mountedOverlay.Type != define.TypeBind {
+			if err2 := overlay.RemoveTemp(overlayDir); err2 != nil {
+				return specs.Mount{}, "", fmt.Errorf("cleaning up after failing to set up overlay: %v, while setting up overlay for %q: %w", err2, destination, err)
+			}
+			return specs.Mount{}, "", fmt.Errorf("setting up overlay for %q at %q: %w", mountedOverlay.Source, destination, err)
+		}
+		mountThisInstead = mountedOverlay
+		mountThisInstead.Source = filepath.Join(mountedOverlay.Source, sourceBase)
+		mountThisInstead.Destination = destination
+	}
+	return mountThisInstead, overlayDir, nil
+}
+
+
 // GetCacheMount parses a single cache mount entry from the --mount flag.
 //
 // Returns a Mount to add to the runtime spec's list of mounts, the path of a
@@ -368,6 +369,12 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 		case "bind-propagation":
 			if len(kv) == 1 {
 				return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+			}
+			switch kv[1] {
+				default:
+					return newMount, "", nil, fmt.Errorf("%v: %w", kv[0], errBadMntOption)
+				case "shared", "rshared", "private", "rprivate", "slave", "rslave":
+				// this should be the relevant parts of the same list of options we accepted above
 			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "id":
