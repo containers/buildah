@@ -62,6 +62,13 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 				if err := os.Chown(upperDir, int(stat.Uid), int(stat.Gid)); err != nil {
 					return mount, err
 				}
+				times := []syscall.Timespec{
+					stat.Atim,
+					stat.Mtim,
+				}
+				if err := syscall.UtimesNano(upperDir, times); err != nil {
+					return mount, err
+				}
 			}
 		}
 		overlayOptions = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,private", escapeColon(source), upperDir, workDir)
