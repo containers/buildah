@@ -997,3 +997,20 @@ _EOF
 	run_buildah ? bud --pull=false --layers .
         expect_output --substring -- "-c requires an argument"
 }
+
+@test "container_name_as_hostname" {
+  skip_if_no_runtime
+
+  _prefetch alpine
+  echo '[containers]' > ${TEST_SCRATCH_DIR}/containers.conf
+  echo container_name_as_hostname = true >> ${TEST_SCRATCH_DIR}/containers.conf
+  name=alpine-working-container-for-test
+  run_buildah from --name :"$name": --cidfile ${TEST_SCRATCH_DIR}/cid alpine
+  cname="$output"
+  run_buildah run "$cname" hostname
+  assert "$output" != "$name"
+  CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah run "$cname" hostname
+  expect_output "$name"
+  CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah run "$(cat ${TEST_SCRATCH_DIR}/cid)" hostname
+  expect_output "$name"
+}

@@ -2092,3 +2092,28 @@ func relabel(path, mountLabel string, shared bool) error {
 	}
 	return nil
 }
+
+// mapContainerNameToHostname returns the passed-in string with characters that
+// don't match the pattern "[A-Za-z0-9][A-Za-z0-9._-]+" stripped out.
+func mapContainerNameToHostname(containerName string) string {
+	const initialAllowedChars = "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789"
+	const allowedChars = initialAllowedChars + "._-"
+	var mapped string
+	if containerName != "" {
+		mapped += strings.Map(func(r rune) rune {
+			if !strings.Contains(initialAllowedChars, string(r)) {
+				return -1
+			}
+			return r
+		}, containerName[:1])
+	}
+	if len(containerName) > 1 {
+		mapped += strings.Map(func(r rune) rune {
+			if !strings.Contains(allowedChars, string(r)) {
+				return -1
+			}
+			return r
+		}, containerName[1:])
+	}
+	return mapped
+}
