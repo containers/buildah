@@ -3455,6 +3455,25 @@ var internalTestCases = []testCase{
 		dockerUseBuildKit: true,
 		buildArgs:         map[string]string{"SOURCE": "e/**/**/*sub/*.txt"},
 	},
+	{
+		name:              "mount-cache-by-ownership",
+		dockerUseBuildKit: true,
+		dockerfileContents: strings.Join([]string{
+			"FROM mirror.gcr.io/busybox",
+			"USER 10",
+			"RUN --mount=type=cache,uid=10,target=/cache touch /cache/10.txt",
+			"USER 0",
+			"RUN --mount=type=cache,target=/cache touch /cache/0.txt",
+			"RUN mkdir -m 770 /results /results/0 /results/10 /results/0+10",
+			"RUN chown -R 10 /results",
+			"RUN --mount=type=cache,target=/cache cp -a /cache/* /results/0",
+			"USER 10",
+			"RUN --mount=type=cache,uid=10,target=/cache cp -a /cache/* /results/10",
+			"USER 0",
+			"RUN --mount=type=cache,uid=10,target=/cache cp -a /cache/* /results/0+10",
+			"RUN touch -r /bin `find /results -print`",
+		}, "\n"),
+	},
 }
 
 func TestCommit(t *testing.T) {
