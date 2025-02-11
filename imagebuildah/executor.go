@@ -372,9 +372,12 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 // startStage creates a new stage executor that will be referenced whenever a
 // COPY or ADD statement uses a --from=NAME flag.
 func (b *Executor) startStage(ctx context.Context, stage *imagebuilder.Stage, stages imagebuilder.Stages, output string) *StageExecutor {
+	// create a copy of systemContext for each stage executor.
+	systemContext := *b.systemContext
 	stageExec := &StageExecutor{
 		ctx:             ctx,
 		executor:        b,
+		systemContext:   systemContext,
 		log:             b.log,
 		index:           stage.Position,
 		stages:          stages,

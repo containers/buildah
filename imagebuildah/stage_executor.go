@@ -59,6 +59,7 @@ import (
 // name to the image that it produces.
 type StageExecutor struct {
 	ctx                   context.Context
+	systemContext         types.SystemContext
 	executor              *Executor
 	log                   func(format string, args ...interface{})
 	index                 int
@@ -571,8 +572,8 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			// The values for these next two fields are ultimately
 			// based on command line flags with names that sound
 			// much more generic.
-			CertPath:              s.executor.systemContext.DockerCertPath,
-			InsecureSkipTLSVerify: s.executor.systemContext.DockerInsecureSkipTLSVerify,
+			CertPath:              s.systemContext.DockerCertPath,
+			InsecureSkipTLSVerify: s.systemContext.DockerInsecureSkipTLSVerify,
 			MaxRetries:            s.executor.maxPullPushRetries,
 			RetryDelay:            s.executor.retryPullPushDelay,
 		}
@@ -827,7 +828,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Stderr:               s.executor.err,
 		Stdin:                stdin,
 		Stdout:               s.executor.out,
-		SystemContext:        s.executor.systemContext,
+		SystemContext:        &s.systemContext,
 		Terminal:             buildah.WithoutTerminal,
 		User:                 config.User,
 		WorkingDir:           config.WorkingDir,
@@ -952,19 +953,21 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		}
 	}
 
-	builderSystemContext := s.executor.systemContext
-	// get platform string from stage
-	if stage.Builder.Platform != "" {
-		os, arch, variant, err := parse.Platform(stage.Builder.Platform)
+	builderSystemContext := s.systemContext
+	// In a multi-stage build where `FROM --platform=<>` was used then we must
+	// reset context for new stages so that new stages don't inherit unexpected
+	// `--platform` from prior stages.
+	if stage.Builder.Platform != "" || (stage.Position != 0 && builderSystemContext.ArchitectureChoice == "" && builderSystemContext.VariantChoice == "" && builderSystemContext.OSChoice == "") {
+		imageOS, imageArch, imageVariant, err := parse.Platform(stage.Builder.Platform)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse platform %q: %w", stage.Builder.Platform, err)
 		}
-		if arch != "" || variant != "" {
-			builderSystemContext.ArchitectureChoice = arch
-			builderSystemContext.VariantChoice = variant
+		if imageArch != "" || imageVariant != "" {
+			builderSystemContext.ArchitectureChoice = imageArch
+			builderSystemContext.VariantChoice = imageVariant
 		}
-		if os != "" {
-			builderSystemContext.OSChoice = os
+		if imageOS != "" {
+			builderSystemContext.OSChoice = imageOS
 		}
 	}
 
@@ -978,7 +981,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		BlobDirectory:         s.executor.blobDirectory,
 		SignaturePolicyPath:   s.executor.signaturePolicyPath,
 		ReportWriter:          s.executor.reportWriter,
-		SystemContext:         builderSystemContext,
+		SystemContext:         &builderSystemContext,
 		Isolation:             s.executor.isolation,
 		NamespaceOptions:      s.executor.namespaceOptions,
 		ConfigureNetwork:      s.executor.configureNetwork,
@@ -2041,7 +2044,7 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 		return "", nil, err
 	}
 
-	policyContext, err := util.GetPolicyContext(s.executor.systemContext)
+	policyContext, err := util.GetPolicyContext(&s.systemContext)
 	if err != nil {
 		return "", nil, err
 	}
@@ -2154,7 +2157,7 @@ func (s *StageExecutor) pushCache(ctx context.Context, src, cacheKey string) err
 			Compression:         s.executor.compression,
 			SignaturePolicyPath: s.executor.signaturePolicyPath,
 			Store:               s.executor.store,
-			SystemContext:       s.executor.systemContext,
+			SystemContext:       &s.systemContext,
 			BlobDirectory:       s.executor.blobDirectory,
 			SignBy:              s.executor.signBy,
 			MaxRetries:          s.executor.maxPullPushRetries,
@@ -2192,7 +2195,7 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 		options := buildah.PullOptions{
 			SignaturePolicyPath: s.executor.signaturePolicyPath,
 			Store:               s.executor.store,
-			SystemContext:       s.executor.systemContext,
+			SystemContext:       &s.systemContext,
 			BlobDirectory:       s.executor.blobDirectory,
 			MaxRetries:          s.executor.maxPullPushRetries,
 			RetryDelay:          s.executor.retryPullPushDelay,
@@ -2414,7 +2417,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		SignaturePolicyPath:   s.executor.signaturePolicyPath,
 		ReportWriter:          writer,
 		PreferredManifestType: s.executor.outputFormat,
-		SystemContext:         s.executor.systemContext,
+		SystemContext:         &s.systemContext,
 		Squash:                squash,
 		OmitHistory:           s.executor.commonBuildOptions.OmitHistory,
 		EmptyLayer:            emptyLayer,
