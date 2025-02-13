@@ -296,6 +296,16 @@ function rm() {
     run_unshared rm "$@"
 }
 
+#################
+#  run_with_log  #  Logs command before running it
+#################
+#
+function run_with_log() {
+    local cmd="$*"
+    echo "$_LOG_PROMPT $cmd"
+    run -0 "$@"
+    echo "$output"
+}
 
 #################
 #  run_buildah  #  Invoke buildah, with timeout, using BATS 'run'
