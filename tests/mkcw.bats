@@ -22,8 +22,13 @@ function mkcw_check_image() {
 
   # Decrypt, mount, and take a look around.
   uuid=$(cryptsetup luksUUID "$mountpoint"/disk.img)
+  run_with_log echo "-----------Check who is using mountpoint------"
+  run_with_log '?' fuser -v "$mountpoint"
   run_with_log cryptsetup luksOpen --key-file "$TEST_SCRATCH_DIR"/key "$mountpoint"/disk.img "$uuid"
   mkdir -p "$TEST_SCRATCH_DIR"/mount
+  run_with_log echo "-----------Check who is using device------"
+  run_with_log '?' fuser -v "$mountpoint"
+  run_with_log '?' fuser -v /dev/mapper/"$uuid"
   run_with_log mount /dev/mapper/"$uuid" "$TEST_SCRATCH_DIR"/mount
   # Should have a not-empty config file with parts of an image's config.
   test -s "$TEST_SCRATCH_DIR"/mount/.krun_config.json
@@ -42,7 +47,14 @@ function mkcw_check_image() {
   fi
 
   # Clean up.
-  run_with_log umount -f -l "$TEST_SCRATCH_DIR"/mount
+  run_with_log echo "-----------Check who is using device------"
+  run_with_log '?' fuser -v "$mountpoint"
+  run_with_log '?' fuser -v /dev/mapper/"$uuid"
+  run_with_log umount -f "$TEST_SCRATCH_DIR"/mount
+  # Check what is keeping the device busy
+  run_with_log echo "-----------Check who is using device------"
+  run_with_log '?' fuser -v "$mountpoint"
+  run_with_log '?' fuser -v /dev/mapper/"$uuid"
   run_with_log cryptsetup luksClose "$uuid"
   run_buildah umount "$ctrID"
 }
