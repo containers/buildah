@@ -539,13 +539,14 @@ _EOF
 }
 
 @test "bud build with heredoc content" {
-  _prefetch quay.io/fedora/python-311
+  _prefetch alpine
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile .
   expect_output --substring "print first line from heredoc"
   expect_output --substring "print second line from heredoc"
   expect_output --substring "Heredoc writing first file"
   expect_output --substring "some text of first file"
-  expect_output --substring "file2 from python"
+  expect_output --substring "file passed to program"
+  expect_output --substring "and it contains multiple"
   expect_output --substring "(your index page goes here)"
   expect_output --substring "(robots content)"
   expect_output --substring "(humans content)"
@@ -560,7 +561,7 @@ _EOF
   # verify that build output contains summary of heredoc content
   expect_output --substring 'RUN <<EOF \(echo "print first line from heredoc"...)'
   expect_output --substring 'RUN <<EOF \(echo "Heredoc writing first file" >> /file1...)'
-  expect_output --substring 'RUN python3 <<EOF \(with open\("/file2", "w") as f:...)'
+  expect_output --substring 'RUN cat <<EOF \(file passed to program...)'
   expect_output --substring 'ADD <<EOF /index.html \(\(your index page goes here))'
   expect_output --substring 'COPY <<robots.txt <<humans.txt /test/ \(\(robots content)) \(\(humans content))'
 }

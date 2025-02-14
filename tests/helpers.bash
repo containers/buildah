@@ -296,6 +296,41 @@ function rm() {
     run_unshared rm "$@"
 }
 
+#################
+#  run_with_log  #  Logs command before running it
+#################
+#
+function run_with_log() {
+    local expected_rc=0
+    local cmd="$*"
+    case "$1" in
+        [0-9])           expected_rc=$1; shift;;
+        [1-9][0-9])      expected_rc=$1; shift;;
+        [12][0-9][0-9])  expected_rc=$1; shift;;
+        '?')             expected_rc=  ; shift;;  # ignore exit code
+    esac
+    echo "$_LOG_PROMPT $cmd"
+    run "$@"
+    echo "$output"
+    if [ "$status" -ne 0 ]; then
+        echo -n "[ rc=$status ";
+        if [ -n "$expected_rc" ]; then
+            if [ "$status" -eq "$expected_rc" ]; then
+                echo -n "(expected) ";
+            else
+                echo -n "(** EXPECTED $expected_rc **) ";
+            fi
+        fi
+        echo "]"
+    fi
+    if [ -n "$expected_rc" ]; then
+        if [ "$status" -eq "$expected_rc" ]; then
+            return
+        else
+            die "exit code is $status; expected $expected_rc"
+        fi
+    fi
+}
 
 #################
 #  run_buildah  #  Invoke buildah, with timeout, using BATS 'run'
