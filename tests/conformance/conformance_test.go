@@ -2021,6 +2021,16 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name: "from-scratch-simple-file", // Fix On ARM64: fields missing from buildah version: variant
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			"COPY file-a.txt /",
+		}, "\n"),
+		contextDir:          "dockerignore/populated",
+		compatScratchConfig: types.OptionalBoolTrue,
+	},
+
+	{
 		name: "setuid-file-in-archive",
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
