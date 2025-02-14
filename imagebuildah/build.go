@@ -427,12 +427,9 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 		// fill them in using values for the default platform
 		defaultPlatform := platforms.DefaultSpec()
 		builtinArgDefaults["TARGETOS"] = defaultPlatform.OS
-		builtinArgDefaults["TARGETVARIANT"] = defaultPlatform.Variant
+		builtinArgDefaults["TARGETVARIANT"] = ""
 		builtinArgDefaults["TARGETARCH"] = defaultPlatform.Architecture
 		builtinArgDefaults["TARGETPLATFORM"] = defaultPlatform.OS + "/" + defaultPlatform.Architecture
-		if defaultPlatform.Variant != "" {
-			builtinArgDefaults["TARGETPLATFORM"] += "/" + defaultPlatform.Variant
-		}
 	}
 	delete(options.Args, "TARGETPLATFORM")
 
@@ -453,6 +450,13 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 	for k, v := range builtinArgDefaults {
 		b.BuiltinArgDefaults[k] = v
 	}
+
+	buildVariant := b.BuiltinArgDefaults["BUILDVARIANT"]
+	buildPlatform := b.BuiltinArgDefaults["BUILDPLATFORM"]
+	cleanedBuildPlatform, _ := strings.CutSuffix(buildPlatform, "/"+buildVariant)
+	b.BuiltinArgDefaults["BUILDPLATFORM"] = cleanedBuildPlatform
+	b.BuiltinArgDefaults["BUILDVARIANT"] = ""
+
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get container config: %w", err)
