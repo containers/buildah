@@ -290,7 +290,8 @@ _EOF
          "With explicit --platform, buildah should warn about pulling difference in platform"
   assert "$output" =~ "TARGETOS=linux" " --platform TARGETOS set correctly"
   assert "$output" =~ "TARGETARCH=amd64" " --platform TARGETARCH set correctly"
-  assert "$output" =~ "TARGETVARIANT=" " --platform TARGETVARIANT set correctly"
+  # By default, BUILDVARIANT/TARGETVARIANT should be empty.
+  assert "$output" =~ "TARGETVARIANT=[[:cntrl:]]" " --platform TARGETVARIANT set correctly"
   assert "$output" =~ "TARGETPLATFORM=linux/amd64/v2" " --platform TARGETPLATFORM set correctly"
 
   # Likewise with individual args
@@ -300,7 +301,8 @@ _EOF
          "With explicit --variant, buildah should warn about pulling difference in platform"
   assert "$output" =~ "TARGETOS=linux" "--os --arch --variant TARGETOS set correctly"
   assert "$output" =~ "TARGETARCH=amd64" "--os --arch --variant TARGETARCH set correctly"
-  assert "$output" =~ "TARGETVARIANT=" "--os --arch --variant TARGETVARIANT set correctly"
+  # By default, BUILDVARIANT/TARGETVARIANT should be empty.
+  assert "$output" =~ "TARGETVARIANT=[[:cntrl:]]" "--os --arch --variant TARGETVARIANT set correctly"
   assert "$output" =~ "TARGETPLATFORM=linux/amd64" "--os --arch --variant TARGETPLATFORM set correctly"
 
   run_buildah build $WITH_POLICY_JSON --os linux -t source -f $containerfile
@@ -308,7 +310,8 @@ _EOF
          "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
   assert "$output" =~ "TARGETOS=linux" "--os TARGETOS set correctly"
   assert "$output" =~ "TARGETARCH=${ARCH}" "--os TARGETARCH set correctly"
-  assert "$output" =~ "TARGETVARIANT=" "--os TARGETVARIANT set correctly"
+  # By default, BUILDVARIANT/TARGETVARIANT should be empty.
+  assert "$output" =~ "TARGETVARIANT=[[:cntrl:]]" "--os TARGETVARIANT set correctly"
   assert "$output" =~ "TARGETPLATFORM=linux/${ARCH}" "--os TARGETPLATFORM set correctly"
 
   run_buildah build $WITH_POLICY_JSON --arch amd64 -t source -f $containerfile
@@ -316,7 +319,8 @@ _EOF
          "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
   assert "$output" =~ "TARGETOS=linux" "--arch TARGETOS set correctly"
   assert "$output" =~ "TARGETARCH=amd64" "--arch TARGETARCH set correctly"
-  assert "$output" =~ "TARGETVARIANT=" "--arch TARGETVARIANT set correctly"
+  # By default, BUILDVARIANT/TARGETVARIANT should be empty.
+  assert "$output" =~ "TARGETVARIANT=[[:cntrl:]]" "--arch TARGETVARIANT set correctly"
   assert "$output" =~ "TARGETPLATFORM=linux/amd64" "--arch TARGETPLATFORM set correctly"
 
   for option in "--arch=arm64" "--os=windows" "--variant=v2"; do

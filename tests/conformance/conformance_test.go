@@ -3322,7 +3322,7 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:              "multistage-builtin-args",
+		name:              "multistage-builtin-args", // By default, BUILDVARIANT/TARGETVARIANT should be empty.
 		dockerfile:        "Dockerfile.margs",
 		dockerUseBuildKit: true,
 	},
