@@ -427,7 +427,13 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				data = strings.TrimPrefix(data, "\n")
 				// add breakline when heredoc ends for docker compat
 				data = data + "\n"
-				tmpFile, err := os.Create(filepath.Join(parse.GetTempDir(), path.Base(filepath.ToSlash(file.Name))))
+				// Create seperate subdir for this file.
+				tmpDir, err := os.MkdirTemp(parse.GetTempDir(), "buildah-heredoc")
+				if err != nil {
+					return fmt.Errorf("unable to create tmp dir for heredoc run %q: %w", parse.GetTempDir(), err)
+				}
+				defer os.RemoveAll(tmpDir)
+				tmpFile, err := os.Create(filepath.Join(tmpDir, path.Base(filepath.ToSlash(file.Name))))
 				if err != nil {
 					return fmt.Errorf("unable to create tmp file for COPY instruction at %q: %w", parse.GetTempDir(), err)
 				}
@@ -442,7 +448,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 					tmpFile.Close()
 					return fmt.Errorf("unable to write contents of heredoc file at %q: %w", tmpFile.Name(), err)
 				}
-				copySources = append(copySources, filepath.Base(tmpFile.Name()))
+				copySources = append(copySources, filepath.Join(filepath.Base(tmpDir), filepath.Base(tmpFile.Name())))
 				tmpFile.Close()
 			}
 			contextDir = parse.GetTempDir()
