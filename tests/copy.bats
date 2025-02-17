@@ -384,6 +384,69 @@ stuff/mystuff"
   expect_output --from="$filelist" "$expect" "container file list"
 }
 
+
+@test "copy --parents" {
+  mytest=${TEST_SCRATCH_DIR}/mytest
+  mkdir -p ${mytest}
+  mkdir -p ${mytest}/x
+  mkdir -p ${mytest}/y
+  touch ${mytest}/x/a.txt
+  touch ${mytest}/y/a.txt
+  touch ${mytest}/y/b.txt
+
+expect_all="
+parents
+parents/x
+parents/x/a.txt
+parents/y
+parents/y/a.txt
+parents/y/b.txt"
+
+expect_a_txt="
+parents
+parents/x
+parents/x/a.txt
+parents/y
+parents/y/a.txt"
+
+expect_b_txt="
+parents
+parents/y
+parents/y/b.txt"
+
+expect_only_y_dir="
+parents
+parents/y
+parents/y/a.txt
+parents/y/b.txt"
+
+
+  # paths | expected
+  tests="
+  ${mytest}/./*/a.txt | ${expect_a_txt}
+  ${mytest}/./y/*     | ${expect_only_y_dir}
+  ${mytest}/./*/b.txt | ${expect_b_txt}
+  ${mytest}/./*       | ${expect_all}
+  "
+
+  local -A paths
+  local -A expected
+  while read paths expected; do
+
+    run_buildah from $WITH_POLICY_JSON scratch
+    cid=$output
+
+    run_buildah copy --parents $cid ${paths} /parents/
+
+    run_buildah mount $cid
+    mnt=$output
+    run find $mnt -printf "%P\n"
+    filelist=$(LC_ALL=C sort <<<"$output")
+    run_buildah umount $cid
+    expect_output --from="$filelist" "$expect" "container file list"
+  done < <(parse_table "$tests")
+}
+
 @test "copy-quiet" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   _prefetch alpine
