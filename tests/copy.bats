@@ -384,6 +384,35 @@ stuff/mystuff"
   expect_output --from="$filelist" "$expect" "container file list"
 }
 
+
+@test "copy --parents" {
+  mytest=${TEST_SCRATCH_DIR}/mytest
+  mkdir -p ${mytest}
+  mkdir -p ${mytest}/x
+  mkdir -p ${mytest}/y
+  touch ${mytest}/x/a.txt
+  touch ${mytest}/y/a.txt
+
+expect="
+parents
+parents/x
+parents/x/a.txt
+parents/y
+parents/y/a.txt"
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah copy --parents $cid ${mytest}/./x/a.txt ${mytest}/./y/a.txt /parents/
+
+  run_buildah mount $cid
+  mnt=$output
+  run find $mnt -printf "%P\n"
+  filelist=$(LC_ALL=C sort <<<"$output")
+  run_buildah umount $cid
+  expect_output --from="$filelist" "$expect" "container file list"
+}
+
 @test "copy-quiet" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   _prefetch alpine

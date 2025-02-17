@@ -65,6 +65,12 @@ is preserved.
 
 Path to an alternative .containerignore (.dockerignore) file. Requires \-\-contextdir be specified.
 
+**--parents**
+
+Preserve leading directories in the paths of items being copied, relative to either the
+top of the build context, or to the "pivot point", a location in the source path marked
+by a path component named "." (i.e., where "/./" occurs in the path).
+
 **--quiet**, **-q**
 
 Refrain from printing a digest of the copied content.
@@ -92,6 +98,8 @@ talking to an insecure registry.
 buildah copy containerID '/myapp/app.conf' '/myapp/app.conf'
 
 buildah copy --exclude=**/*.md docs containerID 'docs' '/docs'
+
+buildah copy --parents containerID './x/a.txt' './y/a.txt' '/parents'
 
 buildah copy --chown myuser:mygroup containerID '/myapp/app.conf' '/myapp/app.conf'
 
