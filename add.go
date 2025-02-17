@@ -94,6 +94,8 @@ type AddAndCopyOptions struct {
 	// RetryDelay is how long to wait before retrying attempts to retrieve
 	// remote contents.
 	RetryDelay time.Duration
+	// Parents preserve parent directories of source content
+	Parents bool
 }
 
 // gitURLFragmentSuffix matches fragments to use as Git reference and build
@@ -261,6 +263,25 @@ func globbedToGlobbable(glob string) string {
 	result = strings.ReplaceAll(result, "?", "\\?")
 	result = strings.ReplaceAll(result, "*", "\\*")
 	return result
+}
+
+// getParentsPrefixToRemoveAndParentsToSkip gets from the pattern the prefix before the "pivot point",
+// the location in the source path marked by the path component named "."
+// (i.e. where "/./" occurs in the path). And list of parents to skip.
+// In case "/./" is not present is returned "/".
+func getParentsPrefixToRemoveAndParentsToSkip(pattern string, contextDir string) (string, []string) {
+	prefix, _, found := strings.Cut(strings.TrimPrefix(pattern, contextDir), "/./")
+	if !found {
+		return string(filepath.Separator), []string{}
+	}
+	prefix = strings.TrimPrefix(filepath.Clean(string(filepath.Separator)+prefix), string(filepath.Separator))
+	out := []string{}
+	parentPath := prefix
+	for parentPath != "/" && parentPath != "." {
+		out = append(out, parentPath)
+		parentPath = filepath.Dir(parentPath)
+	}
+	return prefix, out
 }
 
 // Add copies the contents of the specified sources into the container's root
@@ -476,7 +497,6 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	if err := copier.Mkdir(mountPoint, extractDirectory, mkdirOptions); err != nil {
 		return fmt.Errorf("ensuring target directory exists: %w", err)
 	}
-
 	// Copy each source in turn.
 	for _, src := range sources {
 		var multiErr *multierror.Error
@@ -587,7 +607,6 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		if localSourceStat == nil {
 			continue
 		}
-
 		// Iterate through every item that matched the glob.
 		itemsCopied := 0
 		for _, globbed := range localSourceStat.Globbed {
@@ -640,6 +659,25 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						return false, false, nil
 					})
 				}
+
+				if options.Parents {
+					parentsPrefixToRemove, parentsToSkip := getParentsPrefixToRemoveAndParentsToSkip(src, options.ContextDir)
+					writer = newTarFilterer(writer, func(hdr *tar.Header) (bool, bool, io.Reader) {
+						skip := false
+						for _, parent := range parentsToSkip {
+							if hdr.Name == parent && hdr.Typeflag == tar.TypeDir {
+								skip = true
+								break
+							}
+						}
+						hdr.Name = strings.TrimPrefix(hdr.Name, parentsPrefixToRemove)
+						hdr.Name = strings.TrimPrefix(hdr.Name, "/")
+						if hdr.Name == "" {
+							skip = true
+						}
+						return skip, false, nil
+					})
+				}
 				writer = newTarFilterer(writer, func(_ *tar.Header) (bool, bool, io.Reader) {
 					itemsCopied++
 					return false, false, nil
@@ -656,6 +694,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					StripSetuidBit: options.StripSetuidBit,
 					StripSetgidBit: options.StripSetgidBit,
 					StripStickyBit: options.StripStickyBit,
+					Parents:        options.Parents,
 				}
 				getErr = copier.Get(contextDir, contextDir, getOptions, []string{globbedToGlobbable(globbed)}, writer)
 				closeErr = writer.Close()
