@@ -394,7 +394,7 @@ _EOF
   assert "$output" !~ "First symlink content"
 
   # Modify the symlink
-  ln -sf samplefile2 $contextdir/tomount 
+  ln -sf samplefile2 $contextdir/tomount
 
   # on third run since we have changed symlink so cache must burst.
   run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
@@ -6261,6 +6261,50 @@ _EOF
 
   run_buildah build -t test2 -f Containerfile.missing $WITH_POLICY_JSON $BUDFILES/copy-exclude
   assert "$output" !~ "test2.txt"
+}
+
+@test "bud with copy --parents" {
+  run_buildah build -t test $WITH_POLICY_JSON $BUDFILES/copy-parents
+  assert "$output" =~ "\/no_parents\/a\.txt"
+  assert "$output" =~ "\/parents\/x\/a\.txt"
+  assert "$output" =~ "\/parents\/y\/a\.txt"
+  assert "$output" =~ "\/parents_file_point\/y\/b\.txt"
+  assert "$output" =~ "\/parents_file_point\/y\/a\.txt"
+  assert "$output" =~ "\/parents_dir_point\/y\/b\.txt"
+  assert "$output" =~ "\/parents_dir_point\/y\/a\.txt"
+}
+
+@test "bud-copy--parents-links" {
+  target=image
+  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-parents/Containerfile-hardlinks $BUDFILES/copy-parents
+
+  run_buildah from ${target}
+  ctrid="$output"
+  run_buildah mount "$ctrid"
+  root="$output"
+
+  for dir in parents/x parents_dir_point ;do
+    # Target of symlink-a.txt is not changed when using --parents with pivot point
+    # Docker does not change the symlink target when using --parents with pivot point
+    run stat -c "%N" ${root}/${dir}/z/symlink-b.txt
+    expect_output "'${root}/${dir}/z/symlink-b.txt' -> '/x/z/b.txt'" "symlink-b.txt: symlink to b.txt"
+
+    run stat -c "%d:%i" ${root}/${dir}/y/b.txt
+    file_b1=$output
+    run stat -c "%h" ${root}/${dir}/y/b.txt
+    expect_output 2 "b.txt: number of hardlinks"
+
+    run stat -c "%d:%i" ${root}/${dir}/z/hardlink-y-b.txt
+    expect_output $file_b1 "stat(hardlink-y-b.txt) == stat(b.txt)"
+
+    run stat -c "%d:%i" ${root}/${dir}/z/a.txt
+    file_a1=$output
+    run stat -c "%h" ${root}/${dir}/z/a.txt
+    expect_output 2 "a.txt: number of hardlinks"
+
+    run stat -c "%d:%i" ${root}/${dir}/z/hardlink-a.txt
+    expect_output $file_a1 "stat(hardlink-a.txt) == stat(a.txt)"
+  done
 }
 
 @test "bud with containerfile secret" {

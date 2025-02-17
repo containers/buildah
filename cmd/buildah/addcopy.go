@@ -38,6 +38,7 @@ type addCopyResults struct {
 	retry            int
 	retryDelay       string
 	excludes         []string
+	parents          bool
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -116,6 +117,7 @@ func init() {
 
 	copyFlags := copyCommand.Flags()
 	applyFlagVars(copyFlags, &copyOpts)
+	copyFlags.BoolVar(&copyOpts.parents, "parents", false, "preserve leading directories in the paths of items being copied")
 
 	rootCmd.AddCommand(addCommand)
 	rootCmd.AddCommand(copyCommand)
@@ -246,6 +248,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		CertPath:              systemContext.DockerCertPath,
 		InsecureSkipTLSVerify: systemContext.DockerInsecureSkipTLSVerify,
 		MaxRetries:            iopts.retry,
+		Parents:               iopts.parents,
 	}
 	if iopts.contextdir != "" {
 		var excludes []string
