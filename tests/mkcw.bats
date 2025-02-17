@@ -22,9 +22,9 @@ function mkcw_check_image() {
 
   # Decrypt, mount, and take a look around.
   uuid=$(cryptsetup luksUUID "$mountpoint"/disk.img)
-  cryptsetup luksOpen --key-file "$TEST_SCRATCH_DIR"/key "$mountpoint"/disk.img "$uuid"
+  run_with_log cryptsetup luksOpen --key-file "$TEST_SCRATCH_DIR"/key "$mountpoint"/disk.img "$uuid"
   mkdir -p "$TEST_SCRATCH_DIR"/mount
-  mount /dev/mapper/"$uuid" "$TEST_SCRATCH_DIR"/mount
+  run_with_log mount /dev/mapper/"$uuid" "$TEST_SCRATCH_DIR"/mount
   # Should have a not-empty config file with parts of an image's config.
   test -s "$TEST_SCRATCH_DIR"/mount/.krun_config.json
   # Should have a /tmp directory, at least.
@@ -42,9 +42,15 @@ function mkcw_check_image() {
   fi
 
   # Clean up.
-  umount "$TEST_SCRATCH_DIR"/mount
-  cryptsetup luksClose "$uuid"
-  buildah umount "$ctrID"
+  run_with_log umount -f "$TEST_SCRATCH_DIR"/mount
+  # `Retry` if `luksClose` fails with defaults of `run_with_log` because
+  # when unmounting the filesystem mounted on the device /dev/mapper/"$uuid"
+  # without `retry` somehow we end up in a state where mount is still being
+  # used by the kernel because when we do `lsof /dev/mapper/"$uuid"` it
+  # shows nothing but `dmsetup info -c $uuid` shows the device is still
+  # under use. Adding `--retry` in between somehow fixes this.
+  run_with_log --retry cryptsetup luksClose "$uuid"
+  run_buildah umount "$ctrID"
 }
 
 @test "mkcw-convert" {
