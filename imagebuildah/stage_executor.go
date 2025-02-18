@@ -454,7 +454,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			copy.Src = copySources
 		}
 
-		if len(copy.From) > 0 && len(copy.Files) == 0 {
+		if copy.From != "" && len(copy.Files) == 0 {
 			// If from has an argument within it, resolve it to its
 			// value.  Otherwise just return the value found.
 			from, fromErr := imagebuilder.ProcessWord(copy.From, s.stage.Builder.Arguments())
@@ -536,7 +536,8 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				}
 				contextDir = mountPoint
 			}
-			// Original behaviour of buildah still stays true for COPY irrespective of additional context.
+			// With --from set, the content being copied isn't coming from the default
+			// build context directory, so we're not expected to force everything to 0:0
 			preserveOwnership = true
 			copyExcludes = excludes
 		} else {
@@ -656,7 +657,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 						if additionalBuildContext.IsImage {
 							mountPoint, err := s.getImageRootfs(s.ctx, additionalBuildContext.Value)
 							if err != nil {
-								return nil, fmt.Errorf("%s from=%s: image found with that name", flag, from)
+								return nil, fmt.Errorf("%s from=%s: image not found with that name", flag, from)
 							}
 							// The `from` in stageMountPoints should point
 							// to `mountPoint` replaced from additional
