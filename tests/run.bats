@@ -1015,3 +1015,23 @@ _EOF
   CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah run "$(cat ${TEST_SCRATCH_DIR}/cid)" hostname
   expect_output "$sanitizedname"
 }
+
+@test "root fs only mounted once" {
+  if test `uname` != Linux ; then
+    skip "not meaningful except on Linux"
+  fi
+  _prefetch busybox
+  run_buildah from --pull=never --quiet busybox
+  cid="$output"
+  run_buildah run $cid cat /proc/self/mountinfo
+  echo "$output" > ${TEST_SCRATCH_DIR}/mountinfo1
+  echo "# mountinfo unfiltered:"
+  cat ${TEST_SCRATCH_DIR}/mountinfo1
+  grep ' / rw,' ${TEST_SCRATCH_DIR}/mountinfo1 > ${TEST_SCRATCH_DIR}/mountinfo2
+  echo "# mountinfo grepped:"
+  cat ${TEST_SCRATCH_DIR}/mountinfo2
+  wc -l < ${TEST_SCRATCH_DIR}/mountinfo2 > ${TEST_SCRATCH_DIR}/mountinfo3
+  echo "# mountinfo count:"
+  cat ${TEST_SCRATCH_DIR}/mountinfo3
+  assert $(cat ${TEST_SCRATCH_DIR}/mountinfo3) -eq 1
+}
