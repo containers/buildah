@@ -997,3 +997,23 @@ _EOF
 	run_buildah ? bud --pull=false --layers .
         expect_output --substring -- "-c requires an argument"
 }
+
+@test "root fs only mounted once" {
+  if test `uname` != Linux ; then
+    skip "not meaningful except on Linux"
+  fi
+  _prefetch busybox
+  run_buildah from --pull=never --quiet busybox
+  cid="$output"
+  run_buildah run $cid cat /proc/self/mountinfo
+  echo "$output" > ${TEST_SCRATCH_DIR}/mountinfo1
+  echo "# mountinfo unfiltered:"
+  cat ${TEST_SCRATCH_DIR}/mountinfo1
+  grep ' / rw,' ${TEST_SCRATCH_DIR}/mountinfo1 > ${TEST_SCRATCH_DIR}/mountinfo2
+  echo "# mountinfo grepped:"
+  cat ${TEST_SCRATCH_DIR}/mountinfo2
+  wc -l < ${TEST_SCRATCH_DIR}/mountinfo2 > ${TEST_SCRATCH_DIR}/mountinfo3
+  echo "# mountinfo count:"
+  cat ${TEST_SCRATCH_DIR}/mountinfo3
+  assert $(cat ${TEST_SCRATCH_DIR}/mountinfo3) -eq 1
+}
