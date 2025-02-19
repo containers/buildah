@@ -1,4 +1,4 @@
-FROM quay.io/fedora/python-311
+FROM alpine
 
 USER root
 WORKDIR /
@@ -15,12 +15,11 @@ EOF
 
 RUN cat file1
 
-RUN python3 <<EOF
-with open("/file2", "w") as f:
-    print("file2 from python", file=f)
+RUN cat <<EOF
+file passed to program
+and it contains multiple
+lines
 EOF
-
-RUN cat file2
 
 ADD <<EOF /index.html
  (your index page goes here)
