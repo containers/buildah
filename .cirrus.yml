@@ -50,7 +50,7 @@ env:
 gcp_credentials: ENCRYPTED[ae0bf7370f0b6e446bc61d0865a2c55d3e166b3fab9466eb0393e38e1c66a31ca4c71ddc7e0139d47d075c36dd6d3fd7]
 
 # Default timeout for each task
-timeout_in: 120m
+timeout_in: 30m
 
 # Default VM to use unless set or modified by task
 gce_instance: &standardvm
@@ -100,7 +100,7 @@ smoke_task:
     # Don't bother running on branches (including cron), or for tags.
     skip: $CIRRUS_PR == ''
 
-    timeout_in: 30m
+    timeout_in: 10m
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
@@ -164,8 +164,6 @@ unit_task:
       - smoke
       - vendor
 
-    timeout_in: 90m
-
     matrix:
         - env:
               STORAGE_DRIVER: 'vfs'
@@ -185,8 +183,6 @@ conformance_task:
     gce_instance:
         cpu: 4
         image_name: "${DEBIAN_CACHE_IMAGE_NAME}"
-
-    timeout_in: 65m
 
     matrix:
         - env:
