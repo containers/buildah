@@ -160,6 +160,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestConformance(t *testing.T) {
+	t.Parallel()
 	dateStamp := fmt.Sprintf("%d", time.Now().UnixNano())
 	for i := range internalTestCases {
 		t.Run(internalTestCases[i].name, func(t *testing.T) {
@@ -3477,6 +3478,7 @@ var internalTestCases = []testCase{
 }
 
 func TestCommit(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		description             string
 		baseImage               string
