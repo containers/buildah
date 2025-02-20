@@ -1,0 +1,17 @@
+require:
+    - buildah-tests
+    - git-daemon
+    - slirp4netns
+
+environment:
+    BUILDAH_BINARY: /usr/bin/buildah
+    IMGTYPE_BINARY: /usr/bin/buildah-imgtype
+    INET_BINARY: /usr/bin/buildah-inet
+    COPY_BINARY: /usr/bin/buildah-copy
+    TUTORIAL_BINARY: /usr/bin/buildah-tutorial
+    TMPDIR: /var/tmp
+
+/local/root:
+    summary: System test
+    test: bash ./system.sh
+    duration: 60m
