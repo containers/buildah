@@ -674,7 +674,7 @@ symlink(subdir)"
   _prefetch busybox
   run_buildah 125 build -t testbud3 $WITH_POLICY_JSON $BUDFILES/dockerignore3
   expect_output --substring 'building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
-  expect_output --substring $(realpath "$BUDFILES/dockerignore3/.dockerignore")
+  expect_output --substring 'filtered out using /[^ ]*/.dockerignore'
 }
 
 @test "bud with .dockerignore #4" {
@@ -7340,4 +7340,53 @@ EOF
   run find ${TEST_SCRATCH_DIR}/buildcontext -name file-suid -ls
   find ${TEST_SCRATCH_DIR}/buildcontext -ls
   expect_output "" "build should not be able to write to build context"
+}
+
+@test "build-oci-archive-switch" {
+  base=busybox
+  _prefetch $base
+  run_buildah from -q $base
+  run_buildah inspect --format '{{.FromImageID}}' "$output"
+  imageID="$output"
+  mkdir -p ${TEST_SCRATCH_DIR}/buildcontext
+  copy containers-storage:$imageID oci-archive:${TEST_SCRATCH_DIR}/buildcontext/source-oci-archive.tar
+  copy containers-storage:$imageID oci:${TEST_SCRATCH_DIR}/buildcontext/source-oci
+  copy containers-storage:$imageID docker-archive:${TEST_SCRATCH_DIR}/buildcontext/source-docker-archive.tar
+  copy containers-storage:$imageID dir:${TEST_SCRATCH_DIR}/buildcontext/source-dir
+  pushd ${TEST_SCRATCH_DIR}
+  cat > ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile << EOF
+  FROM $base
+  RUN --mount=type=bind,rw,target=/bc mkdir /bc/oci-archive /bc/oci /bc/docker-archive /bc/dir
+  RUN --mount=type=bind,rw,target=/bc cp /bc/source-oci-archive.tar /bc/oci-archive/archive.tar
+  RUN --mount=type=bind,rw,target=/bc cp -a /bc/source-oci/* /bc/oci/
+  RUN --mount=type=bind,rw,target=/bc cp /bc/source-docker-archive.tar /bc/docker-archive/archive.tar
+  RUN --mount=type=bind,rw,target=/bc cp -a /bc/source-dir/* /bc/dir/
+  FROM oci-archive:oci-archive/archive.tar
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 :
+  FROM oci-archive:/oci-archive/archive.tar
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 :
+  FROM oci-archive:./oci-archive/archive.tar
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 :
+  FROM oci:oci/
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 :
+  FROM oci:/oci/
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 :
+  FROM oci:./oci
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 :
+  FROM oci:oci
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 --mount=type=bind,from=6,target=/var/tmp/6 :
+  FROM docker-archive:docker-archive/archive.tar
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 --mount=type=bind,from=6,target=/var/tmp/6 --mount=type=bind,from=7,target=/var/tmp/7 :
+  FROM docker-archive:/docker-archive/archive.tar
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 --mount=type=bind,from=6,target=/var/tmp/6 --mount=type=bind,from=7,target=/var/tmp/7 --mount=type=bind,from=8,target=/var/tmp/8 :
+  FROM docker-archive:./docker-archive/archive.tar
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 --mount=type=bind,from=6,target=/var/tmp/6 --mount=type=bind,from=7,target=/var/tmp/7 --mount=type=bind,from=8,target=/var/tmp/8 --mount=type=bind,from=9,target=/var/tmp/9 :
+  FROM dir:dir
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 --mount=type=bind,from=6,target=/var/tmp/6 --mount=type=bind,from=7,target=/var/tmp/7 --mount=type=bind,from=8,target=/var/tmp/8 --mount=type=bind,from=9,target=/var/tmp/9 --mount=type=bind,from=10,target=/var/tmp/10 :
+  FROM dir:/dir
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 --mount=type=bind,from=6,target=/var/tmp/6 --mount=type=bind,from=7,target=/var/tmp/7 --mount=type=bind,from=8,target=/var/tmp/8 --mount=type=bind,from=9,target=/var/tmp/9 --mount=type=bind,from=10,target=/var/tmp/10 --mount=type=bind,from=11,target=/var/tmp/11 :
+  FROM dir:./dir/
+  RUN --mount=type=bind,from=0,target=/var/tmp/0 --mount=type=bind,from=1,target=/var/tmp/1 --mount=type=bind,from=2,target=/var/tmp/2 --mount=type=bind,from=3,target=/var/tmp/3 --mount=type=bind,from=4,target=/var/tmp/4 --mount=type=bind,from=5,target=/var/tmp/5 --mount=type=bind,from=6,target=/var/tmp/6 --mount=type=bind,from=7,target=/var/tmp/7 --mount=type=bind,from=8,target=/var/tmp/8 --mount=type=bind,from=9,target=/var/tmp/9 --mount=type=bind,from=10,target=/var/tmp/10 --mount=type=bind,from=11,target=/var/tmp/11 --mount=type=bind,from=12,target=/var/tmp/12 :
+EOF
+  run_buildah build ${TEST_SCRATCH_DIR}/buildcontext
 }
