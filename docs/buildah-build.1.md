@@ -910,7 +910,7 @@ in a safe way that will not end up stored in the final image, or be seen in othe
 The value of the secret will be read from an environment variable or file named
 by the "id" option, or named by the "src" option if it is specified, or from an
 environment variable specified by the "env" option.
-The secret will be mounted in the container at `/run/secrets/*id*` by default.
+The secret will be mounted in the container at `/run/secrets/id` by default.
 
 To later use the secret, use the --mount flag in a `RUN` instruction within a `Containerfile`:
 
@@ -1312,6 +1312,16 @@ buildah build --os-version 10.0.19042.1645 -t imageName .
 buildah build --os-feature win32k -t imageName .
 
 buildah build --os-feature win32k- -t imageName .
+
+buildah build --secret=id=mysecret .
+
+buildah build --secret=id=mysecret,env=MYSECRET .
+
+buildah build --secret=id=mysecret,src=MYSECRET,type=env .
+
+buildah build --secret=id=mysecret,src=.mysecret,type=file .
+
+buildah build --secret=id=mysecret,src=.mysecret .
 
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 
