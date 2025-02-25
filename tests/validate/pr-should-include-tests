@@ -39,23 +39,24 @@ fi
 # Nothing changed under test subdirectory.
 #
 # This is OK if the only files being touched are "safe" ones.
-filtered_changes=$(git diff --name-status $base $head |
-                       awk '{print $2}'               |
-                       fgrep -vx .cirrus.yml          |
-                       fgrep -vx .gitignore           |
-                       fgrep -vx changelog.txt        |
-                       fgrep -vx go.mod               |
-                       fgrep -vx go.sum               |
-                       fgrep -vx buildah.spec.rpkg    |
-                       fgrep -vx .golangci.yml        |
-                       fgrep -vx Makefile             |
-                       egrep -v  '^[^/]+\.md$'        |
-                       egrep -v  '^\.github/'         |
-                       egrep -v  '^contrib/'          |
-                       egrep -v  '^docs/'             |
-                       egrep -v  '^hack/'             |
-                       egrep -v  '^nix/'              |
-                       egrep -v  '^vendor/')
+filtered_changes=$(git diff --name-status $base $head   |
+                       awk '{print $2}'                 |
+                       grep -F -vx .cirrus.yml          |
+                       grep -F -vx .packit.yaml         |
+                       grep -F -vx .gitignore           |
+                       grep -F -vx changelog.txt        |
+                       grep -F -vx go.mod               |
+                       grep -F -vx go.sum               |
+                       grep -F -vx buildah.spec.rpkg    |
+                       grep -F -vx .golangci.yml        |
+                       grep -F -vx Makefile             |
+                       grep -E -v  '^[^/]+\.md$'        |
+                       grep -E -v  '^\.github/'         |
+                       grep -E -v  '^contrib/'          |
+                       grep -E -v  '^docs/'             |
+                       grep -E -v  '^hack/'             |
+                       grep -E -v  '^nix/'              |
+                       grep -E -v  '^vendor/')
 if [[ -z "$filtered_changes" ]]; then
     exit 0
 fi
