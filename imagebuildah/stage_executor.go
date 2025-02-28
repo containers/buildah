@@ -1,6 +1,7 @@
 package imagebuildah
 
 import (
+	"archive/tar"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -26,13 +27,21 @@ import (
 	"github.com/containers/buildah/util"
 	config "github.com/containers/common/pkg/config"
 	cp "github.com/containers/image/v5/copy"
+	directoryTransport "github.com/containers/image/v5/directory"
+	dockerTransport "github.com/containers/image/v5/docker"
 	imagedocker "github.com/containers/image/v5/docker"
+	dockerArchiveTransport "github.com/containers/image/v5/docker/archive"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
+	ociArchiveTransport "github.com/containers/image/v5/oci/archive"
+	ociLayoutTransport "github.com/containers/image/v5/oci/layout"
+	openshiftTransport "github.com/containers/image/v5/openshift"
+	"github.com/containers/image/v5/pkg/compression"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/unshare"
 	docker "github.com/fsouza/go-dockerclient"
@@ -537,7 +546,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				}
 				contextDir = mountPoint
 			}
-			// Original behaviour of buildah still stays true for COPY irrespective of additional context.
+			// This isn't --from the build context directory, so we don't want to force everything to 0:0
 			preserveOwnership = true
 			copyExcludes = excludes
 		} else {
@@ -609,6 +618,10 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 // items in the passed-in mounts list which include a "from=" value.
 func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]internal.StageMountDetails, error) {
 	stageMountPoints := make(map[string]internal.StageMountDetails)
+	stageMountPoints[""] = internal.StageMountDetails{
+		MountPoint:               s.executor.contextDir,
+		IsWritesDiscardedOverlay: s.executor.contextDirWritesAreDiscarded,
+	}
 	for _, flag := range mountList {
 		if strings.Contains(flag, "from") {
 			tokens := strings.Split(flag, ",")
@@ -638,7 +651,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 						if additionalBuildContext.IsImage {
 							mountPoint, err := s.getImageRootfs(s.ctx, additionalBuildContext.Value)
 							if err != nil {
-								return nil, fmt.Errorf("%s from=%s: image found with that name", flag, from)
+								return nil, fmt.Errorf("%s from=%s: image not found with that name", flag, from)
 							}
 							// The `from` in stageMountPoints should point
 							// to `mountPoint` replaced from additional
@@ -922,6 +935,290 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 	return errors.New(err)
 }
 
+// sanitizeImageReference limits which image transports we'll accept.  For
+// those it accepts which refer to filesystem objects, where relative path
+// names are evaluated relative to "contextDir", it will create a copy of the
+// original image, under "tmpdir", which contains no symbolic links.
+func (s *StageExecutor) sanitizeFrom(from, tmpdir string) (newFrom string, err error) {
+	transportName, restOfImageName, maybeHasTransportName := strings.Cut(from, ":")
+	if !maybeHasTransportName || transports.Get(transportName) == nil {
+		if _, err = reference.ParseNormalizedNamed(from); err == nil {
+			// this is a normal-looking image-in-a-registry-or-named-in-storage name
+			return from, nil
+		}
+		if img, err := s.executor.store.Image(from); img != nil && err == nil {
+			// this is an image ID
+			return from, nil
+		}
+		return "", fmt.Errorf("parsing image name %q: %w", from, err)
+	}
+	// TODO: drop this part and just return an error... someday
+	return sanitizeImageName(transportName, restOfImageName, s.executor.contextDir, tmpdir)
+}
+
+// sanitizeImageReference limits which image transports we'll accept.  For
+// those it accepts which refer to filesystem objects, where relative path
+// names are evaluated relative to "contextDir", it will create a copy of the
+// original image, under "tmpdir", which contains no symbolic links.
+func sanitizeImageName(transportName, restOfImageName, contextDir, tmpdir string) (newFrom string, err error) {
+	succeeded := false
+	isEmbeddedArchive := false
+	newImageDirectory := ""
+	var tw *tar.Writer
+	var archiveSource string
+	var imageArchive io.ReadCloser
+	switch transportName {
+	case dockerTransport.Transport.Name(), "docker-daemon", openshiftTransport.Transport.Name(): // ok, these are all remote
+		return transportName + ":" + restOfImageName, nil
+	case dockerArchiveTransport.Transport.Name(), ociArchiveTransport.Transport.Name(): // these are, basically, tarballs
+		// these take the form path[:stuff]
+		transportRef := restOfImageName
+		parts := strings.Split(transportRef, ":")
+		archiveSource = parts[0]
+		refLeftover := parts[1:]
+		// create a temporary file to use as our new archive
+		var f *os.File
+		if f, err = os.CreateTemp(tmpdir, "buildah-archive-"); err != nil {
+			return "", fmt.Errorf("creating temporary copy of base image: %w", err)
+		}
+		defer func() {
+			name := f.Name()
+			if err := f.Close(); err != nil {
+				logrus.Warn(err)
+			}
+			if !succeeded {
+				if err := os.Remove(name); err != nil {
+					logrus.Warn(err)
+				}
+			}
+		}()
+		tw = tar.NewWriter(f)
+		defer func() {
+			if err := tw.Close(); err != nil {
+				logrus.Warn(err)
+			}
+		}()
+		// archive the archive
+		isEmbeddedArchive = true
+		for {
+			// try to make sure the archiver doesn't get thrown by relative prefixes
+			if strings.HasPrefix(archiveSource, "/") && archiveSource != "/" {
+				archiveSource = strings.TrimPrefix(archiveSource, "/")
+				continue
+			} else if strings.HasPrefix(archiveSource, "./") && archiveSource != "./" {
+				archiveSource = strings.TrimPrefix(archiveSource, "./")
+				continue
+			}
+			break
+		}
+		tarOptions := &archive.TarOptions{
+			IncludeFiles:    []string{path.Clean(archiveSource)},
+			ExcludePatterns: []string{"**"},
+		}
+		imageArchive, err = chrootarchive.Tar(contextDir, tarOptions, contextDir)
+		// generate the new reference using the file
+		newFrom = transportName + ":" + strings.Join(append([]string{f.Name()}, refLeftover...), ":")
+	case ociLayoutTransport.Transport.Name(): // this is a directory tree
+		// this takes the form path[:stuff]
+		transportRef := restOfImageName
+		parts := strings.Split(transportRef, ":")
+		archiveSource = parts[0]
+		refLeftover := parts[1:]
+		// create a new directory to use as our new layout directory
+		newImageDirectory, err = os.MkdirTemp(tmpdir, "buildah-layout-")
+		if err != nil {
+			return "", fmt.Errorf("creating temporary copy of base image: %w", err)
+		}
+		defer func() {
+			if !succeeded {
+				if err := os.RemoveAll(newImageDirectory); err != nil {
+					logrus.Warn(err)
+				}
+			}
+		}()
+		// archive the directory
+		tarOptions := &archive.TarOptions{}
+		imageArchive, err = chrootarchive.Tar(filepath.Join(contextDir, archiveSource), tarOptions, contextDir)
+		// generate the new reference using the directory
+		newFrom = transportName + ":" + strings.Join(append([]string{newImageDirectory}, refLeftover...), ":")
+	case directoryTransport.Transport.Name(): // this is also a directory tree
+		// this takes the form of just a path
+		transportRef := restOfImageName
+		// create a new directory to use as our new image directory
+		newImageDirectory, err = os.MkdirTemp(tmpdir, "buildah-dir-")
+		if err != nil {
+			return "", fmt.Errorf("creating temporary copy of base image: %w", err)
+		}
+		defer func() {
+			if !succeeded {
+				if err := os.RemoveAll(newImageDirectory); err != nil {
+					logrus.Warn(err)
+				}
+			}
+		}()
+		// archive the directory
+		archiveSource = transportRef
+		tarOptions := &archive.TarOptions{}
+		imageArchive, err = chrootarchive.Tar(filepath.Join(contextDir, archiveSource), tarOptions, contextDir)
+		// generate the new reference using the directory
+		newFrom = transportName + ":" + newImageDirectory
+	default:
+		return "", fmt.Errorf("unexpected container image transport %q", transportName)
+	}
+	if err != nil {
+		return "", fmt.Errorf("error archiving source at %q under %q", archiveSource, contextDir)
+	}
+	defer func() {
+		if err := imageArchive.Close(); err != nil {
+			logrus.Warn(err)
+		}
+	}()
+	decompressed, _, err := compression.AutoDecompress(imageArchive)
+	if err != nil {
+		return "", fmt.Errorf("error decompressing-if-necessary archive %q", archiveSource)
+	}
+	defer func() {
+		if err := decompressed.Close(); err != nil {
+			logrus.Warn(err)
+		}
+	}()
+	tr := tar.NewReader(decompressed)
+	seenEntries := make(map[string]struct{})
+	hdr, err := tr.Next()
+	for hdr != nil {
+		// if the archive we're parsing is expected to have an archive as one of its contents,
+		// assume it's the first (and hopefully, only) item
+		if isEmbeddedArchive {
+			decompressed, _, decompressErr := compression.AutoDecompress(tr)
+			if decompressErr != nil {
+				return "", fmt.Errorf("error decompressing-if-necessary archive %q: %w", archiveSource, decompressErr)
+			}
+			defer func() {
+				if err := decompressed.Close(); err != nil {
+					logrus.Warn(err)
+				}
+			}()
+			tr = tar.NewReader(decompressed)
+			hdr, err = tr.Next()
+			isEmbeddedArchive = false
+			continue
+		}
+		if tw == nil {
+			var createErr error
+			// write directly under newImageDirectory
+			hdr.Name = path.Clean("/" + hdr.Name)
+			newName := filepath.Join(newImageDirectory, filepath.FromSlash(hdr.Name))
+			switch hdr.Typeflag {
+			case tar.TypeDir:
+				createErr = os.Mkdir(newName, 0o700)
+			case tar.TypeReg:
+				createErr = func() error {
+					var f *os.File
+					f, err := os.OpenFile(newName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o700)
+					if err != nil {
+						return fmt.Errorf("copying content for %q in base image: %w", hdr.Name, err)
+					}
+					n, err := io.Copy(f, tr)
+					if err != nil {
+						f.Close()
+						return fmt.Errorf("copying content for %q in base image: %w", hdr.Name, err)
+					}
+					if n != hdr.Size {
+						f.Close()
+						return fmt.Errorf("short write writing %q in base image: %d != %d", hdr.Name, n, hdr.Size)
+					}
+					return f.Close()
+				}()
+			case tar.TypeLink:
+				linkName := path.Clean("/" + hdr.Linkname)
+				oldName := filepath.Join(newImageDirectory, filepath.FromSlash(linkName))
+				createErr = os.Link(oldName, newName)
+			case tar.TypeSymlink: // convert it to a hard link
+				var oldName string
+				if !path.IsAbs(hdr.Linkname) {
+					linkName := path.Join("/"+path.Dir(hdr.Name), hdr.Linkname)
+					oldName = filepath.Join(newImageDirectory, filepath.FromSlash(linkName))
+				} else {
+					oldName = filepath.Join(newImageDirectory, filepath.FromSlash(hdr.Linkname))
+				}
+				createErr = os.Link(oldName, newName)
+			default:
+				return "", fmt.Errorf("extracting archive of base image: disallowed entry type %c", hdr.Typeflag)
+			}
+			if createErr != nil {
+				return "", fmt.Errorf("creating %q: %w", newName, createErr)
+			}
+		} else {
+			// write to the archive file
+			hdr.Name = path.Clean("/" + hdr.Name)
+			if hdr.Name != "/" {
+				hdr.Name = strings.TrimPrefix(hdr.Name, "/")
+			}
+			seenEntries[hdr.Name] = struct{}{}
+			switch hdr.Typeflag {
+			case tar.TypeDir, tar.TypeReg, tar.TypeLink:
+				if err := tw.WriteHeader(hdr); err != nil {
+					return "", fmt.Errorf("rewriting archive of base image: %w", err)
+				}
+			case tar.TypeSymlink:
+				// resolve the target of the symlink
+				linkname := hdr.Linkname
+				if !path.IsAbs(linkname) {
+					linkname = path.Join("/"+path.Dir(hdr.Name), linkname)
+				}
+				linkname = path.Clean(linkname)
+				if linkname != "/" {
+					linkname = strings.TrimPrefix(linkname, "/")
+				}
+				if _, validTarget := seenEntries[linkname]; !validTarget {
+					return "", fmt.Errorf("invalid symbolic link from %q to %q (%q) in archive", hdr.Name, hdr.Linkname, linkname)
+				}
+				rel, err := filepath.Rel(filepath.FromSlash(path.Dir("/"+hdr.Name)), filepath.FromSlash("/"+linkname))
+				if err != nil {
+					return "", fmt.Errorf("computing relative path from %q to %q in archive", hdr.Name, linkname)
+				}
+				rel = filepath.ToSlash(rel)
+				if transportName == ociArchiveTransport.Transport.Name() {
+					// rewrite as a hard link for oci-archive, which gets
+					// extracted into a temporary directory to be read, but
+					// not for docker-archive, which is read directly from
+					// the unextracted archive file, in a way which doesn't
+					// understand hard links
+					hdr.Typeflag = tar.TypeLink
+					hdr.Linkname = linkname
+				} else {
+					// ensure it's a relative symlink inside of the tree
+					// for docker-archive
+					hdr.Linkname = rel
+				}
+				if err := tw.WriteHeader(hdr); err != nil {
+					return "", fmt.Errorf("rewriting archive of base image: %w", err)
+				}
+			default:
+				return "", fmt.Errorf("rewriting archive of base image: disallowed entry type %c", hdr.Typeflag)
+			}
+			if hdr.Typeflag == tar.TypeReg {
+				n, err := io.Copy(tw, tr)
+				if err != nil {
+					return "", fmt.Errorf("copying content for %q in base image: %w", hdr.Name, err)
+				}
+				if n != hdr.Size {
+					return "", fmt.Errorf("short write writing %q in base image: %d != %d", hdr.Name, n, hdr.Size)
+				}
+			}
+		}
+		hdr, err = tr.Next()
+	}
+	if isEmbeddedArchive {
+		logrus.Warnf("expected to have archived a copy of %q, missed it", archiveSource)
+	}
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("reading archive of base image: %w", err)
+	}
+	succeeded = true
+	return newFrom, nil
+}
+
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
@@ -937,6 +1234,19 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			return nil, fmt.Errorf("determining starting point for build: %w", err)
 		}
 		from = base
+	}
+	sanitizedDir, err := os.MkdirTemp(tmpdir.GetTempDir(), "buildah-context-")
+	if err != nil {
+		return nil, fmt.Errorf("creating temporary directory: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(sanitizedDir); err != nil {
+			logrus.Warn(err)
+		}
+	}()
+	sanitizedFrom, err := s.sanitizeFrom(from, tmpdir.GetTempDir())
+	if err != nil {
+		return nil, fmt.Errorf("invalid base image specification %q: %w", from, err)
 	}
 	displayFrom := from
 	if ib.Platform != "" {
@@ -976,7 +1286,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 
 	builderOptions := buildah.BuilderOptions{
 		Args:                  ib.Args,
-		FromImage:             from,
+		FromImage:             sanitizedFrom,
 		GroupAdd:              s.executor.groupAdd,
 		PullPolicy:            pullPolicy,
 		ContainerSuffix:       s.executor.containerSuffix,
@@ -1012,16 +1322,6 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
 	if err != nil {
 		return nil, fmt.Errorf("creating build container: %w", err)
-	}
-
-	// If executor's ProcessLabel and MountLabel is empty means this is the first stage
-	// Make sure we share first stage's ProcessLabel and MountLabel with all other subsequent stages
-	// Doing this will ensure and one stage in same build can mount another stage even if `selinux`
-	// is enabled.
-
-	if s.executor.mountLabel == "" && s.executor.processLabel == "" {
-		s.executor.mountLabel = builder.MountLabel
-		s.executor.processLabel = builder.ProcessLabel
 	}
 
 	if initializeIBConfig {
