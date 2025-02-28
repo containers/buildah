@@ -170,7 +170,8 @@ func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, stor
 	if sizeErr != nil {
 		imgSize = -1
 	}
-	manifestBytes, _, manifestErr := img.GetManifest(ctx, nil)
+	unparsedInstance := image.UnparsedInstance(img, nil)
+	manifestBytes, _, manifestErr := unparsedInstance.Manifest(ctx)
 	manifestDigest := ""
 	if manifestErr == nil && len(manifestBytes) > 0 {
 		mDigest, err := manifest.Digest(manifestBytes)
@@ -179,7 +180,7 @@ func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, stor
 			manifestDigest = mDigest.String()
 		}
 	}
-	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(img, nil))
+	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, unparsedInstance)
 	if inspectableErr == nil {
 		inspectInfo, inspectErr := inspectable.Inspect(ctx)
 		if inspectErr == nil && inspectInfo != nil && inspectInfo.Created != nil {

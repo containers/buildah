@@ -971,7 +971,7 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	require.NoErrorf(t, err, "error opening image %q to read its configuration", imageName)
 	closer = img
 	// read the manifest in its original form
-	rawManifest, _, err := src.GetManifest(ctx, nil)
+	rawManifest, _, err := img.Manifest(ctx)
 	require.NoErrorf(t, err, "error reading raw manifest from image %q", imageName)
 	// read the config blob in its original form
 	rawConfig, err := img.ConfigBlob(ctx)

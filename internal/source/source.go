@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
@@ -47,7 +48,7 @@ func writeManifest(ctx context.Context, manifest *specV1.Manifest, ociDest types
 // readManifestFromImageSource reads the manifest from the specified image
 // source.  Note that the manifest is expected to be an OCI v1 manifest.
 func readManifestFromImageSource(ctx context.Context, src types.ImageSource) (*specV1.Manifest, *digest.Digest, int64, error) {
-	rawData, mimeType, err := src.GetManifest(ctx, nil)
+	rawData, mimeType, err := image.UnparsedInstance(src, nil).Manifest(ctx)
 	if err != nil {
 		return nil, nil, -1, err
 	}
