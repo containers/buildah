@@ -17,6 +17,7 @@ import (
 	"github.com/containers/common/libimage/manifests"
 	"github.com/containers/common/pkg/auth"
 	cp "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/transports"
@@ -686,7 +687,7 @@ func manifestRemoveCmd(c *cobra.Command, args []string, _ manifestRemoveOpts) er
 			return fmt.Errorf("Reading image instance: %w", err)
 		}
 		defer instanceImg.Close()
-		manifestBytes, _, err := instanceImg.GetManifest(ctx, nil)
+		manifestBytes, _, err := image.UnparsedInstance(instanceImg, nil).Manifest(ctx)
 		if err != nil {
 			return fmt.Errorf("Reading image instance manifest: %w", err)
 		}
@@ -826,7 +827,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 				return fmt.Errorf("Reading image instance: %w", err)
 			}
 			defer instanceImg.Close()
-			manifestBytes, _, err := instanceImg.GetManifest(ctx, nil)
+			manifestBytes, _, err := image.UnparsedInstance(instanceImg, nil).Manifest(ctx)
 			if err != nil {
 				return fmt.Errorf("Reading image instance manifest: %w", err)
 			}
@@ -922,7 +923,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 		}
 		defer src.Close()
 
-		manifestBytes, manifestType, err := src.GetManifest(ctx, nil)
+		manifestBytes, manifestType, err := image.UnparsedInstance(src, nil).Manifest(ctx)
 		if err != nil {
 			logrus.Errorf("Error while trying to read artifact subject manifest: %v", err)
 			return err
@@ -1063,7 +1064,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		}
 		defer src.Close()
 
-		manifestBytes, manifestType, err := src.GetManifest(ctx, nil)
+		manifestBytes, manifestType, err := image.UnparsedInstance(src, nil).Manifest(ctx)
 		if err != nil {
 			appendErr(fmt.Errorf("loading manifest %q: %w", transports.ImageName(ref), err))
 			continue
