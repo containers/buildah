@@ -94,6 +94,13 @@ type AddAndCopyOptions struct {
 	// RetryDelay is how long to wait before retrying attempts to retrieve
 	// remote contents.
 	RetryDelay time.Duration
+	// ParentsPatterns are patterns to preserve parent directories of source content
+	// Key: source path (same as argument sources of Add function)
+	// Value: path(pattern) that specifies leading directories in the paths of items being copied,
+	// relative to either the top of the build context, or to the
+	// "pivot point", a location in the source path marked by a path component named "."
+	// (i.e., where "/./" occurs in the path).
+	ParentsPatterns map[string]string
 }
 
 // gitURLFragmentSuffix matches fragments to use as Git reference and build
@@ -261,6 +268,18 @@ func globbedToGlobbable(glob string) string {
 	result = strings.ReplaceAll(result, "?", "\\?")
 	result = strings.ReplaceAll(result, "*", "\\*")
 	return result
+}
+
+// getParentsPrefixToRemove gets from the pattern the prefix before the "pivot point",
+// the location in the source path marked by the path component named "."
+// (i.e. where "/./" occurs in the path).
+// In case "/./" is not present is returned "/".
+func getParentsPrefixToRemove(pattern string) string {
+	prefix, _, found := strings.Cut(pattern, "/./")
+	if !found {
+		return string(filepath.Separator)
+	}
+	return filepath.Clean(prefix)
 }
 
 // Add copies the contents of the specified sources into the container's root
@@ -476,9 +495,12 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	if err := copier.Mkdir(mountPoint, extractDirectory, mkdirOptions); err != nil {
 		return fmt.Errorf("ensuring target directory exists: %w", err)
 	}
-
 	// Copy each source in turn.
 	for _, src := range sources {
+		parentsPrefixToRemove := ""
+		if pattern, ok := options.ParentsPatterns[src]; ok {
+			parentsPrefixToRemove = getParentsPrefixToRemove(pattern)
+		}
 		var multiErr *multierror.Error
 		var getErr, closeErr, renameErr, putErr error
 		var wg sync.WaitGroup
@@ -498,17 +520,18 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					var cloneDir, subdir string
 					cloneDir, subdir, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
 					getOptions := copier.GetOptions{
-						UIDMap:         srcUIDMap,
-						GIDMap:         srcGIDMap,
-						Excludes:       options.Excludes,
-						ExpandArchives: extract,
-						ChownDirs:      chownDirs,
-						ChmodDirs:      chmodDirsFiles,
-						ChownFiles:     chownFiles,
-						ChmodFiles:     chmodDirsFiles,
-						StripSetuidBit: options.StripSetuidBit,
-						StripSetgidBit: options.StripSetgidBit,
-						StripStickyBit: options.StripStickyBit,
+						UIDMap:                srcUIDMap,
+						GIDMap:                srcGIDMap,
+						Excludes:              options.Excludes,
+						ExpandArchives:        extract,
+						ParentsPrefixToRemove: parentsPrefixToRemove,
+						ChownDirs:             chownDirs,
+						ChmodDirs:             chmodDirsFiles,
+						ChownFiles:            chownFiles,
+						ChmodFiles:            chmodDirsFiles,
+						StripSetuidBit:        options.StripSetuidBit,
+						StripSetgidBit:        options.StripSetgidBit,
+						StripStickyBit:        options.StripStickyBit,
 					}
 					writer := io.WriteCloser(pipeWriter)
 					repositoryDir := filepath.Join(cloneDir, subdir)
@@ -645,17 +668,18 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					return false, false, nil
 				})
 				getOptions := copier.GetOptions{
-					UIDMap:         srcUIDMap,
-					GIDMap:         srcGIDMap,
-					Excludes:       options.Excludes,
-					ExpandArchives: extract,
-					ChownDirs:      chownDirs,
-					ChmodDirs:      chmodDirsFiles,
-					ChownFiles:     chownFiles,
-					ChmodFiles:     chmodDirsFiles,
-					StripSetuidBit: options.StripSetuidBit,
-					StripSetgidBit: options.StripSetgidBit,
-					StripStickyBit: options.StripStickyBit,
+					UIDMap:                srcUIDMap,
+					GIDMap:                srcGIDMap,
+					Excludes:              options.Excludes,
+					ExpandArchives:        extract,
+					ChownDirs:             chownDirs,
+					ChmodDirs:             chmodDirsFiles,
+					ChownFiles:            chownFiles,
+					ChmodFiles:            chmodDirsFiles,
+					ParentsPrefixToRemove: parentsPrefixToRemove,
+					StripSetuidBit:        options.StripSetuidBit,
+					StripSetgidBit:        options.StripSetgidBit,
+					StripStickyBit:        options.StripStickyBit,
 				}
 				getErr = copier.Get(contextDir, contextDir, getOptions, []string{globbedToGlobbable(globbed)}, writer)
 				closeErr = writer.Close()

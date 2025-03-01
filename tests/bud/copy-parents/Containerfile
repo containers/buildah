@@ -1,0 +1,5 @@
+FROM alpine
+COPY ./x/a.txt ./y/a.txt /no_parents/
+COPY --parents ./x/a.txt ./y/a.txt /parents/
+run find /no_parents
+run find /parents

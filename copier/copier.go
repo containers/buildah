@@ -343,22 +343,26 @@ func Stat(root string, directory string, options StatOptions, globs []string) ([
 
 // GetOptions controls parts of Get()'s behavior.
 type GetOptions struct {
-	UIDMap, GIDMap     []idtools.IDMap   // map from hostIDs to containerIDs in the output archive
-	Excludes           []string          // contents to pretend don't exist, using the OS-specific path separator
-	ExpandArchives     bool              // extract the contents of named items that are archives
-	ChownDirs          *idtools.IDPair   // set ownership on directories. no effect on archives being extracted
-	ChmodDirs          *os.FileMode      // set permissions on directories. no effect on archives being extracted
-	ChownFiles         *idtools.IDPair   // set ownership of files. no effect on archives being extracted
-	ChmodFiles         *os.FileMode      // set permissions on files. no effect on archives being extracted
-	StripSetuidBit     bool              // strip the setuid bit off of items being copied. no effect on archives being extracted
-	StripSetgidBit     bool              // strip the setgid bit off of items being copied. no effect on archives being extracted
-	StripStickyBit     bool              // strip the sticky bit off of items being copied. no effect on archives being extracted
-	StripXattrs        bool              // don't record extended attributes of items being copied. no effect on archives being extracted
-	KeepDirectoryNames bool              // don't strip the top directory's basename from the paths of items in subdirectories
-	Rename             map[string]string // rename items with the specified names, or under the specified names
-	NoDerefSymlinks    bool              // don't follow symlinks when globs match them
-	IgnoreUnreadable   bool              // ignore errors reading items, instead of returning an error
-	NoCrossDevice      bool              // if a subdirectory is a mountpoint with a different device number, include it but skip its contents
+	UIDMap, GIDMap []idtools.IDMap // map from hostIDs to containerIDs in the output archive
+	Excludes       []string        // contents to pretend don't exist, using the OS-specific path separator
+	ExpandArchives bool            // extract the contents of named items that are archives
+	ChownDirs      *idtools.IDPair // set ownership on directories. no effect on archives being extracted
+	ChmodDirs      *os.FileMode    // set permissions on directories. no effect on archives being extracted
+	ChownFiles     *idtools.IDPair // set ownership of files. no effect on archives being extracted
+	ChmodFiles     *os.FileMode    // set permissions on files. no effect on archives being extracted
+	// ParentsPrefixToRemove is removed from source path and what is left is used as name to maintain
+	// the sources parent directory in the destination if is empty is used only file name as name in tar.
+	// Note: Parent directories are copied to the tarstream
+	ParentsPrefixToRemove string
+	StripSetuidBit        bool              // strip the setuid bit off of items being copied. no effect on archives being extracted
+	StripSetgidBit        bool              // strip the setgid bit off of items being copied. no effect on archives being extracted
+	StripStickyBit        bool              // strip the sticky bit off of items being copied. no effect on archives being extracted
+	StripXattrs           bool              // don't record extended attributes of items being copied. no effect on archives being extracted
+	KeepDirectoryNames    bool              // don't strip the top directory's basename from the paths of items in subdirectories
+	Rename                map[string]string // rename items with the specified names, or under the specified names
+	NoDerefSymlinks       bool              // don't follow symlinks when globs match them
+	IgnoreUnreadable      bool              // ignore errors reading items, instead of returning an error
+	NoCrossDevice         bool              // if a subdirectory is a mountpoint with a different device number, include it but skip its contents
 }
 
 // Get produces an archive containing items that match the specified glob
@@ -1215,6 +1219,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 		return errorResponse("copier: get: error reading info about directory %q: %v", req.Directory, err)
 	}
 	cb := func() error {
+		alreadyCopied := map[string]struct{}{}
 		tw := tar.NewWriter(bulkWriter)
 		defer tw.Close()
 		hardlinkChecker := new(hardlinkChecker)
@@ -1354,6 +1359,9 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 							ok = filepath.SkipDir
 						}
 					}
+					if len(req.GetOptions.ParentsPrefixToRemove) > 0 {
+						rel = filepath.Clean(strings.TrimPrefix(path, filepath.Join(req.Directory, req.GetOptions.ParentsPrefixToRemove)))
+					}
 					// add the item to the outgoing tar stream
 					if err := copierHandlerGetOne(info, symlinkTarget, rel, path, options, tw, hardlinkChecker, idMappings); err != nil {
 						if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
@@ -1379,17 +1387,37 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 				if skip {
 					continue
 				}
-				// add the item to the outgoing tar stream.  in
-				// cases where this was a symlink that we
-				// dereferenced, be sure to use the name of the
-				// link.
-				if err := copierHandlerGetOne(info, "", filepath.Base(queue[i]), item, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
+
+				copyFunc := func(name string, path string, fileInfo os.FileInfo) error {
+					// add the item to the outgoing tar stream.  in
+					// cases where this was a symlink that we
+					// dereferenced, be sure to use the name of the
+					// link.
+					if err := copierHandlerGetOne(fileInfo, "", name, path, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
+						return err
+					}
+					itemsCopied++
+					return nil
+				}
+
+				name := filepath.Base(queue[i])
+				if len(req.GetOptions.ParentsPrefixToRemove) > 0 {
+					name = filepath.Clean(strings.TrimPrefix(item, filepath.Join(req.Directory, req.GetOptions.ParentsPrefixToRemove)))
+					alreadyCopied, err = copyParentsDirs(name, item, alreadyCopied, copyFunc)
+					if err != nil {
+						if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
+							continue
+						}
+						return fmt.Errorf("copier: get: %q: %w", queue[i], err)
+					}
+				}
+
+				if err := copyFunc(name, item, info); err != nil {
 					if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
 						continue
 					}
 					return fmt.Errorf("copier: get: %q: %w", queue[i], err)
 				}
-				itemsCopied++
 			}
 		}
 		if itemsCopied == 0 {
@@ -1398,6 +1426,31 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 		return nil
 	}
 	return &response{Stat: statResponse.Stat, Get: getResponse{}}, cb, nil
+}
+
+func copyParentsDirs(name string, path string, alreadyCopied map[string]struct{}, copy func(string, string, os.FileInfo) error) (map[string]struct{}, error) {
+	parentName := filepath.Dir(name)
+	parentPath := filepath.Dir(path)
+	for parentName != "/" && parentName != "." {
+		if _, ok := alreadyCopied[parentPath]; ok {
+			parentName = filepath.Dir(parentName)
+			parentPath = filepath.Dir(parentPath)
+			continue
+		}
+
+		parentInfo, err := os.Lstat(parentPath)
+		if err != nil {
+			return alreadyCopied, fmt.Errorf("copier: get: lstat %q: %w", parentPath, err)
+		}
+		if err := copy(strings.TrimPrefix(parentName, "/"), parentPath, parentInfo); err != nil {
+			return alreadyCopied, err
+		}
+
+		alreadyCopied[parentPath] = struct{}{}
+		parentName = filepath.Dir(parentName)
+		parentPath = filepath.Dir(parentPath)
+	}
+	return alreadyCopied, nil
 }
 
 func handleRename(rename map[string]string, name string) string {
