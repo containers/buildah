@@ -79,12 +79,16 @@ or
 * save container's root file system layer to create a new image
 * delete a working container or an image
 
+# This subpackage is only intended for CI testing.
+# Not meant for end user/customer usage.
 %package tests
 Summary: Tests for %{name}
 
 Requires: %{name} = %{epoch}:%{version}-%{release}
-%if %{defined fedora}
+%if %{defined bats_epel}
 Requires: bats
+%else
+Recommends: bats
 %endif
 Requires: bzip2
 Requires: podman
