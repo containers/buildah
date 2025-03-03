@@ -65,8 +65,8 @@ github.com/containernetworking/plugins v1.5.1 h1:T5ji+LPYjjgW0QM+KyrigZbLsZ8jaX+
 github.com/containernetworking/plugins v1.5.1/go.mod h1:MIQfgMayGuHYs0XdNudf31cLLAC+i242hNm6KuDGqCM=
 github.com/containers/common v0.62.0 h1:Sl9WE5h7Y/F3bejrMAA4teP1EcY9ygqJmW4iwSloZ10=
 github.com/containers/common v0.62.0/go.mod h1:Yec+z8mrSq4rydHofrnDCBqAcNA/BGrSg1kfFUL6F6s=
-github.com/containers/image/v5 v5.34.0 h1:HPqQaDUsox/3mC1pbOyLAIQEp0JhQqiUZ+6JiFIZLDI=
-github.com/containers/image/v5 v5.34.0/go.mod h1:/WnvUSEfdqC/ahMRd4YJDBLrpYWkGl018rB77iB3FDo=
+github.com/containers/image/v5 v5.34.1 h1:/m2bkFnuedTyNkzma8s7cFLjeefPIb4trjyafWhIlwM=
+github.com/containers/image/v5 v5.34.1/go.mod h1:/WnvUSEfdqC/ahMRd4YJDBLrpYWkGl018rB77iB3FDo=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/luksy v0.0.0-20250106202729-a3a812db5b72 h1:hdBIFaml6hO+Bal8CdQSQPTF305gwsJfubs4NoOV53A=
