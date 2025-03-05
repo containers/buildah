@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
@@ -67,6 +68,8 @@ type (
 		CopyPass bool
 		// ForceMask, if set, indicates the permission mask used for created files.
 		ForceMask *os.FileMode
+		// Timestamp, if set, will be set in each header as create/mod/access time
+		Timestamp *time.Time
 	}
 )
 
@@ -78,7 +81,6 @@ const (
 	windows = "windows"
 	darwin  = "darwin"
 	freebsd = "freebsd"
-	linux   = "linux"
 )
 
 var xattrsToIgnore = map[string]interface{}{
@@ -179,6 +181,7 @@ func DecompressStream(archive io.Reader) (_ io.ReadCloser, Err error) {
 
 	defer func() {
 		if Err != nil {
+			// In the normal case, the buffer is embedded in the ReadCloser return.
 			p.Put(buf)
 		}
 	}()
@@ -475,7 +478,7 @@ type TarWhiteoutConverter interface {
 	ConvertReadWithHandler(*tar.Header, string, TarWhiteoutHandler) (bool, error)
 }
 
-type tarAppender struct {
+type tarWriter struct {
 	TarWriter *tar.Writer
 	Buffer    *bufio.Writer
 
@@ -494,15 +497,19 @@ type tarAppender struct {
 	// from the traditional behavior/format to get features like subsecond
 	// precision in timestamps.
 	CopyPass bool
+
+	// Timestamp, if set, will be set in each header as create/mod/access time
+	Timestamp *time.Time
 }
 
-func newTarAppender(idMapping *idtools.IDMappings, writer io.Writer, chownOpts *idtools.IDPair) *tarAppender {
-	return &tarAppender{
+func newTarWriter(idMapping *idtools.IDMappings, writer io.Writer, chownOpts *idtools.IDPair, timestamp *time.Time) *tarWriter {
+	return &tarWriter{
 		SeenFiles:  make(map[uint64]string),
 		TarWriter:  tar.NewWriter(writer),
 		Buffer:     pools.BufioWriter32KPool.Get(nil),
 		IDMappings: idMapping,
 		ChownOpts:  chownOpts,
+		Timestamp:  timestamp,
 	}
 }
 
@@ -521,8 +528,8 @@ func canonicalTarName(name string, isDir bool) (string, error) {
 	return name, nil
 }
 
-// addTarFile adds to the tar archive a file from `path` as `name`
-func (ta *tarAppender) addTarFile(path, name string) error {
+// addFile adds a file from `path` as `name` to the tar archive.
+func (ta *tarWriter) addFile(path, name string) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -600,6 +607,13 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		hdr.Gname = ""
 	}
 
+	// if override timestamp set, replace all times with this
+	if ta.Timestamp != nil {
+		hdr.ModTime = *ta.Timestamp
+		hdr.AccessTime = *ta.Timestamp
+		hdr.ChangeTime = *ta.Timestamp
+	}
+
 	maybeTruncateHeaderModTime(hdr)
 
 	if ta.WhiteoutConverter != nil {
@@ -650,7 +664,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns, ignoreChownErrors bool, forceMask *os.FileMode, buffer []byte) error {
+func extractTarFileEntry(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns, ignoreChownErrors bool, forceMask *os.FileMode, buffer []byte) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -862,10 +876,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	}
 
 	go func() {
-		ta := newTarAppender(
+		ta := newTarWriter(
 			idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps),
 			compressWriter,
 			options.ChownOpts,
+			options.Timestamp,
 		)
 		ta.WhiteoutConverter = GetWhiteoutConverter(options.WhiteoutFormat, options.WhiteoutData)
 		ta.CopyPass = options.CopyPass
@@ -1002,7 +1017,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					relFilePath = strings.Replace(relFilePath, include, replacement, 1)
 				}
 
-				if err := ta.addTarFile(filePath, relFilePath); err != nil {
+				if err := ta.addFile(filePath, relFilePath); err != nil {
 					logrus.Errorf("Can't add file %s to tar: %s", filePath, err)
 					// if pipe is broken, stop writing tar stream to it
 					if err == io.ErrClosedPipe {
@@ -1137,7 +1152,7 @@ loop:
 			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
 		}
 
-		if err = createTarFile(path, dest, hdr, trBuf, doChown, chownOpts, options.InUserNS, options.IgnoreChownErrors, options.ForceMask, buffer); err != nil {
+		if err = extractTarFileEntry(path, dest, hdr, trBuf, doChown, chownOpts, options.InUserNS, options.IgnoreChownErrors, options.ForceMask, buffer); err != nil {
 			return err
 		}
 
