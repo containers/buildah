@@ -155,3 +155,5 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.8.0 // indirect
 )
+
+replace github.com/containers/common => github.com/flouthoc/common v0.39.1-0.20250304203821-d585e3d79a23
