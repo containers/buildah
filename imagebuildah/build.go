@@ -28,6 +28,7 @@ import (
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/shortnames"
 	istorage "github.com/containers/image/v5/storage"
@@ -369,7 +370,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			return "", nil, err
 		}
 		defer imgSource.Close()
-		manifestBytes, _, err := imgSource.GetManifest(ctx, nil)
+		manifestBytes, _, err := image.UnparsedInstance(imgSource, nil).Manifest(ctx)
 		if err != nil {
 			return "", nil, err
 		}
@@ -569,7 +570,7 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 				logrus.Debugf("preparing to read image manifest for %q: %v", baseImage, err)
 				continue
 			}
-			candidateBytes, candidateType, err := src.GetManifest(ctx, nil)
+			candidateBytes, candidateType, err := image.UnparsedInstance(src, nil).Manifest(ctx)
 			_ = src.Close()
 			if err != nil {
 				logrus.Debugf("reading image manifest for %q: %v", baseImage, err)
