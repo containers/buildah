@@ -1,11 +1,11 @@
 FROM mirror.gcr.io/busybox
-ADD https://github.com/openshift/origin/raw/master/README.md README.md
+ADD https://github.com/openshift/origin/raw/main/README.md README.md
 USER 1001
-ADD https://github.com/openshift/origin/raw/master/LICENSE .
-ADD https://github.com/openshift/origin/raw/master/LICENSE A
-ADD https://github.com/openshift/origin/raw/master/LICENSE ./a
+ADD https://github.com/openshift/origin/raw/main/LICENSE .
+ADD https://github.com/openshift/origin/raw/main/LICENSE A
+ADD https://github.com/openshift/origin/raw/main/LICENSE ./a
 USER root
 RUN mkdir ./b
-ADD https://github.com/openshift/origin/raw/master/LICENSE ./b/a
-ADD https://github.com/openshift/origin/raw/master/LICENSE ./b/.
+ADD https://github.com/openshift/origin/raw/main/LICENSE ./b/a
+ADD https://github.com/openshift/origin/raw/main/LICENSE ./b/.
 ADD https://github.com/openshift/ruby-hello-world/archive/master.zip /tmp/
