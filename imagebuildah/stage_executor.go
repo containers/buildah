@@ -1943,17 +1943,20 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		if len(node.Original) > 4 {
 			shArg = node.Original[4:]
 		}
-		if buildArgs != "" {
-			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + shArg + appendCheckSum, nil
-		}
-		result := "/bin/sh -c " + shArg
+
+		heredoc := ""
+		result := ""
 		if len(node.Heredocs) > 0 {
 			for _, doc := range node.Heredocs {
 				heredocContent := strings.TrimSpace(doc.Content)
-				result = result + "\n" + heredocContent
+				heredoc = heredoc + "\n" + heredocContent
 			}
 		}
-		return result + appendCheckSum, nil
+		if buildArgs != "" {
+			result = result + "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " "
+		}
+		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum
+		return result, nil
 	case "ADD", "COPY":
 		destination := node
 		for destination.Next != nil {
