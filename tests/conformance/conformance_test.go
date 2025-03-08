@@ -2537,6 +2537,165 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name: "copy--parents",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY ./x/a.txt ./y/a.txt /no_parents/",
+			"COPY --parents ./x/a.txt ./y/a.txt /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):no_parents:mtime", "(dir):parents:(dir):x:mtime", "(dir):parents:(dir):y:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--parents-directories",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):x:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--parents-all-directories",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./ /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):x:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+	{
+		name: "copy--parents-directory-with-parent-directory",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/y/ /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):x:mtime", "(dir):parents:(dir):x:(dir):y:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+	{
+		name: "copy--parents-path-with-star",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/*/a.txt ./*/b.txt /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):x:mtime", "(dir):parents:(dir):y:mtime", "(dir):parents:(dir):x:(dir):y:mtime", "(dir):parents:(dir):x:(dir):z:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--parents-two-parent-directories",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/y/*.txt /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):x:mtime", "(dir):parents:(dir):x:(dir):y:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--parents-unknown-count-parent-directories",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/* /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):x:mtime", "(dir):parents:(dir):x:(dir):y:mtime", "(dir):parents:(dir):x:(dir):z:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--parents-directory-limit-parents-unknown-count-parent-directories",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/./ /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):y:mtime", "(dir):parents:(dir):z:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+	{
+		name: "copy--parents-limit-parents-unknown-count-parent-directories",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/./* /parents/",
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):y:mtime", "(dir):parents:(dir):z:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--parents-limit-parent-directories",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/./y/*.txt /parents/",
+			/*
+				Build context:
+				./x/y/a.txt
+				./x/y/b.txt
+
+				Output:
+				/parents/y/a.txt
+				/parents/y/b.txt
+			*/
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime", "(dir):parents:(dir):y:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		name: "copy--parents-limit-parent-directories-1",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=docker/dockerfile:1.7-labs",
+			"FROM scratch",
+			"COPY --parents ./x/y/./*.txt /parents/",
+			/*
+				Build context:
+				./x/y/a.txt
+				./x/y/b.txt
+
+				Output:
+				/parents/a.txt
+				/parents/b.txt
+			*/
+		}, "\n"),
+		contextDir:          "copy-parents",
+		fsSkip:              []string{"(dir):parents:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
 		name: "dockerignore-includes-star",
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
