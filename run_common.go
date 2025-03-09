@@ -208,6 +208,39 @@ func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDP
 	return cfile, nil
 }
 
+// createSSLCertFile creates a containers CA cert file
+func (b *Builder) createSSLCertFile(rdir, containerPath string, chownOpts *idtools.IDPair) (string, error) {
+	resolvedSSLCertPath, err := util.ResolveRootCACertFile()
+	if err != nil {
+		return "", fmt.Errorf("error resolving cert file on host: %w", err)
+	}
+
+	hostCertBytes, err := os.ReadFile(resolvedSSLCertPath)
+	if err != nil {
+		return "", fmt.Errorf("error reading cert file on host: %w", err)
+	}
+
+	cfile := filepath.Join(rdir, filepath.Base(containerPath))
+	if err = ioutils.AtomicWriteFile(cfile, hostCertBytes, 0o644); err != nil {
+		return "", fmt.Errorf("writing %s into the container: %w", containerPath, err)
+	}
+
+	uid := 0
+	gid := 0
+	if chownOpts != nil {
+		uid = chownOpts.UID
+		gid = chownOpts.GID
+	}
+	if err = os.Chown(cfile, uid, gid); err != nil {
+		return "", err
+	}
+	if err = relabel(cfile, b.MountLabel, false); err != nil {
+		return "", err
+	}
+
+	return cfile, nil
+}
+
 func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
 	switch terminalPolicy {
 	case DefaultTerminal:
@@ -324,6 +357,10 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 				g.AddProcessEnv(envSpec, envVal)
 			}
 		}
+	}
+
+	if b.CommonBuildOpts.WithSSLCertFile {
+		g.AddProcessEnv("SSL_CERT_FILE", "/host-ssl-cert-file")
 	}
 
 	for _, envSpec := range util.MergeEnv(util.MergeEnv(defaultEnv, b.Env()), options.Env) {
