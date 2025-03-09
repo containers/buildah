@@ -162,6 +162,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	cpuQuota, _ := flags.GetInt64("cpu-quota")
 	cpuShares, _ := flags.GetUint64("cpu-shares")
 	httpProxy, _ := flags.GetBool("http-proxy")
+	sslCertFile, _ := flags.GetBool("ssl-cert-file")
 	identityLabel, _ := flags.GetBool("identity-label")
 	omitHistory, _ := flags.GetBool("omit-history")
 
@@ -197,6 +198,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 		Volumes:       volumes,
 		Secrets:       secrets,
 		SSHSources:    sshsources,
+		SSLCertFile:   sslCertFile,
 		OCIHooksDir:   ociHooks,
 	}
 	securityOpts, _ := flags.GetStringArray("security-opt")

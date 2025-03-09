@@ -445,6 +445,11 @@ Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater tha
 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`(megabytes), or `g` (gigabytes).
 If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
 
+**--ssl-cert-file**
+
+If set, bind mount the host CA cert file (override location by setting `SSL_CERT_FILE`) within the RUN containers,
+and set environment variable `SSL_CERT_FILE` to point to it.
+
 **--tls-verify** *bool-value*
 
 Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.

@@ -326,6 +326,10 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 		}
 	}
 
+	if b.CommonBuildOpts.SSLCertFile {
+		g.AddProcessEnv("SSL_CERT_FILE", "/host-ssl-cert-file")
+	}
+
 	for _, envSpec := range util.MergeEnv(util.MergeEnv(defaultEnv, b.Env()), options.Env) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {

@@ -149,6 +149,7 @@ type FromAndBudResults struct {
 	RetryDelay     string
 	SecurityOpt    []string
 	ShmSize        string
+	SSLCertFile    bool
 	Ulimit         []string
 	Volumes        []string
 }
@@ -409,6 +410,7 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.String("variant", "", "override the `variant` of the specified image")
 	fs.StringArrayVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
 	fs.StringVar(&flags.ShmSize, "shm-size", defaultContainerConfig.Containers.ShmSize, "size of '/dev/shm'. The format is `<number><unit>`.")
+	fs.BoolVar(&flags.SSLCertFile, "ssl-cert-file", false, "mount host root CAs to /host-ssl-cert-file in container during build, and set SSL_CERT_FILE to point to it")
 	fs.StringSliceVar(&flags.Ulimit, "ulimit", defaultContainerConfig.Containers.DefaultUlimits.Get(), "ulimit options")
 	fs.StringArrayVarP(&flags.Volumes, "volume", "v", defaultContainerConfig.Volumes(), "bind mount a volume into the container")
 

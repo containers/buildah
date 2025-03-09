@@ -976,6 +976,11 @@ To later use the ssh agent, use the --mount flag in a `RUN` instruction within a
 
 `RUN --mount=type=secret,id=id mycmd`
 
+**--ssl-cert-file**
+
+If set, bind mount the host CA cert file (override location by setting `SSL_CERT_FILE`) within the RUN containers,
+and set environment variable `SSL_CERT_FILE` to point to it.
+
 **--stdin**
 
 Pass stdin into the RUN containers. Sometimes commands being RUN within a Containerfile

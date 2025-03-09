@@ -83,6 +83,8 @@ type CommonBuildOptions struct {
 	ApparmorProfile string
 	// ShmSize is the "size" value to use when mounting an shmfs on the container's /dev/shm directory.
 	ShmSize string
+	// SSLCertFile specifies whether the host root CAs should be ephemerally mounted within the container
+	SSLCertFile bool
 	// Ulimit specifies resource limit options, in the form type:softlimit[:hardlimit].
 	// These types are recognized:
 	// "core": maximum core dump size (ulimit -c)
