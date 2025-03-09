@@ -503,6 +503,14 @@ rootless=%d
 		bindFiles["/run/.containerenv"] = containerenvPath
 	}
 
+	if b.CommonBuildOpts.SSLCertFile {
+		resolvedSSLCertPath, err := util.ResolveRootCACertFile()
+		if err != nil {
+			return err
+		}
+		bindFiles["/host-ssl-cert-file"] = resolvedSSLCertPath
+	}
+
 	// Setup OCI hooks
 	_, err = b.setupOCIHooks(spec, (len(options.Mounts) > 0 || len(volumes) > 0))
 	if err != nil {
