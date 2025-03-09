@@ -982,6 +982,11 @@ Pass stdin into the RUN containers. Sometimes commands being RUN within a Contai
 want to request information from the user. For example apt asking for a confirmation for install.
 Use --stdin to be able to interact from the terminal during the build.
 
+**--ssl-cert-file**
+
+If set, bind mount the host CA cert file (override location by setting `SSL_CERT_FILE`) within the RUN containers,
+and set environment variable `SSL_CERT_FILE` to point to it.
+
 **--tag**, **-t** *imageName*
 
 Specifies the name which will be assigned to the resulting image if the build
