@@ -93,12 +93,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	}
 	logger.SetLevel(logrus.GetLevel())
 
-	var dockerfiles []io.ReadCloser
-	defer func(dockerfiles ...io.ReadCloser) {
-		for _, d := range dockerfiles {
-			d.Close()
-		}
-	}(dockerfiles...)
+	var dockerfiles []io.Reader
 
 	for _, tag := range append([]string{options.Output}, options.AdditionalTags...) {
 		if tag == "" {
@@ -110,7 +105,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	}
 
 	for _, dfile := range paths {
-		var data io.ReadCloser
+		var data io.Reader
 
 		if strings.HasPrefix(dfile, "http://") || strings.HasPrefix(dfile, "https://") {
 			logger.Debugf("reading remote Dockerfile %q", dfile)
@@ -118,8 +113,8 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			if err != nil {
 				return "", nil, err
 			}
+			defer resp.Body.Close()
 			if resp.ContentLength == 0 {
-				resp.Body.Close()
 				return "", nil, fmt.Errorf("no contents in %q", dfile)
 			}
 			data = resp.Body
@@ -146,13 +141,12 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			if err != nil {
 				return "", nil, fmt.Errorf("reading build instructions: %w", err)
 			}
+			defer contents.Close()
 			dinfo, err = contents.Stat()
 			if err != nil {
-				contents.Close()
 				return "", nil, fmt.Errorf("reading info about %q: %w", dfile, err)
 			}
 			if dinfo.Mode().IsRegular() && dinfo.Size() == 0 {
-				contents.Close()
 				return "", nil, fmt.Errorf("no contents in %q", dfile)
 			}
 			data = contents
@@ -164,7 +158,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			if err != nil {
 				return "", nil, err
 			}
-			data = io.NopCloser(pData)
+			data = pData
 		}
 
 		dockerfiles = append(dockerfiles, data)
