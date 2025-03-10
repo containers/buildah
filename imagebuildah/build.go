@@ -94,11 +94,11 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	logger.SetLevel(logrus.GetLevel())
 
 	var dockerfiles []io.ReadCloser
-	defer func(dockerfiles ...io.ReadCloser) {
+	defer func() {
 		for _, d := range dockerfiles {
 			d.Close()
 		}
-	}(dockerfiles...)
+	}()
 
 	for _, tag := range append([]string{options.Output}, options.AdditionalTags...) {
 		if tag == "" {
