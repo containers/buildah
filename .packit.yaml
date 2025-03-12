@@ -47,8 +47,12 @@ jobs:
       failure_comment:
         message: "Ephemeral COPR build failed. @containers/packit-build please check."
     targets: &fedora_copr_targets
-      - fedora-all-x86_64
-      - fedora-all-aarch64
+    # f40 ships go 1.22 and we require go 1.23 now. This should be revert to fedora-all
+    # once either f40 is rebased to go 1.23 or f42 is released and f40 EOL.
+      - fedora-latest-stable-x86_64
+      - fedora-latest-stable-aarch64
+      - fedora-development-x86_64
+      - fedora-development-aarch64
     enable_net: true
 
   - job: copr_build
@@ -92,7 +96,9 @@ jobs:
     trigger: pull_request
     packages: [buildah-fedora]
     targets: &fedora_copr_test_targets
-      - fedora-all-x86_64
+    # See the other comment above, this should be reverted to fedora-all when possible.
+      - fedora-latest-stable-x86_64
+      - fedora-development-x86_64
     tf_extra_params:
       environments:
         - artifacts:
