@@ -7,11 +7,11 @@ go 1.22.8
 require (
 	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containernetworking/cni v1.2.3
-	github.com/containers/common v0.62.1
-	github.com/containers/image/v5 v5.34.1
+	github.com/containers/common v0.62.2
+	github.com/containers/image/v5 v5.34.2
 	github.com/containers/luksy v0.0.0-20250106202729-a3a812db5b72
 	github.com/containers/ocicrypt v1.2.1
-	github.com/containers/storage v1.57.1
+	github.com/containers/storage v1.57.2
 	github.com/cyphar/filepath-securejoin v0.3.6
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v27.5.1+incompatible
