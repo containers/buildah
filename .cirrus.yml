@@ -122,7 +122,7 @@ vendor_task:
 
     # Runs within Cirrus's "community cluster"
     container:
-        image: docker.io/library/golang:1.22
+        image: docker.io/library/golang:1.23
         cpu: 1
         memory: 1
 
@@ -207,7 +207,7 @@ integration_task:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
-        # Disabled until we update to f40/41 as f39 does not have go 1.22
+        # Disabled until we update to f41/42 as f40 does not have go 1.22
         # - env:
         #     DISTRO_NV: "${PRIOR_FEDORA_NAME}"
         #     IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
@@ -221,7 +221,7 @@ integration_task:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
-        # Disabled until we update to f40/41 as f39 does not have go 1.22
+        # Disabled until we update to f41/42 as f40 does not have go 1.22
         # - env:
         #     DISTRO_NV: "${PRIOR_FEDORA_NAME}"
         #     IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
