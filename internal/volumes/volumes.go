@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
@@ -77,6 +79,30 @@ func mountIsReadWrite(m specs.Mount) bool {
 	return rw
 }
 
+// convertToOverlayOrMakeTempCopy  accepts a specs.Mount that specifies a bind
+// mount, and returns either a replacement for it that instead mounts an
+// overlay at the desired location, using the original source location as a
+// "lower", or a temporary copy of the original source location, so that writes
+// to it will succeed, but not affect the original location.
+func convertToOverlayOrTempCopy(m specs.Mount, store storage.Store, mountLabel, tmpDir string, uid, gid int) (newMount specs.Mount, overlayDir string, err error) {
+	switch store.GraphDriverName() {
+	case "overlay":
+		if newMount, overlayDir, err = convertToOverlay(m, store, mountLabel, tmpDir, uid, gid); err != nil {
+			return newMount, "", err
+		}
+	default:
+		if newMount, overlayDir, err = makeTempCopy(m, tmpDir, uid, gid); err != nil {
+			return newMount, "", err
+		}
+	}
+	return newMount, overlayDir, nil
+}
+
+// convertToOverlay accepts a specs.Mount that specifies a bind mount, and
+// returns a replacement for it that instead mounts an overlay at the desired
+// location, using the original source location as a "lower", so that writes to
+// it will be redirected to it to a temporary location which can later be
+// discarded, leaving the original location unmodified.
 func convertToOverlay(m specs.Mount, store storage.Store, mountLabel, tmpDir string, uid, gid int) (specs.Mount, string, error) {
 	overlayDir, err := overlay.TempDir(tmpDir, uid, gid)
 	if err != nil {
@@ -93,7 +119,7 @@ func convertToOverlay(m specs.Mount, store storage.Store, mountLabel, tmpDir str
 		// do the normal thing of mounting this directory as a lower with a temporary upper
 		mountThisInstead, err = overlay.MountWithOptions(overlayDir, m.Source, m.Destination, &options)
 		if err != nil {
-			return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", m.Source, err)
+			return specs.Mount{}, "", fmt.Errorf("setting up overlay of directory %q: %w", m.Source, err)
 		}
 	} else {
 		// mount the parent directory as the lower with a temporary upper, and return a
@@ -103,7 +129,7 @@ func convertToOverlay(m specs.Mount, store storage.Store, mountLabel, tmpDir str
 		destination := m.Destination
 		mountedOverlay, err := overlay.MountWithOptions(overlayDir, sourceDir, destination, &options)
 		if err != nil {
-			return specs.Mount{}, "", fmt.Errorf("setting up overlay of %q: %w", sourceDir, err)
+			return specs.Mount{}, "", fmt.Errorf("setting up overlay of directory %q containing %q: %w", sourceDir, sourceBase, err)
 		}
 		if mountedOverlay.Type != define.TypeBind {
 			if err2 := overlay.RemoveTemp(overlayDir); err2 != nil {
@@ -115,6 +141,91 @@ func convertToOverlay(m specs.Mount, store storage.Store, mountLabel, tmpDir str
 		mountThisInstead.Source = filepath.Join(mountedOverlay.Source, sourceBase)
 		mountThisInstead.Destination = destination
 	}
+	return mountThisInstead, overlayDir, nil
+}
+
+// makeTempCopy accepts a specs.Mount that specifies a bind mount, and returns
+// a replacement for it that instead bind mounts a temporary copy of the
+// original source location, so that writes to it will succeed without actually
+// modifying the original copy.
+func makeTempCopy(m specs.Mount, tmpDir string, uid, gid int) (specs.Mount, string, error) {
+	succeeded := false
+	overlayDir, err := overlay.TempDir(tmpDir, uid, gid)
+	if err != nil {
+		return specs.Mount{}, "", fmt.Errorf("setting up temporary copy of %q: %w", m.Destination, err)
+	}
+	defer func() {
+		if !succeeded {
+			if err := overlay.RemoveTemp(overlayDir); err != nil {
+				logrus.Warnf("%v", err)
+			}
+		}
+	}()
+	mergedDir := filepath.Join(overlayDir, "merge")
+	fileInfo, err := os.Stat(m.Source)
+	if err != nil {
+		return specs.Mount{}, "", fmt.Errorf("setting up temporary copy of %q: %w", m.Source, err)
+	}
+	copiedDir := filepath.Join(mergedDir, "copied")
+	if fileInfo.IsDir() {
+		if err = os.Mkdir(copiedDir, fileInfo.Mode()); err != nil {
+			return specs.Mount{}, "", fmt.Errorf("creating top-level directory for copy of %q: %w", m.Source, err)
+		}
+	} else {
+		if err = os.Mkdir(copiedDir, 0o755); err != nil {
+			return specs.Mount{}, "", fmt.Errorf("creating parent directory for copy of %q: %w", m.Source, err)
+		}
+	}
+	if err = os.Chown(copiedDir, uid, gid); err != nil {
+		return specs.Mount{}, "", fmt.Errorf("setting ownership of %q: %w", m.Source, err)
+	}
+	forceOwner := idtools.IDPair{UID: uid, GID: gid}
+	getOptions := copier.GetOptions{
+		ChownDirs:  &forceOwner,
+		ChownFiles: &forceOwner,
+	}
+	var wg sync.WaitGroup
+	var putErr, getErr error
+	copyReader, copyWriter := io.Pipe()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		putErr = copier.Put(copiedDir, copiedDir, copier.PutOptions{}, copyReader)
+		copyReader.Close()
+	}()
+	mountThisInstead := m
+	mountThisInstead.Options = append(slices.Clone(define.BindOptions), "z")
+	wg.Add(1)
+	if fileInfo.IsDir() {
+		// copy the directory to the temporary directory
+		go func() {
+			defer wg.Done()
+			getErr = copier.Get(m.Source, m.Source, getOptions, []string{"."}, copyWriter)
+			copyWriter.Close()
+		}()
+		// point the if-everything-works mount at the temporary driectory
+		mountThisInstead.Type = define.TypeBind
+		mountThisInstead.Source = copiedDir
+		mountThisInstead.Destination = m.Destination
+	} else {
+		// copy just the one thing to the temporary directory
+		sourceDir := filepath.Dir(m.Source)
+		sourceBase := filepath.Base(m.Source)
+		go func() {
+			defer wg.Done()
+			getErr = copier.Get(sourceDir, sourceDir, getOptions, []string{sourceBase}, copyWriter)
+			copyWriter.Close()
+		}()
+		// point the if-everything-works mount at the new copy of the item
+		mountThisInstead.Type = define.TypeBind
+		mountThisInstead.Source = filepath.Join(copiedDir, sourceBase)
+		mountThisInstead.Destination = m.Destination
+	}
+	wg.Wait()
+	if getErr != nil || putErr != nil {
+		return specs.Mount{}, "", fmt.Errorf("creating a temporary copy: %w", errors.Join(getErr, putErr))
+	}
+	succeeded = true
 	return mountThisInstead, overlayDir, nil
 }
 
@@ -339,7 +450,8 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 
 	overlayDir := ""
 	if !skipOverlay && (mountedImage != "" || mountIsReadWrite(newMount)) {
-		if newMount, overlayDir, err = convertToOverlay(newMount, store, mountLabel, tmpDir, 0, 0); err != nil {
+		newMount, overlayDir, err = convertToOverlayOrTempCopy(newMount, store, mountLabel, tmpDir, 0, 0)
+		if err != nil {
 			return newMount, "", "", "", err
 		}
 	}
@@ -672,7 +784,9 @@ func GetCacheMount(sys *types.SystemContext, args []string, store storage.Store,
 
 	overlayDir := ""
 	if needToOverlay {
-		if newMount, overlayDir, err = convertToOverlay(newMount, store, mountLabel, tmpDir, 0, 0); err != nil {
+		var err error
+		newMount, overlayDir, err = convertToOverlayOrTempCopy(newMount, store, mountLabel, tmpDir, 0, 0)
+		if err != nil {
 			return newMount, "", "", "", nil, err
 		}
 	}

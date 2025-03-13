@@ -3432,7 +3432,8 @@ function validate_instance_compression {
   mkdir -p "${tmpdir}"
   TMPDIR="${tmpdir}" run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
   run_buildah from "${target}"
-  run find "${tmpdir}" -type d -print
+  # make sure we didn't litter leftover temporary build context directories
+  run find "${tmpdir}" -print
   echo "$output"
   test "${#lines[*]}" -le 2
 }
