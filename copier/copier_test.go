@@ -888,6 +888,7 @@ func testGetMultiple(t *testing.T) {
 		keepDirectoryNames bool
 		renames            map[string]string
 		noDerefSymlinks    bool
+		parents            bool
 	}
 	getTestArchives := []struct {
 		name              string
@@ -1364,6 +1365,124 @@ func testGetMultiple(t *testing.T) {
 						"file-q", // from link-c -> subdir-c
 					},
 				},
+				{
+					name:    "wildcard and parents",
+					pattern: "*",
+					parents: true,
+					items: []string{
+						"file-0",
+						"file-a",
+						"file-b",
+						"link-a",
+						"hlink-0",
+						"something-a",
+						"archive-a",
+						"non-archive-a",
+						"subdir-a",
+						"subdir-b",
+						"subdir-c",
+						"subdir-d",
+						"subdir-e",
+						"subdir-a/file-n",
+						"subdir-a/file-o",
+						"subdir-a/file-a",
+						"subdir-a/file-b",
+						"subdir-a/file-c",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+						"subdir-c/file-p",
+						"subdir-c/file-p",
+						"subdir-c/file-q",
+						"subdir-c/file-q",
+						"subdir-d/hlink-0",
+						"subdir-e/subdir-f",
+						"subdir-e/subdir-f/hlink-b",
+					},
+				},
+				{
+					name:    "everything-with-wildcard-includes-and-excludes-parents",
+					pattern: "*",
+					parents: true,
+					exclude: []string{"**/*-a", "!**/*-c"},
+					items: []string{
+						"file-0",
+						"file-b",
+						"subdir-a",
+						"subdir-b",
+						"subdir-c",
+						"subdir-d",
+						"subdir-e",
+						"subdir-a/file-c",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+						"subdir-c/file-p",
+						"subdir-c/file-p",
+						"subdir-c/file-q",
+						"subdir-c/file-q",
+						"hlink-0",
+						"subdir-d/hlink-0",
+						"subdir-e/subdir-f",
+						"subdir-e/subdir-f/hlink-b",
+					},
+				},
+				{
+					name:    "file-and-dir-wildcard-parents",
+					pattern: "*-a",
+					parents: true,
+					items: []string{
+						"file-a",
+						"link-a",
+						"something-a",
+						"archive-a",
+						"non-archive-a",
+						"subdir-a",
+						"subdir-a/file-n",
+						"subdir-a/file-o",
+						"subdir-a/file-a",
+						"subdir-a/file-b",
+						"subdir-a/file-c",
+					},
+				},
+				{
+					name:    "root-wildcard-parents",
+					pattern: "/subdir-b/*",
+					parents: true,
+					items: []string{
+						"subdir-b",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+					},
+				},
+				{
+					name:    "dotdot-wildcard-parents",
+					pattern: "../../subdir-b/*",
+					parents: true,
+					items: []string{
+						"subdir-b",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+					},
+				},
+				{
+					name:    "dir-with-parents",
+					pattern: "subdir-e/subdir-f",
+					parents: true,
+					items: []string{
+						"subdir-e",
+						"subdir-e/subdir-f",
+						"subdir-e/subdir-f/hlink-b",
+					},
+				},
+				{
+					name:    "hlink-with-parents",
+					pattern: "subdir-e/subdir-f/hlink-b",
+					parents: true,
+					items: []string{
+						"subdir-e",
+						"subdir-e/subdir-f",
+						"subdir-e/subdir-f/hlink-b",
+					},
+				},
 			},
 		},
 	}
@@ -1399,6 +1518,7 @@ func testGetMultiple(t *testing.T) {
 					KeepDirectoryNames: testCase.keepDirectoryNames,
 					Rename:             testCase.renames,
 					NoDerefSymlinks:    testCase.noDerefSymlinks,
+					Parents:            testCase.parents,
 				}
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {

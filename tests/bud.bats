@@ -394,7 +394,7 @@ _EOF
   assert "$output" !~ "First symlink content"
 
   # Modify the symlink
-  ln -sf samplefile2 $contextdir/tomount 
+  ln -sf samplefile2 $contextdir/tomount
 
   # on third run since we have changed symlink so cache must burst.
   run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
@@ -6261,6 +6261,17 @@ _EOF
 
   run_buildah build -t test2 -f Containerfile.missing $WITH_POLICY_JSON $BUDFILES/copy-exclude
   assert "$output" !~ "test2.txt"
+}
+
+@test "bud with copy --parents" {
+  run_buildah build -t test $WITH_POLICY_JSON $BUDFILES/copy-parents
+  assert "$output" !~ "./no_parents/a.txt
+  ./parents/x/a.txt
+  ./parents/y/a.txt
+  /parents_file_point/y/b.txt
+  /parents_file_point/y/a.txt
+  /parents_dir_point/y/b.txt
+  /parents_dir_point/y/a.txt"
 }
 
 @test "bud with containerfile secret" {
