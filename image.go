@@ -275,6 +275,8 @@ func (i *containerImageRef) extractRootfs(opts ExtractRootfsOptions) (io.ReadClo
 }
 
 type manifestBuilder interface {
+	// addLayer adds a note in the manifest about the layer.  The blobs are
+	// identified by their possibly- compressed blob digests.
 	addLayer(layerBlobSum digest.Digest, layerBlobSize int64, diffID digest.Digest)
 	computeLayerMIMEType(what string, layerCompression archive.Compression) error
 	buildHistory(extraImageContentDiff string, extraImageContentDiffDigest digest.Digest) error
@@ -282,15 +284,15 @@ type manifestBuilder interface {
 }
 
 type dockerSchema2ManifestBuilder struct {
-	i         *containerImageRef
-	mediaType string
-	dimage    docker.V2Image
-	dmanifest docker.V2S2Manifest
+	i              *containerImageRef
+	layerMediaType string
+	dimage         docker.V2Image
+	dmanifest      docker.V2S2Manifest
 }
 
 // Build fresh copies of the container configuration structures so that we can edit them
 // without making unintended changes to the original Builder (Docker schema 2).
-func newDockerSchema2ManifestBuilder(i *containerImageRef) (manifestBuilder, error) {
+func (i *containerImageRef) newDockerSchema2ManifestBuilder() (manifestBuilder, error) {
 	created := time.Now().UTC()
 	if i.created != nil {
 		created = *i.created
@@ -343,11 +345,11 @@ func newDockerSchema2ManifestBuilder(i *containerImageRef) (manifestBuilder, err
 		dimage.Config.ExposedPorts = nil
 	}
 
-	// Build empty manifest.  The Layers lists will be populated later.
+	// Return partial manifest.  The Layers lists will be populated later.
 	return &dockerSchema2ManifestBuilder{
-		i:         i,
-		mediaType: docker.V2S2MediaTypeUncompressedLayer,
-		dimage:    dimage,
+		i:              i,
+		layerMediaType: docker.V2S2MediaTypeUncompressedLayer,
+		dimage:         dimage,
 		dmanifest: docker.V2S2Manifest{
 			V2Versioned: docker.V2Versioned{
 				SchemaVersion: 2,
@@ -363,7 +365,7 @@ func newDockerSchema2ManifestBuilder(i *containerImageRef) (manifestBuilder, err
 
 func (mb *dockerSchema2ManifestBuilder) addLayer(layerBlobSum digest.Digest, layerBlobSize int64, diffID digest.Digest) {
 	dlayerDescriptor := docker.V2S2Descriptor{
-		MediaType: mb.mediaType,
+		MediaType: mb.layerMediaType,
 		Digest:    layerBlobSum,
 		Size:      layerBlobSize,
 	}
@@ -397,24 +399,21 @@ func (mb *dockerSchema2ManifestBuilder) computeLayerMIMEType(what string, layerC
 			logrus.Debugf("compressing %s with unknown compressor(?)", what)
 		}
 	}
-	mb.mediaType = dmediaType
+	mb.layerMediaType = dmediaType
 	return nil
 }
 
 func (mb *dockerSchema2ManifestBuilder) buildHistory(extraImageContentDiff string, extraImageContentDiffDigest digest.Digest) error {
-	// Build history notes in the image configurations.
+	// Build history notes in the image configuration.
 	appendHistory := func(history []v1.History, empty bool) {
 		for i := range history {
-			var created *time.Time
+			var created time.Time
 			if history[i].Created != nil {
 				copiedTimestamp := *history[i].Created
-				created = &copiedTimestamp
-			}
-			if created == nil {
-				created = &time.Time{}
+				created = copiedTimestamp
 			}
 			dnews := docker.V2S2History{
-				Created:    *created,
+				Created:    created,
 				CreatedBy:  history[i].CreatedBy,
 				Author:     history[i].Author,
 				Comment:    history[i].Comment,
@@ -513,15 +512,15 @@ func (mb *dockerSchema2ManifestBuilder) manifestAndConfig() ([]byte, []byte, err
 }
 
 type ociManifestBuilder struct {
-	i         *containerImageRef
-	mediaType string
-	oimage    v1.Image
-	omanifest v1.Manifest
+	i              *containerImageRef
+	layerMediaType string
+	oimage         v1.Image
+	omanifest      v1.Manifest
 }
 
 // Build fresh copies of the container configuration structures so that we can edit them
 // without making unintended changes to the original Builder (OCI manifest).
-func newOCIManifestBuilder(i *containerImageRef) (manifestBuilder, error) {
+func (i *containerImageRef) newOCIManifestBuilder() (manifestBuilder, error) {
 	created := time.Now().UTC()
 	if i.created != nil {
 		created = *i.created
@@ -560,12 +559,12 @@ func newOCIManifestBuilder(i *containerImageRef) (manifestBuilder, error) {
 		oimage.Config.ExposedPorts = nil
 	}
 
-	// Build empty manifest.  The Layers lists will be populated later.
+	// Return partial manifest.  The Layers lists will be populated later.
 	return &ociManifestBuilder{
 		i: i,
 		// The default layer media type assumes no compression.
-		mediaType: v1.MediaTypeImageLayer,
-		oimage:    oimage,
+		layerMediaType: v1.MediaTypeImageLayer,
+		oimage:         oimage,
 		omanifest: v1.Manifest{
 			Versioned: specs.Versioned{
 				SchemaVersion: 2,
@@ -582,7 +581,7 @@ func newOCIManifestBuilder(i *containerImageRef) (manifestBuilder, error) {
 
 func (mb *ociManifestBuilder) addLayer(layerBlobSum digest.Digest, layerBlobSize int64, diffID digest.Digest) {
 	olayerDescriptor := v1.Descriptor{
-		MediaType: mb.mediaType,
+		MediaType: mb.layerMediaType,
 		Digest:    layerBlobSum,
 		Size:      layerBlobSize,
 	}
@@ -616,12 +615,12 @@ func (mb *ociManifestBuilder) computeLayerMIMEType(what string, layerCompression
 			logrus.Debugf("compressing %s with unknown compressor(?)", what)
 		}
 	}
-	mb.mediaType = omediaType
+	mb.layerMediaType = omediaType
 	return nil
 }
 
 func (mb *ociManifestBuilder) buildHistory(extraImageContentDiff string, extraImageContentDiffDigest digest.Digest) error {
-	// Build history notes in the image configurations.
+	// Build history notes in the image configuration.
 	appendHistory := func(history []v1.History, empty bool) {
 		for i := range history {
 			var created *time.Time
@@ -808,12 +807,12 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 	var mb manifestBuilder
 	switch i.preferredManifestType {
 	case v1.MediaTypeImageManifest:
-		mb, err = newOCIManifestBuilder(i)
+		mb, err = i.newOCIManifestBuilder()
 		if err != nil {
 			return nil, err
 		}
 	case manifest.DockerV2Schema2MediaType:
-		mb, err = newDockerSchema2ManifestBuilder(i)
+		mb, err = i.newDockerSchema2ManifestBuilder()
 		if err != nil {
 			return nil, err
 		}
@@ -1025,8 +1024,6 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
 			return nil, fmt.Errorf("storing %s to file while renaming %q to %q: %w", what, filepath.Join(path, "layer"), finalBlobName, err)
 		}
-		// Add a note in the manifest about the layer.  The blobs are identified by their possibly-
-		// compressed blob digests.
 		mb.addLayer(destHasher.Digest(), size, srcHasher.Digest())
 	}
 
