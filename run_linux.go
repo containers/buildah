@@ -1233,9 +1233,17 @@ func setupMaskedPaths(g *generate.Generator, opts *define.CommonBuildOptions) {
 	if slices.Contains(opts.Unmasks, "all") {
 		return
 	}
+nextMaskedPath:
 	for _, mp := range append(config.DefaultMaskedPaths(), opts.Masks...) {
-		if slices.Contains(opts.Unmasks, mp) {
-			continue
+		for _, unmask := range opts.Unmasks {
+			match, err := filepath.Match(unmask, mp)
+			if err != nil {
+				logrus.Warnf("Invalid unmask pattern %q: %v", unmask, err)
+				continue
+			}
+			if match {
+				continue nextMaskedPath
+			}
 		}
 		g.AddLinuxMaskedPaths(mp)
 	}
