@@ -1,0 +1,9 @@
+FROM alpine
+COPY --parents ./x/ ./y/ /
+RUN ln -s /x/z/b.txt /x/z/symlink-b.txt
+RUN ln /x/z/a.txt /x/z/hardlink-a.txt
+RUN ln /x/y/b.txt /x/z/hardlink-y-b.txt
+
+FROM scratch
+COPY --from=0 --parents ./x/ /parents
+COPY --from=0 --parents ./x/./ /parents_dir_point/

@@ -368,9 +368,6 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		if cp.Link {
 			return errors.New("COPY --link is not supported")
 		}
-		if cp.Parents {
-			return errors.New("COPY --parents is not supported")
-		}
 		if len(cp.Excludes) > 0 {
 			excludes = append(slices.Clone(excludes), cp.Excludes...)
 		}
@@ -560,7 +557,17 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 					return fmt.Errorf("source can't be a URL for COPY")
 				}
 			} else {
-				sources = append(sources, filepath.Join(contextDir, src))
+				// filepath.Join clean path so /./ is removed
+				if _, suffix, found := strings.Cut(src, "/./"); found && copy.Parents {
+					fullPath := filepath.Join(contextDir, src)
+					suffix = filepath.Clean(suffix)
+					prefix := strings.TrimSuffix(fullPath, suffix)
+					prefix = filepath.Clean(prefix)
+					src = prefix + "/./" + suffix
+				} else {
+					src = filepath.Join(contextDir, src)
+				}
+				sources = append(sources, src)
 			}
 		}
 		options := buildah.AddAndCopyOptions{
@@ -581,6 +588,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			InsecureSkipTLSVerify: s.executor.systemContext.DockerInsecureSkipTLSVerify,
 			MaxRetries:            s.executor.maxPullPushRetries,
 			RetryDelay:            s.executor.retryPullPushDelay,
+			Parents:               copy.Parents,
 		}
 		if len(copy.Files) > 0 {
 			// If we are copying heredoc files, we need to temporary place
