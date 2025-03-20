@@ -1233,7 +1233,7 @@ func setupMaskedPaths(g *generate.Generator, opts *define.CommonBuildOptions) {
 	if slices.Contains(opts.Unmasks, "all") {
 		return
 	}
-	for _, mp := range append(config.DefaultMaskedPaths, opts.Masks...) {
+	for _, mp := range append(config.DefaultMaskedPaths(), opts.Masks...) {
 		if slices.Contains(opts.Unmasks, mp) {
 			continue
 		}
