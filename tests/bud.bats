@@ -7427,3 +7427,19 @@ EOF
   find ${TEST_SCRATCH_DIR}/buildcontext -ls
   expect_output "" "build should not be able to write to build context"
 }
+
+@test "build-with-ssl-cert-file" {
+  echo "foofoofoofoo" > "${TEST_SCRATCH_DIR}/foocafile"
+  echo "barbarbarbar" > "${TEST_SCRATCH_DIR}/barcafile"
+
+  # use foocafile, and ensure that "foo" is output
+  SSL_CERT_FILE="${TEST_SCRATCH_DIR}/foocafile" run_buildah build -f <(echo 'FROM alpine'; echo 'RUN cat "${SSL_CERT_FILE}"') --tag="oci:${TEST_SCRATCH_DIR}/foodir" --timestamp 0 --with-ssl-cert-file
+  expect_output --substring "foofoofoofoo"
+
+  # use barcafile, and ensure that "bar" is output
+  SSL_CERT_FILE="${TEST_SCRATCH_DIR}/barcafile" run_buildah build -f <(echo 'FROM alpine'; echo 'RUN cat "${SSL_CERT_FILE}"') --tag="oci:${TEST_SCRATCH_DIR}/bardir" --timestamp 0 --with-ssl-cert-file
+  expect_output --substring "barbarbarbar"
+
+  # however regardless the produced images from both above should be identical as this is not persisted to image
+  diff -r "${TEST_SCRATCH_DIR}/foodir" "${TEST_SCRATCH_DIR}/bardir"
+}
