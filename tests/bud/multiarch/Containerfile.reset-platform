@@ -1,0 +1,7 @@
+ARG FOREIGNARCH
+FROM --platform=linux/$FOREIGNARCH busybox AS foreign
+FROM busybox
+COPY --from=foreign /bin/busybox /bin/busybox.foreign
+RUN arch
+RUN ls -l /bin/busybox /bin/busybox.foreign
+RUN ! cmp /bin/busybox /bin/busybox.foreign
