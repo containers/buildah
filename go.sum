@@ -279,8 +279,8 @@ github.com/opencontainers/runtime-spec v1.2.1 h1:S4k4ryNgEpxW1dzyqffOmhI1BHYcjzU
 github.com/opencontainers/runtime-spec v1.2.1/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
 github.com/opencontainers/runtime-tools v0.9.1-0.20241108202711-f7e3563b0271 h1:TPj0pMLCTy1CKwmrat3hqTxoZfqOuTy0asG0ccpGk8Q=
 github.com/opencontainers/runtime-tools v0.9.1-0.20241108202711-f7e3563b0271/go.mod h1:oIH6VwKkaDOO+SIYZpdwrC/0wKYqrfO6E1sG1j3UVws=
-github.com/opencontainers/selinux v1.11.1 h1:nHFvthhM0qY8/m+vfhJylliSshm8G1jJ2jDMcgULaH8=
-github.com/opencontainers/selinux v1.11.1/go.mod h1:E5dMC3VPuVvVHDYmi78qvhJp8+M586T4DlDRYpFkyec=
+github.com/opencontainers/selinux v1.12.0 h1:6n5JV4Cf+4y0KNXW48TLj5DwfXpvWlxXplUkdTrmPb8=
+github.com/opencontainers/selinux v1.12.0/go.mod h1:BTPX+bjVbWGXw7ZZWUbdENt8w0htPSrlgOOysQaU62U=
 github.com/openshift/imagebuilder v1.2.16-0.20250220150830-7ebfb09d364e h1:yKNaeGlH4+h06lkADFa5rAIG7ifxOiV04kLRCL0rct8=
 github.com/openshift/imagebuilder v1.2.16-0.20250220150830-7ebfb09d364e/go.mod h1:cK6MLyBl1IHmIYGLY/2SLOG6p0PtEDUOC7khxsFYUXE=
 github.com/ostreedev/ostree-go v0.0.0-20210805093236-719684c64e4f h1:/UDgs8FGMqwnHagNDPGOlts35QkhAZ8by3DR7nMih7M=
