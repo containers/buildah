@@ -1,0 +1,3 @@
+FROM busybox
+RUN arch
+FROM --platform=linux/$FOREIGNARCH busybox AS foreign

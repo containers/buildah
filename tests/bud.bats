@@ -6573,6 +6573,21 @@ _EOF
   done
 }
 
+@test "build must reset platform for stages if needed" {
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+  otherarch="arm64"
+  # just make sure that other arch is not equivalent to host arch
+  if [[ "$otherarch" == "$myarch" ]]; then
+    otherarch="amd64"
+  fi
+  run_buildah build $WITH_POLICY_JSON --build-arg FOREIGNARCH=$otherarch -f $BUDFILES/multiarch/Containerfile.reset-platform $BUDFILES/multiarch
+  run_buildah build $WITH_POLICY_JSON --build-arg TARGETPLATFORM=linux/$myarch --build-arg FOREIGNARCH=$otherarch -f $BUDFILES/multiarch/Containerfile.reset-platform $BUDFILES/multiarch
+  # Following line here attempts to cover edge case discussed here https://github.com/containers/buildah/pull/5971/files#r1970277844 but it's hard to reproduce this in a certain
+  # way since it can happen only when unused stage is picked in a particular order, following line ensures if this thing breaks then we luckily catch it in our CI.
+  run_buildah build $WITH_POLICY_JSON --jobs=2 --skip-unused-stages=true --build-arg FOREIGNARCH=$otherarch -f $BUDFILES/multiarch/Containerfile.unused-stage $BUDFILES/multiarch
+}
+
 # * Performs multi-stage build with label1=value1 and verifies
 # * Relabels build with label1=value2 and verifies
 # * Rebuild with label1=value1 and makes sure everything is used from cache
