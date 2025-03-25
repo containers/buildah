@@ -7313,6 +7313,13 @@ _EOF
   local_head_hash=$output
   run_buildah run testctr -- sh -c 'cd podman-tag && git ls-remote --tags origin v5.0.0^{} | cut -f1'
   assert "$output" = "$local_head_hash"
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM scratch
+ADD https://github.com/containers/crun.git#nosuchbranch /src
+_EOF
+  run_buildah 128 build -f $contextdir/Dockerfile -t git-image $contextdir
+  expect_output --substring "couldn't find remote ref nosuchbranch"
 }
 
 @test "build-validates-bind-bind-propagation" {
