@@ -7427,3 +7427,18 @@ EOF
   find ${TEST_SCRATCH_DIR}/buildcontext -ls
   expect_output "" "build should not be able to write to build context"
 }
+
+@test "build-with-timestamp-applies-to-oci-archive" {
+  local outpath="${TEST_SCRATCH_DIR}/timestamp-oci.tar"
+
+  run_buildah build -f <(echo 'FROM scratch') --tag=oci-archive:${outpath}.a --timestamp 0
+  run_buildah build -f <(echo 'FROM scratch') --tag=oci-archive:${outpath}.b --timestamp 1
+  sleep 1.1 # sleep at least 1 second, so that timestamps are incremented
+  run_buildah build -f <(echo 'FROM scratch') --tag=oci-archive:${outpath}.c --timestamp 1
+
+  # should be different ( || false is due to bats weirdness )
+  ! diff "${outpath}.a" "${outpath}.b" || false
+
+  # should be the same
+  diff "${outpath}.b" "${outpath}.c"
+}
