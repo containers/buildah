@@ -7436,8 +7436,8 @@ EOF
   sleep 1.1 # sleep at least 1 second, so that timestamps are incremented
   run_buildah build -f <(echo 'FROM scratch') --tag=oci-archive:${outpath}.c --timestamp 1
 
-  # should be different
-  ! diff "${outpath}.a" "${outpath}.b"
+  # should be different ( || false is due to bats weirdness )
+  ! diff "${outpath}.a" "${outpath}.b" || false
 
   # should be the same
   diff "${outpath}.b" "${outpath}.c"
