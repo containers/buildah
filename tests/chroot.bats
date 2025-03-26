@@ -111,3 +111,74 @@ load helpers
     unshare -mpf --mount-proc env -i bash -x ${TEST_SCRATCH_DIR}/script.sh
   fi
 }
+
+@test "chroot with overlay root" {
+  if test `uname` != Linux ; then
+    skip "not meaningful except on Linux"
+  fi
+  skip_if_no_unshare
+  if [ "$(id -u)" -ne 0 ]; then
+    skip "expects to already be root"
+  fi
+  _prefetch docker.io/library/busybox
+  cp -v ${TEST_SOURCES}/containers.conf ${TEST_SCRATCH_DIR}/containers.conf
+  chmod ugo+r ${TEST_SCRATCH_DIR}/containers.conf
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot
+  chown -R 1:1 ${TEST_SCRATCH_DIR}/root ${TEST_SCRATCH_DIR}/runroot ${TEST_SCRATCH_DIR}/chroot
+  cat > ${TEST_SCRATCH_DIR}/script1 <<- EOF
+  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${PATH:+:$PATH}
+  set -e
+  set -x
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/workdir
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/upperdir
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged
+  mount -t overlay overlay -o upperdir=${TEST_SCRATCH_DIR}/chroot/upperdir,workdir=${TEST_SCRATCH_DIR}/chroot/workdir,lowerdir=/ ${TEST_SCRATCH_DIR}/chroot/merged
+  mount -t proc proc ${TEST_SCRATCH_DIR}/chroot/merged/proc
+  mount -t sysfs sysfs ${TEST_SCRATCH_DIR}/chroot/merged/sys
+  mount --bind /dev ${TEST_SCRATCH_DIR}/chroot/merged/dev
+  mount --bind /etc ${TEST_SCRATCH_DIR}/chroot/merged/etc
+  echo build > ${TEST_SCRATCH_DIR}/chroot/hostname
+  chmod 644 ${TEST_SCRATCH_DIR}/chroot/hostname
+  mount --bind ${TEST_SCRATCH_DIR}/chroot/hostname ${TEST_SCRATCH_DIR}/chroot/merged/etc/hostname
+  touch ${TEST_SCRATCH_DIR}/chroot/hosts
+  chmod 644 ${TEST_SCRATCH_DIR}/chroot/hosts
+  mount --bind ${TEST_SCRATCH_DIR}/chroot/hosts ${TEST_SCRATCH_DIR}/chroot/merged/etc/hosts
+  touch ${TEST_SCRATCH_DIR}/chroot/resolv.conf
+  chmod 644 ${TEST_SCRATCH_DIR}/chroot/resolv.conf
+  mount --bind ${TEST_SCRATCH_DIR}/chroot/resolv.conf ${TEST_SCRATCH_DIR}/chroot/merged/etc/resolv.conf
+  mount --bind /tmp ${TEST_SCRATCH_DIR}/chroot/merged/tmp
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/var/tmp
+  chmod 1777 ${TEST_SCRATCH_DIR}/chroot/merged/var/tmp
+  if test -d /var/tmp; then
+    mount --bind /var/tmp ${TEST_SCRATCH_DIR}/chroot/merged/var/tmp
+  fi
+  mount --bind ${TEST_SCRATCH_DIR} ${TEST_SCRATCH_DIR}/chroot/merged/${TEST_SCRATCH_DIR}
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin
+  touch ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin/buildah
+  mount --bind ${BUILDAH_BINARY:-$TEST_SOURCES/../bin/buildah} ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin/buildah
+  cd ${TEST_SCRATCH_DIR}/chroot/merged
+  pivot_root . tmp
+  mount --make-rslave tmp
+  umount -f -l tmp
+  mount -o remount,ro --make-rshared /
+  grep ' / / ' /proc/self/mountinfo
+  # unshare from util-linux 2.39 also accepts INNER:OUTER:SIZE for --map-users
+  # and --map-groups, but fedora 37's is too old, so the older OUTER,INNER,SIZE
+  # (using commas instead of colons as field separators) will have to do
+  unshare --setuid 0 --setgid 0 --map-users=1,0,1024 --map-groups=1,0,1024 -UinCfpm bash ${TEST_SCRATCH_DIR}/script2
+EOF
+  cat > ${TEST_SCRATCH_DIR}/script2 <<- EOF
+  set -e
+  set -x
+  export _CONTAINERS_USERNS_CONFIGURED=done
+  export CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf
+  cat /proc/self/uid_map
+  cat /proc/self/gid_map
+  mount --make-shared /
+  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} from --name ctrid --pull=never --quiet docker.io/library/busybox
+  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} run --isolation=chroot ctrid pwd
+EOF
+  chmod +x ${TEST_SCRATCH_DIR}
+  chmod +rx ${TEST_SCRATCH_DIR}/script1 ${TEST_SCRATCH_DIR}/script2
+  env -i unshare -inCfpm bash ${TEST_SCRATCH_DIR}/script1
+}
