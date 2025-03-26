@@ -14,7 +14,7 @@ require (
 	github.com/containers/storage v1.57.3-0.20250310120440-ab85543c3c6a
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/docker/docker v28.0.2+incompatible
+	github.com/docker/docker v28.0.3+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.12.0
