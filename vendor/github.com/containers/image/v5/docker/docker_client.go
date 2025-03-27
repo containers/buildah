@@ -475,7 +475,7 @@ func (c *dockerClient) resolveRequestURL(path string) (*url.URL, error) {
 }
 
 // Checks if the auth headers in the response contain an indication of a failed
-// authorization because of an "insufficient_scope" error. If that's the case,
+// authorizdation because of an "insufficient_scope" error. If that's the case,
 // returns the required scope to be used for fetching a new token.
 func needsRetryWithUpdatedScope(res *http.Response) (bool, *authScope) {
 	if res.StatusCode == http.StatusUnauthorized {
@@ -998,12 +998,7 @@ func (c *dockerClient) getExternalBlob(ctx context.Context, urls []string) (io.R
 			resp.Body.Close()
 			continue
 		}
-
-		size, err := getBlobSize(resp)
-		if err != nil {
-			size = -1
-		}
-		return resp.Body, size, nil
+		return resp.Body, getBlobSize(resp), nil
 	}
 	if remoteErrors == nil {
 		return nil, 0, nil // fallback to non-external blob
@@ -1011,20 +1006,12 @@ func (c *dockerClient) getExternalBlob(ctx context.Context, urls []string) (io.R
 	return nil, 0, fmt.Errorf("failed fetching external blob from all urls: %w", multierr.Format("", ", ", "", remoteErrors))
 }
 
-func getBlobSize(resp *http.Response) (int64, error) {
-	hdrs := resp.Header.Values("Content-Length")
-	if len(hdrs) == 0 {
-		return -1, errors.New(`Missing "Content-Length" header in response`)
+func getBlobSize(resp *http.Response) int64 {
+	size, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
+	if err != nil {
+		size = -1
 	}
-	hdr := hdrs[0] // Equivalent to resp.Header.Get(…)
-	size, err := strconv.ParseInt(hdr, 10, 64)
-	if err != nil { // Go’s response reader should already reject such values.
-		return -1, err
-	}
-	if size < 0 { // '-' is not a valid character in Content-Length, so negative values are invalid. Go’s response reader should already reject such values.
-		return -1, fmt.Errorf(`Invalid negative "Content-Length" %q`, hdr)
-	}
-	return size, nil
+	return size
 }
 
 // getBlob returns a stream for the specified blob in ref, and the blob’s size (or -1 if unknown).
@@ -1055,10 +1042,7 @@ func (c *dockerClient) getBlob(ctx context.Context, ref dockerReference, info ty
 		return nil, 0, fmt.Errorf("fetching blob: %w", err)
 	}
 	cache.RecordKnownLocation(ref.Transport(), bicTransportScope(ref), info.Digest, newBICLocationReference(ref))
-	blobSize, err := getBlobSize(res)
-	if err != nil {
-		blobSize = -1
-	}
+	blobSize := getBlobSize(res)
 
 	reconnectingReader, err := newBodyReader(ctx, c, path, res.Body)
 	if err != nil {
