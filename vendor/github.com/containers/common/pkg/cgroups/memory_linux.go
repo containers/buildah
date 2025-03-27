@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/opencontainers/cgroups"
-	"github.com/opencontainers/cgroups/fs"
-	"github.com/opencontainers/cgroups/fs2"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 type linuxMemHandler struct {
@@ -21,7 +22,7 @@ func getMemoryHandler() *linuxMemHandler {
 }
 
 // Apply set the specified constraints
-func (c *linuxMemHandler) Apply(ctr *CgroupControl, res *cgroups.Resources) error {
+func (c *linuxMemHandler) Apply(ctr *CgroupControl, res *configs.Resources) error {
 	if ctr.cgroup2 {
 		man, err := fs2.NewManager(ctr.config, filepath.Join(cgroupRoot, ctr.config.Path))
 		if err != nil {

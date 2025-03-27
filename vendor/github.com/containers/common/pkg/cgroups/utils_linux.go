@@ -14,7 +14,8 @@ import (
 	"sync"
 
 	"github.com/containers/storage/pkg/fileutils"
-	"github.com/opencontainers/cgroups"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -121,7 +122,7 @@ func BlkioFiles(cgroupPath string) (wtFile, wtDevFile string) {
 }
 
 // SetBlkioThrottle sets the throttle limits for the cgroup
-func SetBlkioThrottle(res *cgroups.Resources, cgroupPath string) error {
+func SetBlkioThrottle(res *configs.Resources, cgroupPath string) error {
 	for _, td := range res.BlkioThrottleReadBpsDevice {
 		if err := WriteFile(cgroupPath, "blkio.throttle.read_bps_device", fmt.Sprintf("%d:%d %d", td.Major, td.Minor, td.Rate)); err != nil {
 			return err

@@ -99,8 +99,8 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.6.2
 ## explicit; go 1.23
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.62.3-0.20250321171839-dbeb17e40c80
-## explicit; go 1.23.0
+# github.com/containers/common v0.62.3
+## explicit; go 1.22.8
 github.com/containers/common/internal
 github.com/containers/common/internal/attributedstring
 github.com/containers/common/libimage
@@ -152,7 +152,7 @@ github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
 github.com/containers/common/pkg/version
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.34.3-0.20250311194052-d84dbab374e7
+# github.com/containers/image/v5 v5.34.3
 ## explicit; go 1.22.8
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -178,6 +178,7 @@ github.com/containers/image/v5/internal/multierr
 github.com/containers/image/v5/internal/pkg/platform
 github.com/containers/image/v5/internal/private
 github.com/containers/image/v5/internal/putblobdigest
+github.com/containers/image/v5/internal/reflink
 github.com/containers/image/v5/internal/rootless
 github.com/containers/image/v5/internal/set
 github.com/containers/image/v5/internal/signature
@@ -554,14 +555,6 @@ github.com/morikuni/aec
 # github.com/oklog/ulid v1.3.1
 ## explicit
 github.com/oklog/ulid
-# github.com/opencontainers/cgroups v0.0.1
-## explicit; go 1.23.0
-github.com/opencontainers/cgroups
-github.com/opencontainers/cgroups/devices/config
-github.com/opencontainers/cgroups/fs
-github.com/opencontainers/cgroups/fs2
-github.com/opencontainers/cgroups/fscommon
-github.com/opencontainers/cgroups/internal/path
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
@@ -572,6 +565,11 @@ github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v1.2.6
 ## explicit; go 1.22
 github.com/opencontainers/runc/libcontainer/apparmor
+github.com/opencontainers/runc/libcontainer/cgroups
+github.com/opencontainers/runc/libcontainer/cgroups/fs
+github.com/opencontainers/runc/libcontainer/cgroups/fs2
+github.com/opencontainers/runc/libcontainer/cgroups/fscommon
+github.com/opencontainers/runc/libcontainer/configs
 github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/utils
 # github.com/opencontainers/runtime-spec v1.2.1
