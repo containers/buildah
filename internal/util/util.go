@@ -1,12 +1,14 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/util"
 	"github.com/containers/common/libimage"
 	lplatform "github.com/containers/common/libimage/platform"
 	"github.com/containers/image/v5/types"
@@ -50,6 +52,29 @@ func NormalizePlatform(platform v1.Platform) v1.Platform {
 	}
 }
 
+// PushImage copies contents of the image to a new location
+func PushImage(store storage.Store, opts define.BuildOutputOption, systemCtx *types.SystemContext) error {
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemCtx})
+	if err != nil {
+		return err
+	}
+
+	imageRef, err := util.ImageStringToImageReference(opts.Image)
+	if err != nil {
+		return fmt.Errorf("failed to convert image to ImageReference")
+	}
+
+	libimageOptions := &libimage.PushOptions{}
+	libimageOptions.Writer = os.Stdout
+	dest := fmt.Sprintf("%s:%s", imageRef.Transport().Name(), imageRef.StringWithinTransport())
+	_, err = runtime.Push(context.Background(), opts.Image, dest, libimageOptions)
+	if err != nil {
+		return fmt.Errorf("failed while pushing image %+q: %w", opts.ImageRef, err)
+	}
+
+	return nil
+}
+
 // ExportFromReader reads bytes from given reader and exports to external tar, directory or stdout.
 func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 	var err error
@@ -59,7 +84,8 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 			return err
 		}
 	}
-	if opts.IsDir {
+	switch opts.Type {
+	case define.BuildOutputLocal:
 		// In order to keep this feature as close as possible to
 		// buildkit it was decided to preserve ownership when
 		// invoked as root since caller already has access to artifacts
@@ -81,7 +107,7 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 		if err != nil {
 			return fmt.Errorf("failed while performing untar at %q: %w", opts.Path, err)
 		}
-	} else {
+	case define.BuildOutputTar:
 		outFile := os.Stdout
 		if !opts.IsStdout {
 			outFile, err = os.Create(opts.Path)
@@ -94,7 +120,10 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 		if err != nil {
 			return fmt.Errorf("failed while performing copy to %q: %w", opts.Path, err)
 		}
+	default:
+		return fmt.Errorf("build output type %s not supported", opts.Type)
 	}
+
 	return nil
 }
 
