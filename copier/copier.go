@@ -1661,14 +1661,15 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 		return fmt.Errorf("getting fflags: %w", err)
 	}
 	var f *os.File
-	if hdr.Typeflag == tar.TypeReg {
+	switch hdr.Typeflag {
+	case tar.TypeReg:
 		// open the file first so that we don't write a header for it if we can't actually read it
 		f, err = os.Open(contentPath)
 		if err != nil {
 			return fmt.Errorf("opening file for adding its contents to archive: %w", err)
 		}
 		defer f.Close()
-	} else if hdr.Typeflag == tar.TypeDir {
+	case tar.TypeDir:
 		// open the directory file first to make sure we can access it.
 		f, err = os.Open(contentPath)
 		if err != nil {
