@@ -325,7 +325,7 @@ func getLinuxSysctl(r *types.TestReport) error {
 			return fmt.Errorf("reading sysctl %q: %w", path, err)
 		}
 		path = strings.TrimPrefix(path, "/proc/sys/")
-		sysctl := strings.Replace(path, "/", ".", -1)
+		sysctl := strings.ReplaceAll(path, "/", ".")
 		val := strings.TrimRight(string(value), "\r\n")
 		if strings.ContainsAny(val, "\r\n") {
 			val = string(value)

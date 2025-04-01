@@ -189,7 +189,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 
 func outputHeader(opts imageOptions) string {
 	if opts.format != "" {
-		return strings.Replace(opts.format, `\t`, "\t", -1)
+		return strings.ReplaceAll(opts.format, `\t`, "\t")
 	}
 	if opts.quiet {
 		return formats.IDString

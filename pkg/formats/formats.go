@@ -94,7 +94,7 @@ func (t StdoutTemplateArray) Out() error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	if strings.HasPrefix(t.Template, "table") {
 		// replace any spaces with tabs in template so that tabwriter can align it
-		t.Template = strings.Replace(strings.TrimSpace(t.Template[5:]), " ", "\t", -1)
+		t.Template = strings.ReplaceAll(strings.TrimSpace(t.Template[5:]), " ", "\t")
 		headerTmpl, err := template.New("header").Funcs(headerFunctions).Parse(t.Template)
 		if err != nil {
 			return fmt.Errorf("%v: %w", parsingErrorStr, err)
@@ -105,7 +105,7 @@ func (t StdoutTemplateArray) Out() error {
 		}
 		fmt.Fprintln(w, "")
 	}
-	t.Template = strings.Replace(t.Template, " ", "\t", -1)
+	t.Template = strings.ReplaceAll(t.Template, " ", "\t")
 	tmpl, err := template.New("image").Funcs(basicFunctions).Parse(t.Template)
 	if err != nil {
 		return fmt.Errorf("%v: %w", parsingErrorStr, err)
