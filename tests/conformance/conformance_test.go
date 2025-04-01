@@ -35,7 +35,6 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
 	is "github.com/containers/image/v5/storage"
-	istorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
@@ -648,7 +647,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 
 	// return a reference to the new image, if we succeeded
 	if err == nil {
-		buildahRef, err = istorage.Transport.ParseStoreReference(store, imageID)
+		buildahRef, err = is.Transport.ParseStoreReference(store, imageID)
 		assert.Nil(t, err, "error parsing reference to newly-built image with ID %q", imageID)
 	}
 	return buildahRef, []byte(outputString)
