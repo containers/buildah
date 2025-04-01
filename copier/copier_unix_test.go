@@ -3,7 +3,13 @@
 package copier
 
 import (
+	"os"
 	"testing"
+)
+
+const (
+	testModeMask           = int64(os.ModePerm)
+	testIgnoreSymlinkDates = false
 )
 
 func TestPutChroot(t *testing.T) {
