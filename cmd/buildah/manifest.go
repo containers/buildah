@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -148,7 +147,7 @@ func init() {
 	flags.StringVar(&manifestAddOpts.artifactConfigType, "artifact-config-type", imgspecv1.DescriptorEmptyJSON.MediaType, "artifact config media type")
 	flags.StringVar(&manifestAddOpts.artifactConfigFile, "artifact-config", "", "artifact config file")
 	flags.StringVar(&manifestAddOpts.artifactLayerType, "artifact-layer-type", "", "artifact layer media type")
-	flags.BoolVar(&manifestAddOpts.artifactExcludeTitles, "artifact-exclude-titles", false, fmt.Sprintf(`refrain from setting %q annotations on "layers"`, v1.AnnotationTitle))
+	flags.BoolVar(&manifestAddOpts.artifactExcludeTitles, "artifact-exclude-titles", false, fmt.Sprintf(`refrain from setting %q annotations on "layers"`, imgspecv1.AnnotationTitle))
 	flags.StringVar(&manifestAddOpts.artifactSubject, "artifact-subject", "", "artifact subject reference")
 	flags.StringSliceVar(&manifestAddOpts.artifactAnnotations, "artifact-annotation", nil, "artifact annotation")
 	flags.StringVar(&manifestAddOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
