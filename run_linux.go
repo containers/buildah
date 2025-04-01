@@ -456,7 +456,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	resolvFile := ""
-	if !slices.Contains(volumes, resolvconf.DefaultResolvConf) && options.ConfigureNetwork != define.NetworkDisabled && !(len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none") {
+	if !slices.Contains(volumes, resolvconf.DefaultResolvConf) && options.ConfigureNetwork != define.NetworkDisabled && (len(b.CommonBuildOpts.DNSServers) != 1 || strings.ToLower(b.CommonBuildOpts.DNSServers[0]) != "none") {
 		resolvFile, err = b.createResolvConf(path, rootIDPair)
 		if err != nil {
 			return err
