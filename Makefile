@@ -52,6 +52,9 @@ ifeq ($(BUILDDEBUG), 1)
   override GOGCFLAGS += -N -l
 endif
 
+# Managed by renovate.
+export GOLANGCI_LINT_VERSION := 1.61.0
+
 #   make all BUILDDEBUG=1
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently

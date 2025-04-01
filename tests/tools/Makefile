@@ -33,5 +33,8 @@ $(BUILDDIR): \
 $(BUILDDIR)/go-md2man: $(SOURCES)
 	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man/v2
 
-$(BUILDDIR)/golangci-lint: $(SOURCES)
-	$(GO_BUILD) -o $@ ./vendor/github.com/golangci/golangci-lint/cmd/golangci-lint
+# Use GOLANGCI_LINT_VERSION exported in top-level Makefile,
+# or, if called directly, use "latest".
+$(BUILDDIR)/golangci-lint: VERSION=$(if $(GOLANGCI_LINT_VERSION),v$(GOLANGCI_LINT_VERSION),latest)
+$(BUILDDIR)/golangci-lint:
+	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b ./$(BUILDDIR) $(VERSION)
