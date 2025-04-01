@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -49,14 +48,10 @@ func main() {
 		key = args[5]
 	}
 	if len(args) > 6 && args[6] != "" {
-		f, err := os.Create(args[6])
+		err := os.WriteFile(args[6], []byte(strconv.Itoa(os.Getpid())), 0o644)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
-		if _, err := f.WriteString(fmt.Sprintf("%d", os.Getpid())); err != nil {
-			log.Fatalf("%v", err)
-		}
-		f.Close()
 	}
 	http.HandleFunc("/", sendThatFile(basedir))
 	server := http.Server{
