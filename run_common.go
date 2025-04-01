@@ -734,7 +734,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	return wstatus, nil
 }
 
-func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) string { //nolint:interfacer
+func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) string {
 	for _, fd := range closeBeforeReadingFds {
 		unix.Close(fd)
 	}
@@ -780,7 +780,7 @@ func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) s
 	return b.String()
 }
 
-func setNonblock(logger *logrus.Logger, fd int, description string, nonblocking bool) (bool, error) { //nolint:interfacer
+func setNonblock(logger *logrus.Logger, fd int, description string, nonblocking bool) (bool, error) {
 	mask, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
 	if err != nil {
 		return false, err
