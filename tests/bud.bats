@@ -2919,13 +2919,13 @@ function validate_instance_compression {
 
 @test "bud-git-context-failure" {
   # We need git to be around to try cloning a repository, even though it'll fail
-  # and exit with return code 128.
+  # and buildah will exit with return code 125.
   if ! which git ; then
     skip "no git in PATH"
   fi
   target=giturl-image
   gitrepo=git:///tmp/no-such-repository
-  run_buildah 128 build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
   # Expect part of what git would have told us... before things went horribly wrong
   expect_output --substring "failed while performing"
   expect_output --substring "git fetch"
@@ -7318,7 +7318,7 @@ _EOF
 FROM scratch
 ADD https://github.com/containers/crun.git#nosuchbranch /src
 _EOF
-  run_buildah 128 build -f $contextdir/Dockerfile -t git-image $contextdir
+  run_buildah 125 build -f $contextdir/Dockerfile -t git-image $contextdir
   expect_output --substring "couldn't find remote ref nosuchbranch"
 }
 

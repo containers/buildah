@@ -267,14 +267,18 @@ func cloneToDirectory(url, dir string) ([]byte, string, error) {
 	cmd = exec.Command("git", "init", dir)
 	combinedOutput, err := cmd.CombinedOutput()
 	if err != nil {
-		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git init`: %w", err)
+		// Return err.Error() instead of err as we want buildah to override error code with more predictable
+		// value.
+		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git init`: %s", err.Error())
 	}
 	// add origin
 	cmd = exec.Command("git", "remote", "add", "origin", gitRepo)
 	cmd.Dir = dir
 	combinedOutput, err = cmd.CombinedOutput()
 	if err != nil {
-		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git remote add`: %w", err)
+		// Return err.Error() instead of err as we want buildah to override error code with more predictable
+		// value.
+		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git remote add`: %s", err.Error())
 	}
 
 	logrus.Debugf("fetching repo %q and branch (or commit ID) %q to %q", gitRepo, gitRef, dir)
@@ -283,14 +287,18 @@ func cloneToDirectory(url, dir string) ([]byte, string, error) {
 	cmd.Dir = dir
 	combinedOutput, err = cmd.CombinedOutput()
 	if err != nil {
-		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git fetch`: %w", err)
+		// Return err.Error() instead of err as we want buildah to override error code with more predictable
+		// value.
+		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git fetch`: %s", err.Error())
 	}
 
 	cmd = exec.Command("git", "checkout", "FETCH_HEAD")
 	cmd.Dir = dir
 	combinedOutput, err = cmd.CombinedOutput()
 	if err != nil {
-		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git checkout`: %w", err)
+		// Return err.Error() instead of err as we want buildah to override error code with more predictable
+		// value.
+		return combinedOutput, gitSubdir, fmt.Errorf("failed while performing `git checkout`: %s", err.Error())
 	}
 	return combinedOutput, gitSubdir, nil
 }
