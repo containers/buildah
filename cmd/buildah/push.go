@@ -135,7 +135,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 			return fmt.Errorf(`invalid image name "%s"`, args[0])
 		}
 	default:
-		return errors.New("Only two arguments are necessary to push: source and destination")
+		return errors.New("only two arguments are necessary to push: source and destination")
 	}
 
 	compress := define.Gzip

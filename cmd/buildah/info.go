@@ -73,7 +73,7 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 		}
 		t, err := template.New("format").Parse(format)
 		if err != nil {
-			return fmt.Errorf("Template parsing error: %w", err)
+			return fmt.Errorf("template parsing error: %w", err)
 		}
 		if err = t.Execute(os.Stdout, info); err != nil {
 			return err
