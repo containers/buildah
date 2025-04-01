@@ -622,7 +622,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 		if strings.Contains(flag, "from") {
 			tokens := strings.Split(flag, ",")
 			if len(tokens) < 2 {
-				return nil, fmt.Errorf("Invalid --mount command: %s", flag)
+				return nil, fmt.Errorf("invalid --mount command: %s", flag)
 			}
 			for _, token := range tokens {
 				key, val, hasVal := strings.Cut(token, "=")
