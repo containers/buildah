@@ -712,18 +712,16 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 							MountPoint: otherStage.mountPoint,
 						}
 						break
-					} else {
-						// Treat the source's name as the name of an image.
-						mountPoint, err := s.getImageRootfs(s.ctx, from)
-						if err != nil {
-							return nil, fmt.Errorf("%s from=%s: no stage or image found with that name", flag, from)
-						}
-						stageMountPoints[from] = internal.StageMountDetails{
-							IsImage:    true,
-							DidExecute: true,
-							MountPoint: mountPoint,
-						}
-						break
+					}
+					// Otherwise, treat the source's name as the name of an image.
+					mountPoint, err := s.getImageRootfs(s.ctx, from)
+					if err != nil {
+						return nil, fmt.Errorf("%s from=%s: no stage or image found with that name", flag, from)
+					}
+					stageMountPoints[from] = internal.StageMountDetails{
+						IsImage:    true,
+						DidExecute: true,
+						MountPoint: mountPoint,
 					}
 				default:
 					continue
