@@ -934,7 +934,7 @@ func fsHeaderForEntry(hdr *tar.Header) FSHeader {
 		ModTime:  hdr.ModTime,
 		Devmajor: hdr.Devmajor,
 		Devminor: hdr.Devminor,
-		Xattrs:   hdr.Xattrs, // nolint:staticcheck
+		Xattrs:   hdr.Xattrs, //nolint:staticcheck
 	}
 }
 

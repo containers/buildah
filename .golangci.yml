@@ -12,6 +12,7 @@ formatters:
 
 linters:
   enable:
+    - nolintlint
     - revive
     - unconvert
     - unparam

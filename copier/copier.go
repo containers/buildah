@@ -975,7 +975,7 @@ func pathIsExcluded(root, path string, pm *fileutils.PatternMatcher) (string, bo
 	// Matches uses filepath.FromSlash() to convert candidates before
 	// checking if they match the patterns it's been given, implying that
 	// it expects Unix-style paths.
-	matches, err := pm.Matches(filepath.ToSlash(rel)) // nolint:staticcheck
+	matches, err := pm.Matches(filepath.ToSlash(rel)) //nolint:staticcheck
 	if err != nil {
 		return rel, false, fmt.Errorf("copier: error checking if %q is excluded: %w", rel, err)
 	}
@@ -2081,7 +2081,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			// set xattrs, including some that might have been reset by chown()
 			if !req.PutOptions.StripXattrs {
 				xattrs := mapWithPrefixedKeysWithoutKeyPrefix(hdr.PAXRecords, xattrPAXRecordNamespace)
-				if err = Lsetxattrs(path, xattrs); err != nil { // nolint:staticcheck
+				if err = Lsetxattrs(path, xattrs); err != nil {
 					if !req.PutOptions.IgnoreXattrErrors {
 						return fmt.Errorf("copier: put: error setting extended attributes on %q: %w", path, err)
 					}
