@@ -701,9 +701,9 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 	bulkReaderRead = nil
 	bulkWriterWrite.Close()
 	bulkWriterWrite = nil
-	killAndReturn := func(err error, step string) (*response, error) { // nolint: unparam
+	killAndReturn := func(err error, step string) error {
 		if err2 := cmd.Process.Kill(); err2 != nil {
-			return nil, fmt.Errorf("killing subprocess: %v; %s: %w", err2, step, err)
+			return fmt.Errorf("killing subprocess: %v; %s: %w", err2, step, err)
 		}
 		if errors.Is(err, io.ErrClosedPipe) || errors.Is(err, syscall.EPIPE) {
 			err2 := cmd.Wait()
@@ -711,22 +711,22 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 				err = fmt.Errorf("%s: %w", errorText, err)
 			}
 			if err2 != nil {
-				return nil, fmt.Errorf("waiting on subprocess: %v; %s: %w", err2, step, err)
+				return fmt.Errorf("waiting on subprocess: %v; %s: %w", err2, step, err)
 			}
 		}
-		return nil, fmt.Errorf("%v: %w", step, err)
+		return fmt.Errorf("%v: %w", step, err)
 	}
 	if err = encoder.Encode(req); err != nil {
-		return killAndReturn(err, "error encoding work request for copier subprocess")
+		return nil, killAndReturn(err, "error encoding work request for copier subprocess")
 	}
 	if err = decoder.Decode(&resp); err != nil {
 		if errors.Is(err, io.EOF) && errorBuffer.Len() > 0 {
-			return killAndReturn(errors.New(errorBuffer.String()), "error in copier subprocess")
+			return nil, killAndReturn(errors.New(errorBuffer.String()), "error in copier subprocess")
 		}
-		return killAndReturn(err, "error decoding response from copier subprocess")
+		return nil, killAndReturn(err, "error decoding response from copier subprocess")
 	}
 	if err = encoder.Encode(&request{Request: requestQuit}); err != nil {
-		return killAndReturn(err, "error encoding quit request for copier subprocess")
+		return nil, killAndReturn(err, "error encoding quit request for copier subprocess")
 	}
 	stdinWrite.Close()
 	stdinWrite = nil
