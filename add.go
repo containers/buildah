@@ -454,10 +454,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	}
 
 	// if the destination is a directory that doesn't yet exist, let's copy it.
-	newDestDirFound := false
-	if (len(destStats) == 1 || len(destStats[0].Globbed) == 0) && destMustBeDirectory && !destCanBeFile {
-		newDestDirFound = true
-	}
+	newDestDirFound := (len(destStats) == 1 || len(destStats[0].Globbed) == 0) && destMustBeDirectory && !destCanBeFile
 
 	if len(destStats) == 1 && len(destStats[0].Globbed) == 1 && destStats[0].Results[destStats[0].Globbed[0]].IsRegular {
 		if destMustBeDirectory {
