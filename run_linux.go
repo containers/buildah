@@ -1062,28 +1062,28 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
 	}
 	if !nofileSet {
-		max := define.RLimitDefaultValue
+		lim := define.RLimitDefaultValue
 		var rlimit unix.Rlimit
 		if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
-			if max < rlimit.Max || unshare.IsRootless() {
-				max = rlimit.Max
+			if lim < rlimit.Max || unshare.IsRootless() {
+				lim = rlimit.Max
 			}
 		} else {
 			logrus.Warnf("Failed to return RLIMIT_NOFILE ulimit %q", err)
 		}
-		g.AddProcessRlimits("RLIMIT_NOFILE", max, max)
+		g.AddProcessRlimits("RLIMIT_NOFILE", lim, lim)
 	}
 	if !nprocSet {
-		max := define.RLimitDefaultValue
+		lim := define.RLimitDefaultValue
 		var rlimit unix.Rlimit
 		if err := unix.Getrlimit(unix.RLIMIT_NPROC, &rlimit); err == nil {
-			if max < rlimit.Max || unshare.IsRootless() {
-				max = rlimit.Max
+			if lim < rlimit.Max || unshare.IsRootless() {
+				lim = rlimit.Max
 			}
 		} else {
 			logrus.Warnf("Failed to return RLIMIT_NPROC ulimit %q", err)
 		}
-		g.AddProcessRlimits("RLIMIT_NPROC", max, max)
+		g.AddProcessRlimits("RLIMIT_NPROC", lim, lim)
 	}
 
 	return nil
