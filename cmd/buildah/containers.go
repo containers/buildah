@@ -4,10 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"regexp"
 	"strings"
-	"text/template"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
@@ -260,26 +257,6 @@ func containersToGeneric(templParams []containerOutputParams) (genericParams []i
 		}
 	}
 	return genericParams
-}
-
-func containerOutputUsingTemplate(format string, params containerOutputParams) error {
-	if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
-		return fmt.Errorf("validating format provided: %s: %w", format, err)
-	} else if !matched {
-		return fmt.Errorf("invalid format provided: %s", format)
-	}
-
-	tmpl, err := template.New("container").Parse(format)
-	if err != nil {
-		return fmt.Errorf("Template parsing error: %w", err)
-	}
-
-	err = tmpl.Execute(os.Stdout, params)
-	if err != nil {
-		return err
-	}
-	fmt.Println()
-	return nil
 }
 
 func containerOutputUsingFormatString(truncate bool, params containerOutputParams) {
