@@ -48,7 +48,7 @@ func makeContents(length int64) io.ReadCloser {
 		for count < length {
 			if _, err := buffered.Write([]byte{"0123456789abcdef"[count%16]}); err != nil {
 				buffered.Flush()
-				pipeWriter.CloseWithError(err) // nolint:errcheck
+				pipeWriter.CloseWithError(err)
 				return
 			}
 			count++
@@ -111,7 +111,7 @@ func makeArchive(headers []tar.Header, contents map[string][]byte) io.ReadCloser
 		tw.Close()
 		buffered.Flush()
 		if err != nil {
-			pipeWriter.CloseWithError(err) // nolint:errcheck
+			pipeWriter.CloseWithError(err)
 		} else {
 			pipeWriter.Close()
 		}

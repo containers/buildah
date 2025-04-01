@@ -870,13 +870,13 @@ func runCopyStdio(logger *logrus.Logger, stdio *sync.WaitGroup, copyPipes bool, 
 			return
 		}
 		if blocked {
-			defer setNonblock(logger, rfd, readDesc[rfd], false) // nolint:errcheck
+			defer setNonblock(logger, rfd, readDesc[rfd], false) //nolint:errcheck
 		}
-		setNonblock(logger, wfd, writeDesc[wfd], false) // nolint:errcheck
+		setNonblock(logger, wfd, writeDesc[wfd], false) //nolint:errcheck
 	}
 
 	if copyPipes {
-		setNonblock(logger, stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true) // nolint:errcheck
+		setNonblock(logger, stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true) //nolint:errcheck
 	}
 
 	runCopyStdioPassData(copyPipes, stdioPipe, finishCopy, relayMap, relayBuffer, readDesc, writeDesc)

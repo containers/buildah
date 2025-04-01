@@ -691,9 +691,9 @@ func setupSlirp4netnsNetwork(config *config.Config, netns, cid string, options, 
 	}
 
 	return func() {
-		syscall.Kill(res.Pid, syscall.SIGKILL) // nolint:errcheck
+		syscall.Kill(res.Pid, syscall.SIGKILL) //nolint:errcheck
 		var status syscall.WaitStatus
-		syscall.Wait4(res.Pid, &status, 0, nil) // nolint:errcheck
+		syscall.Wait4(res.Pid, &status, 0, nil) //nolint:errcheck
 	}, result, nil
 }
 
