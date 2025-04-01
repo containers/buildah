@@ -1358,7 +1358,7 @@ func configCompareResult(miss, left, diff []string, notDocker string) string {
 	if len(diff) > 0 {
 		buffer.WriteString("Fields present in both versions have different values:\n")
 		tw := tabwriter.NewWriter(&buffer, 1, 1, 8, ' ', 0)
-		if _, err := tw.Write([]byte(fmt.Sprintf("Field\tDocker\t%s\n", notDocker))); err != nil {
+		if _, err := fmt.Fprintf(tw, "Field\tDocker\t%s\n", notDocker); err != nil {
 			panic(err)
 		}
 		for _, d := range diff {
@@ -1390,7 +1390,7 @@ func fsCompareResult(miss, left, diff []string, notDocker string) string {
 	if len(diff) > 0 {
 		buffer.WriteString("File attributes in both versions have different values:\n")
 		tw := tabwriter.NewWriter(&buffer, 1, 1, 8, ' ', 0)
-		if _, err := tw.Write([]byte(fmt.Sprintf("File:attr\tDocker\t%s\n", notDocker))); err != nil {
+		if _, err := fmt.Fprintf(tw, "File:attr\tDocker\t%s\n", notDocker); err != nil {
 			panic(err)
 		}
 		for _, d := range fixup(diff) {
