@@ -5,12 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/containers/buildah"
 	"github.com/containers/common/pkg/umask"
-	"github.com/containers/image/v5/image"
-	"github.com/containers/image/v5/manifest"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -152,47 +149,6 @@ func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store
 		return nil, errors.New("mocking up build configuration")
 	}
 	return builder, nil
-}
-
-func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, store storage.Store, storeImage storage.Image) (time.Time, string, int64, error) {
-	created := time.Time{}
-	is.Transport.SetStore(store)
-	storeRef, err := is.Transport.ParseStoreReference(store, storeImage.ID)
-	if err != nil {
-		return created, "", -1, err
-	}
-	img, err := storeRef.NewImageSource(ctx, nil)
-	if err != nil {
-		return created, "", -1, err
-	}
-	defer img.Close()
-	imgSize, sizeErr := store.ImageSize(storeImage.ID)
-	if sizeErr != nil {
-		imgSize = -1
-	}
-	unparsedInstance := image.UnparsedInstance(img, nil)
-	manifestBytes, _, manifestErr := unparsedInstance.Manifest(ctx)
-	manifestDigest := ""
-	if manifestErr == nil && len(manifestBytes) > 0 {
-		mDigest, err := manifest.Digest(manifestBytes)
-		manifestErr = err
-		if manifestErr == nil {
-			manifestDigest = mDigest.String()
-		}
-	}
-	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, unparsedInstance)
-	if inspectableErr == nil {
-		inspectInfo, inspectErr := inspectable.Inspect(ctx)
-		if inspectErr == nil && inspectInfo != nil && inspectInfo.Created != nil {
-			created = *inspectInfo.Created
-		}
-	}
-	if sizeErr != nil {
-		err = sizeErr
-	} else if manifestErr != nil {
-		err = manifestErr
-	}
-	return created, manifestDigest, imgSize, err
 }
 
 // getContext returns a context.TODO
