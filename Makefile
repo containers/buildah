@@ -195,6 +195,7 @@ vendor:
 .PHONY: lint
 lint: install.tools
 	./tests/tools/build/golangci-lint run $(LINTFLAGS)
+	./tests/tools/build/golangci-lint run --tests=false $(LINTFLAGS)
 
 # CAUTION: This is not a replacement for RPMs provided by your distro.
 # Only intended to build and test the latest unreleased changes.
