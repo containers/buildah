@@ -174,14 +174,7 @@ func (w *walker) walk(path string, i1, i2 os.FileInfo) (err error) {
 	ix1 := 0
 	ix2 := 0
 
-	for {
-		if ix1 >= len(names1) {
-			break
-		}
-		if ix2 >= len(names2) {
-			break
-		}
-
+	for ix1 < len(names1) && ix2 < len(names2) {
 		ni1 := names1[ix1]
 		ni2 := names2[ix2]
 
@@ -304,7 +297,7 @@ func parseDirent(buf []byte, names []nameIno) (consumed int, newnames []nameIno)
 			continue
 		}
 		builder := make([]byte, 0, dirent.Reclen)
-		for i := 0; i < len(dirent.Name); i++ {
+		for i := range len(dirent.Name) {
 			if dirent.Name[i] == 0 {
 				break
 			}
