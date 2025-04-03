@@ -15,6 +15,7 @@ linters:
     - revive
     - unconvert
     - unparam
+    - unused
     - whitespace
   exclusions:
     presets:
