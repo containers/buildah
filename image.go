@@ -168,9 +168,9 @@ func computeLayerMIMEType(what string, layerCompression archive.Compression) (om
 			// how to decompress them, we can't try to compress layers with xz.
 			return "", "", errors.New("media type for xz-compressed layers is not defined")
 		case archive.Zstd:
-			// Until the image specs define a media type for zstd-compressed layers, even if we know
-			// how to decompress them, we can't try to compress layers with zstd.
-			return "", "", errors.New("media type for zstd-compressed layers is not defined")
+			omediaType = v1.MediaTypeImageLayerZstd
+			dmediaType = "application/vnd.docker.image.rootfs.diff.tar.zstd"
+			logrus.Debugf("compressing %s with zstd", what)
 		default:
 			logrus.Debugf("compressing %s with unknown compressor(?)", what)
 		}
