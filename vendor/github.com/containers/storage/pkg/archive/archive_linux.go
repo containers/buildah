@@ -16,7 +16,7 @@ func getOverlayOpaqueXattrName() string {
 	return GetOverlayXattrName("opaque")
 }
 
-func GetWhiteoutConverter(format WhiteoutFormat, data interface{}) TarWhiteoutConverter {
+func GetWhiteoutConverter(format WhiteoutFormat, data any) TarWhiteoutConverter {
 	if format == OverlayWhiteoutFormat {
 		if rolayers, ok := data.([]string); ok && len(rolayers) > 0 {
 			return overlayWhiteoutConverter{rolayers: rolayers}

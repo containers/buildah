@@ -214,7 +214,7 @@ func dumpNode(out io.Writer, added map[string]*minimal.FileMetadata, links map[s
 }
 
 // GenerateDump generates a dump of the TOC in the same format as `composefs-info dump`
-func GenerateDump(tocI interface{}, verityDigests map[string]string) (io.Reader, error) {
+func GenerateDump(tocI any, verityDigests map[string]string) (io.Reader, error) {
 	toc, ok := tocI.(*minimal.TOC)
 	if !ok {
 		return nil, fmt.Errorf("invalid TOC type")
