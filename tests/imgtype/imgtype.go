@@ -97,7 +97,7 @@ func main() {
 
 	errors := false
 	defer func() {
-		store.Shutdown(false) // nolint:errcheck
+		store.Shutdown(false) //nolint:errcheck
 		if errors {
 			os.Exit(1)
 		}

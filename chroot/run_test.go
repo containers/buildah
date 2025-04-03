@@ -316,7 +316,7 @@ func TestProcessRlimits(t *testing.T) {
 						rlim = &report.Spec.Process.Rlimits[i]
 					}
 				}
-				if limit == unix.RLIM_INFINITY && !(rlim == nil || (rlim.Soft == unix.RLIM_INFINITY && rlim.Hard == unix.RLIM_INFINITY)) {
+				if limit == unix.RLIM_INFINITY && rlim != nil && (rlim.Soft != unix.RLIM_INFINITY || rlim.Hard != unix.RLIM_INFINITY) {
 					t.Fatalf("wasn't supposed to set limit on number of open files: %#v", rlim)
 				}
 				if limit != unix.RLIM_INFINITY && rlim == nil {

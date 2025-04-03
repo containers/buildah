@@ -47,7 +47,7 @@ func renameCmd(c *cobra.Command, args []string) error {
 	}
 
 	if build, err := openBuilder(getContext(), store, newName); err == nil {
-		return fmt.Errorf("The container name %q is already in use by container %q", newName, build.ContainerID)
+		return fmt.Errorf("the container name %q is already in use by container %q", newName, build.ContainerID)
 	}
 
 	err = store.SetNames(builder.ContainerID, []string{newName})

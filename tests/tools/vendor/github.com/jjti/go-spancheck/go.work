@@ -1,8 +1,0 @@
-go 1.20
-
-use (
-	.
-	./testdata/base
-	./testdata/disableerrorchecks
-	./testdata/enableall
-)

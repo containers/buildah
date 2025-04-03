@@ -734,7 +734,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	return wstatus, nil
 }
 
-func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) string { //nolint:interfacer
+func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) string {
 	for _, fd := range closeBeforeReadingFds {
 		unix.Close(fd)
 	}
@@ -780,7 +780,7 @@ func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) s
 	return b.String()
 }
 
-func setNonblock(logger *logrus.Logger, fd int, description string, nonblocking bool) (bool, error) { //nolint:interfacer
+func setNonblock(logger *logrus.Logger, fd int, description string, nonblocking bool) (bool, error) {
 	mask, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
 	if err != nil {
 		return false, err
@@ -870,13 +870,13 @@ func runCopyStdio(logger *logrus.Logger, stdio *sync.WaitGroup, copyPipes bool, 
 			return
 		}
 		if blocked {
-			defer setNonblock(logger, rfd, readDesc[rfd], false) // nolint:errcheck
+			defer setNonblock(logger, rfd, readDesc[rfd], false) //nolint:errcheck
 		}
-		setNonblock(logger, wfd, writeDesc[wfd], false) // nolint:errcheck
+		setNonblock(logger, wfd, writeDesc[wfd], false) //nolint:errcheck
 	}
 
 	if copyPipes {
-		setNonblock(logger, stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true) // nolint:errcheck
+		setNonblock(logger, stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true) //nolint:errcheck
 	}
 
 	runCopyStdioPassData(copyPipes, stdioPipe, finishCopy, relayMap, relayBuffer, readDesc, writeDesc)

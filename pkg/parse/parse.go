@@ -705,11 +705,12 @@ func GetBuildOutput(buildOutput string) (define.BuildOutputOption, error) {
 				return define.BuildOutputOption{}, fmt.Errorf("duplicate %q not supported", arr[0])
 			}
 			typeSelected = true
-			if arr[1] == "local" {
+			switch arr[1] {
+			case "local":
 				isDir = true
-			} else if arr[1] == "tar" {
+			case "tar":
 				isDir = false
-			} else {
+			default:
 				return define.BuildOutputOption{}, fmt.Errorf("invalid type %q selected for build output options %q", arr[1], buildOutput)
 			}
 		case "dest":
