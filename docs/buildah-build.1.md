@@ -717,6 +717,8 @@ Supported _keys_ are:
 
 Valid _type_ values are:
 - **local**: write the resulting build files to a directory on the client-side.
+- **image**: writes the build results as an image to local storage.
+- **registry**: pushes the resulting build image to the registry. Shorthand for `type=image,push=true`.
 - **tar**: write the resulting files as a single tarball (.tar).
 
 If no type is specified, the value defaults to **local**.
@@ -773,6 +775,10 @@ the local versions.  Raise an error if the image is not present locally.
 registries.conf if newer.  Raise an error if a base or SBOM scanner image is
 not found in the registries when image with the same name is not present
 locally.
+
+**--push**
+
+Shorthand for "--output=type=registry"
 
 **--quiet**, **-q**
 
