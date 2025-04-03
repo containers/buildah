@@ -1,0 +1,99 @@
+---
+name: Buildah Bug Report
+description: File a Buildah bug report
+labels: ["kind/bug", "triage-needed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+        **NOTE** A large number of issues reported against Buildah are often found to already be fixed in more current versions of the project.
+        Before reporting an issue, please verify the version you are running with `buildah version` and compare it to the latest released version under
+        [releases](https://github.com/containers/buildah/releases).
+        If they differ, please update your version of Buildah to the latest possible and retry your command before creating an issue.
+
+        Commands you might need to run to create the issue
+          $ `buildah version`
+          $ `buildah info`
+          $ `rpm -q buildah` or `apt list buildah`
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Please explain your issue
+      value: "Describe your issue"
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Steps to reproduce the issue
+      description: Please explain the steps to reproduce the issue
+      value: "Steps to reproduce the issue\n1.\n2.\n3.\n"
+    validations:
+      required: true
+  - type: textarea
+    id: received_results
+    attributes:
+      label: Describe the results you received
+      description: Please explain the results you are noticing
+      value: "Describe the results you received"
+    validations:
+      required: true
+  - type: textarea
+    id: expected_results
+    attributes:
+      label: Describe the results you expected
+      description: Please explain the results you are expecting
+      value: "Describe the results you expected"
+    validations:
+      required: true
+  - type: textarea
+    id: buildah_version
+    attributes:
+      label: buildah version output
+      description: Please copy and paste `buildah version` output.
+      value: If you are unable to run `buildah version` for any reason, please provide the output of `rpm -q buildah` or `apt list buildah`.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: buildah_info
+    attributes:
+      label: buildah info output
+      description: Please copy and paste `buildah info` output.
+      value: If you are unable to run `buildah info` for any reason, please provide the operating system and its version and the architecture you are running.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: storage_conf
+    attributes:
+      label: Provide your storage.conf
+      description: "Please provide the relevant [storage.conf file](https://github.com/containers/storage/blob/main/docs/containers-storage.conf.5.md#files)"
+      render: toml
+    validations:
+      required: true
+  - type: dropdown
+    id: upstream_latest
+    attributes:
+      label: Upstream Latest Release
+      description: Have you tried running the [latest upstream release](https://github.com/containers/buildah/releases/latest)
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: additional_environment
+    attributes:
+      label: Additional environment details
+      description: Please describe any additional environment details like (AWS, VirtualBox,...)
+      value: "Additional environment details"
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: Additional information
+      description: Please explain the additional information you deem important
+      value: "Additional information like issue happens only occasionally or issue happens with a particular architecture or on a particular setting"
