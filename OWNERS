@@ -4,6 +4,11 @@ approvers:
   - nalind
   - rhatdan
   - umohnani8
+  - baude
+  - mheon
+  - Luap99
+  - giuseppe
+  - mtrmac
 reviewers:
   - ashley-cui
   - baude
@@ -13,3 +18,5 @@ reviewers:
   - Honny1
   - mheon
   - vrothberg
+  - Luap99
+  - mtrmac
