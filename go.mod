@@ -38,7 +38,7 @@ require (
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/crypto v0.36.0
 	golang.org/x/sync v0.12.0
-	golang.org/x/sys v0.31.0
+	golang.org/x/sys v0.32.0
 	golang.org/x/term v0.30.0
 	sigs.k8s.io/yaml v1.4.0
 	tags.cncf.io/container-device-interface v1.0.1
