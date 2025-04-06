@@ -36,10 +36,10 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
 	go.etcd.io/bbolt v1.4.0
-	golang.org/x/crypto v0.36.0
-	golang.org/x/sync v0.12.0
-	golang.org/x/sys v0.31.0
-	golang.org/x/term v0.30.0
+	golang.org/x/crypto v0.37.0
+	golang.org/x/sync v0.13.0
+	golang.org/x/sys v0.32.0
+	golang.org/x/term v0.31.0
 	sigs.k8s.io/yaml v1.4.0
 	tags.cncf.io/container-device-interface v1.0.1
 )
@@ -149,7 +149,7 @@ require (
 	golang.org/x/exp v0.0.0-20250103183323-7d7fa50e5329 // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.36.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/grpc v1.70.0 // indirect
