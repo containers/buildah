@@ -250,10 +250,10 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 	return nil
 }
 
-func containersToGeneric(templParams []containerOutputParams) (genericParams []interface{}) {
+func containersToGeneric(templParams []containerOutputParams) (genericParams []any) {
 	if len(templParams) > 0 {
 		for _, v := range templParams {
-			genericParams = append(genericParams, interface{}(v))
+			genericParams = append(genericParams, any(v))
 		}
 	}
 	return genericParams

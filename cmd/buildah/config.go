@@ -154,7 +154,7 @@ func updateEntrypoint(builder *buildah.Builder, entrypoint string) {
 	builder.SetEntrypoint(entrypointSpec)
 }
 
-func conditionallyAddHistory(builder *buildah.Builder, c *cobra.Command, createdByFmt string, args ...interface{}) {
+func conditionallyAddHistory(builder *buildah.Builder, c *cobra.Command, createdByFmt string, args ...any) {
 	history := buildahcli.DefaultHistory()
 	if c.Flag("add-history").Changed {
 		history, _ = c.Flags().GetBool("add-history")

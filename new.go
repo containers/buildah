@@ -246,11 +246,11 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	suffixDigitsModulo := 100
 	for {
-		var flags map[string]interface{}
+		var flags map[string]any
 		// check if we have predefined ProcessLabel and MountLabel
 		// this could be true if this is another stage in a build
 		if options.ProcessLabel != "" && options.MountLabel != "" {
-			flags = map[string]interface{}{
+			flags = map[string]any{
 				"ProcessLabel": options.ProcessLabel,
 				"MountLabel":   options.MountLabel,
 			}

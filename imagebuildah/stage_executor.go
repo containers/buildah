@@ -61,7 +61,7 @@ type StageExecutor struct {
 	ctx                   context.Context
 	systemContext         *types.SystemContext
 	executor              *Executor
-	log                   func(format string, args ...interface{})
+	log                   func(format string, args ...any)
 	index                 int
 	stages                imagebuilder.Stages
 	name                  string

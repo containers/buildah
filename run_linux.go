@@ -302,7 +302,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		// We are going to create bind mounts for devices
 		// but we need to make sure that we don't override
 		// anything which is already in OCI spec.
-		mounts := make(map[string]interface{})
+		mounts := make(map[string]any)
 		for _, m := range g.Mounts() {
 			mounts[m.Destination] = true
 		}

@@ -26,7 +26,7 @@ import (
 // unmarshalConvertedConfig obtains the config blob of img valid for the wantedManifestMIMEType format
 // (either as it exists, or converting the image if necessary), and unmarshals it into dest.
 // NOTE: The MIME type is of the _manifest_, not of the _config_ that is returned.
-func unmarshalConvertedConfig(ctx context.Context, dest interface{}, img types.Image, wantedManifestMIMEType string) error {
+func unmarshalConvertedConfig(ctx context.Context, dest any, img types.Image, wantedManifestMIMEType string) error {
 	_, actualManifestMIMEType, err := img.Manifest(ctx)
 	if err != nil {
 		return fmt.Errorf("getting manifest MIME type for %q: %w", transports.ImageName(img.Reference()), err)
