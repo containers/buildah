@@ -46,7 +46,7 @@ func firstSlicePairElseSecondSlicePair(firstA, firstB, secondA, secondB []string
 func mergeEnv(a, b []string) []string {
 	index := make(map[string]int)
 	results := make([]string, 0, len(a)+len(b))
-	for _, kv := range append(append([]string{}, a...), b...) {
+	for _, kv := range slices.Concat(a, b) {
 		k, _, specifiesValue := strings.Cut(kv, "=")
 		if !specifiesValue {
 			if value, ok := os.LookupEnv(kv); ok {

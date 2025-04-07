@@ -281,7 +281,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	// Combine the working container's set of devices with the ones for just this run.
-	deviceSpecs := append(append([]string{}, options.DeviceSpecs...), b.DeviceSpecs...)
+	deviceSpecs := slices.Concat(options.DeviceSpecs, b.DeviceSpecs)
 	deviceSpecs, err = b.cdiSetupDevicesInSpec(deviceSpecs, options.CDIConfigDir, g.Config) // makes changes to more than just the device list
 	if err != nil {
 		return err
