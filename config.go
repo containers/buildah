@@ -96,9 +96,7 @@ func (b *Builder) initConfig(ctx context.Context, sys *types.SystemContext, img 
 				if b.ImageAnnotations == nil {
 					b.ImageAnnotations = make(map[string]string, len(v1Manifest.Annotations))
 				}
-				for k, v := range v1Manifest.Annotations {
-					b.ImageAnnotations[k] = v
-				}
+				maps.Copy(b.ImageAnnotations, v1Manifest.Annotations)
 			}
 		}
 	} else {
