@@ -221,10 +221,8 @@ func TestProcessEnv(t *testing.T) {
 			g.AddProcessEnv("PARENT_TEST_PID", strconv.Itoa(unix.Getpid()))
 		},
 		func(t *testing.T, report *types.TestReport) {
-			for _, ev := range report.Spec.Process.Env {
-				if ev == e {
-					return
-				}
+			if slices.Contains(report.Spec.Process.Env, e) {
+				return
 			}
 			t.Fatalf("expected environment variable %q", e)
 		},

@@ -173,14 +173,7 @@ func (s *StageExecutor) Preserve(path string) error {
 	for cachedPath := range s.volumeCache {
 		// Walk our list of cached volumes, and check that they're
 		// still in the list of locations that we need to cache.
-		found := false
-		for _, volume := range s.volumes {
-			if volume == cachedPath {
-				// We need to keep this volume's cache.
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(s.volumes, cachedPath)
 		if !found {
 			// We don't need to keep this volume's cache.  Make a
 			// note to remove it.
