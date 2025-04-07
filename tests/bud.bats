@@ -6573,6 +6573,18 @@ _EOF
   done
 }
 
+@test "build must reset platform for stages if needed" {
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+  otherarch="arm64"
+  # just make sure that other arch is not equivalent to host arch
+  if [[ "$otherarch" == "$myarch" ]]; then
+    otherarch="amd64"
+  fi
+  run_buildah build $WITH_POLICY_JSON --build-arg FOREIGNARCH=$otherarch -f $BUDFILES/multiarch/Containerfile.reset-platform $BUDFILES/multiarch
+  run_buildah build $WITH_POLICY_JSON --build-arg TARGETPLATFORM=linux/$myarch --build-arg FOREIGNARCH=$otherarch -f $BUDFILES/multiarch/Containerfile.reset-platform $BUDFILES/multiarch
+}
+
 # * Performs multi-stage build with label1=value1 and verifies
 # * Relabels build with label1=value2 and verifies
 # * Rebuild with label1=value1 and makes sure everything is used from cache
