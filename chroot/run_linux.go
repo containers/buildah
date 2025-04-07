@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -61,14 +62,14 @@ func setPlatformUnshareOptions(spec *specs.Spec, cmd *unshare.Cmd) error {
 	uidmap, gidmap := spec.Linux.UIDMappings, spec.Linux.GIDMappings
 	if len(uidmap) == 0 {
 		// No UID mappings are configured for the container.  Borrow our parent's mappings.
-		uidmap = append([]specs.LinuxIDMapping{}, hostUidmap...)
+		uidmap = slices.Clone(hostUidmap)
 		for i := range uidmap {
 			uidmap[i].HostID = uidmap[i].ContainerID
 		}
 	}
 	if len(gidmap) == 0 {
 		// No GID mappings are configured for the container.  Borrow our parent's mappings.
-		gidmap = append([]specs.LinuxIDMapping{}, hostGidmap...)
+		gidmap = slices.Clone(hostGidmap)
 		for i := range gidmap {
 			gidmap[i].HostID = gidmap[i].ContainerID
 		}

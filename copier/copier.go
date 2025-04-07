@@ -331,7 +331,7 @@ func Stat(root string, directory string, options StatOptions, globs []string) ([
 		Request:     requestStat,
 		Root:        root,
 		Directory:   directory,
-		Globs:       append([]string{}, globs...),
+		Globs:       slices.Clone(globs),
 		StatOptions: options,
 	}
 	resp, err := copier(nil, nil, req)
@@ -382,7 +382,7 @@ func Get(root string, directory string, options GetOptions, globs []string, bulk
 		Request:   requestGet,
 		Root:      root,
 		Directory: directory,
-		Globs:     append([]string{}, globs...),
+		Globs:     slices.Clone(globs),
 		StatOptions: StatOptions{
 			CheckForArchives: options.ExpandArchives,
 		},
@@ -598,7 +598,7 @@ func copierWithoutSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req req
 	req.preservedRoot = req.Root
 	req.rootPrefix = string(os.PathSeparator)
 	req.preservedDirectory = req.Directory
-	req.preservedGlobs = append([]string{}, req.Globs...)
+	req.preservedGlobs = slices.Clone(req.Globs)
 	if !filepath.IsAbs(req.Directory) {
 		req.Directory = filepath.Join(req.Root, cleanerReldirectory(req.Directory))
 	}
@@ -850,7 +850,7 @@ func copierMain() {
 		req.preservedRoot = req.Root
 		req.rootPrefix = string(os.PathSeparator)
 		req.preservedDirectory = req.Directory
-		req.preservedGlobs = append([]string{}, req.Globs...)
+		req.preservedGlobs = slices.Clone(req.Globs)
 		if chrooted {
 			// We'll need to adjust some things now that the root
 			// directory isn't what it was.  Make the directory and

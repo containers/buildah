@@ -511,7 +511,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 		// layers, its easier to reuse cached layers.
 		if len(b.labels) > 0 {
 			var labelLine string
-			labels := append([]string{}, b.labels...)
+			labels := slices.Clone(b.labels)
 			for _, labelSpec := range labels {
 				key, value, _ := strings.Cut(labelSpec, "=")
 				// check only for an empty key since docker allows empty values

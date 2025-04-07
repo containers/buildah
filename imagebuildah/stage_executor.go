@@ -808,7 +808,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		defer devNull.Close()
 		stdin = devNull
 	}
-	namespaceOptions := append([]define.NamespaceOption{}, s.executor.namespaceOptions...)
+	namespaceOptions := slices.Clone(s.executor.namespaceOptions)
 	options := buildah.RunOptions{
 		Args:                 s.executor.runtimeArgs,
 		Cmd:                  config.Cmd,
@@ -2375,7 +2375,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	s.builder.SetStopSignal(config.StopSignal)
 	if config.Healthcheck != nil {
 		s.builder.SetHealthcheck(&buildahdocker.HealthConfig{
-			Test:          append([]string{}, config.Healthcheck.Test...),
+			Test:          slices.Clone(config.Healthcheck.Test),
 			Interval:      config.Healthcheck.Interval,
 			Timeout:       config.Healthcheck.Timeout,
 			StartPeriod:   config.Healthcheck.StartPeriod,

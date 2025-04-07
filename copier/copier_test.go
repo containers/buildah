@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1753,7 +1754,7 @@ func testMkdir(t *testing.T) {
 						return nil
 					})
 					require.NoErrorf(t, err, "error walking directory to catalog post-Mkdir contents: %v", err)
-					expected := append([]string{}, beforeNames...)
+					expected := slices.Clone(beforeNames)
 					for _, expect := range testCase.expect {
 						expected = append(expected, filepath.FromSlash(expect))
 					}
