@@ -2117,7 +2117,7 @@ func (s *StageExecutor) generateCacheKey(ctx context.Context, currNode *parser.N
 		if err != nil {
 			return "", fmt.Errorf("getting history of base image %q: %w", s.builder.FromImageID, err)
 		}
-		for i := 0; i < len(diffIDs); i++ {
+		for i := range len(diffIDs) {
 			fmt.Fprintln(hash, diffIDs[i].String())
 		}
 	}

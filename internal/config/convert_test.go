@@ -124,13 +124,13 @@ func checkValue(t *testing.T, value reflect.Value, name string, kind reflect.Kin
 		case reflect.Map:
 			assert.Falsef(t, value.IsZero(), "map field %s not set when it was not already expected to be left unpopulated by conversion", name)
 			keys := value.MapKeys()
-			for i := 0; i < len(keys); i++ {
+			for i := range len(keys) {
 				v := value.MapIndex(keys[i])
 				checkValue(t, v, name+"{"+keys[i].String()+"}", elemType.Kind(), nil, allowedToBeZero)
 			}
 		case reflect.Slice:
 			assert.Falsef(t, value.IsZero(), "slice field %s not set when it was not already expected to be left unpopulated by conversion", name)
-			for i := 0; i < value.Len(); i++ {
+			for i := range value.Len() {
 				v := value.Index(i)
 				checkValue(t, v, name+"["+strconv.Itoa(i)+"]", elemType.Kind(), nil, allowedToBeZero)
 			}

@@ -696,7 +696,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 			continue
 		}
 		needToEnsureBase := true
-		for j := 0; j < i; j++ {
+		for j := range i {
 			if stageBase == stages[j].Name {
 				needToEnsureBase = false
 			}
@@ -1314,10 +1314,10 @@ func compareJSON(a, b map[string]any, skip []string) (missKeys, leftKeys, diffKe
 				break
 			}
 			m := make(map[any]struct{})
-			for i := 0; i < len(tmpb); i++ {
+			for i := range len(tmpb) {
 				m[tmpb[i]] = struct{}{}
 			}
-			for i := 0; i < len(tmpa); i++ {
+			for i := range len(tmpa) {
 				if _, ok := m[tmpa[i]]; !ok {
 					diffKeys = append(diffKeys, diffDebug(k, v, vb))
 					isSame = false
