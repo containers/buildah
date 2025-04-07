@@ -71,7 +71,7 @@ func getProcessArgs(r *types.TestReport) error {
 }
 
 func getProcessEnv(r *types.TestReport) error {
-	r.Spec.Process.Env = append([]string{}, os.Environ()...)
+	r.Spec.Process.Env = os.Environ()
 	return nil
 }
 
