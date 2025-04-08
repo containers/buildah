@@ -16,7 +16,6 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/transports"
-	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/storage"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -148,25 +147,9 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		return err
 	}
 
-	dest, err := alltransports.ParseImageName(destSpec)
-	// add the docker:// transport to see if they neglected it.
+	dest, err := util.ImageStringToImageReference(destSpec)
 	if err != nil {
-		destTransport := strings.Split(destSpec, ":")[0]
-		if t := transports.Get(destTransport); t != nil {
-			return err
-		}
-
-		if strings.Contains(destSpec, "://") {
-			return err
-		}
-
-		destSpec = "docker://" + destSpec
-		dest2, err2 := alltransports.ParseImageName(destSpec)
-		if err2 != nil {
-			return err
-		}
-		dest = dest2
-		logrus.Debugf("Assuming docker:// as the transport method for DESTINATION: %s", destSpec)
+		return fmt.Errorf("generating image reference: %w", err)
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)

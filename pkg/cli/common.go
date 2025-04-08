@@ -85,6 +85,7 @@ type BudResults struct {
 	Pull                string
 	PullAlways          bool
 	PullNever           bool
+	Push                bool
 	Quiet               bool
 	IdentityLabel       bool
 	Rm                  bool
@@ -305,6 +306,7 @@ newer:   only pull base and SBOM scanner images when newer images exist on the r
 	fs.BoolVar(&flags.Stdin, "stdin", false, "pass stdin into containers")
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringVarP(&flags.BuildOutput, "output", "o", "", "output destination (format: type=local,dest=path)")
+	fs.BoolVar(&flags.Push, "push", false, "Shorthand for `--output=type=registry`")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
 	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set created timestamp to the specified epoch seconds to allow for deterministic builds, defaults to current time")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")

@@ -265,7 +265,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		timestamp = &t
 	}
 	if c.Flag("output").Changed {
-		buildOption, err := parse.GetBuildOutput(iopts.BuildOutput)
+		buildOption, err := parse.GetBuildOutput(iopts.BuildOutput, output)
 		if err != nil {
 			return options, nil, nil, err
 		}
@@ -280,6 +280,15 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 			return options, nil, nil, err
 		}
 	}
+
+	if c.Flag("push").Changed {
+		if len(iopts.BuildOutput) == 0 {
+			iopts.BuildOutput = "type=registry"
+		} else {
+			return options, nil, nil, fmt.Errorf("cannot set both --push and --output")
+		}
+	}
+
 	var cacheTo []reference.Named
 	var cacheFrom []reference.Named
 	cacheTo = nil
@@ -399,6 +408,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		OutputFormat:            format,
 		Platforms:               platforms,
 		PullPolicy:              pullPolicy,
+		Push:                    iopts.Push,
 		Quiet:                   iopts.Quiet,
 		RemoveIntermediateCtrs:  iopts.Rm,
 		ReportWriter:            reporter,
