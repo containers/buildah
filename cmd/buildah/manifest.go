@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -148,7 +147,7 @@ func init() {
 	flags.StringVar(&manifestAddOpts.artifactConfigType, "artifact-config-type", imgspecv1.DescriptorEmptyJSON.MediaType, "artifact config media type")
 	flags.StringVar(&manifestAddOpts.artifactConfigFile, "artifact-config", "", "artifact config file")
 	flags.StringVar(&manifestAddOpts.artifactLayerType, "artifact-layer-type", "", "artifact layer media type")
-	flags.BoolVar(&manifestAddOpts.artifactExcludeTitles, "artifact-exclude-titles", false, fmt.Sprintf(`refrain from setting %q annotations on "layers"`, v1.AnnotationTitle))
+	flags.BoolVar(&manifestAddOpts.artifactExcludeTitles, "artifact-exclude-titles", false, fmt.Sprintf(`refrain from setting %q annotations on "layers"`, imgspecv1.AnnotationTitle))
 	flags.StringVar(&manifestAddOpts.artifactSubject, "artifact-subject", "", "artifact subject reference")
 	flags.StringSliceVar(&manifestAddOpts.artifactAnnotations, "artifact-annotation", nil, "artifact annotation")
 	flags.StringVar(&manifestAddOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
@@ -291,7 +290,7 @@ func init() {
 
 func manifestExistsCmd(c *cobra.Command, args []string) error {
 	if len(args) == 0 {
-		return errors.New("At least a name must be specified for the list")
+		return errors.New("at least a name must be specified for the list")
 	}
 	name := args[0]
 
@@ -322,7 +321,7 @@ func manifestExistsCmd(c *cobra.Command, args []string) error {
 
 func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts) error {
 	if len(args) == 0 {
-		return errors.New("At least a name must be specified for the list")
+		return errors.New("at least a name must be specified for the list")
 	}
 	listImageSpec := args[0]
 	imageSpecs := args[1:]
@@ -433,21 +432,21 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	artifactSpec := []string{}
 	switch len(args) {
 	case 0, 1:
-		return errors.New("At least a list image and an image or artifact to add must be specified")
+		return errors.New("at least a list image and an image or artifact to add must be specified")
 	default:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return fmt.Errorf("Invalid image name %q", args[0])
+			return fmt.Errorf("invalid image name %q", args[0])
 		}
 		if opts.artifact {
 			artifactSpec = args[1:]
 		} else {
 			if len(args) > 2 {
-				return errors.New("Too many arguments: expected list and image add to list")
+				return errors.New("too many arguments: expected list and image add to list")
 			}
 			imageSpec = args[1]
 			if imageSpec == "" {
-				return fmt.Errorf("Invalid image name %q", args[1])
+				return fmt.Errorf("invalid image name %q", args[1])
 			}
 		}
 	}
@@ -635,18 +634,18 @@ func manifestRemoveCmd(c *cobra.Command, args []string, _ manifestRemoveOpts) er
 	var instanceSpec string
 	switch len(args) {
 	case 0, 1:
-		return errors.New("At least a list image and one or more instance digests must be specified")
+		return errors.New("at least a list image and one or more instance digests must be specified")
 	case 2:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return fmt.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`invalid image name "%s"`, args[0])
 		}
 		instanceSpec = args[1]
 		if instanceSpec == "" {
-			return fmt.Errorf(`Invalid instance "%s"`, args[1])
+			return fmt.Errorf(`invalid instance "%s"`, args[1])
 		}
 	default:
-		return errors.New("At least two arguments are necessary: list and digest of instance to remove from list")
+		return errors.New("at least two arguments are necessary: list and digest of instance to remove from list")
 	}
 
 	store, err := getStore(c)
@@ -677,23 +676,23 @@ func manifestRemoveCmd(c *cobra.Command, args []string, _ manifestRemoveOpts) er
 		if err != nil {
 			if instanceRef, err = alltransports.ParseImageName(util.DefaultTransport + instanceSpec); err != nil {
 				if instanceRef, _, err = util.FindImage(store, "", systemContext, instanceSpec); err != nil {
-					return fmt.Errorf(`Invalid instance "%s": %v`, instanceSpec, err)
+					return fmt.Errorf(`invalid instance "%s": %v`, instanceSpec, err)
 				}
 			}
 		}
 		ctx := getContext()
 		instanceImg, err := instanceRef.NewImageSource(ctx, systemContext)
 		if err != nil {
-			return fmt.Errorf("Reading image instance: %w", err)
+			return fmt.Errorf("reading image instance: %w", err)
 		}
 		defer instanceImg.Close()
 		manifestBytes, _, err := image.UnparsedInstance(instanceImg, nil).Manifest(ctx)
 		if err != nil {
-			return fmt.Errorf("Reading image instance manifest: %w", err)
+			return fmt.Errorf("reading image instance manifest: %w", err)
 		}
 		d, err = manifest.Digest(manifestBytes)
 		if err != nil {
-			return fmt.Errorf("Digesting image instance manifest: %w", err)
+			return fmt.Errorf("digesting image instance manifest: %w", err)
 		}
 	}
 	instanceDigest = d
@@ -752,29 +751,29 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 	}
 	switch len(args) {
 	case 0:
-		return errors.New("At least a list image must be specified")
+		return errors.New("at least a list image must be specified")
 	case 1:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return fmt.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`invalid image name "%s"`, args[0])
 		}
 		if !opts.index {
-			return errors.New(`Expected an instance digest, image name, or artifact name`)
+			return errors.New(`expected an instance digest, image name, or artifact name`)
 		}
 	case 2:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return fmt.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`invalid image name "%s"`, args[0])
 		}
 		if opts.index {
-			return fmt.Errorf(`Did not expect image or artifact name "%s" when modifying the entire index`, args[1])
+			return fmt.Errorf(`did not expect image or artifact name "%s" when modifying the entire index`, args[1])
 		}
 		instanceSpec = args[1]
 		if instanceSpec == "" {
-			return fmt.Errorf(`Invalid instance digest, image name, or artifact name "%s"`, instanceSpec)
+			return fmt.Errorf(`invalid instance digest, image name, or artifact name "%s"`, instanceSpec)
 		}
 	default:
-		return errors.New("Expected either a list name and --index or a list name and an image digest or image name or artifact name")
+		return errors.New("expected either a list name and --index or a list name and an image digest or image name or artifact name")
 	}
 
 	store, err := getStore(c)
@@ -817,23 +816,23 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 				if instanceRef, err = alltransports.ParseImageName(util.DefaultTransport + instanceSpec); err != nil {
 					// check if the local image exists
 					if instanceRef, _, err = util.FindImage(store, "", systemContext, instanceSpec); err != nil {
-						return fmt.Errorf(`Invalid instance "%s": %v`, instanceSpec, err)
+						return fmt.Errorf(`invalid instance "%s": %v`, instanceSpec, err)
 					}
 				}
 			}
 			ctx := getContext()
 			instanceImg, err := instanceRef.NewImageSource(ctx, systemContext)
 			if err != nil {
-				return fmt.Errorf("Reading image instance: %w", err)
+				return fmt.Errorf("reading image instance: %w", err)
 			}
 			defer instanceImg.Close()
 			manifestBytes, _, err := image.UnparsedInstance(instanceImg, nil).Manifest(ctx)
 			if err != nil {
-				return fmt.Errorf("Reading image instance manifest: %w", err)
+				return fmt.Errorf("reading image instance manifest: %w", err)
 			}
 			d, err = manifest.Digest(manifestBytes)
 			if err != nil {
-				return fmt.Errorf("Digesting image instance manifest: %w", err)
+				return fmt.Errorf("digesting image instance manifest: %w", err)
 			}
 		}
 		instance = d
@@ -964,14 +963,14 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 	imageSpec := ""
 	switch len(args) {
 	case 0:
-		return errors.New("At least a source list ID must be specified")
+		return errors.New("at least a source list ID must be specified")
 	case 1:
 		imageSpec = args[0]
 		if imageSpec == "" {
-			return fmt.Errorf(`Invalid image name "%s"`, imageSpec)
+			return fmt.Errorf(`invalid image name "%s"`, imageSpec)
 		}
 	default:
-		return errors.New("Only one argument is necessary for inspect: an image name")
+		return errors.New("only one argument is necessary for inspect: an image name")
 	}
 
 	store, err := getStore(c)
@@ -1093,7 +1092,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 	destSpec := ""
 	switch len(args) {
 	case 0:
-		return errors.New("At least a source list ID must be specified")
+		return errors.New("at least a source list ID must be specified")
 	case 1:
 		listImageSpec = args[0]
 		destSpec = "docker://" + listImageSpec
@@ -1101,7 +1100,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 		listImageSpec = args[0]
 		destSpec = args[1]
 	default:
-		return errors.New("Only two arguments are necessary to push: source and destination")
+		return errors.New("only two arguments are necessary to push: source and destination")
 	}
 	if listImageSpec == "" {
 		return fmt.Errorf(`invalid image name "%s"`, listImageSpec)

@@ -30,10 +30,8 @@ func init() {
 }
 
 func umountCmd(c *cobra.Command, args []string) error {
-	umountAll := false
-	if c.Flag("all").Changed {
-		umountAll = true
-	}
+	umountAll := c.Flag("all").Changed
+
 	umountContainerErrStr := "error unmounting container"
 	if len(args) == 0 && !umountAll {
 		return errors.New("at least one container ID must be specified")

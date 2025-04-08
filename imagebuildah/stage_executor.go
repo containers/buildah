@@ -622,7 +622,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 		if strings.Contains(flag, "from") {
 			tokens := strings.Split(flag, ",")
 			if len(tokens) < 2 {
-				return nil, fmt.Errorf("Invalid --mount command: %s", flag)
+				return nil, fmt.Errorf("invalid --mount command: %s", flag)
 			}
 			for _, token := range tokens {
 				key, val, hasVal := strings.Cut(token, "=")
@@ -712,18 +712,16 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 							MountPoint: otherStage.mountPoint,
 						}
 						break
-					} else {
-						// Treat the source's name as the name of an image.
-						mountPoint, err := s.getImageRootfs(s.ctx, from)
-						if err != nil {
-							return nil, fmt.Errorf("%s from=%s: no stage or image found with that name", flag, from)
-						}
-						stageMountPoints[from] = internal.StageMountDetails{
-							IsImage:    true,
-							DidExecute: true,
-							MountPoint: mountPoint,
-						}
-						break
+					}
+					// Otherwise, treat the source's name as the name of an image.
+					mountPoint, err := s.getImageRootfs(s.ctx, from)
+					if err != nil {
+						return nil, fmt.Errorf("%s from=%s: no stage or image found with that name", flag, from)
+					}
+					stageMountPoints[from] = internal.StageMountDetails{
+						IsImage:    true,
+						DidExecute: true,
+						MountPoint: mountPoint,
 					}
 				default:
 					continue
@@ -1547,7 +1545,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// we need to call ib.Run() to correctly put the args together before
 		// determining if a cached layer with the same build args already exists
 		// and that is done in the if block below.
-		if checkForLayers && step.Command != "arg" && !(s.executor.squash && lastInstruction && lastStage) && !avoidLookingCache {
+		if checkForLayers && step.Command != "arg" && (!s.executor.squash || !lastInstruction || !lastStage) && !avoidLookingCache {
 			// For `COPY` and `ADD`, history entries include digests computed from
 			// the content that's copied in.  We need to compute that information so that
 			// it can be used to evaluate the cache, which means we need to go ahead

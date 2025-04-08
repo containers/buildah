@@ -451,7 +451,7 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 	if options.Target != "" {
 		stagesTargeted, ok := stages.ThroughTarget(options.Target)
 		if !ok {
-			return "", nil, fmt.Errorf("The target %q was not found in the provided Dockerfile", options.Target)
+			return "", nil, fmt.Errorf("the target %q was not found in the provided Dockerfile", options.Target)
 		}
 		stages = stagesTargeted
 	}
