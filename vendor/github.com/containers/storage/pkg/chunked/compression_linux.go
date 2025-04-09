@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"slices"
 	"strconv"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/vbatts/tar-split/archive/tar"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
-	expMaps "golang.org/x/exp/maps"
 )
 
 const (
@@ -87,7 +87,7 @@ func readEstargzChunkedManifest(blobStream ImageSourceSeekable, blobSize int64, 
 		return nil, 0, fmt.Errorf("parse ToC offset: %w", err)
 	}
 
-	size := int64(blobSize - footerSize - tocOffset)
+	size := blobSize - footerSize - tocOffset
 	// set a reasonable limit
 	if size > maxTocSize {
 		// Not errFallbackCanConvert: we would still use too much memory.
@@ -310,7 +310,7 @@ func ensureTOCMatchesTarSplit(toc *minimal.TOC, tarSplit []byte) error {
 		return err
 	}
 	if len(pendingFiles) != 0 {
-		remaining := expMaps.Keys(pendingFiles)
+		remaining := slices.Collect(maps.Keys(pendingFiles))
 		if len(remaining) > 5 {
 			remaining = remaining[:5] // Just to limit the size of the output.
 		}

@@ -130,6 +130,9 @@ type Driver struct {
 	usingMetacopy    bool
 	usingComposefs   bool
 
+	stagingDirsLocksMutex sync.Mutex
+	// stagingDirsLocks access is not thread safe, it is required that callers take
+	// stagingDirsLocksMutex on each access to guard against concurrent map writes.
 	stagingDirsLocks map[string]*lockfile.LockFile
 
 	supportsIDMappedMounts *bool
@@ -428,17 +431,18 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 	}
 
 	d := &Driver{
-		name:             "overlay",
-		home:             home,
-		imageStore:       options.ImageStore,
-		runhome:          runhome,
-		ctr:              graphdriver.NewRefCounter(graphdriver.NewFsChecker(fileSystemType)),
-		supportsDType:    supportsDType,
-		usingMetacopy:    usingMetacopy,
-		supportsVolatile: supportsVolatile,
-		usingComposefs:   opts.useComposefs,
-		options:          *opts,
-		stagingDirsLocks: make(map[string]*lockfile.LockFile),
+		name:                  "overlay",
+		home:                  home,
+		imageStore:            options.ImageStore,
+		runhome:               runhome,
+		ctr:                   graphdriver.NewRefCounter(graphdriver.NewFsChecker(fileSystemType)),
+		supportsDType:         supportsDType,
+		usingMetacopy:         usingMetacopy,
+		supportsVolatile:      supportsVolatile,
+		usingComposefs:        opts.useComposefs,
+		options:               *opts,
+		stagingDirsLocksMutex: sync.Mutex{},
+		stagingDirsLocks:      make(map[string]*lockfile.LockFile),
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, graphdriver.NewNaiveLayerIDMapUpdater(d))
@@ -488,7 +492,7 @@ func parseOptions(options []string) (*overlayOptions, error) {
 			if err != nil {
 				return nil, err
 			}
-			o.quota.Inodes = uint64(inodes)
+			o.quota.Inodes = inodes
 		case "imagestore", "additionalimagestore":
 			logrus.Debugf("overlay: imagestore=%s", val)
 			// Additional read only image stores to use for lower paths
@@ -639,6 +643,8 @@ func SupportsNativeOverlay(home, runhome string) (bool, error) {
 	case "true":
 		logrus.Debugf("overlay: storage already configured with a mount-program")
 		return false, nil
+	case "false":
+		// Do nothing.
 	default:
 		needsMountProgram, err := scanForMountProgramIndicators(home)
 		if err != nil && !os.IsNotExist(err) {
@@ -652,7 +658,6 @@ func SupportsNativeOverlay(home, runhome string) (bool, error) {
 		}
 		// fall through to check if we find ourselves needing to use a
 		// mount program now
-	case "false":
 	}
 
 	for _, dir := range []string{home, runhome} {
@@ -867,10 +872,12 @@ func (d *Driver) Cleanup() error {
 // pruneStagingDirectories cleans up any staging directory that was leaked.
 // It returns whether any staging directory is still present.
 func (d *Driver) pruneStagingDirectories() bool {
+	d.stagingDirsLocksMutex.Lock()
 	for _, lock := range d.stagingDirsLocks {
 		lock.Unlock()
 	}
-	d.stagingDirsLocks = make(map[string]*lockfile.LockFile)
+	clear(d.stagingDirsLocks)
+	d.stagingDirsLocksMutex.Unlock()
 
 	anyPresent := false
 
@@ -1156,7 +1163,7 @@ func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) e
 			if err != nil {
 				return err
 			}
-			driver.options.quota.Inodes = uint64(inodes)
+			driver.options.quota.Inodes = inodes
 		default:
 			return fmt.Errorf("unknown option %s", key)
 		}
@@ -1544,7 +1551,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 	permsKnown := false
 	st, err := os.Stat(filepath.Join(dir, nameWithSuffix("diff", diffN)))
 	if err == nil {
-		perms = os.FileMode(st.Mode())
+		perms = st.Mode()
 		permsKnown = true
 	}
 	for err == nil {
@@ -1559,7 +1566,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		if err != nil {
 			return "", err
 		}
-		idmappedMountProcessPid = int(pid)
+		idmappedMountProcessPid = pid
 		defer cleanupFunc()
 	}
 
@@ -1631,7 +1638,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 				lower = path.Join(p, d.name, l)
 				if st2, err2 := os.Stat(lower); err2 == nil {
 					if !permsKnown {
-						perms = os.FileMode(st2.Mode())
+						perms = st2.Mode()
 						permsKnown = true
 					}
 					break
@@ -1652,7 +1659,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 			}
 		} else {
 			if !permsKnown {
-				perms = os.FileMode(st.Mode())
+				perms = st.Mode()
 				permsKnown = true
 			}
 			lower = newpath
@@ -2168,10 +2175,12 @@ func (d *Driver) DiffGetter(id string) (_ graphdriver.FileGetCloser, Err error) 
 func (d *Driver) CleanupStagingDirectory(stagingDirectory string) error {
 	parentStagingDir := filepath.Dir(stagingDirectory)
 
+	d.stagingDirsLocksMutex.Lock()
 	if lock, ok := d.stagingDirsLocks[parentStagingDir]; ok {
 		delete(d.stagingDirsLocks, parentStagingDir)
 		lock.Unlock()
 	}
+	d.stagingDirsLocksMutex.Unlock()
 
 	return os.RemoveAll(parentStagingDir)
 }
@@ -2230,11 +2239,15 @@ func (d *Driver) ApplyDiffWithDiffer(options *graphdriver.ApplyDiffWithDifferOpt
 	}
 	defer func() {
 		if errRet != nil {
+			d.stagingDirsLocksMutex.Lock()
 			delete(d.stagingDirsLocks, layerDir)
+			d.stagingDirsLocksMutex.Unlock()
 			lock.Unlock()
 		}
 	}()
+	d.stagingDirsLocksMutex.Lock()
 	d.stagingDirsLocks[layerDir] = lock
+	d.stagingDirsLocksMutex.Unlock()
 	lock.Lock()
 
 	logrus.Debugf("Applying differ in %s", applyDir)
@@ -2266,10 +2279,12 @@ func (d *Driver) ApplyDiffFromStagingDirectory(id, parent string, diffOutput *gr
 	parentStagingDir := filepath.Dir(stagingDirectory)
 
 	defer func() {
+		d.stagingDirsLocksMutex.Lock()
 		if lock, ok := d.stagingDirsLocks[parentStagingDir]; ok {
 			delete(d.stagingDirsLocks, parentStagingDir)
 			lock.Unlock()
 		}
+		d.stagingDirsLocksMutex.Unlock()
 	}()
 
 	diffPath, err := d.getDiffPath(id)
@@ -2490,7 +2505,7 @@ func (d *Driver) UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMapp
 		perms = *d.options.forceMask
 	} else {
 		if err == nil {
-			perms = os.FileMode(st.Mode())
+			perms = st.Mode()
 		}
 	}
 	for err == nil {

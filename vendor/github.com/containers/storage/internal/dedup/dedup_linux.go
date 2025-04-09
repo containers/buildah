@@ -48,7 +48,7 @@ func (d *dedupFiles) isFirstVisitOf(fi fs.FileInfo) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("unable to get raw syscall.Stat_t data")
 	}
-	return d.recordInode(uint64(st.Dev), st.Ino)
+	return d.recordInode(uint64(st.Dev), st.Ino) //nolint:unconvert
 }
 
 // dedup deduplicates the file at src path to dst path
@@ -94,11 +94,11 @@ func (d *dedupFiles) dedup(src, dst string, fiDst fs.FileInfo) (uint64, error) {
 	}
 	err = unix.IoctlFileDedupeRange(int(srcFile.Fd()), &value)
 	if err == nil {
-		return uint64(value.Info[0].Bytes_deduped), nil
+		return value.Info[0].Bytes_deduped, nil
 	}
 
 	if errors.Is(err, unix.ENOTSUP) {
-		return 0, notSupported
+		return 0, errNotSupported
 	}
 	return 0, fmt.Errorf("failed to clone file %q: %w", src, err)
 }
