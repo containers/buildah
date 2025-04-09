@@ -53,7 +53,7 @@ type (
 		// This is additional data to be used by the converter.  It will
 		// not survive a round trip through JSON, so it's primarily
 		// intended for generating archives (i.e., converting writes).
-		WhiteoutData interface{}
+		WhiteoutData any
 		// When unpacking, specifies whether overwriting a directory with a
 		// non-directory is allowed and vice versa.
 		NoOverwriteDirNonDir bool
@@ -83,7 +83,7 @@ const (
 	freebsd = "freebsd"
 )
 
-var xattrsToIgnore = map[string]interface{}{
+var xattrsToIgnore = map[string]any{
 	"security.selinux": true,
 }
 
@@ -378,7 +378,7 @@ type nosysFileInfo struct {
 	os.FileInfo
 }
 
-func (fi nosysFileInfo) Sys() interface{} {
+func (fi nosysFileInfo) Sys() any {
 	// A Sys value of type *tar.Header is safe as it is system-independent.
 	// The tar.FileInfoHeader function copies the fields into the returned
 	// header without performing any OS lookups.
@@ -687,7 +687,7 @@ func extractTarFileEntry(path, extractDir string, hdr *tar.Header, reader io.Rea
 	case tar.TypeDir:
 		// Create directory unless it exists as a directory already.
 		// In that case we just want to merge the two
-		if fi, err := os.Lstat(path); !(err == nil && fi.IsDir()) {
+		if fi, err := os.Lstat(path); err != nil || !fi.IsDir() {
 			if err := os.Mkdir(path, mask); err != nil {
 				return err
 			}
@@ -859,23 +859,26 @@ func Tar(path string, compression Compression) (io.ReadCloser, error) {
 // TarWithOptions creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `options.IncludeFiles` (if non-nil) or not in `options.ExcludePatterns`.
 func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) {
-	// Fix the source path to work with long path names. This is a no-op
-	// on platforms other than Windows.
-	srcPath = fixVolumePathPrefix(srcPath)
+	tarWithOptionsTo := func(dest io.WriteCloser, srcPath string, options *TarOptions) (result error) {
+		// Fix the source path to work with long path names. This is a no-op
+		// on platforms other than Windows.
+		srcPath = fixVolumePathPrefix(srcPath)
+		defer func() {
+			if err := dest.Close(); err != nil && result == nil {
+				result = err
+			}
+		}()
 
-	pm, err := fileutils.NewPatternMatcher(options.ExcludePatterns)
-	if err != nil {
-		return nil, err
-	}
+		pm, err := fileutils.NewPatternMatcher(options.ExcludePatterns)
+		if err != nil {
+			return err
+		}
 
-	pipeReader, pipeWriter := io.Pipe()
+		compressWriter, err := CompressStream(dest, options.Compression)
+		if err != nil {
+			return err
+		}
 
-	compressWriter, err := CompressStream(pipeWriter, options.Compression)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
 		ta := newTarWriter(
 			idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps),
 			compressWriter,
@@ -885,16 +888,10 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		ta.WhiteoutConverter = GetWhiteoutConverter(options.WhiteoutFormat, options.WhiteoutData)
 		ta.CopyPass = options.CopyPass
 
+		includeFiles := options.IncludeFiles
 		defer func() {
-			// Make sure to check the error on Close.
-			if err := ta.TarWriter.Close(); err != nil {
-				logrus.Errorf("Can't close tar writer: %s", err)
-			}
-			if err := compressWriter.Close(); err != nil {
-				logrus.Errorf("Can't close compress writer: %s", err)
-			}
-			if err := pipeWriter.Close(); err != nil {
-				logrus.Errorf("Can't close pipe writer: %s", err)
+			if err := compressWriter.Close(); err != nil && result == nil {
+				result = err
 			}
 		}()
 
@@ -908,7 +905,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 		stat, err := os.Lstat(srcPath)
 		if err != nil {
-			return
+			return err
 		}
 
 		if !stat.IsDir() {
@@ -916,22 +913,22 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			// 'walk' will error if "file/." is stat-ed and "file" is not a
 			// directory. So, we must split the source path and use the
 			// basename as the include.
-			if len(options.IncludeFiles) > 0 {
+			if len(includeFiles) > 0 {
 				logrus.Warn("Tar: Can't archive a file with includes")
 			}
 
 			dir, base := SplitPathDirEntry(srcPath)
 			srcPath = dir
-			options.IncludeFiles = []string{base}
+			includeFiles = []string{base}
 		}
 
-		if len(options.IncludeFiles) == 0 {
-			options.IncludeFiles = []string{"."}
+		if len(includeFiles) == 0 {
+			includeFiles = []string{"."}
 		}
 
 		seen := make(map[string]bool)
 
-		for _, include := range options.IncludeFiles {
+		for _, include := range includeFiles {
 			rebaseName := options.RebaseNames[include]
 
 			walkRoot := getWalkRoot(srcPath, include)
@@ -1026,9 +1023,17 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 				return nil
 			}); err != nil {
-				logrus.Errorf("%s", err)
-				return
+				return err
 			}
+		}
+		return ta.TarWriter.Close()
+	}
+
+	pipeReader, pipeWriter := io.Pipe()
+	go func() {
+		err := tarWithOptionsTo(pipeWriter, srcPath, options)
+		if pipeErr := pipeWriter.CloseWithError(err); pipeErr != nil {
+			logrus.Errorf("Can't close pipe writer: %s", pipeErr)
 		}
 	}()
 
@@ -1125,7 +1130,7 @@ loop:
 				continue
 			}
 
-			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
+			if !fi.IsDir() || hdr.Typeflag != tar.TypeDir {
 				if err := os.RemoveAll(path); err != nil {
 					return err
 				}
@@ -1215,9 +1220,6 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 	dest = filepath.Clean(dest)
 	if options == nil {
 		options = &TarOptions{}
-	}
-	if options.ExcludePatterns == nil {
-		options.ExcludePatterns = []string{}
 	}
 
 	r := tarArchive
@@ -1404,7 +1406,7 @@ func remapIDs(readIDMappings, writeIDMappings *idtools.IDMappings, chownOpts *id
 		} else if runtime.GOOS == darwin {
 			uid, gid = hdr.Uid, hdr.Gid
 			if xstat, ok := hdr.PAXRecords[PaxSchilyXattr+idtools.ContainersOverrideXattr]; ok {
-				attrs := strings.Split(string(xstat), ":")
+				attrs := strings.Split(xstat, ":")
 				if len(attrs) >= 3 {
 					val, err := strconv.ParseUint(attrs[0], 10, 32)
 					if err != nil {

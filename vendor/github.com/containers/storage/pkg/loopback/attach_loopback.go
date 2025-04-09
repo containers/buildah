@@ -16,8 +16,8 @@ import (
 // Loopback related errors
 var (
 	ErrAttachLoopbackDevice   = errors.New("loopback attach failed")
-	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
-	ErrSetCapacity            = errors.New("Unable set loopback capacity")
+	ErrGetLoopbackBackingFile = errors.New("unable to get loopback backing file")
+	ErrSetCapacity            = errors.New("unable set loopback capacity")
 )
 
 func stringToLoopName(src string) [LoNameSize]uint8 {
@@ -113,7 +113,7 @@ func openNextAvailableLoopback(sparseName string, sparseFile *os.File) (*os.File
 			logrus.Errorf("Getting loopback backing file: %s", err)
 			return nil, ErrGetLoopbackBackingFile
 		}
-		if dev != uint64(st.Dev) || ino != st.Ino {
+		if dev != uint64(st.Dev) || ino != st.Ino { //nolint:unconvert
 			logrus.Errorf("Loopback device and filesystem disagree on device/inode for %q: %#x(%d):%#x(%d) vs %#x(%d):%#x(%d)", sparseName, dev, dev, ino, ino, st.Dev, st.Dev, st.Ino, st.Ino)
 		}
 		return loopFile, nil
