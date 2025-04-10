@@ -1896,6 +1896,10 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 					continue
 				}
 				mountOptionSource = mountInfo.Source
+				mountOptionSource, err = imagebuilder.ProcessWord(mountOptionSource, s.stage.Builder.Arguments())
+				if err != nil {
+					return "", fmt.Errorf("getCreatedBy: while replacing arg variables with values for format %q: %w", mountOptionSource, err)
+				}
 				mountOptionFrom = mountInfo.From
 				// If source is not specified then default is '.'
 				if mountOptionSource == "" {

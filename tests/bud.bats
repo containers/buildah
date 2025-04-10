@@ -6757,6 +6757,16 @@ _EOF
   expect_output --substring "hello"
 }
 
+@test "bud-with-mount-relative-path-like-buildkit-arg-in-source" {
+  skip_if_no_runtime
+  skip_if_in_container
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount
+  cp -R $BUDFILES/buildkit-mount $contextdir
+  run_buildah build --build-arg INPUTPATH_1=subdir -t testbud $WITH_POLICY_JSON -f $contextdir/Containerfile5 $contextdir/
+  expect_output --substring "hello"
+}
+
 @test "bud-with-mount-with-rw-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
