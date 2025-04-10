@@ -181,14 +181,8 @@ func (b *Builder) addHostsEntries(file, imageRoot string, entries etchosts.HostE
 
 // generateHostname creates a containers /etc/hostname file
 func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDPair) (string, error) {
-	var err error
-	hostnamePath := "/etc/hostname"
-
-	var hostnameBuffer bytes.Buffer
-	hostnameBuffer.Write([]byte(fmt.Sprintf("%s\n", hostname)))
-
-	cfile := filepath.Join(rdir, filepath.Base(hostnamePath))
-	if err = ioutils.AtomicWriteFile(cfile, hostnameBuffer.Bytes(), 0o644); err != nil {
+	cfile := filepath.Join(rdir, "hostname")
+	if err := ioutils.AtomicWriteFile(cfile, append([]byte(hostname), '\n'), 0o644); err != nil {
 		return "", fmt.Errorf("writing /etc/hostname into the container: %w", err)
 	}
 
@@ -198,7 +192,7 @@ func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDP
 		uid = chownOpts.UID
 		gid = chownOpts.GID
 	}
-	if err = os.Chown(cfile, uid, gid); err != nil {
+	if err := os.Chown(cfile, uid, gid); err != nil {
 		return "", err
 	}
 	if err := relabel(cfile, b.MountLabel, false); err != nil {

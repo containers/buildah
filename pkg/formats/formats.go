@@ -30,31 +30,31 @@ type Writer interface {
 
 // JSONStructArray for JSON output
 type JSONStructArray struct {
-	Output []interface{}
+	Output []any
 }
 
 // StdoutTemplateArray for Go template output
 type StdoutTemplateArray struct {
-	Output   []interface{}
+	Output   []any
 	Template string
 	Fields   map[string]string
 }
 
 // JSONStruct for JSON output
 type JSONStruct struct {
-	Output interface{}
+	Output any
 }
 
 // StdoutTemplate for Go template output
 type StdoutTemplate struct {
-	Output   interface{}
+	Output   any
 	Template string
 	Fields   map[string]string
 }
 
 // YAMLStruct for YAML output
 type YAMLStruct struct {
-	Output interface{}
+	Output any
 }
 
 func setJSONFormatEncoder(isTerminal bool, w io.Writer) *json.Encoder {

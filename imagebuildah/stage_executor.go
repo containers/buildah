@@ -61,7 +61,7 @@ type StageExecutor struct {
 	ctx                   context.Context
 	systemContext         *types.SystemContext
 	executor              *Executor
-	log                   func(format string, args ...interface{})
+	log                   func(format string, args ...any)
 	index                 int
 	stages                imagebuilder.Stages
 	name                  string
@@ -173,14 +173,7 @@ func (s *StageExecutor) Preserve(path string) error {
 	for cachedPath := range s.volumeCache {
 		// Walk our list of cached volumes, and check that they're
 		// still in the list of locations that we need to cache.
-		found := false
-		for _, volume := range s.volumes {
-			if volume == cachedPath {
-				// We need to keep this volume's cache.
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(s.volumes, cachedPath)
 		if !found {
 			// We don't need to keep this volume's cache.  Make a
 			// note to remove it.
@@ -815,7 +808,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		defer devNull.Close()
 		stdin = devNull
 	}
-	namespaceOptions := append([]define.NamespaceOption{}, s.executor.namespaceOptions...)
+	namespaceOptions := slices.Clone(s.executor.namespaceOptions)
 	options := buildah.RunOptions{
 		Args:                 s.executor.runtimeArgs,
 		Cmd:                  config.Cmd,
@@ -2117,7 +2110,7 @@ func (s *StageExecutor) generateCacheKey(ctx context.Context, currNode *parser.N
 		if err != nil {
 			return "", fmt.Errorf("getting history of base image %q: %w", s.builder.FromImageID, err)
 		}
-		for i := 0; i < len(diffIDs); i++ {
+		for i := range len(diffIDs) {
 			fmt.Fprintln(hash, diffIDs[i].String())
 		}
 	}
@@ -2382,7 +2375,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	s.builder.SetStopSignal(config.StopSignal)
 	if config.Healthcheck != nil {
 		s.builder.SetHealthcheck(&buildahdocker.HealthConfig{
-			Test:          append([]string{}, config.Healthcheck.Test...),
+			Test:          slices.Clone(config.Healthcheck.Test),
 			Interval:      config.Healthcheck.Interval,
 			Timeout:       config.Healthcheck.Timeout,
 			StartPeriod:   config.Healthcheck.StartPeriod,

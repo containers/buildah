@@ -331,7 +331,7 @@ func Stat(root string, directory string, options StatOptions, globs []string) ([
 		Request:     requestStat,
 		Root:        root,
 		Directory:   directory,
-		Globs:       append([]string{}, globs...),
+		Globs:       slices.Clone(globs),
 		StatOptions: options,
 	}
 	resp, err := copier(nil, nil, req)
@@ -382,7 +382,7 @@ func Get(root string, directory string, options GetOptions, globs []string, bulk
 		Request:   requestGet,
 		Root:      root,
 		Directory: directory,
-		Globs:     append([]string{}, globs...),
+		Globs:     slices.Clone(globs),
 		StatOptions: StatOptions{
 			CheckForArchives: options.ExpandArchives,
 		},
@@ -598,7 +598,7 @@ func copierWithoutSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req req
 	req.preservedRoot = req.Root
 	req.rootPrefix = string(os.PathSeparator)
 	req.preservedDirectory = req.Directory
-	req.preservedGlobs = append([]string{}, req.Globs...)
+	req.preservedGlobs = slices.Clone(req.Globs)
 	if !filepath.IsAbs(req.Directory) {
 		req.Directory = filepath.Join(req.Root, cleanerReldirectory(req.Directory))
 	}
@@ -850,7 +850,7 @@ func copierMain() {
 		req.preservedRoot = req.Root
 		req.rootPrefix = string(os.PathSeparator)
 		req.preservedDirectory = req.Directory
-		req.preservedGlobs = append([]string{}, req.Globs...)
+		req.preservedGlobs = slices.Clone(req.Globs)
 		if chrooted {
 			// We'll need to adjust some things now that the root
 			// directory isn't what it was.  Make the directory and
@@ -1052,7 +1052,7 @@ func resolvePath(root, path string, evaluateFinalComponent bool, pm *fileutils.P
 }
 
 func copierHandlerEval(req request) *response {
-	errorResponse := func(fmtspec string, args ...interface{}) *response {
+	errorResponse := func(fmtspec string, args ...any) *response {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Eval: evalResponse{}}
 	}
 	resolvedTarget, err := resolvePath(req.Root, req.Directory, true, nil)
@@ -1063,7 +1063,7 @@ func copierHandlerEval(req request) *response {
 }
 
 func copierHandlerStat(req request, pm *fileutils.PatternMatcher) *response {
-	errorResponse := func(fmtspec string, args ...interface{}) *response {
+	errorResponse := func(fmtspec string, args ...any) *response {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Stat: statResponse{}}
 	}
 	if len(req.Globs) == 0 {
@@ -1233,7 +1233,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 	statRequest := req
 	statRequest.Request = requestStat
 	statResponse := copierHandlerStat(req, pm)
-	errorResponse := func(fmtspec string, args ...interface{}) (*response, func() error, error) {
+	errorResponse := func(fmtspec string, args ...any) (*response, func() error, error) {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Stat: statResponse.Stat, Get: getResponse{}}, nil, nil
 	}
 	if statResponse.Error != "" {
@@ -1696,7 +1696,7 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 }
 
 func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDMappings) (*response, func() error, error) {
-	errorResponse := func(fmtspec string, args ...interface{}) (*response, func() error, error) {
+	errorResponse := func(fmtspec string, args ...any) (*response, func() error, error) {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Put: putResponse{}}, nil, nil
 	}
 	dirUID, dirGID, defaultDirUID, defaultDirGID := 0, 0, 0, 0
@@ -2110,7 +2110,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 }
 
 func copierHandlerMkdir(req request, idMappings *idtools.IDMappings) (*response, func() error, error) {
-	errorResponse := func(fmtspec string, args ...interface{}) (*response, func() error, error) {
+	errorResponse := func(fmtspec string, args ...any) (*response, func() error, error) {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Mkdir: mkdirResponse{}}, nil, nil
 	}
 	dirUID, dirGID := 0, 0
@@ -2164,7 +2164,7 @@ func copierHandlerMkdir(req request, idMappings *idtools.IDMappings) (*response,
 }
 
 func copierHandlerRemove(req request) *response {
-	errorResponse := func(fmtspec string, args ...interface{}) *response {
+	errorResponse := func(fmtspec string, args ...any) *response {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Remove: removeResponse{}}
 	}
 	resolvedTarget, err := resolvePath(req.Root, req.Directory, false, nil)

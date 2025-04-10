@@ -435,9 +435,7 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 		return "", nil, fmt.Errorf("creating build executor: %w", err)
 	}
 	b := imagebuilder.NewBuilder(options.Args)
-	for k, v := range builtinArgDefaults {
-		b.BuiltinArgDefaults[k] = v
-	}
+	maps.Copy(b.BuiltinArgDefaults, builtinArgDefaults)
 
 	defaultContainerConfig, err := config.Default()
 	if err != nil {

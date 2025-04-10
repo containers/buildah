@@ -327,10 +327,10 @@ func truncateID(id string, truncate bool) string {
 	return id
 }
 
-func imagesToGeneric(templParams []imageOutputParams) (genericParams []interface{}) {
+func imagesToGeneric(templParams []imageOutputParams) (genericParams []any) {
 	if len(templParams) > 0 {
 		for _, v := range templParams {
-			genericParams = append(genericParams, interface{}(v))
+			genericParams = append(genericParams, any(v))
 		}
 	}
 	return genericParams

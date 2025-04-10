@@ -16,7 +16,7 @@ func testNewKeySource() (*Source, error) {
 		return nil, err
 	}
 	return &Source{
-		Keys: []interface{}{k},
+		Keys: []any{k},
 	}, nil
 }
 

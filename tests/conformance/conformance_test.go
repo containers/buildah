@@ -497,12 +497,12 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	if t.Failed() {
 		t.FailNow()
 	}
-	deleteIdentityLabel := func(config map[string]interface{}) {
+	deleteIdentityLabel := func(config map[string]any) {
 		for _, configName := range []string{"config", "container_config"} {
 			if configStruct, ok := config[configName]; ok {
-				if configMap, ok := configStruct.(map[string]interface{}); ok {
+				if configMap, ok := configStruct.(map[string]any); ok {
 					if labels, ok := configMap["Labels"]; ok {
-						if labelMap, ok := labels.(map[string]interface{}); ok {
+						if labelMap, ok := labels.(map[string]any); ok {
 							delete(labelMap, buildah.BuilderIdentityAnnotation)
 						}
 					}
@@ -513,7 +513,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	deleteIdentityLabel(originalBuildahConfig)
 	deleteIdentityLabel(ociBuildahConfig)
 
-	var originalDockerConfig, ociDockerConfig, fsDocker map[string]interface{}
+	var originalDockerConfig, ociDockerConfig, fsDocker map[string]any
 
 	// the report on the docker image should be there if we expected the build to succeed
 	if !test.withoutDocker {
@@ -696,7 +696,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 			continue
 		}
 		needToEnsureBase := true
-		for j := 0; j < i; j++ {
+		for j := range i {
 			if stageBase == stages[j].Name {
 				needToEnsureBase = false
 			}
@@ -791,7 +791,7 @@ func buildUsingImagebuilder(t *testing.T, client *docker.Client, test testCase, 
 	executor.AllowPull = true
 	executor.Out = output
 	executor.ErrOut = output
-	executor.LogFn = func(format string, args ...interface{}) {
+	executor.LogFn = func(format string, args ...any) {
 		fmt.Fprintf(output, "--> %s\n", fmt.Sprintf(format, args...))
 	}
 	// buildah tests might be using transient mounts. replace "@@TEMPDIR@@"
@@ -1175,12 +1175,12 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 }
 
 // read information about the specified image from the specified directory
-func readReport(t *testing.T, directory string) (manifestType string, original, oci, fs map[string]interface{}) {
+func readReport(t *testing.T, directory string) (manifestType string, original, oci, fs map[string]any) {
 	// read the manifest in the as-committed format, whatever that is
 	originalManifest, err := os.ReadFile(filepath.Join(directory, "manifest.json"))
 	require.NoErrorf(t, err, "error reading manifest %q", filepath.Join(directory, "manifest.json"))
 	// dump it into a map
-	manifest := make(map[string]interface{})
+	manifest := make(map[string]any)
 	err = json.Unmarshal(originalManifest, &manifest)
 	require.NoErrorf(t, err, "error decoding manifest %q", filepath.Join(directory, "manifest.json"))
 	if str, ok := manifest["mediaType"].(string); ok {
@@ -1190,21 +1190,21 @@ func readReport(t *testing.T, directory string) (manifestType string, original, 
 	originalConfig, err := os.ReadFile(filepath.Join(directory, "config.json"))
 	require.NoErrorf(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
 	// dump it into a map
-	original = make(map[string]interface{})
+	original = make(map[string]any)
 	err = json.Unmarshal(originalConfig, &original)
 	require.NoErrorf(t, err, "error decoding configuration from file %q", filepath.Join(directory, "config.json"))
 	// read the config in converted-to-OCI format
 	ociConfig, err := os.ReadFile(filepath.Join(directory, "oci-config.json"))
 	require.NoErrorf(t, err, "error reading OCI configuration file %q", filepath.Join(directory, "oci-config.json"))
 	// dump it into a map
-	oci = make(map[string]interface{})
+	oci = make(map[string]any)
 	err = json.Unmarshal(ociConfig, &oci)
 	require.NoErrorf(t, err, "error decoding OCI configuration from file %q", filepath.Join(directory, "oci.json"))
 	// read the filesystem
 	fsInfo, err := os.ReadFile(filepath.Join(directory, "fs.json"))
 	require.NoErrorf(t, err, "error reading filesystem summary file %q", filepath.Join(directory, "fs.json"))
 	// dump it into a map for comparison
-	fs = make(map[string]interface{})
+	fs = make(map[string]any)
 	err = json.Unmarshal(fsInfo, &fs)
 	require.NoErrorf(t, err, "error decoding filesystem summary from file %q", filepath.Join(directory, "fs.json"))
 	// return both
@@ -1233,7 +1233,7 @@ func addPrefix(a []string, prefix string) []string {
 
 // diffDebug returns a row for a tabwriter that summarizes a field name and the
 // values for that field in two documents
-func diffDebug(k string, a, b interface{}) string {
+func diffDebug(k string, a, b any) string {
 	if k == "mode" {
 		// force modes to be displayed in octal instead of decimal
 		a, aok := a.(float64)
@@ -1249,7 +1249,7 @@ func diffDebug(k string, a, b interface{}) string {
 // lists of field names present only in the first map or the second,
 // respectively, while diffKeys is a list of items which are present in both
 // maps, but which have different values, formatted with diffDebug.
-func compareJSON(a, b map[string]interface{}, skip []string) (missKeys, leftKeys, diffKeys []string, isSame bool) {
+func compareJSON(a, b map[string]any, skip []string) (missKeys, leftKeys, diffKeys []string, isSame bool) {
 	isSame = true
 
 	for k, v := range a {
@@ -1280,7 +1280,7 @@ func compareJSON(a, b map[string]interface{}, skip []string) (missKeys, leftKeys
 			continue
 		}
 		switch v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			// this field in the object is itself an object (e.g.
 			// "config" or "container_config"), so recursively
 			// compare them
@@ -1291,14 +1291,14 @@ func compareJSON(a, b map[string]interface{}, skip []string) (missKeys, leftKeys
 					nextSkip = append(nextSkip, strings.TrimPrefix(s, prefix))
 				}
 			}
-			submiss, subleft, subdiff, ok := compareJSON(v.(map[string]interface{}), vb.(map[string]interface{}), nextSkip)
+			submiss, subleft, subdiff, ok := compareJSON(v.(map[string]any), vb.(map[string]any), nextSkip)
 			missKeys = append(missKeys, addPrefix(submiss, k)...)
 			leftKeys = append(leftKeys, addPrefix(subleft, k)...)
 			diffKeys = append(diffKeys, addPrefix(subdiff, k)...)
 			if !ok {
 				isSame = false
 			}
-		case []interface{}:
+		case []any:
 			// this field in the object is an array; make sure both
 			// arrays have the same set of elements, which is more
 			// or less correct for labels and environment
@@ -1306,18 +1306,18 @@ func compareJSON(a, b map[string]interface{}, skip []string) (missKeys, leftKeys
 			// this will break if it tries to compare an array of
 			// objects like "history", since maps, slices, and
 			// functions can't be used as keys in maps
-			tmpa := v.([]interface{})
-			tmpb := vb.([]interface{})
+			tmpa := v.([]any)
+			tmpb := vb.([]any)
 			if len(tmpa) != len(tmpb) {
 				diffKeys = append(diffKeys, diffDebug(k, v, vb))
 				isSame = false
 				break
 			}
-			m := make(map[interface{}]struct{})
-			for i := 0; i < len(tmpb); i++ {
+			m := make(map[any]struct{})
+			for i := range len(tmpb) {
 				m[tmpb[i]] = struct{}{}
 			}
-			for i := 0; i < len(tmpa); i++ {
+			for i := range len(tmpa) {
 				if _, ok := m[tmpa[i]]; !ok {
 					diffKeys = append(diffKeys, diffDebug(k, v, vb))
 					isSame = false

@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -852,7 +853,7 @@ func SBOMScanOptionsFromFlagSet(flags *pflag.FlagSet, _ func(name string) *pflag
 	if image != "" || len(commands) > 0 || mergeStrategy != "" {
 		options = &define.SBOMScanOptions{
 			Image:         image,
-			Commands:      append([]string{}, commands...),
+			Commands:      slices.Clone(commands),
 			MergeStrategy: define.SBOMMergeStrategy(mergeStrategy),
 		}
 	}

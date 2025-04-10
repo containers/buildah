@@ -80,7 +80,7 @@ type Executor struct {
 	output                         string
 	outputFormat                   string
 	additionalTags                 []string
-	log                            func(format string, args ...interface{}) // can be nil
+	log                            func(format string, args ...any) // can be nil
 	in                             io.Reader
 	out                            io.Writer
 	err                            io.Writer
@@ -511,7 +511,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 		// layers, its easier to reuse cached layers.
 		if len(b.labels) > 0 {
 			var labelLine string
-			labels := append([]string{}, b.labels...)
+			labels := slices.Clone(b.labels)
 			for _, labelSpec := range labels {
 				key, value, _ := strings.Cut(labelSpec, "=")
 				// check only for an empty key since docker allows empty values
@@ -556,7 +556,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	stageExecutor := b.startStage(ctx, &stage, stages, output)
 	if stageExecutor.log == nil {
 		stepCounter := 0
-		stageExecutor.log = func(format string, args ...interface{}) {
+		stageExecutor.log = func(format string, args ...any) {
 			prefix := b.logPrefix
 			if len(stages) > 1 {
 				prefix += fmt.Sprintf("[%d/%d] ", stageIndex+1, len(stages))

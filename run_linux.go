@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -281,7 +282,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	// Combine the working container's set of devices with the ones for just this run.
-	deviceSpecs := append(append([]string{}, options.DeviceSpecs...), b.DeviceSpecs...)
+	deviceSpecs := slices.Concat(options.DeviceSpecs, b.DeviceSpecs)
 	deviceSpecs, err = b.cdiSetupDevicesInSpec(deviceSpecs, options.CDIConfigDir, g.Config) // makes changes to more than just the device list
 	if err != nil {
 		return err
@@ -302,7 +303,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		// We are going to create bind mounts for devices
 		// but we need to make sure that we don't override
 		// anything which is already in OCI spec.
-		mounts := make(map[string]interface{})
+		mounts := make(map[string]any)
 		for _, m := range g.Mounts() {
 			mounts[m.Destination] = true
 		}
@@ -586,9 +587,7 @@ func (b *Builder) setupOCIHooks(config *specs.Spec, hasVolumes bool) (map[string
 			if len(ociHooks) > 0 || config.Hooks != nil {
 				logrus.Warnf("Implicit hook directories are deprecated; set --hooks-dir=%q explicitly to continue to load ociHooks from this directory", hDir)
 			}
-			for i, hook := range ociHooks {
-				allHooks[i] = hook
-			}
+			maps.Copy(allHooks, ociHooks)
 		}
 	} else {
 		manager, err := hooks.New(context.Background(), b.CommonBuildOpts.OCIHooksDir, []string{})

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -66,12 +67,12 @@ func getProcessUser(r *types.TestReport) error {
 }
 
 func getProcessArgs(r *types.TestReport) error {
-	r.Spec.Process.Args = append([]string{}, os.Args...)
+	r.Spec.Process.Args = slices.Clone(os.Args)
 	return nil
 }
 
 func getProcessEnv(r *types.TestReport) error {
-	r.Spec.Process.Env = append([]string{}, os.Environ()...)
+	r.Spec.Process.Env = os.Environ()
 	return nil
 }
 

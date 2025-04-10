@@ -6,6 +6,7 @@ package cli
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"runtime"
 	"strings"
@@ -455,13 +456,9 @@ func GetFromAndBudFlagsCompletions() commonComp.FlagCompletions {
 
 	// Add in the usernamespace and namespace flag completions
 	userNsComp := GetUserNSFlagsCompletions()
-	for name, comp := range userNsComp {
-		flagCompletion[name] = comp
-	}
+	maps.Copy(flagCompletion, userNsComp)
 	namespaceComp := GetNameSpaceFlagsCompletions()
-	for name, comp := range namespaceComp {
-		flagCompletion[name] = comp
-	}
+	maps.Copy(flagCompletion, namespaceComp)
 
 	return flagCompletion
 }

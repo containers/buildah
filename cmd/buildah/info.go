@@ -43,7 +43,7 @@ func init() {
 }
 
 func infoCmd(c *cobra.Command, iopts infoResults) error {
-	info := map[string]interface{}{}
+	info := map[string]any{}
 
 	store, err := getStore(c)
 	if err != nil {
@@ -92,8 +92,8 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 }
 
 // top-level "debug" info
-func debugInfo() map[string]interface{} {
-	info := map[string]interface{}{}
+func debugInfo() map[string]any {
+	info := map[string]any{}
 	info["compiler"] = runtime.Compiler
 	info["go version"] = runtime.Version()
 	info["buildah version"] = define.Version
