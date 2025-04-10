@@ -275,8 +275,9 @@ func (i *containerImageRef) extractRootfs(opts ExtractRootfsOptions) (io.ReadClo
 }
 
 type manifestBuilder interface {
-	// addLayer adds a note in the manifest about the layer.  The blobs are
-	// identified by their possibly- compressed blob digests.
+	// addLayer adds notes to the manifest and config about the layer.  The layer blobs are
+	// identified by their possibly-compressed blob digests and sizes in the manifest, and by
+	// their uncompressed digests (diffIDs) in the config.
 	addLayer(layerBlobSum digest.Digest, layerBlobSize int64, diffID digest.Digest)
 	computeLayerMIMEType(what string, layerCompression archive.Compression) error
 	buildHistory(extraImageContentDiff string, extraImageContentDiffDigest digest.Digest) error
@@ -409,8 +410,7 @@ func (mb *dockerSchema2ManifestBuilder) buildHistory(extraImageContentDiff strin
 		for i := range history {
 			var created time.Time
 			if history[i].Created != nil {
-				copiedTimestamp := *history[i].Created
-				created = copiedTimestamp
+				created = *history[i].Created
 			}
 			dnews := docker.V2S2History{
 				Created:    created,

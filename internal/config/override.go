@@ -110,11 +110,7 @@ func OverrideOCI(oconfig *v1.ImageConfig, overrideChanges []string, overrideConf
 		// Apply changes from a possibly-provided possibly-changed config struct.
 		oconfig.User = firstStringElseSecondString(overrideConfig.User, oconfig.User)
 		if len(overrideConfig.ExposedPorts) > 0 {
-			dexposedPorts := make(map[docker.Port]struct{})
 			oexposedPorts := make(map[string]struct{})
-			for port := range overrideConfig.ExposedPorts {
-				dexposedPorts[docker.Port(port)] = struct{}{}
-			}
 			for port := range oconfig.ExposedPorts {
 				oexposedPorts[port] = struct{}{}
 			}
