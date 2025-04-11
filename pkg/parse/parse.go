@@ -163,6 +163,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	cpuQuota, _ := flags.GetInt64("cpu-quota")
 	cpuShares, _ := flags.GetUint64("cpu-shares")
 	httpProxy, _ := flags.GetBool("http-proxy")
+	withSSLCertFile, _ := flags.GetBool("with-ssl-cert-file")
 	identityLabel, _ := flags.GetBool("identity-label")
 	omitHistory, _ := flags.GetBool("omit-history")
 
@@ -176,29 +177,30 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	ociHooks, _ := flags.GetStringArray("hooks-dir")
 
 	commonOpts := &define.CommonBuildOptions{
-		AddHost:       addHost,
-		CPUPeriod:     cpuPeriod,
-		CPUQuota:      cpuQuota,
-		CPUSetCPUs:    findFlagFunc("cpuset-cpus").Value.String(),
-		CPUSetMems:    findFlagFunc("cpuset-mems").Value.String(),
-		CPUShares:     cpuShares,
-		CgroupParent:  findFlagFunc("cgroup-parent").Value.String(),
-		DNSOptions:    dnsOptions,
-		DNSSearch:     dnsSearch,
-		DNSServers:    dnsServers,
-		HTTPProxy:     httpProxy,
-		IdentityLabel: types.NewOptionalBool(identityLabel),
-		Memory:        memoryLimit,
-		MemorySwap:    memorySwap,
-		NoHostname:    noHostname,
-		NoHosts:       noHosts,
-		OmitHistory:   omitHistory,
-		ShmSize:       findFlagFunc("shm-size").Value.String(),
-		Ulimit:        ulimit,
-		Volumes:       volumes,
-		Secrets:       secrets,
-		SSHSources:    sshsources,
-		OCIHooksDir:   ociHooks,
+		AddHost:         addHost,
+		CPUPeriod:       cpuPeriod,
+		CPUQuota:        cpuQuota,
+		CPUSetCPUs:      findFlagFunc("cpuset-cpus").Value.String(),
+		CPUSetMems:      findFlagFunc("cpuset-mems").Value.String(),
+		CPUShares:       cpuShares,
+		CgroupParent:    findFlagFunc("cgroup-parent").Value.String(),
+		DNSOptions:      dnsOptions,
+		DNSSearch:       dnsSearch,
+		DNSServers:      dnsServers,
+		HTTPProxy:       httpProxy,
+		IdentityLabel:   types.NewOptionalBool(identityLabel),
+		Memory:          memoryLimit,
+		MemorySwap:      memorySwap,
+		NoHostname:      noHostname,
+		NoHosts:         noHosts,
+		OmitHistory:     omitHistory,
+		ShmSize:         findFlagFunc("shm-size").Value.String(),
+		Ulimit:          ulimit,
+		Volumes:         volumes,
+		Secrets:         secrets,
+		SSHSources:      sshsources,
+		WithSSLCertFile: withSSLCertFile,
+		OCIHooksDir:     ociHooks,
 	}
 	securityOpts, _ := flags.GetStringArray("security-opt")
 	if err := parseSecurityOpts(securityOpts, commonOpts); err != nil {
