@@ -1,0 +1,11 @@
+---
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question
+    url: https://github.com/containers/buildah/discussions/new
+    about: Ask a question about Buildah
+  - name:
+      If your issue is a general Podman issue unrelated to `podman build`, please open an issue in the Podman repository.
+      If the issue is with the `podman build` command, please report it here.
+    url: https://github.com/containers/podman/issues
+    about: Please report issues with Podman here.
