@@ -17,4 +17,9 @@ jobs:
   # Ref: https://docs.github.com/en/actions/using-workflows/reusing-workflows
   call_cron_failures:
     uses: containers/podman/.github/workflows/check_cirrus_cron.yml@main
-    secrets: inherit
+    secrets:
+      SECRET_CIRRUS_API_KEY: ${{secrets.SECRET_CIRRUS_API_KEY}}
+      ACTION_MAIL_SERVER: ${{secrets.ACTION_MAIL_SERVER}}
+      ACTION_MAIL_USERNAME: ${{secrets.ACTION_MAIL_USERNAME}}
+      ACTION_MAIL_PASSWORD: ${{secrets.ACTION_MAIL_PASSWORD}}
+      ACTION_MAIL_SENDER: ${{secrets.ACTION_MAIL_SENDER}}
