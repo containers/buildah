@@ -1324,24 +1324,24 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			return "", nil, false, fmt.Errorf("resolving step %+v: %w", *node, err)
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
-		if !s.executor.quiet {
-			logMsg := step.Original
-			if len(step.Heredocs) > 0 {
-				summarizeHeredoc := func(doc string) string {
-					doc = strings.TrimSpace(doc)
-					lines := strings.Split(strings.ReplaceAll(doc, "\r\n", "\n"), "\n")
-					summary := lines[0]
-					if len(lines) > 1 {
-						summary += "..."
-					}
-					return summary
+		logMsg := step.Original
+		if len(step.Heredocs) > 0 {
+			summarizeHeredoc := func(doc string) string {
+				doc = strings.TrimSpace(doc)
+				lines := strings.Split(strings.ReplaceAll(doc, "\r\n", "\n"), "\n")
+				summary := lines[0]
+				if len(lines) > 1 {
+					summary += "..."
 				}
-
-				for _, doc := range node.Heredocs {
-					heredocContent := summarizeHeredoc(doc.Content)
-					logMsg = logMsg + " (" + heredocContent + ")"
-				}
+				return summary
 			}
+
+			for _, doc := range node.Heredocs {
+				heredocContent := summarizeHeredoc(doc.Content)
+				logMsg = logMsg + " (" + heredocContent + ")"
+			}
+		}
+		if !s.executor.quiet {
 			s.log("%s", logMsg)
 		}
 
