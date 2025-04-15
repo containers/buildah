@@ -1069,6 +1069,11 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			RootFS:          rootfs,
 		}
 		dImage.Config = &dImage.ContainerConfig
+		if s.executor.inheritLabels == types.OptionalBoolFalse {
+			// If user has selected `--inherit-labels=false` let's not
+			// inherit labels from base image.
+			dImage.Config.Labels = nil
+		}
 		err = ib.FromImage(&dImage, node)
 		if err != nil {
 			if err2 := builder.Delete(); err2 != nil {
@@ -1872,6 +1877,11 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 	if node == nil {
 		return "/bin/sh", nil
 	}
+	inheritLabels := ""
+	// If --inherit-label was manually set to false then update history.
+	if s.executor.inheritLabels == types.OptionalBoolFalse {
+		inheritLabels = "|inheritLabels=false"
+	}
 	switch strings.ToUpper(node.Value) {
 	case "ARG":
 		for _, variable := range strings.Fields(node.Original) {
@@ -1880,7 +1890,7 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 			}
 		}
 		buildArgs := s.getBuildArgsKey()
-		return "/bin/sh -c #(nop) ARG " + buildArgs, nil
+		return "/bin/sh -c #(nop) ARG " + buildArgs + inheritLabels, nil
 	case "RUN":
 		shArg := ""
 		buildArgs := s.getBuildArgsResolvedForRun()
@@ -1960,16 +1970,16 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		if buildArgs != "" {
 			result = result + "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " "
 		}
-		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum
+		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum + inheritLabels
 		return result, nil
 	case "ADD", "COPY":
 		destination := node
 		for destination.Next != nil {
 			destination = destination.Next
 		}
-		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + " " + addedContentSummary + " in " + destination.Value + " ", nil
+		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + " " + addedContentSummary + " in " + destination.Value + " " + inheritLabels, nil
 	default:
-		return "/bin/sh -c #(nop) " + node.Original, nil
+		return "/bin/sh -c #(nop) " + node.Original + inheritLabels, nil
 	}
 }
 

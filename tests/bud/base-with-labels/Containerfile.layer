@@ -1,0 +1,4 @@
+FROM registry.fedoraproject.org/fedora-minimal
+LABEL name world
+RUN echo world
+RUN echo hello

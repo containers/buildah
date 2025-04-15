@@ -2670,6 +2670,80 @@ _EOF
   expect_output "$want_output"
 }
 
+@test "bud and test inherit-labels" {
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  _prefetch alpine
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+  run_buildah build $WITH_POLICY_JSON -t exp -f $BUDFILES/base-with-labels/Containerfile
+
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "license"}}' exp
+  expect_output "MIT" "license must be MIT from fedora base image"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' exp
+  expect_output "fedora-minimal" "name must be fedora from base image"
+
+  run_buildah build $WITH_POLICY_JSON --inherit-labels=false --label name=world -t exp -f $BUDFILES/base-with-labels/Containerfile
+  # no labels should be inherited from base image, only the buildah version label
+  # and `hello=world` which we just added using cli flag
+  want_output='map["io.buildah.version":"'$buildah_version'" "name":"world"]'
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  expect_output "$want_output"
+
+  # Try building another file with multiple layers
+  run_buildah build $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/id1 --layers -t exp -f $BUDFILES/base-with-labels/Containerfile.layer
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "license"}}' exp
+  expect_output "MIT" "license must be MIT from fedora base image"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' exp
+  expect_output "world" "name must be world from Containerfile"
+
+  # Now build same file with  --inherit-labels=false and verify if we are not using the cache again.
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-labels=false --iidfile ${TEST_SCRATCH_DIR}/inherit_false_1 -t exp -f $BUDFILES/base-with-labels/Containerfile.layer
+  # Should not contain `Using cache` at all since
+  assert "$output" !~ "Using cache"
+  want_output='map["io.buildah.version":"'$buildah_version'" "name":"world"]'
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  expect_output "$want_output"
+
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-labels=false --iidfile ${TEST_SCRATCH_DIR}/inherit_false_2 -t exp -f $BUDFILES/base-with-labels/Containerfile.layer
+  # Should contain `Using cache`
+  expect_output --substring " Using cache"
+  want_output='map["io.buildah.version":"'$buildah_version'" "name":"world"]'
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  expect_output "$want_output"
+  assert "$(cat ${TEST_SCRATCH_DIR}/inherit_false_1)" = "$(cat ${TEST_SCRATCH_DIR}/inherit_false_2)" "expected image ids to not change"
+
+  # Now build same file with  --inherit-labels=true and verify if using the cache
+  run_buildah build $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/id2 --layers --inherit-labels=true -t exp -f $BUDFILES/base-with-labels/Containerfile.layer
+  expect_output --substring " Using cache"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "license"}}' exp
+  expect_output "MIT" "license must be MIT from fedora base image"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' exp
+  expect_output "world" "name must be world from Containerfile"
+  # Final image id should be exactly same as the one image which was built in the past.
+  assert "$(cat ${TEST_SCRATCH_DIR}/id1)" = "$(cat ${TEST_SCRATCH_DIR}/id2)" "expected image ids to not change"
+
+  # Now build same file with  --inherit-labels=false and verify if target stage did not inherit any labels from base stage.
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-labels=false -t exp -f $BUDFILES/base-with-labels/Containerfile.multi-stage
+  want_output='map["io.buildah.version":"'$buildah_version'"]'
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  expect_output "$want_output"
+
+  # Now build same file with  --inherit-labels=true and verify if target stage inherits labels from the base stage.
+  run_buildah build $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/id3 --layers --inherit-labels=true -t exp -f $BUDFILES/base-with-labels/Containerfile.multi-stage
+  want_output='map["io.buildah.version":"'$buildah_version'" "name":"world"]'
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  expect_output "$want_output"
+
+  # Rebuild again with layers should not build image again at all.
+  run_buildah build $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/id4 --layers --inherit-labels=true -t exp -f $BUDFILES/base-with-labels/Containerfile.multi-stage
+  want_output='map["io.buildah.version":"'$buildah_version'" "name":"world"]'
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
+  expect_output "$want_output"
+  assert "$(cat ${TEST_SCRATCH_DIR}/id3)" = "$(cat ${TEST_SCRATCH_DIR}/id4)" "expected image ids to not change"
+}
+
 @test "build using intermediate images should not inherit label" {
   _prefetch alpine
 
