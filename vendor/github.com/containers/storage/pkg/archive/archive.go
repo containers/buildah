@@ -705,7 +705,9 @@ func extractTarFileEntry(path, extractDir string, hdr *tar.Header, reader io.Rea
 			file.Close()
 			return err
 		}
-		file.Close()
+		if err := file.Close(); err != nil {
+			return err
+		}
 
 	case tar.TypeBlock, tar.TypeChar:
 		if inUserns { // cannot create devices in a userns
