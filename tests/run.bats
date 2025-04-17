@@ -339,12 +339,6 @@ function configure_and_check_user() {
 @test "run overlay --volume with custom upper and workdir" {
 	skip_if_no_runtime
 
-	zflag=
-	if which selinuxenabled > /dev/null 2> /dev/null ; then
-		if selinuxenabled ; then
-			zflag=z
-		fi
-	fi
 	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -353,16 +347,16 @@ function configure_and_check_user() {
 	mkdir -p ${TEST_SCRATCH_DIR}/workdir
 	mkdir -p ${TEST_SCRATCH_DIR}/lower
 
-	echo 'hello' >> ${TEST_SCRATCH_DIR}/lower/hello
+	echo 'hello' > ${TEST_SCRATCH_DIR}/lower/hello
 
 	# As a baseline, this should succeed.
-	run_buildah run -v ${TEST_SCRATCH_DIR}/lower:/test:O,upperdir=${TEST_SCRATCH_DIR}/upperdir,workdir=${TEST_SCRATCH_DIR}/workdir${zflag:+:${zflag}}  $cid cat /test/hello
+	run_buildah run -v ${TEST_SCRATCH_DIR}/lower:/test:O,upperdir=${TEST_SCRATCH_DIR}/upperdir,workdir=${TEST_SCRATCH_DIR}/workdir $cid cat /test/hello
 	expect_output "hello"
-	run_buildah run -v ${TEST_SCRATCH_DIR}/lower:/test:O,upperdir=${TEST_SCRATCH_DIR}/upperdir,workdir=${TEST_SCRATCH_DIR}/workdir${zflag:+:${zflag}}  $cid sh -c 'echo "world" > /test/world'
+	run_buildah run -v ${TEST_SCRATCH_DIR}/lower:/test:O,upperdir=${TEST_SCRATCH_DIR}/upperdir,workdir=${TEST_SCRATCH_DIR}/workdir $cid sh -c 'echo "world" > /test/world'
 
-	#upper dir should persist content
+	# upper dir should persist content
 	result="$(cat ${TEST_SCRATCH_DIR}/upperdir/world)"
-	test "$result" == "world"
+	assert "$result" == "world"
 }
 
 @test "run --volume with U flag" {
