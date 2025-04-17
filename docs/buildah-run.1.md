@@ -136,6 +136,8 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. Writes to `bind
 
               · ro, read-only: (default true for `type=bind`, false for `type=tmpfs`, `type=cache`).
 
+              · rw, read-write: (default false for `type=bind`, true for `type=tmpfs`, `type=cache`).
+
        Options specific to bind:
 
               · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2). <sup>[[1]](#Footnote1)</sup>
@@ -143,6 +145,8 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. Writes to `bind
               . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
 
               · from: image name for the root of the source. Defaults to **--contextdir**, mandatory if **--contextdir** was not specified.
+
+              · src: location in the context directory (or image, if the **from** option is used) to mount instead of its top-level directory.
 
               · z: Set shared SELinux label on mounted destination. Use if SELinux is enabled on host machine.
 
@@ -166,7 +170,7 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. Writes to `bind
 
               · mode: File mode for new cache directory in octal. Default 0755.
 
-              · ro, readonly: read only cache if set.
+              · src: location in the cache (or image, if the **from** option is used) to mount instead of its top-level directory.
 
               · uid: uid for cache directory.
 
