@@ -191,13 +191,21 @@ func (i *Image) IsReadOnly() bool {
 }
 
 // IsDangling returns true if the image is dangling, that is an untagged image
-// without children.
+// without children and not used in a manifest list.
 func (i *Image) IsDangling(ctx context.Context) (bool, error) {
-	return i.isDangling(ctx, nil)
+	images, layers, err := i.runtime.getImagesAndLayers()
+	if err != nil {
+		return false, err
+	}
+	tree, err := i.runtime.newLayerTreeFromData(images, layers, true)
+	if err != nil {
+		return false, err
+	}
+	return i.isDangling(ctx, tree)
 }
 
 // isDangling returns true if the image is dangling, that is an untagged image
-// without children.  If tree is nil, it will created for this invocation only.
+// without children and not used in a manifest list.  If tree is nil, it will created for this invocation only.
 func (i *Image) isDangling(ctx context.Context, tree *layerTree) (bool, error) {
 	if len(i.Names()) > 0 {
 		return false, nil
@@ -206,7 +214,8 @@ func (i *Image) isDangling(ctx context.Context, tree *layerTree) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return len(children) == 0, nil
+	_, usedInManfiestList := tree.manifestListDigests[i.Digest()]
+	return (len(children) == 0 && !usedInManfiestList), nil
 }
 
 // IsIntermediate returns true if the image is an intermediate image, that is
@@ -454,13 +463,13 @@ func (i *Image) removeRecursive(ctx context.Context, rmMap map[string]*RemoveIma
 	skipRemove := false
 	numNames := len(i.Names())
 
-	// NOTE: the `numNames == 1` check is not only a performance
+	// NOTE: the `numNames != 1` check is not only a performance
 	// optimization but also preserves existing Podman/Docker behaviour.
 	// If image "foo" is used by a container and has only this tag/name,
 	// an `rmi foo` will not untag "foo" but instead attempt to remove the
 	// entire image.  If there's a container using "foo", we should get an
 	// error.
-	if !(referencedBy == "" || numNames == 1) {
+	if referencedBy != "" && numNames != 1 {
 		byID := strings.HasPrefix(i.ID(), referencedBy)
 		byDigest := strings.HasPrefix(referencedBy, "sha256:")
 		if !options.Force {
@@ -789,27 +798,25 @@ func (i *Image) Mount(_ context.Context, mountOptions []string, mountLabel strin
 // Mountpoint returns the path to image's mount point.  The path is empty if
 // the image is not mounted.
 func (i *Image) Mountpoint() (string, error) {
-	mountedTimes, err := i.runtime.store.Mounted(i.TopLayer())
-	if err != nil || mountedTimes == 0 {
-		if errors.Is(err, storage.ErrLayerUnknown) {
-			// Can happen, Podman did it, but there's no
-			// explanation why.
-			err = nil
+	for _, layerID := range append([]string{i.TopLayer()}, i.storageImage.MappedTopLayers...) {
+		mountedTimes, err := i.runtime.store.Mounted(layerID)
+		if err != nil {
+			if errors.Is(err, storage.ErrLayerUnknown) {
+				// Can happen, Podman did it, but there's no
+				// explanation why.
+				continue
+			}
+			return "", err
 		}
-		return "", err
+		if mountedTimes > 0 {
+			layer, err := i.runtime.store.Layer(layerID)
+			if err != nil {
+				return "", err
+			}
+			return filepath.EvalSymlinks(layer.MountPoint)
+		}
 	}
-
-	layer, err := i.runtime.store.Layer(i.TopLayer())
-	if err != nil {
-		return "", err
-	}
-
-	mountPoint, err := filepath.EvalSymlinks(layer.MountPoint)
-	if err != nil {
-		return "", err
-	}
-
-	return mountPoint, nil
+	return "", nil
 }
 
 // Unmount the image.  Use force to ignore the reference counter and forcefully
