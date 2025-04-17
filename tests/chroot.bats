@@ -129,6 +129,7 @@ load helpers
   PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${PATH:+:$PATH}
   set -e
   set -x
+  mount -t tmpfs -o size=1024K tmpfs ${TEST_SCRATCH_DIR}/chroot
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/workdir
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/upperdir
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged
