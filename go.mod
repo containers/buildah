@@ -14,7 +14,7 @@ require (
 	github.com/containers/storage v1.58.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/docker/docker v28.0.4+incompatible
+	github.com/docker/docker v28.1.0+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.12.0
@@ -108,7 +108,9 @@ require (
 	github.com/mistifyio/go-zfs/v3 v3.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
+	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/moby/sys/user v0.4.0 // indirect
