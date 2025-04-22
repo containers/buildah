@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package chroot
+package pty
 
 import (
 	"fmt"
@@ -12,9 +12,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Open a PTY using the /dev/ptmx device. The main advantage of using
-// this instead of posix_openpt is that it avoids cgo.
-func getPtyDescriptors() (int, int, error) {
+// GetPtyDescriptors allocates a new pseudoterminal and returns the control and
+// pseudoterminal file descriptors.  This implementation uses the /dev/ptmx
+// device. The main advantage of using this instead of posix_openpt is that it
+// avoids cgo.
+func GetPtyDescriptors() (int, int, error) {
 	// Create a pseudo-terminal -- open a copy of the master side.
 	controlFd, err := unix.Open("/dev/ptmx", os.O_RDWR, 0600)
 	if err != nil {

@@ -20,6 +20,7 @@ import (
 
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/internal/pty"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/mount"
@@ -228,7 +229,7 @@ func runUsingChrootMain() {
 	var stderr io.Writer
 	fdDesc := make(map[int]string)
 	if options.Spec.Process.Terminal {
-		ptyMasterFd, ptyFd, err := getPtyDescriptors()
+		ptyMasterFd, ptyFd, err := pty.GetPtyDescriptors()
 		if err != nil {
 			logrus.Errorf("error opening PTY descriptors: %v", err)
 			os.Exit(1)
