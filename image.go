@@ -676,7 +676,7 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 				}
 				return false, false, nil
 			})
-			writer = io.Writer(writeCloser)
+			writer = writeCloser
 		}
 		// Okay, copy from the raw diff through the filter, compressor, and counter and
 		// digesters.
