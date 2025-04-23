@@ -655,9 +655,6 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 			// Tweak the contents of layers we're creating.
 			nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
 			writeCloser = newTarFilterer(nestedWriteCloser, func(hdr *tar.Header) (bool, bool, io.Reader) {
-				// Scrub any local user names that might correspond to UIDs or GIDs of
-				// files in this layer.
-				hdr.Uname, hdr.Gname = "", ""
 				// Use specified timestamps in the layer, if we're doing that for history
 				// entries.
 				if i.created != nil {
