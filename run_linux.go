@@ -1211,6 +1211,8 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 				UpperDirOptionFragment: upperDir,
 				WorkDirOptionFragment:  workDir,
 				GraphOpts:              slices.Clone(b.store.GraphOptions()),
+				ForceMount:             true,
+				MountLabel:             b.MountLabel,
 			}
 
 			overlayMount, err := overlay.MountWithOptions(contentDir, host, container, &overlayOpts)
