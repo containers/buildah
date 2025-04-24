@@ -623,8 +623,8 @@ github.com/proglottis/gpgme
 # github.com/rivo/uniseg v0.4.7
 ## explicit; go 1.18
 github.com/rivo/uniseg
-# github.com/seccomp/libseccomp-golang v0.10.0
-## explicit; go 1.14
+# github.com/seccomp/libseccomp-golang v0.11.0
+## explicit; go 1.19
 github.com/seccomp/libseccomp-golang
 # github.com/secure-systems-lab/go-securesystemslib v0.9.0
 ## explicit; go 1.20
