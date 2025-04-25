@@ -421,6 +421,12 @@ function configure_and_check_user() {
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	mkdir -p ${TEST_SCRATCH_DIR}/was:empty
+	if test $(stat -f -c %T ${TEST_SCRATCH_DIR}/was:empty) = overlayfs; then
+		# we'll try to use fuse-overlayfs, which at least through 1.13
+		# can't accept ":" in layer locations, escaped or not, so bail
+		# now instead of breaking the whole thing
+		skip "unable to test read-write bind from an overlay location that includes colon characters"
+	fi
 	# As a baseline, this should succeed.
 	local mount=type=tmpfs,dst=/var/tmpfs-not-empty
 	run_buildah   run --mount $mount $cid touch /var/tmpfs-not-empty/testfile
