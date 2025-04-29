@@ -26,8 +26,8 @@ The image ID of the image that was created.  On error, 1 is returned and errno i
 Read the contents of the file `source` and add it to the committed image as a
 file at `destination`.  If `destination` is not specified, the path of `source`
 will be used.  The new file will be owned by UID 0, GID 0, have 0644
-permissions, and be given a current timestamp unless the **--timestamp** option
-is also specified.  This option can be specified multiple times.
+permissions, and be given the timestamp specified to the **--timestamp** option
+if it is specified.  This option can be specified multiple times.
 
 **--authfile** *path*
 
@@ -196,6 +196,13 @@ the image is not present locally.
 
 When writing the output image, suppress progress output.
 
+**--rewrite-timestamp**
+
+When generating the new layer for the image, ensure that no newly added content
+bears a timestamp later than the value used by the **--source-date-epoch**
+flag, if one was provided, by replacing any timestamps which are later than
+that value, with that value.
+
 **--rm**
 Remove the working container and its contents after creating the image.
 Default leaves the container and its content in place.
@@ -295,16 +302,41 @@ Generate SBOMs using the specified scanner image.
 
 Sign the new image using the GPG key that matches the specified fingerprint.
 
+**--source-date-epoch** *seconds*
+
+Set the "created" timestamp for the image to this number of seconds since the
+epoch (Unix time 0, i.e., 00:00:00 UTC on 1 January 1970) to make it easier to
+create deterministic builds (defaults to $SOURCE_DATE_EPOCH if set, otherwise
+the current time will be used).
+
+The "created" timestamp is written into the image's configuration and manifest
+when the image is committed, so committing the same working container at two
+different times will produce images with different sha256 hashes, even if no
+other changes were made to the working container in between.
+
+When --source-date-epoch is set, the "created" timestamp is always set to the time
+specified, which should allow for identical images to be committed at different
+times.
+
 **--squash**
 
 Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
 
 **--timestamp** *seconds*
 
-Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
-By default, the created timestamp is changed and written into the image manifest with every commit,
-causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
-When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image will be created with the timestamp.
+Set the "created" timestamp for the image to this number of seconds since the
+epoch (Unix time 0, i.e., 00:00:00 UTC on 1 January 1970) to make it easier to
+create deterministic builds (defaults to current time).
+
+The "created" timestamp is written into the image's configuration and manifest
+when the image is committed, so committing the same working container at two
+different times will produce images with different sha256 hashes, even if no
+other changes were made to the working container in between.
+
+When --timestamp is set, the "created" timestamp is always set to the time
+specified, which should allow for identical images to be committed at different
+times.  All content in the new layer added as part of the image will also bear
+this timestamp.
 
 **--tls-verify** *bool-value*
 
