@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/pkg/completion"
 	"github.com/containers/buildah/pkg/parse"
 	commonComp "github.com/containers/common/pkg/completion"
@@ -122,6 +123,8 @@ type BudResults struct {
 	CWOptions           string
 	SBOMOptions         []string
 	CompatVolumes       bool
+	SourceDateEpoch     string
+	RewriteTimestamp    bool
 }
 
 // FromAndBugResults represents the results for common flags
@@ -303,13 +306,19 @@ newer:   only pull base and SBOM scanner images when newer images exist on the r
 		panic(fmt.Sprintf("error marking the signature-policy flag as hidden: %v", err))
 	}
 	fs.BoolVar(&flags.SkipUnusedStages, "skip-unused-stages", true, "skips stages in multi-stage builds which do not affect the final target")
+	sourceDateEpochUsageDefault := ", defaults to current time"
+	if v := os.Getenv(internal.SourceDateEpochName); v != "" {
+		sourceDateEpochUsageDefault = ""
+	}
+	fs.StringVar(&flags.SourceDateEpoch, "source-date-epoch", os.Getenv(internal.SourceDateEpochName), "set new timestamps in image info to `seconds` after the epoch"+sourceDateEpochUsageDefault)
+	fs.BoolVar(&flags.RewriteTimestamp, "rewrite-timestamp", false, "set timestamps in layers to no later than the value for --source-date-epoch")
 	fs.BoolVar(&flags.Squash, "squash", false, "squash all image layers into a single layer")
 	fs.StringArrayVar(&flags.SSH, "ssh", []string{}, "SSH agent socket or keys to expose to the build. (format: default|<id>[=<socket>|<key>[,<key>]])")
 	fs.BoolVar(&flags.Stdin, "stdin", false, "pass stdin into containers")
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringArrayVarP(&flags.BuildOutputs, "output", "o", nil, "output destination (format: type=local,dest=path)")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
-	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set created timestamp to the specified epoch seconds to allow for deterministic builds, defaults to current time")
+	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set new timestamps in image info and layer to `seconds` after the epoch, defaults to current times")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	fs.String("variant", "", "override the `variant` of the specified image")
 	fs.StringSliceVar(&flags.UnsetEnvs, "unsetenv", nil, "unset environment variable from final image")
@@ -363,6 +372,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["sign-by"] = commonComp.AutocompleteNone
 	flagCompletion["signature-policy"] = commonComp.AutocompleteNone
 	flagCompletion["ssh"] = commonComp.AutocompleteNone
+	flagCompletion["source-date-epoch"] = commonComp.AutocompleteNone
 	flagCompletion["tag"] = commonComp.AutocompleteNone
 	flagCompletion["target"] = commonComp.AutocompleteNone
 	flagCompletion["timestamp"] = commonComp.AutocompleteNone

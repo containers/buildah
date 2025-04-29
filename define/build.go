@@ -295,9 +295,23 @@ type BuildOptions struct {
 	SignBy string
 	// Architecture specifies the target architecture of the image to be built.
 	Architecture string
-	// Timestamp sets the created timestamp to the specified time, allowing
-	// for deterministic, content-addressable builds.
+	// Timestamp specifies a timestamp to use for the image's created-on
+	// date, the corresponding field in new history entries, the timestamps
+	// to set on contents in new layer diffs, and the timestamps to set on
+	// contents written as specified in the BuildOutput field.  If left
+	// unset, the current time is used for the configuration and manifest,
+	// and layer contents are recorded as-is.
 	Timestamp *time.Time
+	// SourceDateEpoch specifies a timestamp to use for the image's
+	// created-on date and the corrsponding field in new history entries,
+	// and any content written as specified in the BuildOutput field.  If
+	// left unset, the current time is used for the configuration and
+	// manifest, and layer and BuildOutput contents retain their original
+	// timestamps.
+	SourceDateEpoch *time.Time
+	// RewriteTimestamp, if set, forces timestamps in generated layers to
+	// not be later than the SourceDateEpoch, if it is also set.
+	RewriteTimestamp bool
 	// OS is the specifies the operating system of the image to be built.
 	OS string
 	// MaxPullPushRetries is the maximum number of attempts we'll make to pull or push any one

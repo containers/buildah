@@ -715,24 +715,34 @@ Windows base images, so using this option is usually unnecessary.
 
 **--output**, **-o**=""
 
-Output destination (format: type=local,dest=path)
+Additional output (format: type=local,dest=path)
 
-The --output (or -o) option extends the default behavior of building a container image by allowing users to export the contents of the image as files on the local filesystem, which can be useful for generating local binaries, code generation, etc.
+The --output (or -o) option supplements the default behavior of building a
+container image by allowing users to export the image's contents as files on
+the local filesystem, which can be useful for generating local binaries, code
+generation, etc.
 
-The value for --output is a comma-separated sequence of key=value pairs, defining the output type and options.
+The value for --output is a comma-separated sequence of key=value pairs,
+defining the output type and options.
 
 Supported _keys_ are:
-- **dest**: Destination path for exported output. Valid value is absolute or relative path, `-` means the standard output.
-- **type**: Defines the type of output to be used. Valid values is documented below.
+ **dest**: Destination for exported output. Can be set to `-` to indicate standard output, or to an absolute or relative path.
+ **type**: Defines the type of output to be written. Must be one of the values listed below.
 
 Valid _type_ values are:
-- **local**: write the resulting build files to a directory on the client-side.
-- **tar**: write the resulting files as a single tarball (.tar).
+ **local**: write the resulting build files to a directory on the client-side.
+ **tar**: write the resulting files as a single tarball (.tar).
 
-If no type is specified, the value defaults to **local**.
-Alternatively, instead of a comma-separated sequence, the value of **--output** can be just a destination (in the `**dest**` format) (e.g. `--output some-path`, `--output -`) where `--output some-path` is treated as if **type=local** and `--output -` is treated as if **type=tar**.
+Alternatively, instead of a comma-separated sequence, the value of **--output**
+can be just the destination (in the `**dest**` format) (e.g. `--output
+some-path`, `--output -`), and the **type** will be inferred to be **tar** if
+the output destination is `-`, and **local** otherwise.
 
-Note: The **--tag** option can also be used to change the file image format to supported `containers-transports(5)`.
+Timestamps on the output contents will be set to exactly match the value
+specified using the **--timestamp** flag, or to exactly match the value
+specified for the **--source-date-epoch** flag, if either are specified.
+
+Note that the **--tag** option can also be used to write the image to any location described by `containers-transports(5)`.
 
 **--pid** *how*
 
@@ -801,6 +811,13 @@ Defaults to `3`.
 Duration of delay between retry attempts in case of failure when performing push/pull of images to/from registry.
 
 Defaults to `2s`.
+
+**--rewrite-timestamp**
+
+When generating new layers for the image, ensure that no newly added content
+bears a timestamp later than the value used by the **--source-date-epoch**
+flag, if one was provided, by replacing any timestamps which are later than
+that value, with that value.
 
 **--rm** *bool-value*
 
@@ -970,6 +987,31 @@ Sign the built image using the GPG key that matches the specified fingerprint.
 
 Skip stages in multi-stage builds which don't affect the target stage. (Default is `true`).
 
+**--source-date-epoch** *seconds*
+
+Set the "created" timestamp for the built image to this number of seconds since
+the epoch (Unix time 0, i.e., 00:00:00 UTC on 1 January 1970) (default is to
+use the value set in the `SOURCE_DATE_EPOCH` environment variable, or the
+current time if it is not set).
+
+The "created" timestamp is written into the image's configuration and manifest
+when the image is committed, so running the same build two different times
+will ordinarily produce images with different sha256 hashes, even if no other
+changes were made to the Containerfile and build context.
+
+When this flag is set, a `SOURCE_DATE_EPOCH` build arg will provide its value
+for a stage in which it is declared.
+
+When this flag is set, the image configuration's "created" timestamp is always
+set to the time specified, which should allow for identical images to be built
+at different times using the same set of inputs.
+
+When this flag is set, output written as specified to the **--output** flag
+will bear exactly the specified timestamp.
+
+Conflicts with the similar **--timestamp** flag, which also sets its specified
+time on the contents of new layers.
+
 **--squash**
 
 Squash all layers, including those from base image(s), into one single layer. (Default is false).
@@ -1013,10 +1055,25 @@ Commands after the target stage will be skipped.
 
 **--timestamp** *seconds*
 
-Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
-By default, the created timestamp is changed and written into the image manifest with every commit,
-causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
-When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image will be created with the timestamp.
+Set the "created" timestamp for the built image to this number of seconds since
+the epoch (Unix time 0, i.e., 00:00:00 UTC on 1 January 1970) (defaults to
+current time).
+
+The "created" timestamp is written into the image's configuration and manifest
+when the image is committed, so running the same build two different times
+will ordinarily produce images with different sha256 hashes, even if no other
+changes were made to the Containerfile and build context.
+
+When --timestamp is set, the "created" timestamp is always set to the time
+specified, which should allow for identical images to be built at different
+times using the same set of inputs.
+
+When --timestamp is set, all content in layers created as part of the build,
+and output written as specified to the **--output** flag, will also bear this
+same timestamp.
+
+Conflicts with the similar **--source-date-epoch** flag, which by default does
+not affect the timestamps of layer contents.
 
 **--tls-verify** *bool-value*
 

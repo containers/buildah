@@ -1083,6 +1083,6 @@ function dir_image_diff() {
 #########################
 # prints the relative path of the most recent layer for "dir" image in "$1"
 function dir_image_last_diff() {
-  local output=$(dir_image_diff "$1")
+  local output=$(dir_image_diff "$1" - 1)
   echo "$output"
 }

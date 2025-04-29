@@ -318,6 +318,9 @@ When --source-date-epoch is set, the "created" timestamp is always set to the ti
 specified, which should allow for identical images to be committed at different
 times.
 
+Conflicts with the similar **--timestamp** flag, which also sets its specified
+time on layer contents.
+
 **--squash**
 
 Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
@@ -337,6 +340,9 @@ When --timestamp is set, the "created" timestamp is always set to the time
 specified, which should allow for identical images to be committed at different
 times.  All content in the new layer added as part of the image will also bear
 this timestamp.
+
+Conflicts with the similar **--source-date-epoch** flag, which by default does
+not affect the timestamps of layer contents.
 
 **--tls-verify** *bool-value*
 
