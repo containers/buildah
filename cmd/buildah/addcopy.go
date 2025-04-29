@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,7 @@ type addCopyResults struct {
 	retryDelay       string
 	excludes         []string
 	parents          bool
+	timestamp        string
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -95,6 +97,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
+	flags.StringVar(&opts.timestamp, "timestamp", "", "set timestamps on new content to `seconds` after the epoch")
 }
 
 func init() {
@@ -235,6 +238,16 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 
 	builder.ContentDigester.Restart()
 
+	var timestamp *time.Time
+	if iopts.timestamp != "" {
+		u, err := strconv.ParseInt(iopts.timestamp, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parsing timestamp value %q: %w", iopts.timestamp, err)
+		}
+		t := time.Unix(u, 0).UTC()
+		timestamp = &t
+	}
+
 	options := buildah.AddAndCopyOptions{
 		Chmod:             iopts.chmod,
 		Chown:             iopts.chown,
@@ -249,6 +262,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		InsecureSkipTLSVerify: systemContext.DockerInsecureSkipTLSVerify,
 		MaxRetries:            iopts.retry,
 		Parents:               iopts.parents,
+		Timestamp:             timestamp,
 	}
 	if iopts.contextdir != "" {
 		var excludes []string

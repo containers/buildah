@@ -363,6 +363,7 @@ type GetOptions struct {
 	NoDerefSymlinks    bool              // don't follow symlinks when globs match them
 	IgnoreUnreadable   bool              // ignore errors reading items, instead of returning an error
 	NoCrossDevice      bool              // if a subdirectory is a mountpoint with a different device number, include it but skip its contents
+	Timestamp          *time.Time        // timestamp to force on all contents
 }
 
 // Get produces an archive containing items that match the specified glob
@@ -1599,6 +1600,16 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 				if options.Rename != nil {
 					hdr.Name = handleRename(options.Rename, hdr.Name)
 				}
+				if options.Timestamp != nil {
+					timestamp := options.Timestamp.UTC()
+					hdr.ModTime = timestamp
+					if !hdr.AccessTime.IsZero() {
+						hdr.AccessTime = timestamp
+					}
+					if !hdr.ChangeTime.IsZero() {
+						hdr.ChangeTime = timestamp
+					}
+				}
 				if err = tw.WriteHeader(hdr); err != nil {
 					return fmt.Errorf("writing tar header from %q to pipe: %w", contentPath, err)
 				}
@@ -1676,6 +1687,16 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 			return fmt.Errorf("opening directory for adding its contents to archive: %w", err)
 		}
 		defer f.Close()
+	}
+	if options.Timestamp != nil {
+		timestamp := options.Timestamp.UTC()
+		hdr.ModTime = timestamp
+		if !hdr.AccessTime.IsZero() {
+			hdr.AccessTime = timestamp
+		}
+		if !hdr.ChangeTime.IsZero() {
+			hdr.ChangeTime = timestamp
+		}
 	}
 	// output the header
 	if err = tw.WriteHeader(hdr); err != nil {
