@@ -21,8 +21,8 @@ bash
 docker pull mirror.gcr.io/alpine
 docker pull mirror.gcr.io/busybox
 docker pull quay.io/libpod/centos:7
-docker pull registry.fedoraproject.org/fedora-minimal:41-aarch64
-docker pull registry.fedoraproject.org/fedora-minimal:41-amd64
+docker pull registry.fedoraproject.org/fedora-minimal:42-aarch64
+docker pull registry.fedoraproject.org/fedora-minimal:42-x86_64
 docker pull registry.fedoraproject.org/fedora-minimal
 ```
 
