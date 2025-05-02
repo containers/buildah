@@ -335,7 +335,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		// Attempt to clean up mount targets for the sake of builds
 		// that don't commit and rebase at each step, and people using
 		// `buildah run` more than once, who don't expect empty mount
-		// points to stick around.
+		// points to stick around.  They'll still get filtered out at
+		// commit-time if another concurrent Run() is keeping something
+		// busy.
 		if _, err := copier.ConditionalRemove(mountPoint, mountPoint, copier.ConditionalRemoveOptions{
 			UIDMap: b.store.UIDMap(),
 			GIDMap: b.store.GIDMap(),
