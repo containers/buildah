@@ -81,3 +81,23 @@ func TestRemoveChroot(t *testing.T) {
 	testRemove(t)
 	canChroot = couldChroot
 }
+
+func TestEnsureChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testEnsure(t)
+	canChroot = couldChroot
+}
+
+func TestConditionalRemoveChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testConditionalRemove(t)
+	canChroot = couldChroot
+}
