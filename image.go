@@ -417,6 +417,82 @@ type saveBlobResult struct {
 	compressedSize     int64
 }
 
+func (i *containerImageRef) saveBlob(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
+	srcHasher := digest.Canonical.Digester()
+	// Set up to write the possibly-recompressed blob.
+	layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		rc.Close()
+		return nil, fmt.Errorf("opening file for %s: %w", what, err)
+	}
+
+	counter := ioutils.NewWriteCounter(layerFile)
+	var destHasher digest.Digester
+	var multiWriter io.Writer
+	// Avoid rehashing when we do not compress.
+	if i.compression != archive.Uncompressed {
+		destHasher = digest.Canonical.Digester()
+		multiWriter = io.MultiWriter(counter, destHasher.Hash())
+	} else {
+		destHasher = srcHasher
+		multiWriter = counter
+	}
+	// Compress the layer, if we're recompressing it.
+	writeCloser, err := archive.CompressStream(multiWriter, i.compression)
+	if err != nil {
+		layerFile.Close()
+		rc.Close()
+		return nil, fmt.Errorf("compressing %s: %w", what, err)
+	}
+	writer := io.MultiWriter(writeCloser, srcHasher.Hash())
+
+	// Use specified timestamps in the layer, if we're doing that for history
+	// entries.
+	if i.created != nil {
+		// Tweak the contents of layers we're creating.
+		nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
+		writeCloser = newTarFilterer(nestedWriteCloser, func(hdr *tar.Header) (bool, bool, io.Reader) {
+			// Changing a zeroed field to a non-zero field can affect the
+			// format that the library uses for writing the header, so only
+			// change fields that are already set to avoid changing the
+			// format (and as a result, changing the length) of the header
+			// that we write.
+			if !hdr.ModTime.IsZero() {
+				hdr.ModTime = *i.created
+			}
+			if !hdr.AccessTime.IsZero() {
+				hdr.AccessTime = *i.created
+			}
+			if !hdr.ChangeTime.IsZero() {
+				hdr.ChangeTime = *i.created
+			}
+			return false, false, nil
+		})
+		writer = writeCloser
+	}
+	// Okay, copy from the raw diff through the filter, compressor, and counter and
+	// digesters.
+	size, err := io.Copy(writer, rc)
+	if err := writeCloser.Close(); err != nil {
+		layerFile.Close()
+		rc.Close()
+		return nil, fmt.Errorf("storing %s to file: %w on pipe close", what, err)
+	}
+	if err := layerFile.Close(); err != nil {
+		rc.Close()
+		return nil, fmt.Errorf("storing %s to file: %w on file close", what, err)
+	}
+	rc.Close()
+	return &saveBlobResult{
+		what:               what,
+		path:               layerFile.Name(),
+		compressedDigest:   destHasher.Digest(),
+		uncompressedDigest: srcHasher.Digest(),
+		uncompressedSize:   size,
+		compressedSize:     counter.Count,
+	}, err
+}
+
 func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
 	// Decide which type of manifest and configuration output we're going to provide.
 	manifestType := i.preferredManifestType
@@ -633,81 +709,7 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 				}
 			}
 		}
-		result, err := func(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
-			srcHasher := digest.Canonical.Digester()
-			// Set up to write the possibly-recompressed blob.
-			layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
-			if err != nil {
-				rc.Close()
-				return nil, fmt.Errorf("opening file for %s: %w", what, err)
-			}
-
-			counter := ioutils.NewWriteCounter(layerFile)
-			var destHasher digest.Digester
-			var multiWriter io.Writer
-			// Avoid rehashing when we do not compress.
-			if i.compression != archive.Uncompressed {
-				destHasher = digest.Canonical.Digester()
-				multiWriter = io.MultiWriter(counter, destHasher.Hash())
-			} else {
-				destHasher = srcHasher
-				multiWriter = counter
-			}
-			// Compress the layer, if we're recompressing it.
-			writeCloser, err := archive.CompressStream(multiWriter, i.compression)
-			if err != nil {
-				layerFile.Close()
-				rc.Close()
-				return nil, fmt.Errorf("compressing %s: %w", what, err)
-			}
-			writer := io.MultiWriter(writeCloser, srcHasher.Hash())
-
-			// Use specified timestamps in the layer, if we're doing that for history
-			// entries.
-			if i.created != nil {
-				// Tweak the contents of layers we're creating.
-				nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
-				writeCloser = newTarFilterer(nestedWriteCloser, func(hdr *tar.Header) (bool, bool, io.Reader) {
-					// Changing a zeroed field to a non-zero field can affect the
-					// format that the library uses for writing the header, so only
-					// change fields that are already set to avoid changing the
-					// format (and as a result, changing the length) of the header
-					// that we write.
-					if !hdr.ModTime.IsZero() {
-						hdr.ModTime = *i.created
-					}
-					if !hdr.AccessTime.IsZero() {
-						hdr.AccessTime = *i.created
-					}
-					if !hdr.ChangeTime.IsZero() {
-						hdr.ChangeTime = *i.created
-					}
-					return false, false, nil
-				})
-				writer = writeCloser
-			}
-			// Okay, copy from the raw diff through the filter, compressor, and counter and
-			// digesters.
-			size, err := io.Copy(writer, rc)
-			if err := writeCloser.Close(); err != nil {
-				layerFile.Close()
-				rc.Close()
-				return nil, fmt.Errorf("storing %s to file: %w on pipe close", what, err)
-			}
-			if err := layerFile.Close(); err != nil {
-				rc.Close()
-				return nil, fmt.Errorf("storing %s to file: %w on file close", what, err)
-			}
-			rc.Close()
-			return &saveBlobResult{
-				what:               what,
-				path:               layerFile.Name(),
-				compressedDigest:   destHasher.Digest(),
-				uncompressedDigest: srcHasher.Digest(),
-				uncompressedSize:   size,
-				compressedSize:     counter.Count,
-			}, err
-		}(what, path, rc)
+		result, err := i.saveBlob(what, path, rc)
 		if err != nil {
 			return nil, fmt.Errorf("storing %s to file: %w", what, err)
 		}
