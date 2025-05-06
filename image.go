@@ -481,14 +481,22 @@ func (i *containerImageRef) saveBlob(what, path string, rc io.ReadCloser) (*save
 	if err := layerFile.Close(); err != nil {
 		return nil, fmt.Errorf("storing %s to file: %w on file close", what, err)
 	}
-	return &saveBlobResult{
+
+	result := &saveBlobResult{
 		what:               what,
 		path:               layerFile.Name(),
 		compressedDigest:   destHasher.Digest(),
 		uncompressedDigest: srcHasher.Digest(),
 		uncompressedSize:   size,
 		compressedSize:     counter.Count,
-	}, nil
+	}
+	if i.compression == archive.Uncompressed {
+		if result.uncompressedSize != result.compressedSize {
+			return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, result.uncompressedSize, result.compressedSize)
+		}
+	}
+	logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, result.uncompressedSize, result.uncompressedDigest.String(), result.compressedDigest.String())
+	return result, nil
 }
 
 func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
@@ -718,11 +726,6 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 			}
 		}
 
-		if i.compression == archive.Uncompressed {
-			if result.uncompressedSize != result.compressedSize {
-				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, result.uncompressedSize, result.compressedSize)
-			}
-		}
 		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, result.uncompressedSize, result.uncompressedDigest.String(), result.compressedDigest.String())
 		// Rename the layer so that we can more easily find it by digest later.
 		finalBlobName := filepath.Join(path, result.compressedDigest.String())
