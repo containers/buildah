@@ -1034,9 +1034,14 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		for _, p := range builder.Ports() {
 			ports[docker.Port(p)] = struct{}{}
 		}
+		hostname, domainname := builder.Hostname(), builder.Domainname()
+		containerName := builder.Container
+		if s.executor.timestamp != nil || s.executor.sourceDateEpoch != nil {
+			hostname, domainname, containerName = "sandbox", "", ""
+		}
 		dConfig := docker.Config{
-			Hostname:     builder.Hostname(),
-			Domainname:   builder.Domainname(),
+			Hostname:     hostname,
+			Domainname:   domainname,
 			User:         builder.User(),
 			Env:          builder.Env(),
 			Cmd:          builder.Cmd(),
@@ -1063,7 +1068,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		dImage := docker.Image{
 			Parent:          builder.FromImageID,
 			ContainerConfig: dConfig,
-			Container:       builder.Container,
+			Container:       containerName,
 			Author:          builder.Maintainer(),
 			Architecture:    builder.Architecture(),
 			RootFS:          rootfs,
