@@ -21,6 +21,7 @@ import (
 	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/internal/tmpdir"
 	internalUtil "github.com/containers/buildah/internal/util"
+	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/rusage"
 	"github.com/containers/buildah/util"
@@ -313,12 +314,24 @@ func (s *StageExecutor) volumeCacheRestoreVFS() (err error) {
 // using it as a lower for an overlay mount in the same location, and then
 // discarding the upper.
 func (s *StageExecutor) volumeCacheSaveOverlay() (mounts []specs.Mount, err error) {
+	containerDir, err := s.executor.store.ContainerDirectory(s.builder.ContainerID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to locate temporary directory for container")
+	}
+	volumeCacheDir := filepath.Join(containerDir, "volume-cache")
+	options := overlay.Options{
+		MountLabel: s.builder.MountLabel,
+		ForceMount: true,
+	}
 	for cachedPath := range s.volumeCache {
 		volumePath := filepath.Join(s.mountPoint, cachedPath)
-		mount := specs.Mount{
-			Source:      volumePath,
-			Destination: cachedPath,
-			Options:     []string{"O", "private"},
+		tmpdir, err := overlay.TempDir(volumeCacheDir, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create temporary directory for cache for volumes")
+		}
+		mount, err := overlay.MountWithOptions(tmpdir, volumePath, cachedPath, &options)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create temporary directory for cache for volumes")
 		}
 		mounts = append(mounts, mount)
 	}
@@ -327,7 +340,12 @@ func (s *StageExecutor) volumeCacheSaveOverlay() (mounts []specs.Mount, err erro
 
 // Reset the contents of each of the executor's list of volumes.
 func (s *StageExecutor) volumeCacheRestoreOverlay() error {
-	return nil
+	containerDir, err := s.executor.store.ContainerDirectory(s.builder.ContainerID)
+	if err != nil {
+		return fmt.Errorf("unable to locate temporary directory for container")
+	}
+	volumeCacheDir := filepath.Join(containerDir, "volume-cache")
+	return overlay.CleanupContent(volumeCacheDir)
 }
 
 // Save the contents of each of the executor's list of volumes for which we
