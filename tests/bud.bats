@@ -2537,11 +2537,44 @@ _EOF
   expect_output "$want_output"
 }
 
-@test "bud-from-scratch-remove-identity-label" {
+@test "bud-with-identity-label" {
+  run_buildah build $WITH_POLICY_JSON -t scratch-image-1 $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-1
+  assert "$output" != "map[]"
+  run_buildah build --identity-label=true $WITH_POLICY_JSON -t scratch-image-2 $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-2
+  assert "$output" != "map[]"
+  local withlabels="$output"
+  run_buildah build --identity-label=false $WITH_POLICY_JSON --from scratch-image-2 -t scratch-image-3 $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-3
+  assert "$output" != "map[]"
+  assert "$output" = "$withlabels" "expected identity label to not be removed when building with --identity-label=false"
+}
+
+@test "bud-without-identity-label" {
   target=scratch-image
   run_buildah build --identity-label=false $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  expect_output "map[]"
+  assert "$output" = "map[]"
+}
+
+@test "bud-suppressed-identity-label" {
+  run_buildah build --source-date-epoch=60 $WITH_POLICY_JSON -t scratch-image-1 $BUDFILES/from-scratch
+  run_buildah images scratch-image-1
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-1
+  assert "$output" = "map[]"
+
+  export SOURCE_DATE_EPOCH=90
+  run_buildah build $WITH_POLICY_JSON -t scratch-image-2 $BUDFILES/from-scratch
+  unset SOURCE_DATE_EPOCH
+  run_buildah images scratch-image-2
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-2
+  assert "$output" = "map[]"
+
+  run_buildah build --timestamp=60 $WITH_POLICY_JSON -t scratch-image-3 $BUDFILES/from-scratch
+  run_buildah images scratch-image-3
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-3
+  assert "$output" = "map[]"
 }
 
 @test "bud-from-scratch-annotation" {

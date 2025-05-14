@@ -2436,8 +2436,15 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	for k, v := range config.Labels {
 		s.builder.SetLabel(k, v)
 	}
-	if s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolUndefined || s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolTrue {
+	switch s.executor.commonBuildOptions.IdentityLabel {
+	case types.OptionalBoolTrue:
 		s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+	case types.OptionalBoolFalse:
+		// nothing - don't clear it if there's a value set in the base image
+	default:
+		if s.executor.timestamp == nil && s.executor.sourceDateEpoch == nil {
+			s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+		}
 	}
 	for _, key := range s.executor.unsetLabels {
 		s.builder.UnsetLabel(key)

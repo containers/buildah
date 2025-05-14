@@ -43,14 +43,52 @@ load helpers
   expect_output --substring "10.5 MB"
 }
 
-@test "commit-with-remove-identity-label" {
-  _prefetch alpine
-  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+@test "commit-with-identity-label" {
+  run_buildah from scratch
   cid=$output
-  run_buildah commit --identity-label=false $WITH_POLICY_JSON $cid alpine-image
-  run_buildah images alpine-image
-  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' alpine-image
-  expect_output "map[]"
+  touch $TEST_SCRATCH_DIR/content.txt
+  run_buildah add $cid $TEST_SCRATCH_DIR/content.txt /
+  run_buildah commit $cid scratch-image-1
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-1
+  assert "$output" != "map[]"
+  run_buildah commit --identity-label=true $cid scratch-image-2
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-2
+  assert "$output" != "map[]"
+}
+
+@test "commit-without-identity-label" {
+  run_buildah from scratch
+  cid=$output
+  touch $TEST_SCRATCH_DIR/content.txt
+  run_buildah add $cid $TEST_SCRATCH_DIR/content.txt /
+  run_buildah commit --identity-label=false $WITH_POLICY_JSON $cid scratch-image
+  run_buildah images scratch-image
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  assert "$output" = "map[]"
+}
+
+@test "commit-suppressed-identity-label" {
+  run_buildah from scratch
+  cid=$output
+  touch $TEST_SCRATCH_DIR/content.txt
+  run_buildah add $cid $TEST_SCRATCH_DIR/content.txt /
+
+  run_buildah commit --source-date-epoch=60 $WITH_POLICY_JSON $cid scratch-image-1
+  run_buildah images scratch-image-1
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-1
+  assert "$output" = "map[]"
+
+  export SOURCE_DATE_EPOCH=90
+  run_buildah commit $WITH_POLICY_JSON $cid scratch-image-2
+  unset SOURCE_DATE_EPOCH
+  run_buildah images scratch-image-2
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-2
+  assert "$output" = "map[]"
+
+  run_buildah commit --timestamp=60 $WITH_POLICY_JSON $cid scratch-image-3
+  run_buildah images scratch-image-3
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image-3
+  assert "$output" = "map[]"
 }
 
 @test "commit format test" {

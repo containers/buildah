@@ -255,11 +255,6 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		}
 	}
 
-	// Add builder identity information.
-	if iopts.identityLabel {
-		builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
-	}
-
 	encConfig, encLayers, err := cli.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
@@ -350,6 +345,22 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 	if exclusiveFlags > 1 {
 		return errors.New("cannot use more then one timestamp option at at time")
+	}
+
+	// Add builder identity information.
+	var identityLabel types.OptionalBool
+	if c.Flag("identity-label").Changed {
+		identityLabel = types.NewOptionalBool(iopts.identityLabel)
+	}
+	switch identityLabel {
+	case types.OptionalBoolTrue:
+		builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+	case types.OptionalBoolFalse:
+		// nothing - don't clear it if there's a value set in the base image
+	default:
+		if options.HistoryTimestamp == nil && options.SourceDateEpoch == nil {
+			builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+		}
 	}
 
 	if iopts.cwOptions != "" {

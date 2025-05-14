@@ -146,7 +146,9 @@ environment variable.  `export BUILDAH_FORMAT=docker`
 
 **--identity-label** *bool-value*
 
-Adds default identity label `io.buildah.version` if set. (default true).
+Adds a label `io.buildah.version` with its value set to the version of buildah
+which committed the image (default true unless `--timestamp` or
+`--source-date-epoch` is used).
 
 **--iidfile** *ImageIDfile*
 
