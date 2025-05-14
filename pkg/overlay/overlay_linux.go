@@ -1,9 +1,11 @@
 package overlay
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -61,6 +63,28 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 		}
 		if stat, ok := st.Sys().(*syscall.Stat_t); ok {
 			if err := os.Chown(upperDir, int(stat.Uid), int(stat.Gid)); err != nil {
+				if !errors.Is(err, syscall.EINVAL) {
+					return mount, err
+				}
+				overflowed := false
+				overflowUIDText, uerr := os.ReadFile("/proc/sys/kernel/overflowuid")
+				overflowGIDText, gerr := os.ReadFile("/proc/sys/kernel/overflowgid")
+				if uerr == nil && gerr == nil {
+					overflowUID, uerr := strconv.Atoi(strings.TrimSpace(string(overflowUIDText)))
+					overflowGID, gerr := strconv.Atoi(strings.TrimSpace(string(overflowGIDText)))
+					if uerr == nil && gerr == nil && int(stat.Uid) == overflowUID && int(stat.Gid) == overflowGID {
+						overflowed = true
+					}
+				}
+				if !overflowed {
+					return mount, err
+				}
+			}
+			times := []syscall.Timeval{
+				syscall.NsecToTimeval(syscall.TimespecToNsec(stat.Atim)),
+				syscall.NsecToTimeval(syscall.TimespecToNsec(stat.Mtim)),
+			}
+			if err := syscall.Utimes(upperDir, times); err != nil {
 				return mount, err
 			}
 		}
