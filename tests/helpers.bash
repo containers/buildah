@@ -727,6 +727,9 @@ function skip_if_no_docker() {
   fi
 }
 
+########################
+#  skip_if_no_unshare  #
+########################
 function skip_if_no_unshare() {
   run which ${UNSHARE_BINARY:-unshare}
   if [[ $status -ne 0 ]]; then
@@ -749,6 +752,9 @@ function skip_if_no_unshare() {
   fi
 }
 
+######################
+#  start_git_daemon  #
+######################
 function start_git_daemon() {
   daemondir=${TEST_SCRATCH_DIR}/git-daemon
   mkdir -p ${daemondir}/repo
@@ -772,6 +778,9 @@ function start_git_daemon() {
   GITPORT=$(cat ${TEST_SCRATCH_DIR}/git-daemon/port)
 }
 
+#####################
+#  stop_git_daemon  #
+#####################
 function stop_git_daemon() {
   if test -s ${TEST_SCRATCH_DIR}/git-daemon/pid ; then
     kill $(cat ${TEST_SCRATCH_DIR}/git-daemon/pid)
@@ -779,6 +788,9 @@ function stop_git_daemon() {
   fi
 }
 
+####################
+#  start_registry  #
+####################
 # Bring up a registry server using buildah with vfs and chroot as a cheap
 # substitute for podman, accessible only to user $1 using password $2 on the
 # local system at a dynamically-allocated port.
@@ -872,6 +884,9 @@ auth:
   fi
 }
 
+###################
+#  stop_registry  #
+###################
 function stop_registry() {
   if test -n "${REGISTRY_PID}" ; then
     kill "${REGISTRY_PID}"
@@ -884,4 +899,189 @@ function stop_registry() {
     rm -fr "${REGISTRY_DIR}"
   fi
   unset REGISTRY_DIR
+}
+
+###############################
+#  oci_image_manifest_digest  #
+###############################
+# prints the digest of the form "sha256:xxx" of the manifest for the main image
+# in an OCI layout in "$1"
+function oci_image_manifest_digest() {
+  run jq -r '.manifests[0].digest' "$1"/index.json
+  assert $status = 0 "looking for the digest of the image manifest"
+  assert "$output" != ""
+  echo "$output"
+}
+
+#############################
+#  oci_image_config_digest  #
+#############################
+# prints the digest of the form "sha256:xxx" of the config blob for the main
+# image in an OCI layout in "$1"
+function oci_image_config_digest() {
+  local digest=$(oci_image_manifest_digest "$1")
+  local alg=${digest%%:*}
+  local val=${digest##*:}
+  run jq -r '.config.digest' "$1"/blobs/"$alg"/"$val"
+  assert $status = 0 "looking for the digest of the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+######################
+#  oci_image_config  #
+######################
+# prints the relative path of the config blob for the main image in an OCI
+# layout in "$1"
+function oci_image_config() {
+  local diff_id=$(oci_image_config_digest "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo blobs/"$alg"/"$val"
+}
+
+########################
+#  oci_image_diff_ids  #
+########################
+# prints the list of digests of the diff IDs for the main image in an OCI
+# layout in "$1"
+function oci_image_diff_ids() {
+  local digest=$(oci_image_config_digest "$1")
+  local alg=${digest%%:*}
+  local val=${digest##*:}
+  run jq -r '.rootfs.diff_ids[]' "$1"/blobs/"$alg"/"$val"
+  assert $status = 0 "looking for the diff IDs in the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+#######################
+#  oci_image_diff_id  #
+#######################
+# prints a single diff ID for the main image in an OCI layout in "$1", choosing
+# which one to print based on an index and arithmetic operands passed in
+# subsequent arguments
+function oci_image_diff_id() {
+  local diff_ids=($(oci_image_diff_ids "$1"))
+  shift
+  case "$*" in
+      -*) echo ${diff_ids[$((${#diff_ids[@]} "$@"))]} ;;
+      *) echo ${diff_ids[$(("$@"))]} ;;
+  esac
+}
+
+############################
+#  oci_image_last_diff_id  #
+############################
+# prints the diff ID of the most recent layer for the main image in an OCI
+# layout in "$1"
+function oci_image_last_diff_id() {
+  local diff_id=($(oci_image_diff_id "$1" - 1))
+  echo "$diff_id"
+}
+
+####################
+#  oci_image_diff  #
+####################
+# prints the relative path of a single layer diff for the main image in an OCI
+# layout in "$1", choosing which one to print based on an index and arithmetic
+# operands passed in subsequent arguments
+function oci_image_diff() {
+  local diff_id=$(oci_image_diff_id "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo blobs/"$alg"/"$val"
+}
+
+#########################
+#  oci_image_last_diff  #
+#########################
+# prints the relative path of the most recent layer for the main image in an
+# OCI layout in "$1"
+function oci_image_last_diff() {
+  local output=$(oci_image_diff "$1" - 1)
+  echo "$output"
+}
+
+#############################
+#  dir_image_config_digest  #
+#############################
+# prints the digest of the form "sha256:xxx" of the config blob for the "dir"
+# image in "$1"
+function dir_image_config_digest() {
+  run jq -r '.config.digest' "$1"/manifest.json
+  assert $status = 0 "looking for the digest of the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+########################
+#  dir_image_diff_ids  #
+########################
+# prints the list of digests of the diff IDs for the "dir" image in "$1"
+function dir_image_diff_ids() {
+  local digest=$(dir_image_config_digest "$1")
+  local alg=${digest%%:*}
+  local val=${digest##*:}
+  run jq -r '.rootfs.diff_ids[]' "$1"/"$val"
+  assert $status = 0 "looking for the diff IDs in the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+#######################
+#  dir_image_diff_id  #
+#######################
+# prints a single diff ID for the "dir" image in "$1", choosing which one to
+# print based on an index and arithmetic operands passed in subsequent
+# arguments
+function dir_image_diff_id() {
+  local diff_ids=($(dir_image_diff_ids "$1"))
+  shift
+  case "$*" in
+      -*) echo ${diff_ids[$((${#diff_ids[@]} "$@"))]} ;;
+      *) echo ${diff_ids[$(("$@"))]} ;;
+  esac
+}
+
+############################
+#  dir_image_last_diff_id  #
+############################
+# prints the diff ID of the most recent layer for "dir" image in "$1"
+function dir_image_last_diff_id() {
+  local diff_id=($(dir_image_diff_id "$1" - 1))
+  echo "$diff_id"
+}
+
+######################
+#  dir_image_config  #
+######################
+# prints the relative path of the config blob for the "dir" image in "$1"
+function dir_image_config() {
+  local diff_id=$(dir_image_config_digest "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo "$val"
+}
+
+####################
+#  dir_image_diff  #
+####################
+# prints the relative path of a single layer diff for the "dir" image in "$1",
+# choosing which one to print based on an index and arithmetic operands passed
+# in subsequent arguments
+function dir_image_diff() {
+  local diff_id=$(dir_image_diff_id "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo "$val"
+}
+
+#########################
+#  dir_image_last_diff  #
+#########################
+# prints the relative path of the most recent layer for "dir" image in "$1"
+function dir_image_last_diff() {
+  local output=$(dir_image_diff "$1")
+  echo "$output"
 }
