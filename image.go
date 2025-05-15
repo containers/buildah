@@ -408,6 +408,107 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	return oimage, omanifest, dimage, dmanifest, nil
 }
 
+type saveBlobResult struct {
+	what               string
+	path               string
+	uncompressedDigest digest.Digest
+	uncompressedSize   int64
+	compressedDigest   digest.Digest
+	compressedSize     int64
+}
+
+func (r *saveBlobResult) rename() error {
+	dest := filepath.Join(filepath.Dir(r.path), r.compressedDigest.String())
+	if err := os.Rename(r.path, dest); err != nil {
+		return fmt.Errorf("storing %s to file while renaming %q to %q: %w", r.what, r.path, dest, err)
+	}
+
+	r.path = dest
+	return nil
+}
+
+func (i *containerImageRef) saveBlob(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
+	defer rc.Close()
+	srcHasher := digest.Canonical.Digester()
+	// Set up to write the possibly-recompressed blob.
+	layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("opening file for %s: %w", what, err)
+	}
+	defer layerFile.Close()
+
+	counter := ioutils.NewWriteCounter(layerFile)
+	var destHasher digest.Digester
+	var multiWriter io.Writer
+	// Avoid rehashing when we do not compress.
+	if i.compression != archive.Uncompressed {
+		destHasher = digest.Canonical.Digester()
+		multiWriter = io.MultiWriter(counter, destHasher.Hash())
+	} else {
+		destHasher = srcHasher
+		multiWriter = counter
+	}
+	// Compress the layer, if we're recompressing it.
+	writeCloser, err := archive.CompressStream(multiWriter, i.compression)
+	if err != nil {
+		return nil, fmt.Errorf("compressing %s: %w", what, err)
+	}
+	writer := io.MultiWriter(writeCloser, srcHasher.Hash())
+
+	// Use specified timestamps in the layer, if we're doing that for history
+	// entries.
+	if i.created != nil {
+		// Tweak the contents of layers we're creating.
+		nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
+		writeCloser = newTarFilterer(nestedWriteCloser, func(hdr *tar.Header) (bool, bool, io.Reader) {
+			// Changing a zeroed field to a non-zero field can affect the
+			// format that the library uses for writing the header, so only
+			// change fields that are already set to avoid changing the
+			// format (and as a result, changing the length) of the header
+			// that we write.
+			if !hdr.ModTime.IsZero() {
+				hdr.ModTime = *i.created
+			}
+			if !hdr.AccessTime.IsZero() {
+				hdr.AccessTime = *i.created
+			}
+			if !hdr.ChangeTime.IsZero() {
+				hdr.ChangeTime = *i.created
+			}
+			return false, false, nil
+		})
+		writer = writeCloser
+	}
+	// Okay, copy from the raw diff through the filter, compressor, and counter and
+	// digesters.
+	size, err := io.Copy(writer, rc)
+	if err != nil {
+		return nil, err
+	}
+	if err := writeCloser.Close(); err != nil {
+		return nil, fmt.Errorf("storing %s to file: %w on pipe close", what, err)
+	}
+	if err := layerFile.Close(); err != nil {
+		return nil, fmt.Errorf("storing %s to file: %w on file close", what, err)
+	}
+
+	result := &saveBlobResult{
+		what:               what,
+		path:               layerFile.Name(),
+		compressedDigest:   destHasher.Digest(),
+		uncompressedDigest: srcHasher.Digest(),
+		uncompressedSize:   size,
+		compressedSize:     counter.Count,
+	}
+	if i.compression == archive.Uncompressed {
+		if result.uncompressedSize != result.compressedSize {
+			return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, result.uncompressedSize, result.compressedSize)
+		}
+	}
+	logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, result.uncompressedSize, result.uncompressedDigest.String(), result.compressedDigest.String())
+	return result, nil
+}
+
 func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
 	// Decide which type of manifest and configuration output we're going to provide.
 	manifestType := i.preferredManifestType
@@ -624,72 +725,10 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 				}
 			}
 		}
-		srcHasher := digest.Canonical.Digester()
-		// Set up to write the possibly-recompressed blob.
-		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
+		result, err := i.saveBlob(what, path, rc)
 		if err != nil {
-			rc.Close()
-			return nil, fmt.Errorf("opening file for %s: %w", what, err)
+			return nil, fmt.Errorf("storing %s to file: %w", what, err)
 		}
-
-		counter := ioutils.NewWriteCounter(layerFile)
-		var destHasher digest.Digester
-		var multiWriter io.Writer
-		// Avoid rehashing when we do not compress.
-		if i.compression != archive.Uncompressed {
-			destHasher = digest.Canonical.Digester()
-			multiWriter = io.MultiWriter(counter, destHasher.Hash())
-		} else {
-			destHasher = srcHasher
-			multiWriter = counter
-		}
-		// Compress the layer, if we're recompressing it.
-		writeCloser, err := archive.CompressStream(multiWriter, i.compression)
-		if err != nil {
-			layerFile.Close()
-			rc.Close()
-			return nil, fmt.Errorf("compressing %s: %w", what, err)
-		}
-		writer := io.MultiWriter(writeCloser, srcHasher.Hash())
-
-		// Use specified timestamps in the layer, if we're doing that for history
-		// entries.
-		if i.created != nil {
-			// Tweak the contents of layers we're creating.
-			nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
-			writeCloser = newTarFilterer(nestedWriteCloser, func(hdr *tar.Header) (bool, bool, io.Reader) {
-				// Changing a zeroed field to a non-zero field can affect the
-				// format that the library uses for writing the header, so only
-				// change fields that are already set to avoid changing the
-				// format (and as a result, changing the length) of the header
-				// that we write.
-				if !hdr.ModTime.IsZero() {
-					hdr.ModTime = *i.created
-				}
-				if !hdr.AccessTime.IsZero() {
-					hdr.AccessTime = *i.created
-				}
-				if !hdr.ChangeTime.IsZero() {
-					hdr.ChangeTime = *i.created
-				}
-				return false, false, nil
-			})
-			writer = writeCloser
-		}
-		// Okay, copy from the raw diff through the filter, compressor, and counter and
-		// digesters.
-		size, err := io.Copy(writer, rc)
-		if err := writeCloser.Close(); err != nil {
-			layerFile.Close()
-			rc.Close()
-			return nil, fmt.Errorf("storing %s to file: %w on pipe close", what, err)
-		}
-		if err := layerFile.Close(); err != nil {
-			rc.Close()
-			return nil, fmt.Errorf("storing %s to file: %w on file close", what, err)
-		}
-		rc.Close()
-
 		if errChan != nil {
 			err = <-errChan
 			if err != nil {
@@ -700,36 +739,28 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		if err != nil {
 			return nil, fmt.Errorf("storing %s to file: %w", what, err)
 		}
-		if i.compression == archive.Uncompressed {
-			if size != counter.Count {
-				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, counter.Count)
-			}
-		} else {
-			size = counter.Count
+
+		if err := result.rename(); err != nil {
+			return nil, err
 		}
-		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, size, srcHasher.Digest().String(), destHasher.Digest().String())
-		// Rename the layer so that we can more easily find it by digest later.
-		finalBlobName := filepath.Join(path, destHasher.Digest().String())
-		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
-			return nil, fmt.Errorf("storing %s to file while renaming %q to %q: %w", what, filepath.Join(path, "layer"), finalBlobName, err)
-		}
+
 		// Add a note in the manifest about the layer.  The blobs are identified by their possibly-
 		// compressed blob digests.
 		olayerDescriptor := v1.Descriptor{
 			MediaType: omediaType,
-			Digest:    destHasher.Digest(),
-			Size:      size,
+			Digest:    result.compressedDigest,
+			Size:      result.compressedSize,
 		}
 		omanifest.Layers = append(omanifest.Layers, olayerDescriptor)
 		dlayerDescriptor := docker.V2S2Descriptor{
 			MediaType: dmediaType,
-			Digest:    destHasher.Digest(),
-			Size:      size,
+			Digest:    result.compressedDigest,
+			Size:      result.compressedSize,
 		}
 		dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
 		// Add a note about the diffID, which is always the layer's uncompressed digest.
-		oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, srcHasher.Digest())
-		dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, srcHasher.Digest())
+		oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, result.uncompressedDigest)
+		dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, result.uncompressedDigest)
 	}
 
 	// Build history notes in the image configurations.
