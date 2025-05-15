@@ -1545,6 +1545,8 @@ func mapWithPrefixedKeysWithoutKeyPrefix[K any](m map[string]K, p string) map[st
 func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath string, options GetOptions, tw *tar.Writer, hardlinkChecker *hardlinkChecker, idMappings *idtools.IDMappings) error {
 	// build the header using the name provided
 	hdr, err := tar.FileInfoHeader(srcfi, symlinkTarget)
+	// Use PAX format to support high-precision timestamps for `ModTime`.
+	hdr.Format = tar.FormatPAX
 	if err != nil {
 		return fmt.Errorf("generating tar header for %s (%s): %w", contentPath, symlinkTarget, err)
 	}

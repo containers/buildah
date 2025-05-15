@@ -583,6 +583,13 @@ parents/y/b.txt"
   run_buildah run $ctr ls -1 /opt/
   expect_line_count 1
   assert "$output" = "test_file" "only contents of copied directory"
+  run_buildah mount $ctr
+  croot=$output
+  # Compare metadata and mtime. Display them in human-readable form, so if there's
+  # a mismatch it will be shown in the test log.
+  metadata_randomfile=$(stat --format '%s %a %u %g %F %Y' ${TEST_SCRATCH_DIR}/context/test_file)
+  metadata_ctrfile=$(stat --format '%s %a %u %g %F %Y' ${croot}/opt/test_file)
+  assert "$metadata_ctrfile" = "$metadata_randomfile" "meta_data[ctrfile] == meta_data[randomfile]"
 }
 
 @test "copy-file-relative-context-dir" {
