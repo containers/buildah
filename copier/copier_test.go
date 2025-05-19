@@ -2341,3 +2341,18 @@ func TestConditionalRemoveNoChroot(t *testing.T) {
 	testConditionalRemove(t)
 	canChroot = couldChroot
 }
+
+func TestSortedExtendedGlob(t *testing.T) {
+	tmpdir := t.TempDir()
+	buf := []byte("buffer")
+	expect := []string{}
+	for _, name := range []string{"z", "y", "x", "a", "b", "c", "d", "e", "f"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpdir, name), buf, 0o600))
+		expect = append(expect, filepath.Join(tmpdir, name))
+	}
+	sort.Strings(expect)
+
+	matched, err := extendedGlob(filepath.Join(tmpdir, "*"))
+	require.NoError(t, err, "globbing")
+	require.ElementsMatch(t, expect, matched, "sorted globbing")
+}

@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,6 +49,7 @@ func init() {
 // "**" component in the pattern, filepath.Glob() will be called with the "**"
 // replaced with all of the subdirectories under that point, and the results
 // will be concatenated.
+// The matched paths are returned in lexical order, which makes the output deterministic.
 func extendedGlob(pattern string) (matches []string, err error) {
 	subdirs := func(dir string) []string {
 		var subdirectories []string
@@ -113,6 +115,7 @@ func extendedGlob(pattern string) (matches []string, err error) {
 		}
 		matches = append(matches, theseMatches...)
 	}
+	sort.Strings(matches)
 	return matches, nil
 }
 
