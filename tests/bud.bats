@@ -5513,6 +5513,32 @@ _EOF
   expect_output --substring "Using cache"
 }
 
+@test "build verify cache must reuse most recent layer in conflict" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world
+_EOF
+
+  # Populate cache
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Dockerfile1
+  # Populate cache again with new layers
+  run_buildah build $WITH_POLICY_JSON --layers --cache-ttl=.01s --iidfile ${TEST_SCRATCH_DIR}/image1.txt -t source -f $contextdir/Dockerfile1
+  # Should not contain `Using cache` since all
+  # cached layers are older than .01s.
+  assert "$output" !~ "Using cache"
+  # Build again use cache and make sure most recently built image is reused
+  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/image2.txt -t source -f $contextdir/Dockerfile1
+  # Must use cache
+  expect_output --substring "Using cache"
+  # image id should be same as the most recently built image which already exists in cache.
+  cmp ${TEST_SCRATCH_DIR}/image1.txt ${TEST_SCRATCH_DIR}/image2.txt
+}
+
 @test "build verify cache behaviour with --cache-ttl=0s" {
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
