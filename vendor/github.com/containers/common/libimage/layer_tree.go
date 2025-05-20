@@ -8,6 +8,7 @@ import (
 
 	"github.com/containers/storage"
 	storageTypes "github.com/containers/storage/types"
+	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
@@ -22,6 +23,10 @@ type layerTree struct {
 	// emptyImages do not have any top-layer so we cannot create a
 	// *layerNode for them.
 	emptyImages []*Image
+	// manifestList keep track of images based on their digest.
+	// Library will use this map when checking if a image is dangling.
+	// If an image is used in a manifestList it is NOT dangling
+	manifestListDigests map[digest.Digest]struct{}
 }
 
 // node returns a layerNode for the specified layerID.
@@ -95,15 +100,16 @@ func (r *Runtime) newFreshLayerTree() (*layerTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.newLayerTreeFromData(images, layers)
+	return r.newLayerTreeFromData(images, layers, false)
 }
 
 // newLayerTreeFromData extracts a layerTree from the given the layers and images.
 // The caller is responsible for (layers, images) being consistent.
-func (r *Runtime) newLayerTreeFromData(images []*Image, layers []storage.Layer) (*layerTree, error) {
+func (r *Runtime) newLayerTreeFromData(images []*Image, layers []storage.Layer, generateManifestDigestList bool) (*layerTree, error) {
 	tree := layerTree{
-		nodes:    make(map[string]*layerNode),
-		ociCache: make(map[string]*ociv1.Image),
+		nodes:               make(map[string]*layerNode),
+		ociCache:            make(map[string]*ociv1.Image),
+		manifestListDigests: make(map[digest.Digest]struct{}),
 	}
 
 	// First build a tree purely based on layer information.
@@ -124,6 +130,30 @@ func (r *Runtime) newLayerTreeFromData(images []*Image, layers []storage.Layer) 
 		topLayer := img.TopLayer()
 		if topLayer == "" {
 			tree.emptyImages = append(tree.emptyImages, img)
+			// When img is a manifest list, cache the lists of
+			// digests refereenced in manifest list. Digests can
+			// be used to check for dangling images.
+			if !generateManifestDigestList {
+				continue
+			}
+			// ignore errors, common errors are
+			//  - image is not manifest
+			//  - image has been removed from the store in the meantime
+			// In all cases we should ensure image listing still works and not error out.
+			mlist, err := img.ToManifestList()
+			if err != nil {
+				// If it is not a manifest it likely is a regular image so just ignore it.
+				// If the image is unknown that likely means there was a race where the image/manifest
+				// was removed after out MultiList() call so we ignore that as well.
+				if errors.Is(err, ErrNotAManifestList) || errors.Is(err, storageTypes.ErrImageUnknown) {
+					continue
+				}
+				return nil, err
+			}
+
+			for _, digest := range mlist.list.Instances() {
+				tree.manifestListDigests[digest] = struct{}{}
+			}
 			continue
 		}
 		node, exists := tree.nodes[topLayer]

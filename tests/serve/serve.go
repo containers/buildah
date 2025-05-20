@@ -3,32 +3,57 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"html"
+	"io"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 func sendThatFile(basepath string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filename := filepath.Join(basepath, filepath.Clean(string([]rune{filepath.Separator})+r.URL.Path))
+		filename := filepath.Join(basepath, filepath.Clean(string([]rune{filepath.Separator})+filepath.FromSlash(r.URL.Path)))
 		f, err := os.Open(filename)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				http.NotFound(w, r)
 				return
 			}
-			http.Error(w, "whoops", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		defer f.Close()
 		finfo, err := f.Stat()
 		if err != nil {
-			http.Error(w, "whoops", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("checking file info: %v", err), http.StatusInternalServerError)
 			return
 		}
-		http.ServeContent(w, r, filename, finfo.ModTime(), f)
+		content := io.ReadSeeker(f)
+		if finfo.IsDir() {
+			names, err := f.ReadDir(-1)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("reading directory: %v", err), http.StatusInternalServerError)
+			}
+			var builder strings.Builder
+			builder.WriteString("<body><html>")
+			for _, name := range names {
+				suffix := ""
+				if name.IsDir() {
+					suffix = "/"
+				}
+				builder.WriteString(fmt.Sprintf("<a href=%q>%s</a><br/>\n", path.Join(r.URL.Path, name.Name())+suffix, html.EscapeString(fs.FormatDirEntry(name))))
+			}
+			builder.WriteString("</html></body>")
+			content = strings.NewReader(builder.String())
+		}
+		http.ServeContent(w, r, filename, finfo.ModTime(), content)
 	}
 }
 
