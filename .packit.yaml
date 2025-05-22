@@ -95,8 +95,7 @@ jobs:
   - job: tests
     trigger: pull_request
     packages: [buildah-fedora]
-    targets: &fedora_copr_test_targets
-      - fedora-all-x86_64
+    targets:
       - fedora-all-x86_64
     tf_extra_params:
       environments:
@@ -109,7 +108,7 @@ jobs:
   - job: tests
     trigger: ignore
     packages: [buildah-centos]
-    targets: &centos_copr_test_targets
+    targets:
       - centos-stream-9-x86_64
       - centos-stream-10-x86_64
     tf_extra_params:
