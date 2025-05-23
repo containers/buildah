@@ -1,7 +1,7 @@
 # if TARGETARCH is defined, we'l pull the x86_64 image
-FROM registry.fedoraproject.org/fedora-minimal:41${TARGETARCH:+-x86_64} AS amd64
+FROM registry.fedoraproject.org/fedora-minimal:42${TARGETARCH:+-x86_64} AS amd64
 # if TARGETARCH is defined, we'l pull the aarch64 image
-FROM registry.fedoraproject.org/fedora-minimal:41${TARGETARCH:+-aarch64} AS arm64
+FROM registry.fedoraproject.org/fedora-minimal:42${TARGETARCH:+-aarch64} AS arm64
 
 # run "file" against both shared libraries
 FROM registry.fedoraproject.org/fedora-minimal AS native
