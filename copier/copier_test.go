@@ -177,7 +177,8 @@ type enumeratedFile struct {
 }
 
 var (
-	testDate = time.Unix(1485449953, 0)
+	testDate       = time.Unix(1485449953, 0)
+	secondTestDate = time.Unix(1485449953*2, 0)
 
 	uid = os.Getuid()
 
@@ -890,6 +891,7 @@ func testGetMultiple(t *testing.T) {
 		renames            map[string]string
 		noDerefSymlinks    bool
 		parents            bool
+		timestamp          *time.Time
 	}
 	getTestArchives := []struct {
 		name              string
@@ -996,6 +998,16 @@ func testGetMultiple(t *testing.T) {
 						"subdir-f",         // from subdir-e
 						"subdir-f/hlink-b", // from subdir-e
 					},
+				},
+				{
+					name:    "timestamped",
+					pattern: "file*",
+					items: []string{
+						"file-0",
+						"file-a",
+						"file-b",
+					},
+					timestamp: &secondTestDate,
 				},
 				{
 					name:    "dot-with-wildcard-includes-and-excludes",
@@ -1520,6 +1532,7 @@ func testGetMultiple(t *testing.T) {
 					Rename:             testCase.renames,
 					NoDerefSymlinks:    testCase.noDerefSymlinks,
 					Parents:            testCase.parents,
+					Timestamp:          testCase.timestamp,
 				}
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {
@@ -1535,15 +1548,18 @@ func testGetMultiple(t *testing.T) {
 					var wg sync.WaitGroup
 					wg.Add(1)
 					go func() {
+						defer wg.Done()
 						getErr = Get(root, topdir, getOptions, []string{testCase.pattern}, pipeWriter)
 						pipeWriter.Close()
-						wg.Done()
 					}()
 					tr := tar.NewReader(pipeReader)
 					hdr, err := tr.Next()
 					actualContents := []string{}
 					for err == nil {
 						actualContents = append(actualContents, filepath.FromSlash(hdr.Name))
+						if testCase.timestamp != nil {
+							assert.Truef(t, testCase.timestamp.Equal(hdr.ModTime), "timestamp was supposed to be forced for %q", hdr.Name)
+						}
 						hdr, err = tr.Next()
 					}
 					pipeReader.Close()
