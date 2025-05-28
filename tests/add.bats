@@ -334,3 +334,61 @@ stuff/mystuff"
     # Only that the add was actually successful.
     run_buildah add $cid /usr/libexec/catatonit/catatonit /catatonit
 }
+
+@test "add-with-timestamp" {
+  _prefetch busybox
+  url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile
+  timestamp=60
+  mkdir -p $TEST_SCRATCH_DIR/context
+  createrandom $TEST_SCRATCH_DIR/context/randomfile1
+  createrandom $TEST_SCRATCH_DIR/context/randomfile2
+  run_buildah from -q busybox
+  cid="$output"
+  # Add the content with more or less contemporary timestamps.
+  run_buildah copy "$cid" $TEST_SCRATCH_DIR/context/randomfile* /default
+  # Add a second copy that should get the same contemporary timestamps.
+  run_buildah copy "$cid" $TEST_SCRATCH_DIR/context/randomfile* /default2
+  # Add a third copy that we explicitly force timestamps for.
+  run_buildah copy --timestamp=$timestamp "$cid" $TEST_SCRATCH_DIR/context/randomfile* /explicit
+  run_buildah add --timestamp=$timestamp "$cid" "$url" /explicit
+  # Add a fourth copy that we forced the timestamps for out of band.
+  cp -v "${BUDFILES}"/from-scratch/Dockerfile $TEST_SCRATCH_DIR/context/
+  tar -cf $TEST_SCRATCH_DIR/tarball -C $TEST_SCRATCH_DIR/context randomfile1 randomfile2 Dockerfile
+  touch -d @$timestamp $TEST_SCRATCH_DIR/context/*
+  run_buildah copy "$cid" $TEST_SCRATCH_DIR/context/* /touched
+  # Add a fifth copy that we forced the timestamps for, from an archive.
+  run_buildah add --timestamp=$timestamp "$cid" $TEST_SCRATCH_DIR/tarball /archive
+  # Build the script to verify this inside of the rootfs.
+  cat > $TEST_SCRATCH_DIR/context/check-dates.sh <<-EOF
+  # Okay, at this point, default, default2, explicit, touched, and archive
+  # should all contain randomfile1, randomfile2, and Dockerfile.
+  # The copies in default and default2 should have contemporary timestamps for
+  # the random files, and a server-supplied timestamp or the epoch for the
+  # Dockerfile.
+  # The copies in explicit, touched, and archive should all have the same
+  # very old timestamps.
+  touch -d @$timestamp /tmp/reference-file
+  for f in /default/* /default2/* ; do
+    if test \$f -ot /tmp/reference-file ; then
+      echo expected \$f to be newer than /tmp/reference-file, but it was not
+      ls -l \$f /tmp/reference-file
+      exit 1
+    fi
+  done
+  for f in /explicit/* /touched/* /archive/* ; do
+    if test \$f -nt /tmp/reference-file ; then
+      echo expected \$f and /tmp/reference-file to have the same datestamp
+      ls -l \$f /tmp/reference-file
+      exit 1
+    fi
+    if test \$f -ot /tmp/reference-file ; then
+      echo expected \$f and /tmp/reference-file to have the same datestamp
+      ls -l \$f /tmp/reference-file
+      exit 1
+    fi
+  done
+  exit 0
+EOF
+  run_buildah copy --chmod=0755 "$cid" $TEST_SCRATCH_DIR/context/check-dates.sh /
+  run_buildah run "$cid" sh -x /check-dates.sh
+}

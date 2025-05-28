@@ -83,6 +83,15 @@ from registries or retrieving content from HTTPS URLs.
 
 Defaults to `2s`.
 
+**--timestamp** *seconds*
+
+Set the timestamp ("mtime") for added content to exactly this number of seconds
+since the epoch (Unix time 0, i.e., 00:00:00 UTC on 1 January 1970) to help
+allow for deterministic builds.
+
+The destination directory into which the content is being copied will most
+likely reflect the time at which the content was added to it.
+
 **--tls-verify** *bool-value*
 
 Require verification of certificates when retrieving sources from HTTPS
