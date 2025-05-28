@@ -7557,6 +7557,18 @@ EOF
   expect_output "" "build should not be able to write to build context"
 }
 
+@test "build-with-two-outputs" {
+  _prefetch busybox
+  mkdir -p "${TEST_SCRATCH_DIR}"/context
+  cat > "${TEST_SCRATCH_DIR}"/context/Containerfile << _EOF
+FROM busybox
+RUN truncate -s1 /built.txt
+_EOF
+  run_buildah build --output type=local,dest=${TEST_SCRATCH_DIR}/output1 --output ${TEST_SCRATCH_DIR}/output2 $WITH_POLICY_JSON "${TEST_SCRATCH_DIR}"/context
+  test -s "${TEST_SCRATCH_DIR}"/output1/built.txt
+  test -s "${TEST_SCRATCH_DIR}"/output2/built.txt
+}
+
 @test "build-with-timestamp-applies-to-oci-archive" {
   local outpath="${TEST_SCRATCH_DIR}/timestamp-oci.tar"
 
