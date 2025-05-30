@@ -43,7 +43,7 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
-	dockertypes "github.com/docker/docker/api/types"
+	dockerbuildtypes "github.com/docker/docker/api/types/build"
 	dockerdockerclient "github.com/docker/docker/client"
 	docker "github.com/fsouza/go-dockerclient"
 	digest "github.com/opencontainers/go-digest"
@@ -758,7 +758,7 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 	if err != nil {
 		output.WriteString("\n" + err.Error())
 	}
-	if _, err := dockerClient.BuildCachePrune(ctx, dockertypes.BuildCachePruneOptions{All: true}); err != nil {
+	if _, err := dockerClient.BuildCachePrune(ctx, dockerbuildtypes.CachePruneOptions{All: true}); err != nil {
 		t.Logf("docker build cache prune: %v", err)
 	}
 
