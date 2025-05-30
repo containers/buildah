@@ -418,7 +418,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				data = strings.TrimPrefix(data, "\n")
 				// add breakline when heredoc ends for docker compat
 				data = data + "\n"
-				// Create seperate subdir for this file.
+				// Create separate subdir for this file.
 				tmpDir, err := os.MkdirTemp(parse.GetTempDir(), "buildah-heredoc")
 				if err != nil {
 					return fmt.Errorf("unable to create tmp dir for heredoc run %q: %w", parse.GetTempDir(), err)
