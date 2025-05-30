@@ -6089,6 +6089,23 @@ _EOF
   expect_output --substring 'building at STEP "RUN grep "myhostname" /etc/hosts'
 }
 
+@test "bud with --add-host with host-gateway" {
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run cat /etc/hosts
+_EOF
+
+  run_buildah build --add-host=myhostname:host-gateway -t testbud \
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile ${mytimedir}
+  expect_output --substring "myhostname"
+}
+
 @test "bud with --cgroup-parent" {
   skip_if_rootless_environment
   skip_if_chroot
