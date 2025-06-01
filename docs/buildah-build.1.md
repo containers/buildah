@@ -34,6 +34,12 @@ Add a custom host-to-IP mapping (host:ip)
 
 Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option can be set multiple times. Conflicts with the --no-hosts option.
 
+Instead of an IP address, the special flag host-gateway can be given. This resolves to an IP address the container can use to connect to the host. The IP address chosen depends on your network setup, thus there's no guarantee that Buildah can determine the host-gateway address automatically, which will then cause Buildah to fail with an error message. You can overwrite this IP address using the host_containers_internal_ip option in containers.conf.
+
+The host-gateway address is also used by Buildah to automatically add the host.containers.internal and host.docker.internal hostnames to /etc/hosts. You can prevent that by either giving the --no-hosts option, or by setting host_containers_internal_ip="none" in containers.conf. If no host-gateway address was configured manually and Buildah fails to determine the IP address automatically, Buildah will silently skip adding these internal hostnames to /etc/hosts. If Buildah is running in a virtual machine using podman machine (this includes Mac and Windows hosts), Buildah will silently skip adding the internal hostnames to /etc/hosts, unless an IP address was configured manually; the internal hostnames are resolved by the gvproxy DNS resolver instead.
+
+Buildah will use the /etc/hosts file of the host as a basis by default, i.e. any hostname present in this file will also be present in the /etc/hosts file of the container. A different base file can be configured using the base_hosts_file config in containers.conf
+
 **--all-platforms**
 
 Instead of building for a set of platforms specified using the **--platform** option, inspect the build's base images, and build for all of the platforms for which they are all available.  Stages that use *scratch* as a starting point can not be inspected, so at least one non-*scratch* stage must be present for detection to work usefully.

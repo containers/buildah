@@ -23,6 +23,7 @@ import (
 	"github.com/containers/buildah/internal/sbom"
 	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/pkg/sshagent"
+	"github.com/containers/common/libnetwork/etchosts"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/parse"
@@ -364,6 +365,9 @@ func validateExtraHost(val string) error {
 	arr := strings.SplitN(val, ":", 2)
 	if len(arr) != 2 || len(arr[0]) == 0 {
 		return fmt.Errorf("bad format for add-host: %q", val)
+	}
+	if arr[1] == etchosts.HostGateway {
+		return nil
 	}
 	if _, err := validateIPAddress(arr[1]); err != nil {
 		return fmt.Errorf("invalid IP address in add-host: %q", arr[1])
