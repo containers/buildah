@@ -96,6 +96,21 @@ function check_matrix() {
   assert "$output" == "" "name label should be removed"
 }
 
+@test "config --unsetannotation" {
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON $base
+  cid=$output
+  run_buildah commit $WITH_POLICY_JSON $cid with-name-annotation
+  run_buildah config --unsetannotation org.opencontainers.image.base.name $cid
+  run_buildah commit $WITH_POLICY_JSON $cid without-name-annotation
+
+  run_buildah inspect --format '{{ index .ImageAnnotations "org.opencontainers.image.base.name"}}' with-name-annotation
+  assert "$output" != "" "annotation should be set in base image"
+  run_buildah inspect --format '{{ index .ImageAnnotations "org.opencontainers.image.base.name"}}' without-name-annotation
+  assert "$output" == "" "name annotation should be removed"
+}
+
 @test "config set empty entrypoint doesn't wipe cmd" {
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output

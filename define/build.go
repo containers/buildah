@@ -340,6 +340,8 @@ type BuildOptions struct {
 	UnsetEnvs []string
 	// UnsetLabels is a list of labels to not add to final image from base image.
 	UnsetLabels []string
+	// UnsetAnnotations is a list of annotations to not add to final image from base image.
+	UnsetAnnotations []string
 	// Envs is a list of environment variables to set in the final image.
 	Envs []string
 	// OSFeatures specifies operating system features the image requires.

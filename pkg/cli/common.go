@@ -116,6 +116,7 @@ type BudResults struct {
 	RusageLogFile       string
 	UnsetEnvs           []string
 	UnsetLabels         []string
+	UnsetAnnotations    []string
 	Envs                []string
 	OSFeatures          []string
 	OSVersion           string
@@ -314,6 +315,7 @@ newer:   only pull base and SBOM scanner images when newer images exist on the r
 	fs.String("variant", "", "override the `variant` of the specified image")
 	fs.StringSliceVar(&flags.UnsetEnvs, "unsetenv", nil, "unset environment variable from final image")
 	fs.StringSliceVar(&flags.UnsetLabels, "unsetlabel", nil, "unset label when inheriting labels from base image")
+	fs.StringSliceVar(&flags.UnsetAnnotations, "unsetannotation", nil, "unset annotation when inheriting annotation from base image")
 	return fs
 }
 
@@ -368,6 +370,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["timestamp"] = commonComp.AutocompleteNone
 	flagCompletion["unsetenv"] = commonComp.AutocompleteNone
 	flagCompletion["unsetlabel"] = commonComp.AutocompleteNone
+	flagCompletion["unsetannotation"] = commonComp.AutocompleteNone
 	flagCompletion["variant"] = commonComp.AutocompleteNone
 	return flagCompletion
 }
