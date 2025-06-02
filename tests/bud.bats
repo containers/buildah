@@ -141,6 +141,46 @@ _EOF
   expect_output "0" "layer should not exist"
 }
 
+@test "bud and test --inherit-annotations with --layers" {
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  target=exp
+
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  buildah inspect --format '{{ .ImageAnnotations }}' $base
+  not_want_output='map[]'
+  assert "$output" != "$not_want_output" "expected some annotations to be set in base image $base"
+
+  ## Build without removing annotations
+  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid1 -t $target --from $base $BUDFILES/base-with-labels
+  ## Second build must use cache
+  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid2 -t $target --from $base $BUDFILES/base-with-labels
+  ## Must use cache
+  expect_output --substring " Using cache"
+  cmp ${TEST_SCRATCH_DIR}/iid1 ${TEST_SCRATCH_DIR}/iid2
+
+  ## Since we are inheriting no labels, this should not use previous image present in the cache.
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false -t $target --from $base $BUDFILES/base-with-labels
+  ## Should not contain `Using Cache`
+  assert "$output" !~ "Using cache"
+
+  # no annotations should be inherited from base image
+  want_output='map[]'
+  run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' $target
+  expect_output "$want_output"
+
+  ## Build again but set a new annotation and don't inherit annotations from base image
+  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false --annotation hello=world -t $target --from $base $BUDFILES/base-with-labels
+
+  # no annotations should be inherited from base image
+  want_output='map["hello":"world"]'
+  run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' $target
+  expect_output "$want_output"
+}
+
 @test "bud: build push with --force-compression" {
   skip_if_no_podman
   blobcachedir=${TEST_SCRATCH_DIR}/blobcachelocal

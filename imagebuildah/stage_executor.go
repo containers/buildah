@@ -1880,9 +1880,14 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		return "/bin/sh", nil
 	}
 	inheritLabels := ""
+	inheritAnnotations := ""
 	// If --inherit-label was manually set to false then update history.
 	if s.executor.inheritLabels == types.OptionalBoolFalse {
 		inheritLabels = "|inheritLabels=false"
+	}
+	// If --inherit-annotation was manually set to false then update history.
+	if s.executor.inheritAnnotations == types.OptionalBoolFalse {
+		inheritAnnotations = "|inheritAnnotations=false"
 	}
 	switch strings.ToUpper(node.Value) {
 	case "ARG":
@@ -1892,7 +1897,7 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 			}
 		}
 		buildArgs := s.getBuildArgsKey()
-		return "/bin/sh -c #(nop) ARG " + buildArgs + inheritLabels, nil
+		return "/bin/sh -c #(nop) ARG " + buildArgs + inheritLabels + inheritAnnotations, nil
 	case "RUN":
 		shArg := ""
 		buildArgs := s.getBuildArgsResolvedForRun()
@@ -1972,16 +1977,16 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		if buildArgs != "" {
 			result = result + "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " "
 		}
-		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum + inheritLabels
+		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum + inheritLabels + inheritAnnotations
 		return result, nil
 	case "ADD", "COPY":
 		destination := node
 		for destination.Next != nil {
 			destination = destination.Next
 		}
-		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + " " + addedContentSummary + " in " + destination.Value + " " + inheritLabels, nil
+		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + " " + addedContentSummary + " in " + destination.Value + " " + inheritLabels + inheritAnnotations, nil
 	default:
-		return "/bin/sh -c #(nop) " + node.Original + inheritLabels, nil
+		return "/bin/sh -c #(nop) " + node.Original + inheritLabels + inheritAnnotations, nil
 	}
 }
 
@@ -2426,6 +2431,11 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	}
 	for _, key := range s.executor.unsetLabels {
 		s.builder.UnsetLabel(key)
+	}
+	if s.executor.inheritAnnotations == types.OptionalBoolFalse {
+		// If user has selected `--inherit-annotations=false` let's not
+		// inherit annotations from base image.
+		s.builder.ClearAnnotations()
 	}
 	for _, annotationSpec := range s.executor.annotations {
 		annotationk, annotationv, _ := strings.Cut(annotationSpec, "=")
