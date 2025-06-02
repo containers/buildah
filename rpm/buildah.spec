@@ -56,7 +56,6 @@ BuildRequires: go-rpm-macros
 BuildRequires: gpgme-devel
 BuildRequires: libassuan-devel
 BuildRequires: make
-BuildRequires: ostree-devel
 %if %{defined build_with_btrfs}
 BuildRequires: btrfs-progs-devel
 %endif
