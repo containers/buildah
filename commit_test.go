@@ -174,9 +174,9 @@ func TestCommitLinkedLayers(t *testing.T) {
 	}
 	b.AddAppendedLinkedLayer(nil, imageName(layerNumber+6), "", "", ninthArchiveFile)
 	ref, err = imageStorage.Transport.ParseStoreReference(store, imageName(layerNumber))
-	require.NoError(t, err, "parsing reference for to-be-committed image", imageName(layerNumber))
+	require.NoErrorf(t, err, "parsing reference for to-be-committed image %q", imageName(layerNumber))
 	_, _, _, err = b.Commit(ctx, ref, commitOptions)
-	require.NoError(t, err, "committing", imageName(layerNumber))
+	require.NoErrorf(t, err, "committing %q", imageName(layerNumber))
 
 	// Build one last image based on the previous one.
 	builderOptions.FromImage = imageName(layerNumber)

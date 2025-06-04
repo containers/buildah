@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -39,6 +41,8 @@ type commitInputOptions struct {
 	manifest           string
 	omitTimestamp      bool
 	timestamp          int64
+	sourceDateEpoch    string
+	rewriteTimestamp   bool
 	quiet              bool
 	referenceTime      string
 	rm                 bool
@@ -117,7 +121,14 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	flags.StringVar(&opts.iidfile, "iidfile", "", "write the image ID to the file")
 	_ = cmd.RegisterFlagCompletionFunc("iidfile", completion.AutocompleteDefault)
 	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
-	flags.Int64Var(&opts.timestamp, "timestamp", 0, "set created timestamp to epoch seconds to allow for deterministic builds, defaults to current time")
+	sourceDateEpochUsageDefault := "current time"
+	if v := os.Getenv(internal.SourceDateEpochName); v != "" {
+		sourceDateEpochUsageDefault = fmt.Sprintf("%q", v)
+	}
+	flags.StringVar(&opts.sourceDateEpoch, "source-date-epoch", os.Getenv(internal.SourceDateEpochName), "set new timestamps in image info to `seconds` after the epoch, defaults to "+sourceDateEpochUsageDefault)
+	_ = cmd.RegisterFlagCompletionFunc("source-date-epoch", completion.AutocompleteNone)
+	flags.BoolVar(&opts.rewriteTimestamp, "rewrite-timestamp", false, "set timestamps in layer to no later than the value for --source-date-epoch")
+	flags.Int64Var(&opts.timestamp, "timestamp", 0, "set new timestamps in image info and layer to `seconds` after the epoch, defaults to current times")
 	_ = cmd.RegisterFlagCompletionFunc("timestamp", completion.AutocompleteNone)
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
 	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
@@ -317,6 +328,16 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		timestamp := finfo.ModTime().UTC()
 		options.HistoryTimestamp = &timestamp
 	}
+	if iopts.sourceDateEpoch != "" {
+		exclusiveFlags++
+		sourceDateEpochVal, err := strconv.ParseInt(iopts.sourceDateEpoch, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parsing source date epoch %q: %w", iopts.sourceDateEpoch, err)
+		}
+		sourceDateEpoch := time.Unix(sourceDateEpochVal, 0).UTC()
+		options.SourceDateEpoch = &sourceDateEpoch
+	}
+	options.RewriteTimestamp = iopts.rewriteTimestamp
 	if c.Flag("timestamp").Changed {
 		exclusiveFlags++
 		timestamp := time.Unix(iopts.timestamp, 0).UTC()
@@ -326,6 +347,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		exclusiveFlags++
 		timestamp := time.Unix(0, 0).UTC()
 		options.HistoryTimestamp = &timestamp
+	}
+	if exclusiveFlags > 1 {
+		return errors.New("cannot use more then one timestamp option at at time")
 	}
 
 	if iopts.cwOptions != "" {
@@ -350,10 +374,6 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		sbomOption.PullPolicy = pullPolicy
 		sbomOptions = append(sbomOptions, *sbomOption)
 		options.SBOMScanOptions = sbomOptions
-	}
-
-	if exclusiveFlags > 1 {
-		return errors.New("can not use more then one timestamp option at at time")
 	}
 
 	if !iopts.quiet {

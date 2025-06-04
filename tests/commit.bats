@@ -400,3 +400,145 @@ load helpers
   umount $tmp
   expect_output --substring "no space left on device"
 }
+
+@test "commit-with-source-date-epoch" {
+  _prefetch busybox
+  local url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile
+  local timestamp=60
+  local datestamp="1970-01-01T00:01:00Z"
+  mkdir -p $TEST_SCRATCH_DIR/context
+  createrandom $TEST_SCRATCH_DIR/context/randomfile1
+  createrandom $TEST_SCRATCH_DIR/context/randomfile2
+  run_buildah from -q busybox
+  local cid="$output"
+  run_buildah add --add-history "$cid" $TEST_SCRATCH_DIR/context/* /context
+  # commit using defaults
+  run_buildah commit "$cid" oci:$TEST_SCRATCH_DIR/default
+  # commit with an implicitly-provided timestamp
+  export local SOURCE_DATE_EPOCH=$timestamp
+  run_buildah commit "$cid" oci:$TEST_SCRATCH_DIR/implicit
+  run_buildah commit --rewrite-timestamp "$cid" oci:$TEST_SCRATCH_DIR/implicit-rewritten
+  unset SOURCE_DATE_EPOCH
+  # commit with an explicity-provided timestamp
+  run_buildah commit --source-date-epoch=$timestamp "$cid" oci:$TEST_SCRATCH_DIR/explicit
+  run_buildah commit --source-date-epoch=$timestamp --rewrite-timestamp "$cid" oci:$TEST_SCRATCH_DIR/explicit-rewritten
+
+  # check timestamps in the ones we forced: find the manifest's and config's digests
+  manifestdigest=$(oci_image_manifest_digest "$TEST_SCRATCH_DIR"/explicit)
+  manifestalg=${manifestdigest%%:*}
+  manifestval=${manifestdigest##*:}
+  configdigest=$(oci_image_config_digest "$TEST_SCRATCH_DIR"/explicit)
+  configalg=${configdigest%%:*}
+  configval=${configdigest##*:}
+  # check timestamps in the ones we forced: read the image creation date
+  config="$TEST_SCRATCH_DIR"/explicit/$(oci_image_config "$TEST_SCRATCH_DIR"/explicit)
+  run jq -r '.created' "$config"
+  echo "$output"
+  assert $status = 0 "looking for the image creation date"
+  assert "$output" = "$datestamp" "unexpected creation date for image"
+  # check timestamps in the ones we forced: read the image history entry dates
+  run jq -r '.history[-2].created' "$config"
+  echo "$output"
+  assert $status = 0 "looking for the image history entries"
+  jq '.history' "$config"
+  for line in "$lines[@]"; do
+    assert "$output" = "$datestamp" "unexpected datestamp for history entry"
+  done
+  # check timestamps in the ones we forced: extract the layer blob
+  layer="$TEST_SCRATCH_DIR"/explicit/$(oci_image_last_diff "$TEST_SCRATCH_DIR"/explicit)
+  mkdir -p "$TEST_SCRATCH_DIR"/layer
+  tar -C "$TEST_SCRATCH_DIR"/layer -xvf "$layer"
+  # check timestamps in the ones we forced: walk the layer blob, checking
+  # timestamps
+  for file in $(find $TEST_SCRATCH_DIR/layer/* -print) ; do
+    run stat -c %Y $file
+    assert $status = 0 "checking datestamp on $file in layer"
+    assert "$output" -gt "$timestamp" "unexpected datestamp on $file in layer"
+  done
+  # check timestamps in the ones we forced: check that we have an image config
+  # and manifest with the same digests when we set the source date epoch
+  # implicitly as we did when we forced them explicitly
+  test -s $TEST_SCRATCH_DIR/implicit/blobs/"$manifestalg"/"$manifestval"
+  test -s $TEST_SCRATCH_DIR/implicit/blobs/"$configalg"/"$configval"
+
+  # check timestamps in the ones we forced and rewrote timestamps in: the
+  # version where we rewrote timestamps in the layer should have produced
+  # different diffIDs, and thus a different config blob, and a different
+  # manifest, so the ones we just looked at shouldn't _also_ be in there
+  ! test -s $TEST_SCRATCH_DIR/explicit-rewritten/blobs/"$manifestalg"/"$manifestval"
+  ! test -s $TEST_SCRATCH_DIR/explicit-rewritten/blobs/"$configalg"/"$configval"
+
+  # check timestamps in the ones we forced and rewrote timestamps in: find the
+  # manifest's and config's digests
+  manifestdigest=$(oci_image_manifest_digest "$TEST_SCRATCH_DIR"/explicit-rewritten)
+  manifestalg=${manifestdigest%%:*}
+  manifestval=${manifestdigest##*:}
+  configdigest=$(oci_image_config_digest "$TEST_SCRATCH_DIR"/explicit-rewritten)
+  configalg=${configdigest%%:*}
+  configval=${configdigest##*:}
+  # check timestamps in the ones we forced and rewrote timestamps in: read the
+  # image creation date
+  config="$TEST_SCRATCH_DIR"/explicit-rewritten/$(oci_image_config "$TEST_SCRATCH_DIR"/explicit-rewritten)
+  run jq -r '.created' "$config"
+  echo "$output"
+  assert $status = 0 "looking for the image creation date"
+  assert "$output" = "$datestamp" "unexpected creation date for image"
+  # check timestamps in the ones we forced and rewrote timestamps in: read the
+  # image history entry dates
+  run jq -r '.history[-2].created' "$config"
+  echo "$output"
+  assert $status = 0 "looking for the image history entries"
+  jq '.history' "$config"
+  for line in "$lines[@]"; do
+    assert "$output" = "$datestamp" "unexpected datestamp for history entry"
+  done
+  # check timestamps in the ones we forced and rewrote timestamps in: extract
+  # the layer blob
+  layer="$TEST_SCRATCH_DIR"/explicit-rewritten/$(oci_image_last_diff "$TEST_SCRATCH_DIR"/explicit-rewritten)
+  rm -fr $TEST_SCRATCH_DIR/layer; mkdir -p $TEST_SCRATCH_DIR/layer
+  tar -C $TEST_SCRATCH_DIR/layer -xvf "$layer"
+  # check timestamps in the ones we forced and rewrote timestamps in: walk the
+  # layer blob, checking timestamps
+  for file in $(find $TEST_SCRATCH_DIR/layer/* -print) ; do
+    run stat -c %Y $file
+    assert $status = 0 "checking datestamp on $file in layer"
+    assert "$output" -le "$timestamp" "unexpected datestamp on $file in layer"
+  done
+  # check timestamps in the ones we forced and rewrote timestamps in: check
+  # that we have an image config and manifest with the same digests when we set
+  # the source date epoch implicitly as we did when we forced them explicitly
+  test -s $TEST_SCRATCH_DIR/implicit-rewritten/blobs/"$manifestalg"/"$manifestval"
+  test -s $TEST_SCRATCH_DIR/implicit-rewritten/blobs/"$configalg"/"$configval"
+
+  # check timestamps in the one we didn't force: find the manifest's and config's digests
+  manifestdigest=$(oci_image_manifest_digest "$TEST_SCRATCH_DIR"/default)
+  manifestalg=${manifestdigest%%:*}
+  manifestval=${manifestdigest##*:}
+  configdigest=$(oci_image_config_digest "$TEST_SCRATCH_DIR"/default)
+  configalg=${configdigest%%:*}
+  configval=${configdigest##*:}
+  # check timestamps in the one we didn't force: read the image creation date
+  config="$TEST_SCRATCH_DIR"/default/$(oci_image_config "$TEST_SCRATCH_DIR"/default)
+  run jq -r '.created' "$config"
+  echo "$output"
+  assert $status = 0 "looking for the image creation date"
+  assert "$output" != "$datestamp" "unexpected creation date for image"
+  # check timestamps in the one we didn't force: read the image history entry dates
+  run jq -r '.history[-2].created' "$config"
+  echo "$output"
+  assert $status = 0 "looking for the image history entries"
+  jq '.history' "$config"
+  for line in "$lines[@]"; do
+    assert "$output" != "$datestamp" "unexpected datestamp for history entry"
+  done
+  # check timestamps in the ones we didn't force: extract the layer blob
+  layer="$TEST_SCRATCH_DIR"/default/$(oci_image_last_diff "$TEST_SCRATCH_DIR"/default)
+  rm -fr $TEST_SCRATCH_DIR/layer; mkdir -p $TEST_SCRATCH_DIR/layer
+  tar -C $TEST_SCRATCH_DIR/layer -xvf "$layer"
+  # check timestamps in the ones we didn't force: walk the layer blob, checking timestamps
+  for file in $(find $TEST_SCRATCH_DIR/layer/* -print) ; do
+    run stat -c %Y $file
+    assert $status = 0 "checking datestamp on $file in layer"
+    assert "$output" != "$timestamp" "unexpected datestamp on $file in layer"
+  done
+}
