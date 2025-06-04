@@ -12,6 +12,8 @@ BUILDTAGS += $(TAGS)
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR = $(PREFIX)/share/bash-completion/completions
+ZSHINSTALLDIR=$(PREFIX)/share/zsh/site-functions
+FISHINSTALLDIR=$(PREFIX)/share/fish/vendor_completions.d
 BUILDFLAGS := -tags "$(BUILDTAGS)"
 BUILDAH := buildah
 SELINUXOPT ?= $(shell test -x /usr/sbin/selinuxenabled && selinuxenabled && echo -Z)
@@ -59,7 +61,7 @@ export GOLANGCI_LINT_VERSION := 2.1.0
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently
 #           use source debugging tools like delve.
-all: bin/buildah bin/imgtype bin/copy bin/inet bin/tutorial bin/dumpspec docs
+all: bin/buildah bin/imgtype bin/copy bin/inet bin/tutorial bin/dumpspec docs contrib/completions/bash/buildah contrib/completions/fish/buildah.fish contrib/completions/zsh/_buildah
 
 bin/buildah: $(SOURCES) internal/mkcw/embed/entrypoint_amd64.gz
 	$(GO_BUILD) $(BUILDAH_LDFLAGS) $(GO_GCFLAGS) "$(GOGCFLAGS)" -o $@ $(BUILDFLAGS) ./cmd/buildah
@@ -108,7 +110,7 @@ bin/inet: tests/inet/inet.go
 
 .PHONY: clean
 clean:
-	$(RM) -r bin tests/testreport/testreport
+	$(RM) -r bin contrib/completions/bash contrib/completions/fish contrib/completions/zsh tests/testreport/testreport
 	$(MAKE) -C docs clean
 
 .PHONY: docs
@@ -139,11 +141,27 @@ uninstall:
 	rm -f $(DESTDIR)/$(BINDIR)/buildah
 	rm -f $(PREFIX)/share/man/man1/buildah*.1
 	rm -f $(DESTDIR)/$(BASHINSTALLDIR)/buildah
+	rm -f $(DESTDIR)/$(FISHINSTALLDIR)/buildah.fish
+	rm -f $(DESTDIR)/$(ZSHINSTALLDIR)/_buildah
+
+contrib/completions/bash/buildah: ./bin/buildah
+	mkdir -p contrib/completions/bash
+	./bin/buildah completion bash > $@
+contrib/completions/fish/buildah.fish: ./bin/buildah
+	mkdir -p contrib/completions/fish
+	./bin/buildah completion fish > $@
+contrib/completions/zsh/_buildah: ./bin/buildah
+	mkdir -p contrib/completions/zsh
+	./bin/buildah completion zsh > $@
 
 .PHONY: install.completions
-install.completions:
+install.completions: contrib/completions/bash/buildah contrib/completions/fish/buildah.fish contrib/completions/zsh/_buildah
 	install -m 755 -d $(DESTDIR)/$(BASHINSTALLDIR)
 	install -m 644 contrib/completions/bash/buildah $(DESTDIR)/$(BASHINSTALLDIR)/buildah
+	install -m 755 -d $(DESTDIR)/$(FISHINSTALLDIR)
+	install -m 644 contrib/completions/fish/buildah.fish $(DESTDIR)/$(FISHINSTALLDIR)/buildah.fish
+	install -m 755 -d $(DESTDIR)/$(ZSHINSTALLDIR)
+	install -m 644 contrib/completions/zsh/_buildah $(DESTDIR)/$(ZSHINSTALLDIR)/_buildah
 
 .PHONY: test-conformance
 test-conformance:
