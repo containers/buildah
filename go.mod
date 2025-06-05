@@ -38,7 +38,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/crypto v0.38.0
-	golang.org/x/sync v0.14.0
+	golang.org/x/sync v0.15.0
 	golang.org/x/sys v0.33.0
 	golang.org/x/term v0.32.0
 	sigs.k8s.io/yaml v1.4.0
