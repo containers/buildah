@@ -21,6 +21,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -259,6 +260,16 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		}
 		// Deep copy args to prevent concurrent read/writes over Args.
 		platformOptions.Args = maps.Clone(options.Args)
+
+		if options.SourceDateEpoch != nil {
+			if options.Timestamp != nil {
+				return "", nil, errors.New("timestamp and source-date-epoch would be ambiguous if allowed together")
+			}
+			if _, alreadySet := platformOptions.Args[internal.SourceDateEpochName]; !alreadySet {
+				platformOptions.Args[internal.SourceDateEpochName] = fmt.Sprintf("%d", options.SourceDateEpoch.Unix())
+			}
+		}
+
 		builds.Go(func() error {
 			loggerPerPlatform := logger
 			if platformOptions.LogFile != "" && platformOptions.LogSplitByPlatform {

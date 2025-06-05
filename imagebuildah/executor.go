@@ -14,6 +14,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
@@ -43,18 +44,19 @@ import (
 // instruction in the Dockerfile, since that's usually an indication of a user
 // error, but for these values we make exceptions and ignore them.
 var builtinAllowedBuildArgs = map[string]struct{}{
-	"HTTP_PROXY":     {},
-	"http_proxy":     {},
-	"HTTPS_PROXY":    {},
-	"https_proxy":    {},
-	"FTP_PROXY":      {},
-	"ftp_proxy":      {},
-	"NO_PROXY":       {},
-	"no_proxy":       {},
-	"TARGETARCH":     {},
-	"TARGETOS":       {},
-	"TARGETPLATFORM": {},
-	"TARGETVARIANT":  {},
+	"HTTP_PROXY":                 {},
+	"http_proxy":                 {},
+	"HTTPS_PROXY":                {},
+	"https_proxy":                {},
+	"FTP_PROXY":                  {},
+	"ftp_proxy":                  {},
+	"NO_PROXY":                   {},
+	"no_proxy":                   {},
+	"TARGETARCH":                 {},
+	"TARGETOS":                   {},
+	"TARGETPLATFORM":             {},
+	"TARGETVARIANT":              {},
+	internal.SourceDateEpochName: {},
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -164,6 +166,8 @@ type Executor struct {
 	compatVolumes                           types.OptionalBool
 	compatScratchConfig                     types.OptionalBool
 	noPivotRoot                             bool
+	sourceDateEpoch                         *time.Time
+	rewriteTimestamp                        bool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -330,6 +334,8 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		compatVolumes:                           options.CompatVolumes,
 		compatScratchConfig:                     options.CompatScratchConfig,
 		noPivotRoot:                             options.NoPivotRoot,
+		sourceDateEpoch:                         options.SourceDateEpoch,
+		rewriteTimestamp:                        options.RewriteTimestamp,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

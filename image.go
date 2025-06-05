@@ -52,9 +52,10 @@ const (
 // control whether various information like the like setuid and setgid bits and
 // xattrs are preserved when extracting file system objects.
 type ExtractRootfsOptions struct {
-	StripSetuidBit bool // strip the setuid bit off of items being extracted.
-	StripSetgidBit bool // strip the setgid bit off of items being extracted.
-	StripXattrs    bool // don't record extended attributes of items being extracted.
+	StripSetuidBit bool       // strip the setuid bit off of items being extracted.
+	StripSetgidBit bool       // strip the setgid bit off of items being extracted.
+	StripXattrs    bool       // don't record extended attributes of items being extracted.
+	ForceTimestamp *time.Time // force timestamps in output content
 }
 
 type containerImageRef struct {
@@ -226,13 +227,14 @@ func (i *containerImageRef) extractRootfs(opts ExtractRootfsOptions) (io.ReadClo
 	pipeReader, pipeWriter := io.Pipe()
 	errChan := make(chan error, 1)
 	go func() {
+		defer pipeWriter.Close()
 		defer close(errChan)
 		if len(i.extraImageContent) > 0 {
 			// Abuse the tar format and _prepend_ the synthesized
 			// data items to the archive we'll get from
 			// copier.Get(), in a way that looks right to a reader
 			// as long as we DON'T Close() the tar Writer.
-			filename, _, _, err := i.makeExtraImageContentDiff(false)
+			filename, _, _, err := i.makeExtraImageContentDiff(false, opts.ForceTimestamp)
 			if err != nil {
 				errChan <- fmt.Errorf("creating part of archive with extra content: %w", err)
 				return
@@ -257,10 +259,10 @@ func (i *containerImageRef) extractRootfs(opts ExtractRootfsOptions) (io.ReadClo
 			StripSetuidBit: opts.StripSetuidBit,
 			StripSetgidBit: opts.StripSetgidBit,
 			StripXattrs:    opts.StripXattrs,
+			Timestamp:      opts.ForceTimestamp,
 		}
 		err := copier.Get(mountPoint, mountPoint, copierOptions, []string{"."}, pipeWriter)
 		errChan <- err
-		pipeWriter.Close()
 	}()
 	return ioutils.NewReadCloserWrapper(pipeReader, func() error {
 		if err = pipeReader.Close(); err != nil {
@@ -849,7 +851,7 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 			layerUncompressedSize = apiLayers[apiLayerIndex].size
 		} else if layerID == synthesizedLayerID {
 			// layer diff consisting of extra files to synthesize into a layer
-			diffFilename, digest, size, err := i.makeExtraImageContentDiff(true)
+			diffFilename, digest, size, err := i.makeExtraImageContentDiff(true, nil)
 			if err != nil {
 				return nil, fmt.Errorf("unable to generate layer for additional content: %w", err)
 			}
@@ -1152,7 +1154,7 @@ func (i *containerImageSource) GetBlob(_ context.Context, blob types.BlobInfo, _
 // makeExtraImageContentDiff creates an archive file containing the contents of
 // files named in i.extraImageContent.  The footer that marks the end of the
 // archive may be omitted.
-func (i *containerImageRef) makeExtraImageContentDiff(includeFooter bool) (_ string, _ digest.Digest, _ int64, retErr error) {
+func (i *containerImageRef) makeExtraImageContentDiff(includeFooter bool, timestamp *time.Time) (_ string, _ digest.Digest, _ int64, retErr error) {
 	cdir, err := i.store.ContainerDirectory(i.containerID)
 	if err != nil {
 		return "", "", -1, err
@@ -1170,9 +1172,12 @@ func (i *containerImageRef) makeExtraImageContentDiff(includeFooter bool) (_ str
 	digester := digest.Canonical.Digester()
 	counter := ioutils.NewWriteCounter(digester.Hash())
 	tw := tar.NewWriter(io.MultiWriter(diff, counter))
-	created := time.Now()
-	if i.created != nil {
-		created = *i.created
+	if timestamp == nil {
+		now := time.Now()
+		timestamp = &now
+		if i.created != nil {
+			timestamp = i.created
+		}
 	}
 	for path, contents := range i.extraImageContent {
 		if err := func() error {
@@ -1189,7 +1194,7 @@ func (i *containerImageRef) makeExtraImageContentDiff(includeFooter bool) (_ str
 				Name:     path,
 				Typeflag: tar.TypeReg,
 				Mode:     0o644,
-				ModTime:  created,
+				ModTime:  *timestamp,
 				Size:     st.Size(),
 			}); err != nil {
 				return err

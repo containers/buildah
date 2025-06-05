@@ -2457,6 +2457,8 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
 		CompatSetParent:       s.executor.compatSetParent,
+		SourceDateEpoch:       s.executor.sourceDateEpoch,
+		RewriteTimestamp:      s.executor.rewriteTimestamp,
 	}
 	if finalInstruction {
 		options.ConfidentialWorkloadOptions = s.executor.confidentialWorkload
@@ -2478,7 +2480,13 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 }
 
 func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOption) error {
-	extractRootfsOpts := buildah.ExtractRootfsOptions{}
+	forceTimestamp := s.executor.timestamp
+	if s.executor.sourceDateEpoch != nil {
+		forceTimestamp = s.executor.sourceDateEpoch
+	}
+	extractRootfsOpts := buildah.ExtractRootfsOptions{
+		ForceTimestamp: forceTimestamp,
+	}
 	if unshare.IsRootless() {
 		// In order to maintain as much parity as possible
 		// with buildkit's version of --output and to avoid
@@ -2492,7 +2500,11 @@ func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOp
 		extractRootfsOpts.StripSetgidBit = true
 		extractRootfsOpts.StripXattrs = true
 	}
-	rc, errChan, err := s.builder.ExtractRootfs(buildah.CommitOptions{}, extractRootfsOpts)
+	rc, errChan, err := s.builder.ExtractRootfs(buildah.CommitOptions{
+		HistoryTimestamp: s.executor.timestamp,
+		SourceDateEpoch:  s.executor.sourceDateEpoch,
+		RewriteTimestamp: s.executor.rewriteTimestamp,
+	}, extractRootfsOpts)
 	if err != nil {
 		return fmt.Errorf("failed to extract rootfs from given container image: %w", err)
 	}

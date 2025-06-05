@@ -7593,3 +7593,177 @@ _EOF
   # should be the same
   diff "${outpath}.b" "${outpath}.c"
 }
+
+@test "bud-source-date-epoch-arg" {
+  _prefetch busybox
+  local timestamp=60
+  mkdir -p $TEST_SCRATCH_DIR/context
+  cat > $TEST_SCRATCH_DIR/context/Dockerfile <<EOF
+  FROM busybox
+  RUN echo \$SOURCE_DATE_EPOCH | tee /SOURCE_DATE_EPOCH_BEFORE
+  ARG SOURCE_DATE_EPOCH
+  RUN echo \$SOURCE_DATE_EPOCH | tee /SOURCE_DATE_EPOCH_AFTER
+EOF
+  # build twice with no cache, with both an explicit and implicitly-set source-date-epoch value
+  run_buildah build --layers --no-cache --source-date-epoch=$timestamp -t dir:$TEST_SCRATCH_DIR/explicit $TEST_SCRATCH_DIR/context
+  sleep 2 # if both of the flag and environment variable get ignored for some reason, this will force the test to fail
+  export local SOURCE_DATE_EPOCH=$timestamp
+  run_buildah build --layers --no-cache -t dir:$TEST_SCRATCH_DIR/implicit $TEST_SCRATCH_DIR/context
+  unset SOURCE_DATE_EPOCH
+  # build once without the override
+  run_buildah build --layers --no-cache -t dir:$TEST_SCRATCH_DIR/default $TEST_SCRATCH_DIR/context
+  assert "$output" !~ "missing.*SOURCE_DATE_EPOCH.*build argument"
+  # extract the layers
+  mkdir -p $TEST_SCRATCH_DIR/explicit-layer $TEST_SCRATCH_DIR/implicit-layer $TEST_SCRATCH_DIR/default-layer
+  echo extracting next-to-last layer for build with explicit flag $(dir_image_diff $TEST_SCRATCH_DIR/explicit - 2)
+  tar -C $TEST_SCRATCH_DIR/explicit-layer -xvf $TEST_SCRATCH_DIR/explicit/$(dir_image_diff $TEST_SCRATCH_DIR/explicit - 2)
+  echo extracting next-to-last layer for build with environment flag $(dir_image_diff $TEST_SCRATCH_DIR/implicit - 2)
+  tar -C $TEST_SCRATCH_DIR/implicit-layer -xvf $TEST_SCRATCH_DIR/implicit/$(dir_image_diff $TEST_SCRATCH_DIR/implicit - 2)
+  echo extracting next-to-last layer for default $(dir_image_diff $TEST_SCRATCH_DIR/default - 2)
+  tar -C $TEST_SCRATCH_DIR/default-layer -xvf $TEST_SCRATCH_DIR/default/$(dir_image_diff $TEST_SCRATCH_DIR/default - 2)
+  echo extracting last layer for build with explicit flag $(dir_image_last_diff $TEST_SCRATCH_DIR/explicit)
+  tar -C $TEST_SCRATCH_DIR/explicit-layer -xvf $TEST_SCRATCH_DIR/explicit/$(dir_image_last_diff $TEST_SCRATCH_DIR/explicit)
+  echo extracting last layer for build with environment flag $(dir_image_last_diff $TEST_SCRATCH_DIR/implicit)
+  tar -C $TEST_SCRATCH_DIR/implicit-layer -xvf $TEST_SCRATCH_DIR/implicit/$(dir_image_last_diff $TEST_SCRATCH_DIR/implicit)
+  echo extracting last layer for default $(dir_image_last_diff $TEST_SCRATCH_DIR/default)
+  tar -C $TEST_SCRATCH_DIR/default-layer -xvf $TEST_SCRATCH_DIR/default/$(dir_image_last_diff $TEST_SCRATCH_DIR/default)
+  # check the contents of files that recorded $SOURCE_DATE_EPOCH before the ARG was declared, which all should have been empty
+  assert "$(cat $TEST_SCRATCH_DIR/explicit-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined yet when --source-date-epoch was specified on the command line"
+  assert "$(cat $TEST_SCRATCH_DIR/implicit-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined yet when \$SOURCE_DATE_EPOCH was set in the environment"
+  assert "$(cat $TEST_SCRATCH_DIR/default-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined at all, since we didn't specify a source date epoch"
+  # check the contents of files that recorded $SOURCE_DATE_EPOCH after the ARG was declared, which should contain a value if it was defined, or be empty
+  assert "$(cat $TEST_SCRATCH_DIR/explicit-layer/SOURCE_DATE_EPOCH_AFTER)" = "$timestamp" "SOURCE_DATE_EPOCH arg should have been correctly defined when --source-date-epoch was specified on the command line"
+  assert "$(cat $TEST_SCRATCH_DIR/implicit-layer/SOURCE_DATE_EPOCH_AFTER)" = "$timestamp" "SOURCE_DATE_EPOCH arg should have been correctly defined when \$SOURCE_DATE_EPOCH was set in the environment"
+  assert "$(cat $TEST_SCRATCH_DIR/default-layer/SOURCE_DATE_EPOCH_AFTER)" = "" "SOURCE_DATE_EPOCH arg should have not been defined at all, since we didn't specify a source date epoch"
+}
+
+@test "bud-with-source-date-epoch-env" {
+  _prefetch busybox
+  local timestamp=60
+  local datestamp="1970-01-01T00:01:00Z"
+  mkdir -p $TEST_SCRATCH_DIR/context
+  createrandom $TEST_SCRATCH_DIR/context/randomfile1
+  createrandom $TEST_SCRATCH_DIR/context/randomfile2
+  createrandom $TEST_SCRATCH_DIR/context/randomfile3
+  tar c --owner=root:0 --group=root:0 -C $TEST_SCRATCH_DIR/context -f $TEST_SCRATCH_DIR/context/archive randomfile3
+  cat > $TEST_SCRATCH_DIR/context/Dockerfile <<EOF
+  FROM busybox
+  RUN echo \$SOURCE_DATE_EPOCH | tee /SOURCE_DATE_EPOCH_BEFORE
+  ARG SOURCE_DATE_EPOCH
+  RUN echo \$SOURCE_DATE_EPOCH | tee /SOURCE_DATE_EPOCH_AFTER
+  ADD randomfile1 /
+  COPY randomfile2 /
+  ADD archive /
+EOF
+  # build three times with no cache, with both an explicit and implicitly-set source-date-epoch value rewriting timestamps, and once not rewriting
+  run_buildah build --layers --no-cache --source-date-epoch=$timestamp --rewrite-timestamp -t oci:$TEST_SCRATCH_DIR/explicit $TEST_SCRATCH_DIR/context
+  sleep 2 # if both of the flag and environment variable get ignored for some reason, this will force the test to fail
+  export local SOURCE_DATE_EPOCH=$timestamp
+  run_buildah build --layers --no-cache --rewrite-timestamp -t oci:$TEST_SCRATCH_DIR/implicit $TEST_SCRATCH_DIR/context
+  unset SOURCE_DATE_EPOCH
+  sleep 2 # if both of the flag and environment variable get ignored for some reason, this will force the test to fail
+  run_buildah build --layers --no-cache --source-date-epoch=$timestamp --output $TEST_SCRATCH_DIR/output-dest -t oci:$TEST_SCRATCH_DIR/norewrite $TEST_SCRATCH_DIR/context
+  # build once without the override
+  run_buildah build --layers --no-cache -t oci:$TEST_SCRATCH_DIR/default $TEST_SCRATCH_DIR/context
+  assert "$output" !~ "missing.*SOURCE_DATE_EPOCH.*build argument"
+
+  # first, both of the builds which used the same forced timestamp should be completely identical
+  run diff -u -N -r $TEST_SCRATCH_DIR/explicit $TEST_SCRATCH_DIR/implicit
+  echo "$output"
+  assert $status = 0 "diff should have exited with status 0 to indicate no differences between the two with rewrite-timestamp"
+  assert "$output" = ""
+
+  # check timestamps in the one we didn't rewrite: read the image creation date and history entries
+  local config=$(oci_image_config $TEST_SCRATCH_DIR/norewrite)
+  run jq -r '.created' $TEST_SCRATCH_DIR/norewrite/$config
+  echo image creation date:
+  echo "$output"
+  assert $status = 0 "looking for the image creation date in the one without rewrite-timestamp"
+  assert "$output" = "$datestamp" "unexpected creation date in the one without rewrite-timestamp"
+
+  # check timestamps in the one we didn't rewrite: read the image history entry dates
+  run jq -r '.history[-6:][].created' $TEST_SCRATCH_DIR/norewrite/$config
+  echo history timestamps:
+  echo "$output"
+  assert $status = 0 "looking for the image history entries in the one without rewrite-timestamp"
+  local layer=1
+  for created in "${lines[@]}"; do
+    assert "$created" = "$datestamp" "unexpected datestamp for history entry $layer in the image we built without rewrite-timestamp"
+    layer=$((++layer))
+  done
+
+  # check timestamps in the --output output: even without rewrite-timestamp, it should have been fixed
+  for file in $(find $TEST_SCRATCH_DIR/output-dest/* -print) ; do
+    run stat -c %Y $file
+    assert $status = 0 "checking datestamp on $file in --output from build without rewrite-timestamp"
+    assert "$output" = "$timestamp" "unexpected datestamp on $file in --output from build without rewrite-timestamp"
+    case $(basename $file) in
+      SOURCE_DATE_EPOCH_BEFORE)
+        run cat "$file"
+        assert "$status" = 0 "checking contents of $file"
+        assert "$output" = "" "checking contents of $file"
+        ;;
+      SOURCE_DATE_EPOCH_AFTER)
+        run cat "$file"
+        assert "$status" = 0 "checking contents of $file"
+        assert "$output" = $timestamp "checking contents of $file"
+        ;;
+    esac
+  done
+
+  # check timestamps in the identical images: read the image creation date
+  local config=$(oci_image_config $TEST_SCRATCH_DIR/explicit)
+  run jq -r '.created' $TEST_SCRATCH_DIR/explicit/$config
+  echo image creation date:
+  echo "$output"
+  assert $status = 0 "looking for the image creation date in an image built with rewrite-timestamp"
+  assert "$output" = "$datestamp" "unexpected creation date for image built with rewrite-timestamp"
+
+  # check timestamps in the identical images: read the image history entry dates
+  run jq -r '.history[-6:][].created' $TEST_SCRATCH_DIR/explicit/$config
+  echo history timestamps:
+  echo "$output"
+  assert $status = 0 "looking for the image history entries in an image built with rewrite-timestamp"
+  local layer=1
+  for created in "${lines[@]}"; do
+    assert "$created" = "$datestamp" "unexpected datestamp for history entry $layer in an image built with rewrite-timestamp"
+    layer=$((++layer))
+  done
+
+  # check timestamps in the identical images: find the layer blobs that we added
+  run jq -r '.rootfs.diff_ids[-5:][]' $TEST_SCRATCH_DIR/explicit/$config
+  echo layer diff_id values:
+  echo "$output"
+  assert $status = 0 "looking for the image layer blobs in an image built with rewrite-timestamp"
+  local layer=1
+  for diffID in "${lines[@]}"; do
+    local digest="$diffID"
+    local alg=${digest%%:*}
+    local val=${digest##*:}
+    mkdir -p $TEST_SCRATCH_DIR/layer$layer
+    # list the layer blob contents for the benefit of troubleshooters
+    echo "layer $layer:"
+    tar t -v -f $TEST_SCRATCH_DIR/explicit/blobs/"$alg"/"$val"
+    # extract the layer blob
+    tar x -C $TEST_SCRATCH_DIR/layer$layer -f $TEST_SCRATCH_DIR/explicit/blobs/"$alg"/"$val"
+    # walk the layer blob, checking timestamps
+    for file in $(find $TEST_SCRATCH_DIR/layer$layer/* -print) ; do
+      run stat -c %Y $file
+      assert $status = 0 "checking datestamp on $file in layer $layer in an image built with rewrite-timestamp"
+      assert "$output" = "$timestamp" "unexpected datestamp on $file in layer $layer in an image built with rewrite-timestamp"
+      case $(basename $file) in
+        SOURCE_DATE_EPOCH_BEFORE)
+          run cat "$file"
+          assert "$status" = 0 "checking contents of $file"
+          assert "$output" = "" "checking contents of $file"
+          ;;
+        SOURCE_DATE_EPOCH_AFTER)
+          run cat "$file"
+          assert "$status" = 0 "checking contents of $file"
+          assert "$output" = $timestamp "checking contents of $file"
+          ;;
+      esac
+    done
+    layer=$((++layer))
+  done
+}
