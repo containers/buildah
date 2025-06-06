@@ -1102,6 +1102,10 @@ include:
   "sigpending": maximum number of pending signals (ulimit -i)
   "stack": maximum stack size (ulimit -s)
 
+**--unsetannotation** *annotation*
+
+Unset the image annotation, causing the annotation not to be inherited from the base image.
+
 **--unsetenv** *env*
 
 Unset environment variables from the final image.

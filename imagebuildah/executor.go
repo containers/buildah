@@ -153,6 +153,7 @@ type Executor struct {
 	logPrefix                               string
 	unsetEnvs                               []string
 	unsetLabels                             []string
+	unsetAnnotations                        []string
 	processLabel                            string   // Shares processLabel of first stage container with containers of other stages in same build
 	mountLabel                              string   // Shares mountLabel of first stage container with containers of other stages in same build
 	buildOutputs                            []string // Specifies instructions for any custom build output
@@ -323,6 +324,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		logPrefix:                               logPrefix,
 		unsetEnvs:                               slices.Clone(options.UnsetEnvs),
 		unsetLabels:                             slices.Clone(options.UnsetLabels),
+		unsetAnnotations:                        slices.Clone(options.UnsetAnnotations),
 		buildOutputs:                            buildOutputs,
 		osVersion:                               options.OSVersion,
 		osFeatures:                              slices.Clone(options.OSFeatures),
@@ -337,6 +339,11 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		sourceDateEpoch:                         options.SourceDateEpoch,
 		rewriteTimestamp:                        options.RewriteTimestamp,
 	}
+	// sort unsetAnnotations because we will later write these
+	// values to the history of the image therefore we want to
+	// make sure that order is always consistent.
+	slices.Sort(exec.unsetAnnotations)
+
 	if exec.err == nil {
 		exec.err = os.Stderr
 	}

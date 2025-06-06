@@ -231,6 +231,10 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 
 Set default *stop signal* for container. This signal will be sent when container is stopped, default is SIGINT.
 
+**--unsetannotation** *annotation*
+
+Unset the image annotation, causing the annotation not to be inherited from the base image.
+
 **--unsetlabel** *label*
 
 Unset the image label, causing the label not to be inherited from the base image.
