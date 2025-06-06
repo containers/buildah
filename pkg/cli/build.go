@@ -390,6 +390,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		IgnoreFile:              iopts.IgnoreFile,
 		In:                      stdin,
 		InheritLabels:           types.NewOptionalBool(iopts.InheritLabels),
+		InheritAnnotations:      types.NewOptionalBool(iopts.InheritAnnotations),
 		Isolation:               isolation,
 		Jobs:                    &iopts.Jobs,
 		Labels:                  iopts.Label,
