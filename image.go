@@ -308,12 +308,21 @@ func (i *containerImageRef) newDockerSchema2ManifestBuilder() (manifestBuilder, 
 	if err := json.Unmarshal(i.dconfig, &dimage); err != nil {
 		return nil, err
 	}
+	// Suppress the hostname and domainname if we're running with the
+	// equivalent of either --timestamp or --source-date-epoch.
+	if i.created != nil {
+		dimage.Config.Hostname = "sandbox"
+		dimage.Config.Domainname = ""
+	}
 	// Set the parent, but only if we want to be compatible with "classic" docker build.
 	if i.compatSetParent == types.OptionalBoolTrue {
 		dimage.Parent = docker.ID(i.parent)
 	}
 	// Set the container ID and containerConfig in the docker format.
 	dimage.Container = i.containerID
+	if i.created != nil {
+		dimage.Container = ""
+	}
 	if dimage.Config != nil {
 		dimage.ContainerConfig = *dimage.Config
 	}
