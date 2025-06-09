@@ -2670,6 +2670,104 @@ _EOF
   expect_output "$want_output"
 }
 
+@test "bud and test --unsetannotation" {
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  target=exp
+
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  buildah inspect --format '{{ .ImageAnnotations }}' $base
+  not_want_output='map[]'
+  assert "$output" != "$not_want_output" "expected some annotations to be set in base image $base"
+
+  annotations=$(buildah inspect --format '{{ range $key, $value := .ImageAnnotations }}{{ $key }} {{end}}' $base)
+  annotationflags="--annotation hello=world"
+  for annotation in $annotations; do
+    if test $annotation != io.buildah.version ; then
+      annotationflags="$annotationflags --unsetannotation $annotation"
+    fi
+  done
+
+  run_buildah build $WITH_POLICY_JSON $annotationflags -t $target --from $base $BUDFILES/base-with-labels
+
+  # no annotations should be inherited from base image
+  # and `hello=world` which we just added using cli flag
+  want_output='map["hello":"world"]'
+  run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' $target
+  expect_output "$want_output"
+}
+
+@test "bud and test --unsetannotation with --layers" {
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  target=exp
+
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  buildah inspect --format '{{ .ImageAnnotations }}' $base
+  not_want_output='map[]'
+  assert "$output" != "$not_want_output" "expected some annotations to be set in base image $base"
+
+  ## Build without removing annotations
+  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid1 -t $target --from $base $BUDFILES/base-with-labels
+  ## Second build must use cache
+  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid2 -t $target --from $base $BUDFILES/base-with-labels
+  ## Must use cache
+  expect_output --substring " Using cache"
+  cmp ${TEST_SCRATCH_DIR}/iid1 ${TEST_SCRATCH_DIR}/iid2
+
+  annotations=$(buildah inspect --format '{{ range $key, $value := .ImageAnnotations }}{{ $key }} {{end}}' $base)
+  annotationflags="--annotation hello=world"
+  for annotation in $annotations; do
+    if test $annotation != io.buildah.version ; then
+      annotationflags="$annotationflags --unsetannotation $annotation"
+    fi
+  done
+
+  ## Since we are unsetting something, this should not use previous image present in the cache.
+  run_buildah build $WITH_POLICY_JSON --layers $annotationflags -t $target --from $base $BUDFILES/base-with-labels
+  ## should not contain `Using Cache`
+  #assert "$output" !~ "Using cache"
+
+  # no annotations should be inherited from base image
+  # and `hello=world` which we just added using cli flag
+  want_output='map["hello":"world"]'
+  run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' $target
+  expect_output "$want_output"
+}
+
+@test "bud and test --unsetannotation with only base image" {
+  base=registry.fedoraproject.org/fedora-minimal
+  _prefetch $base
+  target=exp
+
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  buildah inspect --format '{{ .ImageAnnotations }}' $base
+  not_want_output='map[]'
+  assert "$output" != "$not_want_output" "expected some annotations to be set in base image $base"
+
+  annotations=$(buildah inspect --format '{{ range $key, $value := .ImageAnnotations }}{{ $key }} {{end}}' $base)
+  annotationflags="--annotation hello=world"
+  for annotation in $annotations; do
+    if test $annotation != io.buildah.version ; then
+      annotationflags="$annotationflags --unsetannotation $annotation"
+    fi
+  done
+
+  run_buildah build $WITH_POLICY_JSON $annotationflags -t $target --from $base $BUDFILES/only-base
+  want_output='map["hello":"world"]'
+  run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' $target
+  expect_output "$want_output"
+}
+
 @test "bud and test inherit-labels" {
   base=registry.fedoraproject.org/fedora-minimal
   _prefetch $base

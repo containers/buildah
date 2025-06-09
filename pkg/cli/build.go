@@ -430,6 +430,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		TransientMounts:         iopts.Volumes,
 		UnsetEnvs:               iopts.UnsetEnvs,
 		UnsetLabels:             iopts.UnsetLabels,
+		UnsetAnnotations:        iopts.UnsetAnnotations,
 	}
 	if iopts.RetryDelay != "" {
 		options.PullPushRetryDelay, err = time.ParseDuration(iopts.RetryDelay)
