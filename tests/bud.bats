@@ -7865,3 +7865,58 @@ EOF
     layer=$((++layer))
   done
 }
+
+@test "bud-with-timestamp-config-effects" {
+  _prefetch busybox
+  local timestamp=60
+  mkdir -p $TEST_SCRATCH_DIR/context
+  cat > $TEST_SCRATCH_DIR/context/Dockerfile << EOF
+  FROM busybox
+  RUN hostname | tee /hostname.txt
+EOF
+  local config
+  local diff
+  local hostname
+
+  for cliflag in timestamp source-date-epoch ; do
+    run_buildah build --"$cliflag"=$timestamp --layers --no-cache -t dir:$TEST_SCRATCH_DIR/docker-layers-$cliflag --format=docker $TEST_SCRATCH_DIR/context
+    config=$(dir_image_config "$TEST_SCRATCH_DIR"/docker-layers-$cliflag)
+    run jq -r .config.Hostname "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/"$config"
+    echo "$output"
+    test $status -eq 0
+    assert "$output" == sandbox
+    run jq -r .config.Domainname "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/"$config"
+    echo "$output"
+    test $status -eq 0
+    assert "$output" == ""
+    run jq -r .container "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/"$config"
+    echo "$output"
+    test $status -eq 0
+    assert "$output" == null
+    mkdir "$TEST_SCRATCH_DIR"/diff-docker-layers-$cliflag
+    diff=$(dir_image_last_diff "$TEST_SCRATCH_DIR"/docker-layers-$cliflag)
+    tar -C "$TEST_SCRATCH_DIR"/docker-layers-$cliflag -xf "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/"$diff"
+    hostname=$(cat "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/hostname.txt)
+    assert $hostname = sandbox "expected the hostname to be the static value 'sandbox'"
+
+    run_buildah build --"$cliflag"=$timestamp -t dir:"$TEST_SCRATCH_DIR"/docker-squashed-$cliflag --format=docker $TEST_SCRATCH_DIR/context
+    config=$(dir_image_config "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag)
+    run jq -r .config.Hostname "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/"$config"
+    echo "$output"
+    test $status -eq 0
+    assert "$output" == sandbox
+    run jq -r .config.Domainname "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/"$config"
+    echo "$output"
+    test $status -eq 0
+    assert "$output" == ""
+    run jq -r .container "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/"$config"
+    echo "$output"
+    test $status -eq 0
+    assert "$output" == null
+    mkdir "$TEST_SCRATCH_DIR"/diff-docker-squashed-$cliflag
+    diff=$(dir_image_last_diff "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag)
+    tar -C "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag -xf "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/"$diff"
+    hostname=$(cat "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/hostname.txt)
+    assert $hostname = sandbox "expected the hostname to be the static value 'sandbox'"
+  done
+}
