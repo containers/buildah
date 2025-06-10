@@ -1,28 +1,27 @@
 #!/usr/bin/env bash
-# test_buildah_baseline.sh 
+# test_buildah_baseline.sh
 # A script to be run at the command line with Buildah installed.
 # This should be run against a new kit to provide base level testing
-# on a freshly installed machine with no images or containers in 
+# on a freshly installed machine with no images or containers in
 # play.  This currently needs to be run as root.
 #
 # Commands based on the tutorial provided by William Henry.
 #
 # To run this command:
 #
-# /bin/bash -v test_buildah_baseline.sh 
+# /bin/bash -v test_buildah_baseline.sh
 
 ########
-# Next two commands should return blanks 
+# Next two commands should return blanks
 ########
 buildah images
 buildah containers
 
 ########
-# Run ls in redis container, this should work 
+# Run ls in redis container, this should work
 ########
-ctrid=$(buildah from registry.access.redhat.com/rhscl/redis-32-rhel7)
+ctrid=$(buildah from registry.redhat.io/rhscl/redis-6-rhel7)
 buildah run $ctrid ls /
-
 
 ########
 # Validate touch works after installing httpd, solved selinux
@@ -30,7 +29,7 @@ buildah run $ctrid ls /
 ########
 ctr=$(buildah from scratch)
 mnt=$(buildah mount $ctr)
-dnf -y install --installroot=$mnt --releasever=30 httpd
+dnf -y install --installroot=$mnt --releasever=42 --use-host-config --setopt "*.countme=false" httpd
 buildah run $ctr touch /test
 
 ########
@@ -40,7 +39,7 @@ container=$(buildah from fedora)
 echo $container
 
 ########
-# Run container and display contents in /etc 
+# Run container and display contents in /etc
 ########
 buildah run $container -- ls -alF /etc
 
@@ -60,7 +59,7 @@ buildah run $container -- dnf -y install java
 buildah run $container java
 
 ########
-# Create a scratch container 
+# Create a scratch container
 ########
 newcontainer=$(buildah from scratch)
 
@@ -92,7 +91,7 @@ echo $scratchmnt
 ########
 # Install Fedora 30 bash and coreutils
 ########
-dnf install --installroot $scratchmnt --release 30 bash coreutils --setopt install_weak_deps=false -y
+dnf install --installroot $scratchmnt --releasever 42 bash coreutils --use-host-config --setopt "*.countme=false" --setopt install_weak_deps=false -y
 
 ########
 # Check /usr/bin on the new container
@@ -113,17 +112,17 @@ EOM
 chmod +x $FILE
 
 ########
-# Copy and run file on scratch container 
+# Copy and run file on scratch container
 ########
 buildah copy $newcontainer $FILE /usr/bin
 buildah config --cmd /usr/bin/runecho.sh $newcontainer
-buildah run $newcontainer /usr/bin/runecho.sh 
+buildah run $newcontainer /usr/bin/runecho.sh
 
 ########
 # Add configuration information
 ########
 buildah config --created-by "ipbabble"  $newcontainer
-buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora30-bashecho $newcontainer
+buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora42-bashecho $newcontainer
 
 ########
 # Inspect the container, verifying above was put into it
@@ -162,7 +161,7 @@ dnf -y install docker
 systemctl start docker
 
 ########
-# Push fedora-bashecho to the Docker daemon 
+# Push fedora-bashecho to the Docker daemon
 ########
 buildah push fedora-bashecho docker-daemon:fedora-bashecho:latest
 
@@ -196,18 +195,18 @@ EOM
 chmod +x $FILE
 
 ########
-# Build with Dockerfiles 
+# Build with Dockerfiles
 ########
 buildah bud -f ./Dockerfile --format=docker -t onbuild-image .
 buildah bud -f ./Dockerfile-2 --format=docker -t result-image .
 
 ########
-# Build a container to see if the /bar file has been created. 
+# Build a container to see if the /bar file has been created.
 ########
 ctr=$(buildah from result-image)
 
 ########
-# Validate that the /bar file has been created in the container. 
+# Validate that the /bar file has been created in the container.
 ########
 buildah run $ctr ls -alF /bar /foo /baz
 
@@ -216,7 +215,7 @@ buildah run $ctr ls -alF /bar /foo /baz
 ########
 FILE=./Dockerfile
 /bin/cat <<EOM >$FILE
-FROM docker/whalesay:latest
+FROM docker.io/docker/whalesay:latest
 RUN apt-get -y update && apt-get install -y fortunes
 CMD /usr/games/fortune -a | cowsay
 EOM
@@ -225,10 +224,10 @@ chmod +x $FILE
 ########
 # Build with the Dockerfile
 ########
-buildah bud -f Dockerfile -t whale-says . 
+buildah bud -f Dockerfile -t whale-says .
 
 ########
-# Create a whalesays container 
+# Create a whalesays container
 ########
 whalesays=$(buildah from whale-says)
 

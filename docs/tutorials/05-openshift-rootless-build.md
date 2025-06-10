@@ -18,13 +18,13 @@ Make the registry URL available to the following steps.
 
 *Note that you need to change this so it matches your OpenShift installation.*
 
-````console
+```console
 $ export REGISTRY_URL=default-route-openshift-image-registry.apps.whatever.com
-````
+```
 
 Login to OpenShift and its registry:
 
-````console
+```console
 $ oc login -n image-build
 Username: ...
 Password: ...
@@ -36,7 +36,7 @@ Using project "image-build".
 
 $ oc whoami -t | buildah login --tls-verify=false -u $(id -u -n) --password-stdin $REGISTRY_URL
 Login Succeeded!
-````
+```
 
 
 ### Make builder image
@@ -47,7 +47,7 @@ The image starts a python web server. This allows us to interact with the contai
 
 First create an ImageStream to hold the image:
 
-````console
+```console
 $ oc create -f - <<EOF
 apiVersion: image.openshift.io/v1
 kind: ImageStream
@@ -56,14 +56,14 @@ metadata:
 EOF
 
 imagestream.image.openshift.io/buildah created
-````
+```
 
 Then create the image.
 
 Note that no packages are updated - this should ensure that this tutorial is actually working.
 If you are making anything for use in the real world, make sure to update it frequently for security fixes!
 
-````console
+```console
 $ cat > Containerfile-buildah <<EOF
 FROM quay.io/buildah/stable:v1.36.0
 
@@ -106,14 +106,14 @@ $ buildah push --tls-verify=false $REGISTRY_URL/image-build/buildah
 Getting image source signatures
 ...
 Storing signatures
-````
+```
 
 
 ### Create Service Account for building images
 
 Create a service account which is solely used for image building.
 
-````console
+```console
 $ oc create -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -122,14 +122,14 @@ metadata:
 EOF
 
 serviceaccount/buildah-sa created
-````
+```
 
 You need to assign it the ability to run as the standard `anyuid` [SCC](https://docs.openshift.com/container-platform/4.3/authentication/managing-security-context-constraints.html).
 
-````console
+```console
 $ oc adm policy add-scc-to-user anyuid -z buildah-sa
 clusterrole.rbac.authorization.k8s.io/system:openshift:scc:anyuid added: "buildah-sa"
-````
+```
 
 This will give the container *cap_kill*, *cap_setgid*, and *cap_setuid* capabilities which are extras compared to the `restricted` SCC.
 Note that *cap_kill* is dropped by the DeploymentConfig, but the two others are required to execute commands with different user ids as an image is built.
@@ -137,13 +137,13 @@ Note that *cap_kill* is dropped by the DeploymentConfig, but the two others are 
 
 With this in place, when you get the Pod running (in a little while!), its YAML state will contain:
 
-````
+```
 kind: Pod
 metadata:
   ...
   openshift.io/scc: anyuid
 ...
-````
+```
 
 Which tells you that the Pod has been launched with the correct permissions.
 
@@ -154,7 +154,7 @@ This is a simple RC just to get the container running.
 
 Note that it drops CAP_KILL which is not required.
 
-````console
+```console
 $ oc create -f - <<EOF
 apiVersion: v1
 kind: ReplicationController
@@ -187,7 +187,7 @@ spec:
 EOF
 
 replicationcontroller/buildah created
-````
+```
 
 #### The Buildah container
 
@@ -195,7 +195,7 @@ In the OpenShift console you can now open the Pod's terminal (or run `oc rsh rc/
 
 This is what the user/platform should look like:
 
-````console
+```console
 sh-5.0$ id
 uid=1000(build) gid=1000(build) groups=1000(build)
 
@@ -216,11 +216,11 @@ uid=1000(build) euid=1000(build)
 gid=1000(build)
 groups=1000(build)
 Guessed mode: HYBRID (4)
-````
+```
 
 This is what the Buildah data should look like:
 
-````console
+```console
 sh-5.0$ buildah version
 Version:         1.36.0
 Go Version:      go1.22.3
@@ -277,7 +277,7 @@ sh-5.0$ buildah info
         "RunRoot": "/var/tmp/storage-run-1000/containers"
     }
 }
-````
+```
 
 #### Building an image
 
@@ -285,7 +285,7 @@ Now create some files for testing.
 
 This container test file exercises at least some of the critical parts of building an image (package update/installation, execution of commands, and use of volumes).
 
-````console
+```console
 sh-5.0$ cat > test-script.sh <<EOF
 #/bin/bash
 echo "Args \$*"
@@ -303,11 +303,11 @@ RUN dnf install -y gcc
 EOF
 
 sh-5.0$ mkdir output
-````
+```
 
 And finally build the image, testing that everything works as expected:
 
-````console
+```console
 sh-5.0$ buildah build --layers -v /home/build/output:/output:rw -v /home/build/test-script.sh:/test-script.sh:ro -t myimage -f Containerfile.test
 FROM fedora:40
 RUN ls -l /test-script.sh
@@ -477,4 +477,4 @@ registry.fedoraproject.org/fedora   40       b8638217aa4e   13 hours ago     233
 sh-5.0$ ls -l output/
 total 4
 -rw-r--r--. 1 build build 288 Aug  5 18:35 update-output.txt
-````
+```

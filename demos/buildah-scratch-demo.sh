@@ -19,14 +19,13 @@ function is_rootless() {
 ## as root. The `buildah unshare` command switches your user
 ## session to root within the user namespace.
 if is_rootless; then
-  buildah unshare $0
-  exit
+  exec buildah unshare $0
 fi
 
 demoimg=myshdemo
 quayuser=ipbabble
 myname=WilliamHenry
-distrorelease=30
+distrorelease=42
 pkgmgr=dnf   # switch to yum if using yum
 
 #Setting up some colors for helping read the demo output
@@ -55,9 +54,9 @@ ls $scratchmnt
 echo -e "${red}Note that the root of the scratch container is EMPTY!${reset}"
 read -p "${cyan}Time to install some basic bash capabilities: coreutils and bash packages${reset}"
 if [ "$pkgmgr" == "dnf" ]; then
-	$pkgmgr install --installroot $scratchmnt --release ${distrorelease} bash coreutils --setopt install_weak_deps=false -y
+	$pkgmgr install --installroot $scratchmnt --releasever ${distrorelease} bash coreutils --use-host-config --setopt "*.countme=false" --setopt install_weak_deps=false -y
 elif [ "$pkgmgr" == "yum" ]; then
-	$pkgmgr install --installroot $scratchmnt --releasever ${distrorelease} bash coreutils  -y
+	$pkgmgr install --installroot $scratchmnt --releasever ${distrorelease} bash coreutils ---use-host-config --setopt "*.countme=false" y
 else
 	echo -e "${red}[Error] Unknown package manager ${pkgmgr}${reset}"
 fi

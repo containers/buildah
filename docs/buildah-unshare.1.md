@@ -40,23 +40,26 @@ buildah unshare rm -fr $HOME/.local/share/containers/storage /run/user/\`id -u\`
 
 buildah unshare --mount containerID sh -c 'cat ${containerID}/etc/os-release'
 
-If you want to use buildah with a mount command then you can create a script that looks something like:
+buildah unshare --mount root=containerID sh -c 'cat ${root}/etc/os-release'
 
-```
-cat buildah-script.sh << _EOF
-#!/bin/sh
+If you want to use buildah with a 'mount' command then you can create a script that looks something like:
+
+```console
+cat > buildah-script.sh << _EOF
+#!/bin/bash
 ctr=$(buildah from scratch)
 mnt=$(buildah mount $ctr)
-dnf -y install --installroot=$mnt PACKAGES
+dnf -y install --installroot=$mnt --use-host-config --setopt "*.countme=false" PACKAGES
 dnf -y clean all --installroot=$mnt
 buildah config --entrypoint="/bin/PACKAGE" --env "FOO=BAR" $ctr
 buildah commit $ctr imagename
 buildah unmount $ctr
 _EOF
+chmod +x buildah-script.sh
 ```
 Then execute it with:
-```
-buildah unshare buildah-script.sh
+```console
+buildah unshare ./buildah-script.sh
 ```
 
 ## SEE ALSO

@@ -23,4 +23,3 @@ Learn how to include Buildah as a library in your build tool.
 **[Rootless OpenShift container](05-openshift-rootless-build.md)**
 
 Learn how to build an image from a rootless OpenShift container.
-
