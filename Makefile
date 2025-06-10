@@ -3,7 +3,7 @@ export GOPROXY=https://proxy.golang.org
 APPARMORTAG := $(shell hack/apparmor_tag.sh)
 STORAGETAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./hack/libsubid_tag.sh)
 SECURITYTAGS ?= seccomp $(APPARMORTAG)
-TAGS ?= $(SECURITYTAGS) $(STORAGETAGS) $(shell ./hack/systemd_tag.sh)
+TAGS ?= $(SECURITYTAGS) $(STORAGETAGS) $(shell ./hack/systemd_tag.sh) $(shell ./hack/sqlite_tag.sh)
 ifeq ($(shell uname -s),FreeBSD)
 # FreeBSD needs CNI until netavark is supported
 TAGS += cni
