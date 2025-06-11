@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	// BuilderIdentityAnnotation is the name of the annotation key containing
-	// the name and version of the producer of the image stored as an
-	// annotation on commit.
+	// BuilderIdentityAnnotation is the name of the label which will be set
+	// to contain the name and version of the producer of the image at
+	// commit-time.  (N.B. yes, the constant's name includes "Annotation",
+	// but it's added as a label.)
 	BuilderIdentityAnnotation = "io.buildah.version"
 )
 
