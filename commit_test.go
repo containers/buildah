@@ -323,9 +323,8 @@ func TestCommitCompression(t *testing.T) {
 			if compressor.expectError {
 				require.Errorf(t, err, "committing oci layout %q", imageName)
 				return
-			} else {
-				require.NoErrorf(t, err, "committing oci layout %q", imageName)
 			}
+			require.NoErrorf(t, err, "committing oci layout %q", imageName)
 			src, err := ref.NewImageSource(ctx, &testSystemContext)
 			require.NoErrorf(t, err, "reading oci layout %q", imageName)
 			defer src.Close()
