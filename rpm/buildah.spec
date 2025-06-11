@@ -60,6 +60,7 @@ BuildRequires: make
 BuildRequires: btrfs-progs-devel
 %endif
 BuildRequires: shadow-utils-subid-devel
+BuildRequires: sqlite-devel
 Requires: containers-common-extra
 %if %{defined fedora}
 BuildRequires: libseccomp-static
@@ -122,7 +123,7 @@ export CGO_CFLAGS+=" -m64 -mtune=generic -fcf-protection=full"
 export CNI_VERSION=`grep '^# github.com/containernetworking/cni ' src/modules.txt | sed 's,.* ,,'`
 export LDFLAGS="-X main.buildInfo=`date +%s` -X main.cniVersion=${CNI_VERSION}"
 
-export BUILDTAGS="seccomp $(hack/systemd_tag.sh) $(hack/libsubid_tag.sh)"
+export BUILDTAGS="seccomp $(hack/systemd_tag.sh) $(hack/libsubid_tag.sh) libsqlite3"
 %if !%{defined build_with_btrfs}
 export BUILDTAGS+=" btrfs_noversion exclude_graphdriver_btrfs"
 %endif
