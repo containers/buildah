@@ -262,7 +262,7 @@ function configure_and_check_user() {
 	run_buildah run $cid id -G
 	expect_output --substring "$id"
 
-	if is_rootless && has_supplemental_groups; then
+	if is_rootless && has_supplemental_groups && ! [[ $OCI =~ runc ]]; then
 	   run_buildah from --group-add keep-groups --quiet --pull=false $WITH_POLICY_JSON alpine
 	   cid=$output
 	   run_buildah run $cid id -G
