@@ -303,8 +303,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 	}()
 
-	defer b.cleanupTempVolumes()
-
 	// If we are creating a network, make the vnet here so that we can
 	// execute the OCI runtime inside it. For FreeBSD-13.3 and later, we can
 	// configure the container network settings from outside the jail, which
@@ -382,11 +380,11 @@ func (b *Builder) getCacheMount(tokens []string, sys *types.SystemContext, stage
 	return nil, "", "", "", nil, errors.New("cache mounts not supported on freebsd")
 }
 
-func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, Err error) {
+func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, overlayDirs []string, Err error) {
 	// Make sure the overlay directory is clean before running
 	_, err := b.store.ContainerDirectory(b.ContainerID)
 	if err != nil {
-		return nil, fmt.Errorf("looking up container directory for %s: %w", b.ContainerID, err)
+		return nil, nil, fmt.Errorf("looking up container directory for %s: %w", b.ContainerID, err)
 	}
 
 	parseMount := func(mountType, host, container string, options []string) (specs.Mount, error) {
@@ -434,7 +432,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 
 			overlayMount, err := overlay.MountWithOptions(contentDir, host, container, &overlayOpts)
 			if err == nil {
-				b.TempVolumes[contentDir] = true
+				overlayDirs = append(overlayDirs, contentDir)
 			}
 			return overlayMount, err
 		}
@@ -451,7 +449,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		logrus.Debugf("setting up mounted volume at %q", i.Destination)
 		mount, err := parseMount(i.Type, i.Source, i.Destination, i.Options)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		mounts = append(mounts, mount)
 	}
@@ -464,11 +462,11 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		}
 		mount, err := parseMount("nullfs", spliti[0], spliti[1], options)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		mounts = append(mounts, mount)
 	}
-	return mounts, nil
+	return mounts, overlayDirs, nil
 }
 
 func setupCapabilities(g *generate.Generator, defaultCapabilities, adds, drops []string) error {

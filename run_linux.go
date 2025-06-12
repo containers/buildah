@@ -541,8 +541,6 @@ rootless=%d
 		}
 	}()
 
-	defer b.cleanupTempVolumes()
-
 	// Handle mount flags that request that the source locations for "bind" mountpoints be
 	// relabeled, and filter those flags out of the list of mount options we pass to the
 	// runtime.
@@ -1115,14 +1113,14 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 	return nil
 }
 
-func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, Err error) {
+func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, overlayDirs []string, Err error) {
 	// Make sure the overlay directory is clean before running
 	containerDir, err := b.store.ContainerDirectory(b.ContainerID)
 	if err != nil {
-		return nil, fmt.Errorf("looking up container directory for %s: %w", b.ContainerID, err)
+		return nil, nil, fmt.Errorf("looking up container directory for %s: %w", b.ContainerID, err)
 	}
 	if err := overlay.CleanupContent(containerDir); err != nil {
-		return nil, fmt.Errorf("cleaning up overlay content for %s: %w", b.ContainerID, err)
+		return nil, nil, fmt.Errorf("cleaning up overlay content for %s: %w", b.ContainerID, err)
 	}
 
 	parseMount := func(mountType, host, container string, options []string) (specs.Mount, error) {
@@ -1205,7 +1203,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 
 			overlayMount, err := overlay.MountWithOptions(contentDir, host, container, &overlayOpts)
 			if err == nil {
-				b.TempVolumes[contentDir] = true
+				overlayDirs = append(overlayDirs, contentDir)
 			}
 
 			// If chown true, add correct ownership to the overlay temp directories.
@@ -1237,7 +1235,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		logrus.Debugf("setting up mounted volume at %q", i.Destination)
 		mount, err := parseMount(i.Type, i.Source, i.Destination, i.Options)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		mounts = append(mounts, mount)
 	}
@@ -1251,11 +1249,11 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		options = append(options, "rbind")
 		mount, err := parseMount("bind", spliti[0], spliti[1], options)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		mounts = append(mounts, mount)
 	}
-	return mounts, nil
+	return mounts, overlayDirs, nil
 }
 
 func setupMaskedPaths(g *generate.Generator, opts *define.CommonBuildOptions) {
@@ -1517,9 +1515,12 @@ func (b *Builder) getCacheMount(tokens []string, sys *types.SystemContext, stage
 		}
 	}()
 	optionMounts = append(optionMounts, optionMount)
-	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
+	volumes, overlayDirs, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
 		return nil, "", "", "", nil, err
+	}
+	if len(overlayDirs) != 0 {
+		return nil, "", "", "", nil, errors.New("internal error: did not expect a resolved cache mount to use the O flag")
 	}
 	succeeded = true
 	return &volumes[0], mountedImage, intermediateMount, overlayMount, targetLock, nil

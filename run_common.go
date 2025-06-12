@@ -1394,10 +1394,11 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	if spec.Linux != nil {
 		mountLabel = spec.Linux.MountLabel
 	}
-	volumes, err := b.runSetupVolumeMounts(mountLabel, volumeMounts, optionMounts, idMaps)
+	volumes, overlayDirs, err := b.runSetupVolumeMounts(mountLabel, volumeMounts, optionMounts, idMaps)
 	if err != nil {
 		return nil, err
 	}
+	mountArtifacts.RunOverlayDirs = append(mountArtifacts.RunOverlayDirs, overlayDirs...)
 
 	// prepare list of mount destinations which can be cleaned up safely.
 	// we can clean bindFiles, subscriptionMounts and specMounts
@@ -1740,9 +1741,12 @@ func (b *Builder) getBindMount(tokens []string, sys *types.SystemContext, contex
 		}
 	}()
 	optionMounts = append(optionMounts, optionMount)
-	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
+	volumes, overlayDirs, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
 		return nil, "", "", "", err
+	}
+	if len(overlayDirs) != 0 {
+		return nil, "", "", "", errors.New("internal error: did not expect a resolved bind mount to use the O flag")
 	}
 	succeeded = true
 	return &volumes[0], image, intermediateMount, overlayMount, nil
@@ -1755,9 +1759,12 @@ func (b *Builder) getTmpfsMount(tokens []string, idMaps IDMaps, workDir string) 
 		return nil, err
 	}
 	optionMounts = append(optionMounts, mount)
-	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
+	volumes, overlayDirs, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
 		return nil, err
+	}
+	if len(overlayDirs) != 0 {
+		return nil, errors.New("internal error: did not expect a resolved tmpfs mount to use the O flag")
 	}
 	return &volumes[0], nil
 }
@@ -2008,17 +2015,6 @@ func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]
 		Options:     append(define.BindOptions, "rprivate", "ro"),
 	}
 	return &newMount, fwdAgent, nil
-}
-
-func (b *Builder) cleanupTempVolumes() {
-	for tempVolume, val := range b.TempVolumes {
-		if val {
-			if err := overlay.RemoveTemp(tempVolume); err != nil {
-				b.Logger.Error(err.Error())
-			}
-			b.TempVolumes[tempVolume] = false
-		}
-	}
 }
 
 // cleanupRunMounts cleans up run mounts so they only appear in this run.
