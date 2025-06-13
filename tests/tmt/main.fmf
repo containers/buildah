@@ -1,0 +1,23 @@
+/integration:
+    tag: [ integration ]
+    summary: integration test
+    test: cd $TMT_TREE && make && make test-integration
+    duration: 40m
+
+/lint:
+    tag: [ lint ]
+    summary: lint test
+    test: make -C $TMT_TREE lint
+    duration: 40m
+
+/unit:
+    tag: [ unit ]
+    summary: unit test
+    test: make -C $TMT_TREE test-unit
+    duration: 40m
+
+/vendor:
+    tag: [ vendor ]
+    summary: vendor test
+    test: make -C $TMT_TREE vendor
+    duration: 40m
