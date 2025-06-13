@@ -76,6 +76,8 @@ type StageExecutor struct {
 	stage                 *imagebuilder.Stage
 	didExecute            bool
 	argsFromContainerfile []string
+	hasLink               bool
+	isLastStep            bool
 }
 
 // Preserve informs the stage executor that from this point on, it needs to
@@ -359,8 +361,11 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			}
 			return errors.New("COPY --keep-git-dir is not supported")
 		}
-		if cp.Link {
-			return errors.New("COPY --link is not supported")
+		if cp.Link && s.executor.layers {
+			s.hasLink = true
+		} else if cp.Link {
+			s.executor.logger.Warn("--link is not supported when building without --layers, ignoring\n")
+			s.hasLink = false
 		}
 		if len(cp.Excludes) > 0 {
 			excludes = append(slices.Clone(excludes), cp.Excludes...)
@@ -564,6 +569,7 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				sources = append(sources, src)
 			}
 		}
+		inheritLabels, unsetAnnotations, inheritAnnotations, newAnnotations := s.buildMetadata(s.isLastStep)
 		options := buildah.AddAndCopyOptions{
 			Chmod:             copy.Chmod,
 			Chown:             copy.Chown,
@@ -583,6 +589,8 @@ func (s *StageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			MaxRetries:            s.executor.maxPullPushRetries,
 			RetryDelay:            s.executor.retryPullPushDelay,
 			Parents:               copy.Parents,
+			Link:                  s.hasLink,
+			BuildMetadata:         inheritLabels + " " + unsetAnnotations + " " + inheritAnnotations + " " + newAnnotations,
 		}
 		if len(copy.Files) > 0 {
 			// If we are copying heredoc files, we need to temporary place
@@ -1330,6 +1338,8 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		logRusage()
 		moreInstructions := i < len(children)-1
 		lastInstruction := !moreInstructions
+
+		s.isLastStep = lastStage && lastInstruction
 		// Resolve any arguments in this instruction.
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
@@ -1795,6 +1805,8 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				return "", nil, false, fmt.Errorf("preparing container for next step: %w", err)
 			}
 		}
+
+		s.hasLink = false
 	}
 
 	return imgID, ref, onlyBaseImage, nil
@@ -1888,29 +1900,9 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 	if node == nil {
 		return "/bin/sh", nil
 	}
-	inheritLabels := ""
-	unsetAnnotations := ""
-	inheritAnnotations := ""
-	newAnnotations := ""
-	// If --inherit-label was manually set to false then update history.
-	if s.executor.inheritLabels == types.OptionalBoolFalse {
-		inheritLabels = "|inheritLabels=false"
-	}
-	if isLastStep {
-		for _, annotation := range s.executor.unsetAnnotations {
-			unsetAnnotations += "|unsetAnnotation=" + annotation
-		}
-		// If --inherit-annotation was manually set to false then update history.
-		if s.executor.inheritAnnotations == types.OptionalBoolFalse {
-			inheritAnnotations = "|inheritAnnotations=false"
-		}
-		// If new annotations are added, they must be added as part of the last step of the build,
-		// so mention in history that new annotations were added inorder to make sure the builds
-		// can either reuse layers or burst the cache depending upon new annotations.
-		if len(s.executor.annotations) > 0 {
-			newAnnotations += strings.Join(s.executor.annotations, ",")
-		}
-	}
+
+	inheritLabels, unsetAnnotations, inheritAnnotations, newAnnotations := s.buildMetadata(isLastStep)
+
 	switch strings.ToUpper(node.Value) {
 	case "ARG":
 		for _, variable := range strings.Fields(node.Original) {
@@ -2006,7 +1998,11 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		for destination.Next != nil {
 			destination = destination.Next
 		}
-		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + " " + addedContentSummary + " in " + destination.Value + " " + inheritLabels + " " + unsetAnnotations + " " + inheritAnnotations + " " + newAnnotations, nil
+		hasLink := ""
+		if s.hasLink {
+			hasLink = " --link"
+		}
+		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + hasLink + " " + addedContentSummary + " in " + destination.Value + " " + inheritLabels + " " + unsetAnnotations + " " + inheritAnnotations + " " + newAnnotations, nil
 	default:
 		return "/bin/sh -c #(nop) " + node.Original + inheritLabels + unsetAnnotations + inheritAnnotations + newAnnotations, nil
 	}
@@ -2326,6 +2322,7 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 		if s.builder.TopLayer != imageParentLayerID {
 			continue
 		}
+
 		// Next we double check that the history of this image is equivalent to the previous
 		// lines in the Dockerfile up till the point we are at in the build.
 		manifestType, history, diffIDs, err := s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, image.ID)
@@ -2495,6 +2492,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		Squash:                squash,
 		OmitHistory:           s.executor.commonBuildOptions.OmitHistory,
 		EmptyLayer:            emptyLayer,
+		OmitLayerHistoryEntry: s.hasLink,
 		BlobDirectory:         s.executor.blobDirectory,
 		SignBy:                s.executor.signBy,
 		MaxRetries:            s.executor.maxPullPushRetries,
@@ -2580,4 +2578,31 @@ func (s *StageExecutor) EnsureContainerPath(path string) error {
 func (s *StageExecutor) EnsureContainerPathAs(path, user string, mode *os.FileMode) error {
 	logrus.Debugf("EnsureContainerPath %q (owner %q, mode %o) in %q", path, user, mode, s.builder.ContainerID)
 	return s.builder.EnsureContainerPathAs(path, user, mode)
+}
+
+func (s *StageExecutor) buildMetadata(isLastStep bool) (string, string, string, string) {
+	inheritLabels := ""
+	unsetAnnotations := ""
+	inheritAnnotations := ""
+	newAnnotations := ""
+	// If --inherit-label was manually set to false then update history.
+	if s.executor.inheritLabels == types.OptionalBoolFalse {
+		inheritLabels = "|inheritLabels=false"
+	}
+	if isLastStep {
+		for _, annotation := range s.executor.unsetAnnotations {
+			unsetAnnotations += "|unsetAnnotation=" + annotation
+		}
+		// If --inherit-annotation was manually set to false then update history.
+		if s.executor.inheritAnnotations == types.OptionalBoolFalse {
+			inheritAnnotations = "|inheritAnnotations=false"
+		}
+		// If new annotations are added, they must be added as part of the last step of the build,
+		// so mention in history that new annotations were added inorder to make sure the builds
+		// can either reuse layers or burst the cache depending upon new annotations.
+		if len(s.executor.annotations) > 0 {
+			newAnnotations += strings.Join(s.executor.annotations, ",")
+		}
+	}
+	return inheritLabels, unsetAnnotations, inheritAnnotations, newAnnotations
 }
