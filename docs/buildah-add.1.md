@@ -65,6 +65,13 @@ can be used.
 
 Path to an alternative .containerignore (.dockerignore) file. Requires \-\-contextdir be specified.
 
+**--link**
+
+Create an independent image layer for the added files instead of modifying the working
+container's filesystem. If `buildah run` creates a file and `buildah add --link` adds a file
+to the same path, the file from `buildah add --link` will be present in the committed image.
+The --link layer is applied after all container filesystem changes at commit time.
+
 **--quiet**, **-q**
 
 Refrain from printing a digest of the added content.

@@ -668,3 +668,95 @@ parents/y/b.txt"
   run_buildah run $ctr stat -c %u:%g /random-file-6
   assert 789:789
 }
+
+@test "copy-link-flag" {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  
+  run_buildah config --workingdir=/ $cid
+  run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/randomfile
+  
+  run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /subdir/  
+  run_buildah unmount $cid
+  run_buildah commit $WITH_POLICY_JSON $cid copy-link-image
+
+  run_buildah inspect --type=image copy-link-image
+  layers=$(echo "$output" | jq -r '.OCIv1.rootfs.diff_ids | length')
+  assert "$layers" -eq 3 "Expected 3 layers from 2 --link operations and base, but found $layers"
+
+  run_buildah from $WITH_POLICY_JSON copy-link-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  
+  test -s $newroot/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
+  test -s $newroot/subdir/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/subdir/randomfile
+  test -s $newroot/subdir/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/other-randomfile $newroot/subdir/other-randomfile
+}
+
+@test "copy-link-directory" {
+  mkdir -p ${TEST_SCRATCH_DIR}/sourcedir
+  createrandom ${TEST_SCRATCH_DIR}/sourcedir/file1
+  createrandom ${TEST_SCRATCH_DIR}/sourcedir/file2
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  
+  run_buildah config --workingdir=/ $cid
+  run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/sourcedir /destdir
+  
+  run_buildah commit $WITH_POLICY_JSON $cid copy-link-dir-image
+
+  run_buildah from $WITH_POLICY_JSON copy-link-dir-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  
+  test -d $newroot/destdir
+  test -s $newroot/destdir/file1
+  cmp ${TEST_SCRATCH_DIR}/sourcedir/file1 $newroot/destdir/file1
+  test -s $newroot/destdir/file2
+  cmp ${TEST_SCRATCH_DIR}/sourcedir/file2 $newroot/destdir/file2
+}
+
+@test "copy-link-with-chown" {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  
+  run_buildah copy --link --chown bin:bin $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random
+  
+  run_buildah commit $WITH_POLICY_JSON $cid copy-link-chown-image
+  
+  run_buildah from $WITH_POLICY_JSON copy-link-chown-image
+  newcid=$output
+  run_buildah run $newcid ls -l /tmp/random
+  expect_output --substring "bin.*bin"
+}
+
+@test "copy-link-with-chmod" {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  
+  run_buildah copy --link --chmod 777 $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random
+  
+  run_buildah commit $WITH_POLICY_JSON $cid copy-link-chmod-image
+  
+  run_buildah from $WITH_POLICY_JSON copy-link-chmod-image
+  newcid=$output
+  run_buildah run $newcid ls -l /tmp/random
+  expect_output --substring "rwxrwxrwx"
+}
