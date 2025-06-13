@@ -242,6 +242,9 @@ type BuildOptions struct {
 	// InheritLabels controls whether or not built images will retain the labels
 	// which were set in their base images
 	InheritLabels types.OptionalBool
+	// InheritAnnotations controls whether or not built images will retain the annotations
+	// which were set in their base images
+	InheritAnnotations types.OptionalBool
 	// AddCapabilities is a list of capabilities to add to the default set when
 	// handling RUN instructions.
 	AddCapabilities []string
