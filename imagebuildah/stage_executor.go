@@ -1890,6 +1890,8 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 	}
 	inheritLabels := ""
 	unsetAnnotations := ""
+	inheritAnnotations := ""
+	newAnnotations := ""
 	// If --inherit-label was manually set to false then update history.
 	if s.executor.inheritLabels == types.OptionalBoolFalse {
 		inheritLabels = "|inheritLabels=false"
@@ -1897,6 +1899,16 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 	if isLastStep {
 		for _, annotation := range s.executor.unsetAnnotations {
 			unsetAnnotations += "|unsetAnnotation=" + annotation
+		}
+		// If --inherit-annotation was manually set to false then update history.
+		if s.executor.inheritAnnotations == types.OptionalBoolFalse {
+			inheritAnnotations = "|inheritAnnotations=false"
+		}
+		// If new annotations are added, they must be added as part of the last step of the build,
+		// so mention in history that new annotations were added inorder to make sure the builds
+		// can either reuse layers or burst the cache depending upon new annotations.
+		if len(s.executor.annotations) > 0 {
+			newAnnotations += strings.Join(s.executor.annotations, ",")
 		}
 	}
 	switch strings.ToUpper(node.Value) {
@@ -1907,7 +1919,7 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 			}
 		}
 		buildArgs := s.getBuildArgsKey()
-		return "/bin/sh -c #(nop) ARG " + buildArgs + inheritLabels + unsetAnnotations, nil
+		return "/bin/sh -c #(nop) ARG " + buildArgs + inheritLabels + unsetAnnotations + inheritAnnotations + newAnnotations, nil
 	case "RUN":
 		shArg := ""
 		buildArgs := s.getBuildArgsResolvedForRun()
@@ -1987,16 +1999,16 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 		if buildArgs != "" {
 			result = result + "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " "
 		}
-		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum + inheritLabels + unsetAnnotations
+		result = result + "/bin/sh -c " + shArg + heredoc + appendCheckSum + inheritLabels + unsetAnnotations + inheritAnnotations + newAnnotations
 		return result, nil
 	case "ADD", "COPY":
 		destination := node
 		for destination.Next != nil {
 			destination = destination.Next
 		}
-		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + " " + addedContentSummary + " in " + destination.Value + " " + inheritLabels + " " + unsetAnnotations, nil
+		return "/bin/sh -c #(nop) " + strings.ToUpper(node.Value) + " " + addedContentSummary + " in " + destination.Value + " " + inheritLabels + " " + unsetAnnotations + " " + inheritAnnotations + " " + newAnnotations, nil
 	default:
-		return "/bin/sh -c #(nop) " + node.Original + inheritLabels + unsetAnnotations, nil
+		return "/bin/sh -c #(nop) " + node.Original + inheritLabels + unsetAnnotations + inheritAnnotations + newAnnotations, nil
 	}
 }
 
@@ -2449,11 +2461,17 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	for _, key := range s.executor.unsetLabels {
 		s.builder.UnsetLabel(key)
 	}
-	for _, annotationSpec := range s.executor.annotations {
-		annotationk, annotationv, _ := strings.Cut(annotationSpec, "=")
-		s.builder.SetAnnotation(annotationk, annotationv)
-	}
 	if finalInstruction {
+		if s.executor.inheritAnnotations == types.OptionalBoolFalse {
+			// If user has selected `--inherit-annotations=false` let's not
+			// inherit annotations from base image.
+			s.builder.ClearAnnotations()
+		}
+		// Add new annotations to the last step.
+		for _, annotationSpec := range s.executor.annotations {
+			annotationk, annotationv, _ := strings.Cut(annotationSpec, "=")
+			s.builder.SetAnnotation(annotationk, annotationv)
+		}
 		for _, key := range s.executor.unsetAnnotations {
 			s.builder.UnsetAnnotation(key)
 		}
