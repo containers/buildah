@@ -204,7 +204,7 @@ in_podman() {
                    -e "CGROUP_MANAGER=cgroupfs" \
                    -v "$HOME/auth:$HOME/auth:ro" \
                    -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-                   -v /dev/fuse:/dev/fuse:rw \
+                   --device /dev/fuse:rwm \
                    -v "$GOSRC:$GOSRC:z" \
                    --workdir "$GOSRC" \
                    "$@"
