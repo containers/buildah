@@ -45,15 +45,6 @@ const (
 	PROC_REAP_RELEASE = 3
 )
 
-// We dont want to remove destinations with /etc, /dev as
-// rootfs already contains these files and unionfs will create
-// a `whiteout` i.e `.wh` files on removal of overlapping
-// files from these directories.  everything other than these
-// will be cleaned up
-var nonCleanablePrefixes = []string{
-	"/etc", "/dev",
-}
-
 func procctl(idtype int, id int, cmd int, arg *byte) error {
 	_, _, e1 := unix.Syscall6(
 		unix.SYS_PROCCTL, uintptr(idtype), uintptr(id),
@@ -298,7 +289,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	defer func() {
-		if err := b.cleanupRunMounts(mountPoint, runArtifacts); err != nil {
+		if err := b.cleanupRunMounts(runArtifacts); err != nil {
 			options.Logger.Errorf("unable to cleanup run mounts %v", err)
 		}
 	}()
@@ -333,6 +324,26 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			}
 		}()
 	}
+
+	// Create any mount points that we need that aren't already present in
+	// the rootfs.
+	createdMountTargets, err := b.createMountTargets(spec)
+	if err != nil {
+		return fmt.Errorf("ensuring mount targets for container %q: %w", b.ContainerID, err)
+	}
+	defer func() {
+		// Attempt to clean up mount targets for the sake of builds
+		// that don't commit and rebase at each step, and people using
+		// `buildah run` more than once, who don't expect empty mount
+		// points to stick around.
+		if _, err := copier.ConditionalRemove(mountPoint, mountPoint, copier.ConditionalRemoveOptions{
+			UIDMap: b.store.UIDMap(),
+			GIDMap: b.store.GIDMap(),
+			Paths:  createdMountTargets,
+		}); err != nil {
+			options.Logger.Errorf("unable to cleanup run mount targets %v", err)
+		}
+	}()
 
 	switch isolation {
 	case IsolationOCI:

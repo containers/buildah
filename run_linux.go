@@ -54,19 +54,9 @@ import (
 	"tags.cncf.io/container-device-interface/pkg/parser"
 )
 
-var (
-	// We dont want to remove destinations with /etc, /dev, /sys,
-	// /proc as rootfs already contains these files and unionfs
-	// will create a `whiteout` i.e `.wh` files on removal of
-	// overlapping files from these directories.  everything other
-	// than these will be cleaned up
-	nonCleanablePrefixes = []string{
-		"/etc", "/dev", "/sys", "/proc",
-	}
-	// binfmtRegistered makes sure we only try to register binfmt_misc
-	// interpreters once, the first time we handle a RUN instruction.
-	binfmtRegistered sync.Once
-)
+// binfmtRegistered makes sure we only try to register binfmt_misc
+// interpreters once, the first time we handle a RUN instruction.
+var binfmtRegistered sync.Once
 
 func setChildProcess() error {
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
@@ -528,6 +518,26 @@ rootless=%d
 		spec.Process.Env = append(spec.Process.Env, sshenv)
 	}
 
+	// Create any mount points that we need that aren't already present in
+	// the rootfs.
+	createdMountTargets, err := b.createMountTargets(spec)
+	if err != nil {
+		return fmt.Errorf("ensuring mount targets for container %q: %w", b.ContainerID, err)
+	}
+	defer func() {
+		// Attempt to clean up mount targets for the sake of builds
+		// that don't commit and rebase at each step, and people using
+		// `buildah run` more than once, who don't expect empty mount
+		// points to stick around.
+		if _, err := copier.ConditionalRemove(mountPoint, mountPoint, copier.ConditionalRemoveOptions{
+			UIDMap: b.store.UIDMap(),
+			GIDMap: b.store.GIDMap(),
+			Paths:  createdMountTargets,
+		}); err != nil {
+			options.Logger.Errorf("unable to cleanup run mount targets %v", err)
+		}
+	}()
+
 	// following run was called from `buildah run`
 	// and some images were mounted for this run
 	// add them to cleanup artifacts
@@ -536,7 +546,7 @@ rootless=%d
 	}
 
 	defer func() {
-		if err := b.cleanupRunMounts(mountPoint, runArtifacts); err != nil {
+		if err := b.cleanupRunMounts(runArtifacts); err != nil {
 			options.Logger.Errorf("unable to cleanup run mounts %v", err)
 		}
 	}()

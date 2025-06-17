@@ -180,12 +180,8 @@ type RunOptions struct {
 
 // RunMountArtifacts are the artifacts created when using a run mount.
 type runMountArtifacts struct {
-	// RunMountTargets are the run mount targets inside the container which should be removed
-	RunMountTargets []string
 	// RunOverlayDirs are overlay directories which will need to be cleaned up using overlay.RemoveTemp()
 	RunOverlayDirs []string
-	// TmpFiles are artifacts that need to be removed outside the container
-	TmpFiles []string
 	// Any images which were mounted, which should be unmounted
 	MountedImages []string
 	// Agents are the ssh agents started, which should have their Shutdown() methods called
