@@ -2461,7 +2461,7 @@ var internalTestCases = []testCase{
 	{
 		name: "add--exclude-includes-star",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.9-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
 			"FROM scratch",
 			"ADD --exclude=**/*-c ./ subdir/",
 		}, "\n"),
@@ -2474,7 +2474,7 @@ var internalTestCases = []testCase{
 	{
 		name: "add--exclude-includes-slash",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.9-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
 			"FROM scratch",
 			"ADD --exclude=*.txt / subdir/",
 		}, "\n"),
@@ -2487,7 +2487,7 @@ var internalTestCases = []testCase{
 	{
 		name: "add--exclude-includes-dot",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.9-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
 			"FROM scratch",
 			"ADD --exclude=*-c . subdir/",
 		}, "\n"),
@@ -2499,7 +2499,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--exclude-includes-subdir-slash",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.9-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
 			"FROM scratch",
 			"COPY --exclude=**/*-c / subdir/",
 		}, "\n"),
@@ -2512,7 +2512,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--exclude-includes-dot-slash",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.9-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
 			"FROM scratch",
 			"COPY --exclude='!**/*-c' ./ subdir/",
 		}, "\n"),
@@ -2525,7 +2525,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--exclude-includes-slash",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.9-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
 			"FROM scratch",
 			"COPY --exclude='!**/*-c' . subdir/",
 		}, "\n"),
@@ -2538,7 +2538,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY ./x/a.txt ./y/a.txt /no_parents/",
 			"COPY --parents ./x/a.txt ./y/a.txt /parents/",
@@ -2552,7 +2552,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-directories",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x /parents/",
 		}, "\n"),
@@ -2565,8 +2565,8 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-dir-with-links",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
-			"FROM alpine as base",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
+			"FROM mirror.gcr.io/alpine as base",
 			"COPY . .",
 
 			"# Symlink and hardlink part",
@@ -2595,7 +2595,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-all-directories",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./ /parents/",
 		}, "\n"),
@@ -2607,7 +2607,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-directory-with-parent-directory",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/y/ /parents/",
 		}, "\n"),
@@ -2619,7 +2619,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-path-with-star",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/*/a.txt ./*/b.txt /parents/",
 		}, "\n"),
@@ -2632,7 +2632,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-two-parent-directories",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/y/*.txt /parents/",
 		}, "\n"),
@@ -2645,7 +2645,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-unknown-count-parent-directories",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/* /parents/",
 		}, "\n"),
@@ -2658,7 +2658,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-directory-limit-parents-unknown-count-parent-directories",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/./ /parents/",
 		}, "\n"),
@@ -2670,7 +2670,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-limit-parents-unknown-count-parent-directories",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/./* /parents/",
 		}, "\n"),
@@ -2683,7 +2683,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-limit-parent-directories",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/./y/*.txt /parents/",
 			/*
@@ -2705,7 +2705,7 @@ var internalTestCases = []testCase{
 	{
 		name: "copy--parents-limit-parent-directories-1",
 		dockerfileContents: strings.Join([]string{
-			"# syntax=docker/dockerfile:1.7-labs",
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.7-labs",
 			"FROM scratch",
 			"COPY --parents ./x/y/./*.txt /parents/",
 			/*
@@ -3564,7 +3564,7 @@ var internalTestCases = []testCase{
 	{
 		name: "workdir-owner", // from issue #3620
 		dockerfileContents: strings.Join([]string{
-			`# syntax=docker/dockerfile:1.4`,
+			`# syntax=mirror.gcr.io/docker/dockerfile:1.4`,
 			`FROM mirror.gcr.io/alpine`,
 			`USER daemon`,
 			`WORKDIR /created/directory`,
