@@ -1027,7 +1027,7 @@ _EOF
   echo "$output" > ${TEST_SCRATCH_DIR}/mountinfo1
   echo "# mountinfo unfiltered:"
   cat ${TEST_SCRATCH_DIR}/mountinfo1
-  grep ' / rw,' ${TEST_SCRATCH_DIR}/mountinfo1 > ${TEST_SCRATCH_DIR}/mountinfo2
+  grep ' / rw[, ]' ${TEST_SCRATCH_DIR}/mountinfo1 > ${TEST_SCRATCH_DIR}/mountinfo2
   echo "# mountinfo grepped:"
   cat ${TEST_SCRATCH_DIR}/mountinfo2
   wc -l < ${TEST_SCRATCH_DIR}/mountinfo2 > ${TEST_SCRATCH_DIR}/mountinfo3
