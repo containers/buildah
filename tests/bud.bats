@@ -7548,6 +7548,8 @@ _EOF
   if is_rootless && has_supplemental_groups && ! [[ $OCI =~ runc ]]; then
      run_buildah build --group-add keep-groups $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
      expect_output --substring "65534"
+  else
+     skip "test is being run by root or without any supplemental groups ($(id))"
   fi
 }
 

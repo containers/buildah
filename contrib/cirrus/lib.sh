@@ -296,17 +296,20 @@ setup_rootless() {
     msg "************************************************************"
     cd $GOSRC || exit 1
     # Guarantee independence from specific values
-    rootless_uid=$[RANDOM+1000]
-    rootless_gid=$[RANDOM+1000]
-    rootless_supplemental_gid1=$[RANDOM+1000]
-    rootless_supplemental_gid2=$[RANDOM+1000]
-    rootless_supplemental_gid3=$[RANDOM+1000]
+    rootless_uid=$((RANDOM+1000))
+    rootless_gid=$((RANDOM+1000))
+    rootless_supplemental_gid1=$((rootless_gid+1))
+    rootless_supplemental_gid2=$((rootless_supplemental_gid1+1))
+    rootless_supplemental_gid3=$((rootless_supplemental_gid2+1))
     msg "creating $rootless_uid:$rootless_gid,$rootless_supplemental_gid1,$rootless_supplemental_gid2,$rootless_supplemental_gid3 $ROOTLESS_USER user"
     groupadd -g $rootless_gid $ROOTLESS_USER
     groupadd -g $rootless_supplemental_gid1 ${ROOTLESS_USER}sg1
     groupadd -g $rootless_supplemental_gid2 ${ROOTLESS_USER}sg2
     groupadd -g $rootless_supplemental_gid3 ${ROOTLESS_USER}sg3
     useradd -g $rootless_gid -G ${ROOTLESS_USER}sg1,${ROOTLESS_USER}sg2,${ROOTLESS_USER}sg3 -u $rootless_uid --no-user-group --create-home $ROOTLESS_USER
+    rootless_supplemental_gid4=$(awk 'BEGIN{FS=":"}/^rootlessuser:/{print $2+$3}' /etc/subgid)
+    groupadd -g $rootless_supplemental_gid4 ${ROOTLESS_USER}sg4
+    usermod -G ${ROOTLESS_USER}sg1,${ROOTLESS_USER}sg2,${ROOTLESS_USER}sg3,${ROOTLESS_USER}sg4 $ROOTLESS_USER
     msg "running id for $ROOTLESS_USER"
     id $ROOTLESS_USER
 
