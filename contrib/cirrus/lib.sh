@@ -81,7 +81,7 @@ export CI_USE_REGISTRY_CACHE=true
 #   N/B: Don't include BUILDAH_ISOLATION, STORAGE_DRIVER, or CGROUP_MANAGER
 #   here because they will negatively affect execution of the rootless
 #   integration tests.
-PASSTHROUGH_ENV_EXACT='DEST_BRANCH|DISTRO_NV|GOPATH|GOSRC|ROOTLESS_USER|SCRIPT_BASE|IN_PODMAN_IMAGE'
+PASSTHROUGH_ENV_EXACT='BUILDAH_RUNTIME|DEST_BRANCH|DISTRO_NV|GOPATH|GOSRC|ROOTLESS_USER|SCRIPT_BASE|IN_PODMAN_IMAGE'
 
 # List of envariable patterns which must match AT THE BEGINNING of the name.
 PASSTHROUGH_ENV_ATSTART='CI|TEST'
@@ -204,7 +204,7 @@ in_podman() {
                    -e "CGROUP_MANAGER=cgroupfs" \
                    -v "$HOME/auth:$HOME/auth:ro" \
                    -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-                   -v /dev/fuse:/dev/fuse:rw \
+                   --device /dev/fuse:rwm \
                    -v "$GOSRC:$GOSRC:z" \
                    --workdir "$GOSRC" \
                    "$@"
@@ -296,17 +296,20 @@ setup_rootless() {
     msg "************************************************************"
     cd $GOSRC || exit 1
     # Guarantee independence from specific values
-    rootless_uid=$[RANDOM+1000]
-    rootless_gid=$[RANDOM+1000]
-    rootless_supplemental_gid1=$[RANDOM+1000]
-    rootless_supplemental_gid2=$[RANDOM+1000]
-    rootless_supplemental_gid3=$[RANDOM+1000]
+    rootless_uid=$((RANDOM+1000))
+    rootless_gid=$((RANDOM+1000))
+    rootless_supplemental_gid1=$((rootless_gid+1))
+    rootless_supplemental_gid2=$((rootless_supplemental_gid1+1))
+    rootless_supplemental_gid3=$((rootless_supplemental_gid2+1))
     msg "creating $rootless_uid:$rootless_gid,$rootless_supplemental_gid1,$rootless_supplemental_gid2,$rootless_supplemental_gid3 $ROOTLESS_USER user"
     groupadd -g $rootless_gid $ROOTLESS_USER
     groupadd -g $rootless_supplemental_gid1 ${ROOTLESS_USER}sg1
     groupadd -g $rootless_supplemental_gid2 ${ROOTLESS_USER}sg2
     groupadd -g $rootless_supplemental_gid3 ${ROOTLESS_USER}sg3
     useradd -g $rootless_gid -G ${ROOTLESS_USER}sg1,${ROOTLESS_USER}sg2,${ROOTLESS_USER}sg3 -u $rootless_uid --no-user-group --create-home $ROOTLESS_USER
+    rootless_supplemental_gid4=$(awk 'BEGIN{FS=":"}/^rootlessuser:/{print $2+$3}' /etc/subgid)
+    groupadd -g $rootless_supplemental_gid4 ${ROOTLESS_USER}sg4
+    usermod -G ${ROOTLESS_USER}sg1,${ROOTLESS_USER}sg2,${ROOTLESS_USER}sg3,${ROOTLESS_USER}sg4 $ROOTLESS_USER
     msg "running id for $ROOTLESS_USER"
     id $ROOTLESS_USER
 

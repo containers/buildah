@@ -11,7 +11,7 @@ INET_BINARY=${INET_BINARY:-$TEST_SOURCES/../bin/inet}
 DUMPSPEC_BINARY=${DUMPSPEC_BINARY:-$TEST_SOURCES/../bin/dumpspec}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
-OCI=${CI_DESIRED_RUNTIME:-$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)}
+OCI=${BUILDAH_RUNTIME:-$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)}
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 

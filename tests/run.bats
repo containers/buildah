@@ -267,6 +267,8 @@ function configure_and_check_user() {
 	   cid=$output
 	   run_buildah run $cid id -G
 	   expect_output --substring "65534"
+	else
+	   skip "test is being run by root or without any supplemental groups ($(id))"
 	fi
 }
 
