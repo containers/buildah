@@ -94,6 +94,14 @@ type CommitOptions struct {
 	// EmptyLayer tells the builder to omit the diff for the working
 	// container.
 	EmptyLayer bool
+	// OmitLayerHistoryEntry tells the builder to omit the diff for the
+	// working container and to not add an entry in the commit history.  By
+	// default, the rest of the image's history is preserved, subject to
+	// the OmitHistory setting.  N.B.: setting this flag, without any
+	// PrependedEmptyLayers, AppendedEmptyLayers, PrependedLinkedLayers, or
+	// AppendedLinkedLayers will more or less produce a copy of the base
+	// image.
+	OmitLayerHistoryEntry bool
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
 	// Deprecated use HistoryTimestamp instead.

@@ -81,6 +81,7 @@ type containerImageRef struct {
 	confidentialWorkload  ConfidentialWorkloadOptions
 	omitHistory           bool
 	emptyLayer            bool
+	omitLayerHistoryEntry bool
 	idMappingOptions      *define.IDMappingOptions
 	parent                string
 	blobDirectory         string
@@ -451,14 +452,16 @@ func (mb *dockerSchema2ManifestBuilder) buildHistory(extraImageContentDiff strin
 	if mb.i.created != nil {
 		created = (*mb.i.created).UTC()
 	}
-	dnews := docker.V2S2History{
-		Created:    created,
-		CreatedBy:  mb.i.createdBy,
-		Author:     mb.dimage.Author,
-		EmptyLayer: mb.i.emptyLayer,
-		Comment:    mb.i.historyComment,
+	if !mb.i.omitLayerHistoryEntry {
+		dnews := docker.V2S2History{
+			Created:    created,
+			CreatedBy:  mb.i.createdBy,
+			Author:     mb.dimage.Author,
+			EmptyLayer: mb.i.emptyLayer,
+			Comment:    mb.i.historyComment,
+		}
+		mb.dimage.History = append(mb.dimage.History, dnews)
 	}
-	mb.dimage.History = append(mb.dimage.History, dnews)
 	// Add a history entry for the extra image content if we added a layer for it.
 	// This diff was added to the list of layers before API-supplied layers that
 	// needed to be appended, and we need to keep the order of history entries for
@@ -478,16 +481,19 @@ func (mb *dockerSchema2ManifestBuilder) buildHistory(extraImageContentDiff strin
 		appendHistory([]v1.History{h.linkedLayer.History}, h.linkedLayer.History.EmptyLayer)
 	}
 
-	// Assemble a comment indicating which base image was used, if it wasn't
-	// just an image ID, and add it to the first history entry we added.
-	var fromComment string
-	if strings.Contains(mb.i.parent, mb.i.fromImageID) && mb.i.fromImageName != "" && !strings.HasPrefix(mb.i.fromImageID, mb.i.fromImageName) {
-		if mb.dimage.History[baseImageHistoryLen].Comment != "" {
-			fromComment = " "
+	// Assemble a comment indicating which base image was used, if it
+	// wasn't just an image ID, and add it to the first history entry we
+	// added, if we indeed added one.
+	if len(mb.dimage.History) > baseImageHistoryLen {
+		var fromComment string
+		if strings.Contains(mb.i.parent, mb.i.fromImageID) && mb.i.fromImageName != "" && !strings.HasPrefix(mb.i.fromImageID, mb.i.fromImageName) {
+			if mb.dimage.History[baseImageHistoryLen].Comment != "" {
+				fromComment = " "
+			}
+			fromComment += "FROM " + mb.i.fromImageName
 		}
-		fromComment += "FROM " + mb.i.fromImageName
+		mb.dimage.History[baseImageHistoryLen].Comment += fromComment
 	}
-	mb.dimage.History[baseImageHistoryLen].Comment += fromComment
 
 	// Confidence check that we didn't just create a mismatch between non-empty layers in the
 	// history and the number of diffIDs.  Only applicable if the base image (if there was
@@ -666,14 +672,16 @@ func (mb *ociManifestBuilder) buildHistory(extraImageContentDiff string, extraIm
 	if mb.i.created != nil {
 		created = (*mb.i.created).UTC()
 	}
-	onews := v1.History{
-		Created:    &created,
-		CreatedBy:  mb.i.createdBy,
-		Author:     mb.oimage.Author,
-		EmptyLayer: mb.i.emptyLayer,
-		Comment:    mb.i.historyComment,
+	if !mb.i.omitLayerHistoryEntry {
+		onews := v1.History{
+			Created:    &created,
+			CreatedBy:  mb.i.createdBy,
+			Author:     mb.oimage.Author,
+			EmptyLayer: mb.i.emptyLayer,
+			Comment:    mb.i.historyComment,
+		}
+		mb.oimage.History = append(mb.oimage.History, onews)
 	}
-	mb.oimage.History = append(mb.oimage.History, onews)
 	// Add a history entry for the extra image content if we added a layer for it.
 	// This diff was added to the list of layers before API-supplied layers that
 	// needed to be appended, and we need to keep the order of history entries for
@@ -693,16 +701,19 @@ func (mb *ociManifestBuilder) buildHistory(extraImageContentDiff string, extraIm
 		appendHistory([]v1.History{h.linkedLayer.History}, h.linkedLayer.History.EmptyLayer)
 	}
 
-	// Assemble a comment indicating which base image was used, if it wasn't
-	// just an image ID, and add it to the first history entry we added.
-	var fromComment string
-	if strings.Contains(mb.i.parent, mb.i.fromImageID) && mb.i.fromImageName != "" && !strings.HasPrefix(mb.i.fromImageID, mb.i.fromImageName) {
-		if mb.oimage.History[baseImageHistoryLen].Comment != "" {
-			fromComment = " "
+	// Assemble a comment indicating which base image was used, if it
+	// wasn't just an image ID, and add it to the first history entry we
+	// added, if we indeed added one.
+	if len(mb.oimage.History) > baseImageHistoryLen {
+		var fromComment string
+		if strings.Contains(mb.i.parent, mb.i.fromImageID) && mb.i.fromImageName != "" && !strings.HasPrefix(mb.i.fromImageID, mb.i.fromImageName) {
+			if mb.oimage.History[baseImageHistoryLen].Comment != "" {
+				fromComment = " "
+			}
+			fromComment += "FROM " + mb.i.fromImageName
 		}
-		fromComment += "FROM " + mb.i.fromImageName
+		mb.oimage.History[baseImageHistoryLen].Comment += fromComment
 	}
-	mb.oimage.History[baseImageHistoryLen].Comment += fromComment
 
 	// Confidence check that we didn't just create a mismatch between non-empty layers in the
 	// history and the number of diffIDs.  Only applicable if the base image (if there was
@@ -1447,7 +1458,8 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		squash:                options.Squash,
 		confidentialWorkload:  options.ConfidentialWorkloadOptions,
 		omitHistory:           options.OmitHistory || forceOmitHistory,
-		emptyLayer:            options.EmptyLayer && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
+		emptyLayer:            (options.EmptyLayer || options.OmitLayerHistoryEntry) && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
+		omitLayerHistoryEntry: options.OmitLayerHistoryEntry && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
 		idMappingOptions:      &b.IDMappingOptions,
 		parent:                parent,
 		blobDirectory:         options.BlobDirectory,

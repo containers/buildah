@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -14,10 +15,12 @@ import (
 	"github.com/containers/image/v5/manifest"
 	ociLayout "github.com/containers/image/v5/oci/layout"
 	imageStorage "github.com/containers/image/v5/storage"
+	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	storageTypes "github.com/containers/storage/types"
+	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
@@ -346,4 +349,222 @@ func TestCommitCompression(t *testing.T) {
 			require.Equalf(t, compressor.compression, archive.DetectCompression(blob), "detected compression looks wrong for layer in oci layout %q")
 		})
 	}
+}
+
+func TestCommitEmpty(t *testing.T) {
+	// This test cannot be parallized as this uses NewBuilder()
+	// which eventually and indirectly accesses a global variable
+	// defined in `go-selinux`, this must be fixed at `go-selinux`
+	// or builder must enable sometime of locking mechanism i.e if
+	// routine is creating Builder other's must wait for it.
+	// Tracked here: https://github.com/containers/buildah/issues/5967
+	ctx := context.TODO()
+
+	graphDriverName := os.Getenv("STORAGE_DRIVER")
+	if graphDriverName == "" {
+		graphDriverName = "vfs"
+	}
+	t.Logf("using storage driver %q", graphDriverName)
+	store, err := storage.GetStore(storageTypes.StoreOptions{
+		RunRoot:         t.TempDir(),
+		GraphRoot:       t.TempDir(),
+		GraphDriverName: graphDriverName,
+	})
+	require.NoError(t, err, "initializing storage")
+	t.Cleanup(func() { _, err := store.Shutdown(true); assert.NoError(t, err) })
+
+	builderOptions := BuilderOptions{
+		FromImage: "scratch",
+		NamespaceOptions: []NamespaceOption{{
+			Name: string(rspec.NetworkNamespace),
+			Host: true,
+		}},
+		SystemContext: &testSystemContext,
+	}
+	b, err := NewBuilder(ctx, store, builderOptions)
+	require.NoError(t, err, "creating builder")
+
+	committedLayoutDir := t.TempDir()
+	committedRef, err := ociLayout.ParseReference(committedLayoutDir)
+	require.NoError(t, err, "parsing reference to where we're committing a basic image")
+	_, _, _, err = b.Commit(ctx, committedRef, CommitOptions{})
+	require.NoError(t, err, "committing with default settings")
+
+	committedImg, err := committedRef.NewImageSource(ctx, &testSystemContext)
+	require.NoError(t, err, "preparing to read committed image")
+	defer committedImg.Close()
+	committedManifestBytes, committedManifestType, err := committedImg.GetManifest(ctx, nil)
+	require.NoError(t, err, "reading manifest from committed image")
+	require.Equalf(t, v1.MediaTypeImageManifest, committedManifestType, "unexpected manifest type")
+	committedManifest, err := manifest.FromBlob(committedManifestBytes, committedManifestType)
+	require.NoError(t, err, "parsing manifest from committed image")
+	require.Equalf(t, 1, len(committedManifest.LayerInfos()), "expected one layer in manifest")
+	configReadCloser, _, err := committedImg.GetBlob(ctx, committedManifest.ConfigInfo(), nil)
+	require.NoError(t, err, "reading config blob from committed image")
+	defer configReadCloser.Close()
+	var committedImage v1.Image
+	err = json.NewDecoder(configReadCloser).Decode(&committedImage)
+	require.NoError(t, err, "parsing config blob from committed image")
+	require.Equalf(t, 1, len(committedImage.History), "expected one history entry")
+	require.Falsef(t, committedImage.History[0].EmptyLayer, "expected lone history entry to not be marked as an empty layer")
+	require.Equalf(t, 1, len(committedImage.RootFS.DiffIDs), "expected one rootfs layer")
+
+	t.Run("emptylayer", func(t *testing.T) {
+		options := CommitOptions{
+			EmptyLayer: true,
+		}
+		layoutDir := t.TempDir()
+		ref, err := ociLayout.ParseReference(layoutDir)
+		require.NoError(t, err, "parsing reference to image we're going to commit with EmptyLayer")
+		_, _, _, err = b.Commit(ctx, ref, options)
+		require.NoError(t, err, "committing with EmptyLayer = true")
+		img, err := ref.NewImageSource(ctx, &testSystemContext)
+		require.NoError(t, err, "preparing to read committed image")
+		defer img.Close()
+		manifestBytes, manifestType, err := img.GetManifest(ctx, nil)
+		require.NoError(t, err, "reading manifest from committed image")
+		require.Equalf(t, v1.MediaTypeImageManifest, manifestType, "unexpected manifest type")
+		parsedManifest, err := manifest.FromBlob(manifestBytes, manifestType)
+		require.NoError(t, err, "parsing manifest from committed image")
+		require.Zerof(t, len(parsedManifest.LayerInfos()), "expected no layers in manifest")
+		configReadCloser, _, err := img.GetBlob(ctx, parsedManifest.ConfigInfo(), nil)
+		require.NoError(t, err, "reading config blob from committed image")
+		defer configReadCloser.Close()
+		var image v1.Image
+		err = json.NewDecoder(configReadCloser).Decode(&image)
+		require.NoError(t, err, "parsing config blob from committed image")
+		require.Equalf(t, 1, len(image.History), "expected one history entry")
+		require.Truef(t, image.History[0].EmptyLayer, "expected lone history entry to be marked as an empty layer")
+	})
+
+	t.Run("omitlayerhistoryentry", func(t *testing.T) {
+		options := CommitOptions{
+			OmitLayerHistoryEntry: true,
+		}
+		layoutDir := t.TempDir()
+		ref, err := ociLayout.ParseReference(layoutDir)
+		require.NoError(t, err, "parsing reference to image we're going to commit with OmitLayerHistoryEntry")
+		_, _, _, err = b.Commit(ctx, ref, options)
+		require.NoError(t, err, "committing with OmitLayerHistoryEntry = true")
+		img, err := ref.NewImageSource(ctx, &testSystemContext)
+		require.NoError(t, err, "preparing to read committed image")
+		defer img.Close()
+		manifestBytes, manifestType, err := img.GetManifest(ctx, nil)
+		require.NoError(t, err, "reading manifest from committed image")
+		require.Equalf(t, v1.MediaTypeImageManifest, manifestType, "unexpected manifest type")
+		parsedManifest, err := manifest.FromBlob(manifestBytes, manifestType)
+		require.NoError(t, err, "parsing manifest from committed image")
+		require.Equalf(t, 0, len(parsedManifest.LayerInfos()), "expected no layers in manifest")
+		configReadCloser, _, err := img.GetBlob(ctx, parsedManifest.ConfigInfo(), nil)
+		require.NoError(t, err, "reading config blob from committed image")
+		defer configReadCloser.Close()
+		var image v1.Image
+		err = json.NewDecoder(configReadCloser).Decode(&image)
+		require.NoError(t, err, "parsing config blob from committed image")
+		require.Equalf(t, 0, len(image.History), "expected no history entries")
+		require.Equalf(t, 0, len(image.RootFS.DiffIDs), "expected no diff IDs")
+	})
+
+	builderOptions.FromImage = transports.ImageName(committedRef)
+	b, err = NewBuilder(ctx, store, builderOptions)
+	require.NoError(t, err, "creating builder from committed base image")
+
+	t.Run("derived-emptylayer", func(t *testing.T) {
+		options := CommitOptions{
+			EmptyLayer: true,
+		}
+		layoutDir := t.TempDir()
+		ref, err := ociLayout.ParseReference(layoutDir)
+		require.NoError(t, err, "parsing reference to image we're going to commit with EmptyLayer")
+		_, _, _, err = b.Commit(ctx, ref, options)
+		require.NoError(t, err, "committing with EmptyLayer = true")
+		img, err := ref.NewImageSource(ctx, &testSystemContext)
+		require.NoError(t, err, "preparing to read committed image")
+		defer img.Close()
+		manifestBytes, manifestType, err := img.GetManifest(ctx, nil)
+		require.NoError(t, err, "reading manifest from committed image")
+		require.Equalf(t, v1.MediaTypeImageManifest, manifestType, "unexpected manifest type")
+		parsedManifest, err := manifest.FromBlob(manifestBytes, manifestType)
+		require.NoError(t, err, "parsing manifest from committed image")
+		require.Equalf(t, len(committedManifest.LayerInfos()), len(parsedManifest.LayerInfos()), "expected no new layers in manifest")
+		configReadCloser, _, err := img.GetBlob(ctx, parsedManifest.ConfigInfo(), nil)
+		require.NoError(t, err, "reading config blob from committed image")
+		defer configReadCloser.Close()
+		var image v1.Image
+		err = json.NewDecoder(configReadCloser).Decode(&image)
+		require.NoError(t, err, "parsing config blob from committed image")
+		require.Equalf(t, len(committedImage.History)+1, len(image.History), "expected one new history entry")
+		require.Equalf(t, len(committedImage.RootFS.DiffIDs), len(image.RootFS.DiffIDs), "expected no new diff IDs")
+		require.Truef(t, image.History[1].EmptyLayer, "expected new history entry to be marked as an empty layer")
+	})
+
+	t.Run("derived-omitlayerhistoryentry", func(t *testing.T) {
+		options := CommitOptions{
+			OmitLayerHistoryEntry: true,
+		}
+		layoutDir := t.TempDir()
+		ref, err := ociLayout.ParseReference(layoutDir)
+		require.NoError(t, err, "parsing reference to image we're going to commit with OmitLayerHistoryEntry")
+		_, _, _, err = b.Commit(ctx, ref, options)
+		require.NoError(t, err, "committing with OmitLayerHistoryEntry = true")
+		img, err := ref.NewImageSource(ctx, &testSystemContext)
+		require.NoError(t, err, "preparing to read committed image")
+		defer img.Close()
+		manifestBytes, manifestType, err := img.GetManifest(ctx, nil)
+		require.NoError(t, err, "reading manifest from committed image")
+		require.Equalf(t, v1.MediaTypeImageManifest, manifestType, "unexpected manifest type")
+		parsedManifest, err := manifest.FromBlob(manifestBytes, manifestType)
+		require.NoError(t, err, "parsing manifest from committed image")
+		require.Equalf(t, len(committedManifest.LayerInfos()), len(parsedManifest.LayerInfos()), "expected no new layers in manifest")
+		configReadCloser, _, err := img.GetBlob(ctx, parsedManifest.ConfigInfo(), nil)
+		require.NoError(t, err, "reading config blob from committed image")
+		defer configReadCloser.Close()
+		var image v1.Image
+		err = json.NewDecoder(configReadCloser).Decode(&image)
+		require.NoError(t, err, "parsing config blob from committed image")
+		require.Equalf(t, len(committedImage.History), len(image.History), "expected no new history entry")
+		require.Equalf(t, len(committedImage.RootFS.DiffIDs), len(image.RootFS.DiffIDs), "expected no new diff IDs")
+	})
+
+	t.Run("derived-synthetic", func(t *testing.T) {
+		randomDir := t.TempDir()
+		randomFile, err := os.CreateTemp(randomDir, "file")
+		require.NoError(t, err, "creating a temporary file")
+		layerDigest := digest.Canonical.Digester()
+		_, err = io.CopyN(io.MultiWriter(layerDigest.Hash(), randomFile), rand.Reader, 512)
+		require.NoError(t, err, "writing a temporary file")
+		require.NoError(t, randomFile.Close(), "closing temporary file")
+		options := CommitOptions{
+			OmitLayerHistoryEntry: true,
+			AppendedLinkedLayers: []LinkedLayer{{
+				History: v1.History{
+					CreatedBy: "yolo",
+				}, // history entry to add
+				BlobPath: randomFile.Name(),
+			}},
+		}
+		layoutDir := t.TempDir()
+		ref, err := ociLayout.ParseReference(layoutDir)
+		require.NoErrorf(t, err, "parsing reference for to-be-committed image with externally-controlled changes")
+		_, _, _, err = b.Commit(ctx, ref, options)
+		require.NoError(t, err, "committing with OmitLayerHistoryEntry = true")
+		img, err := ref.NewImageSource(ctx, &testSystemContext)
+		require.NoError(t, err, "preparing to read committed image")
+		defer img.Close()
+		manifestBytes, manifestType, err := img.GetManifest(ctx, nil)
+		require.NoError(t, err, "reading manifest from committed image")
+		require.Equalf(t, v1.MediaTypeImageManifest, manifestType, "unexpected manifest type")
+		parsedManifest, err := manifest.FromBlob(manifestBytes, manifestType)
+		require.NoError(t, err, "parsing manifest from committed image")
+		require.Equalf(t, len(committedManifest.LayerInfos())+1, len(parsedManifest.LayerInfos()), "expected one new layer in manifest")
+		configReadCloser, _, err := img.GetBlob(ctx, parsedManifest.ConfigInfo(), nil)
+		require.NoError(t, err, "reading config blob from committed image")
+		defer configReadCloser.Close()
+		var image v1.Image
+		err = json.NewDecoder(configReadCloser).Decode(&image)
+		require.NoError(t, err, "decoding image config")
+		require.Equalf(t, len(committedImage.History)+1, len(image.History), "expected one new history entry")
+		require.Equalf(t, len(committedImage.RootFS.DiffIDs)+1, len(image.RootFS.DiffIDs), "expected one new diff ID")
+		require.Equalf(t, layerDigest.Digest(), image.RootFS.DiffIDs[len(image.RootFS.DiffIDs)-1], "expected new diff ID to match the randomly-generated layer")
+	})
 }
