@@ -573,6 +573,9 @@ func (i *containerImageRef) newOCIManifestBuilder() (manifestBuilder, error) {
 	}
 
 	// Return partial manifest.  The Layers lists will be populated later.
+	annotations := make(map[string]string)
+	maps.Copy(annotations, i.annotations)
+	annotations[v1.AnnotationCreated] = created.UTC().Format(time.RFC3339Nano)
 	return &ociManifestBuilder{
 		i: i,
 		// The default layer media type assumes no compression.
@@ -587,7 +590,7 @@ func (i *containerImageRef) newOCIManifestBuilder() (manifestBuilder, error) {
 				MediaType: v1.MediaTypeImageConfig,
 			},
 			Layers:      []v1.Descriptor{},
-			Annotations: i.annotations,
+			Annotations: annotations,
 		},
 	}, nil
 }

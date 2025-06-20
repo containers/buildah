@@ -580,3 +580,31 @@ load helpers
     assert "$output" != "$timestamp" "unexpected datestamp on $file in layer"
   done
 }
+
+@test "commit-sets-created-annotation" {
+  _prefetch busybox
+  run_buildah from -q busybox
+  local cid="$output"
+  for flagdir in default: timestamp:--timestamp=0 sde:--source-date-epoch=0 ; do
+    local flag=${flagdir##*:}
+    local subdir=${flagdir%%:*}
+    run_buildah commit $flag "$cid" oci:${TEST_SCRATCH_DIR}/$subdir
+    local manifest=${TEST_SCRATCH_DIR}/$subdir/$(oci_image_manifest ${TEST_SCRATCH_DIR}/$subdir)
+    run jq -r '.annotations["org.opencontainers.image.created"]' "$manifest"
+    assert $status -eq 0
+    echo "$output"
+    local manifestcreated="$output"
+    local config=${TEST_SCRATCH_DIR}/$subdir/$(oci_image_config ${TEST_SCRATCH_DIR}/$subdir)
+    run jq -r '.created' "$config"
+    assert $status -eq 0
+    echo "$output"
+    local configcreated="$output"
+    assert $manifestcreated = $configcreated "manifest and config disagree on the image's created-time"
+    if [[ "$flag" =~ "=0" ]]; then
+      assert $manifestcreated = "1970-01-01T00:00:00Z"
+    else
+      assert $manifestcreated != ""
+      assert $manifestcreated != "1970-01-01T00:00:00Z"
+    fi
+  done
+}
