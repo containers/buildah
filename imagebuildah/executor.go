@@ -167,6 +167,7 @@ type Executor struct {
 	compatSetParent                         types.OptionalBool
 	compatVolumes                           types.OptionalBool
 	compatScratchConfig                     types.OptionalBool
+	compatLayerOmissions                    types.OptionalBool
 	noPivotRoot                             bool
 	sourceDateEpoch                         *time.Time
 	rewriteTimestamp                        bool
@@ -337,6 +338,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		compatSetParent:                         options.CompatSetParent,
 		compatVolumes:                           options.CompatVolumes,
 		compatScratchConfig:                     options.CompatScratchConfig,
+		compatLayerOmissions:                    options.CompatLayerOmissions,
 		noPivotRoot:                             options.NoPivotRoot,
 		sourceDateEpoch:                         options.SourceDateEpoch,
 		rewriteTimestamp:                        options.RewriteTimestamp,

@@ -146,6 +146,11 @@ type CommitOptions struct {
 	// the image in Docker format.  Newer BuildKit-based builds don't set
 	// this field.
 	CompatSetParent types.OptionalBool
+	// CompatLayerOmissions causes the "/dev", "/proc", and "/sys"
+	// directories to be omitted from the layer diff and related output, as
+	// the classic builder did.  Newer BuildKit-based builds include them
+	// in the built image by default.
+	CompatLayerOmissions types.OptionalBool
 	// PrependedLinkedLayers and AppendedLinkedLayers are combinations of
 	// history entries and locations of either directory trees (if
 	// directories, per os.Stat()) or uncompressed layer blobs which should

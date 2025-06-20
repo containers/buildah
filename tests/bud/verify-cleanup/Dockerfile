@@ -16,9 +16,9 @@ ARG SECRETFILE="secret1.txt"
 RUN [ -d "/tmp" ] && echo "Directory $TMP exists."
 RUN [ -d "/var/tmp" ] && echo "Directory $VARTMP exists."
 
-#Following path should not exists after the --mount step
-RUN [ ! -d "/testdir" ] && echo "Directory $TESTDIR DOES NOT exists."
-RUN [ ! -d "/cachedir" ] && echo "Cache Directory $CACHEDIR DOES NOT exists."
-RUN [ ! -f "secret1.txt" ] && echo "Secret File $SECRETFILE DOES NOT exists."
+# Following path should not exist after the --mount step
+RUN [ ! -d "/testdir" ] && echo "Directory $TESTDIR DOES NOT exist."
+RUN [ ! -d "/cachedir" ] && echo "Cache Directory $CACHEDIR DOES NOT exist."
+RUN [ ! -f "secret1.txt" ] && echo "Secret File $SECRETFILE DOES NOT exist."
 # This should fail
 RUN cat /tmp/hey

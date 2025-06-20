@@ -6717,6 +6717,10 @@ _EOF
   run_buildah 1 bud --secret=id=mysecret,src=${mytmpdir}/mysecret $WITH_POLICY_JSON  -t secretimg -f $BUDFILES/run-mounts/Dockerfile.secret-access $BUDFILES/run-mounts
   expect_output --substring "SOMESECRETDATA"
   expect_output --substring "cat: can't open '/mysecret': No such file or directory"
+
+  run_buildah 1 bud --no-cache --layers --secret=id=mysecret,src=${mytmpdir}/mysecret $WITH_POLICY_JSON  -t secretimg -f $BUDFILES/run-mounts/Dockerfile.secret-access $BUDFILES/run-mounts
+  expect_output --substring "SOMESECRETDATA"
+  expect_output --substring "cat: can't open '/mysecret': No such file or directory"
 }
 
 @test "bud with default mode perms" {
@@ -7142,14 +7146,14 @@ _EOF
   skip_if_no_runtime
   skip_if_in_container
   _prefetch alpine ubuntu
-  run_buildah 1 build -t testbud $WITH_POLICY_JSON --secret id=secret-foo,src=$BUDFILES/verify-cleanup/secret1.txt -f $BUDFILES/verify-cleanup/Dockerfile $BUDFILES/verify-cleanup/
+  run_buildah 1 build -t testbud $WITH_POLICY_JSON --secret id=secret-foo,src=$BUDFILES/verify-cleanup/secret1.txt $BUDFILES/verify-cleanup/
   expect_output --substring "hello"
   expect_output --substring "secrettext"
   expect_output --substring "Directory /tmp exists."
   expect_output --substring "Directory /var/tmp exists."
-  expect_output --substring "Directory /testdir DOES NOT exists."
-  expect_output --substring "Cache Directory /cachedir DOES NOT exists."
-  expect_output --substring "Secret File secret1.txt DOES NOT exists."
+  expect_output --substring "Directory /testdir DOES NOT exist."
+  expect_output --substring "Cache Directory /cachedir DOES NOT exist."
+  expect_output --substring "Secret File secret1.txt DOES NOT exist."
   expect_output --substring "/tmp/hey: No such file or directory"
 }
 

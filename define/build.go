@@ -408,6 +408,10 @@ type BuildOptions struct {
 	// provides a minimal initial configuration with a working directory
 	// set in it.
 	CompatScratchConfig types.OptionalBool
+	// CompatLayerOmissions causes the "/dev", "/proc", and "/sys"
+	// directories to be omitted from the image and related output.  Newer
+	// BuildKit-based builds include them in the built image by default.
+	CompatLayerOmissions types.OptionalBool
 	// NoPivotRoot inhibits the usage of pivot_root when setting up the rootfs
 	NoPivotRoot bool
 }

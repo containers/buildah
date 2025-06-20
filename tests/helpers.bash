@@ -604,9 +604,9 @@ function is_rootless() {
     [ "$(id -u)" -ne 0 ]
 }
 
-#################
+#############################
 #  has_supplemental_groups  #  Check that account has additional groups
-#################
+#############################
 function has_supplemental_groups() {
     [ "$(id -g)" != "$(id -G)" ]
 }

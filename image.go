@@ -10,6 +10,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -46,6 +47,15 @@ const (
 	// manifest, suitable for specifying as a value of the
 	// PreferredManifestType member of a CommitOptions structure.
 	Dockerv2ImageManifest = define.Dockerv2ImageManifest
+	// containerExcludesDir is the subdirectory of the container data
+	// directory where we drop exclusions
+	containerExcludesDir = "commit-excludes"
+	// containerExcludesSubstring is the suffix of files under
+	// $cdir/containerExcludesDir which should be ignored, as they only
+	// exist because we use CreateTemp() to create uniquely-named files,
+	// but we don't want to try to use their contents until after they've
+	// been written to
+	containerExcludesSubstring = ".tmp"
 )
 
 // ExtractRootfsOptions is consumed by ExtractRootfs() which allows users to
@@ -92,6 +102,7 @@ type containerImageRef struct {
 	overrideConfig        *manifest.Schema2Config
 	extraImageContent     map[string]string
 	compatSetParent       types.OptionalBool
+	layerExclusions       []copier.ConditionalRemovePath
 }
 
 type blobLayerInfo struct {
@@ -953,8 +964,12 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		counter := ioutils.NewWriteCounter(layerFile)
 		var destHasher digest.Digester
 		var multiWriter io.Writer
-		// Avoid rehashing when we do not compress.
-		if i.compression != archive.Uncompressed {
+		// Avoid rehashing when we compress or mess with the layer contents somehow.
+		// At this point, there are multiple ways that can happen.
+		diffBeingAltered := i.compression != archive.Uncompressed
+		diffBeingAltered = diffBeingAltered || i.layerModTime != nil || i.layerLatestModTime != nil
+		diffBeingAltered = diffBeingAltered || len(i.layerExclusions) != 0
+		if diffBeingAltered {
 			destHasher = digest.Canonical.Digester()
 			multiWriter = io.MultiWriter(counter, destHasher.Hash())
 		} else {
@@ -973,19 +988,25 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		// Use specified timestamps in the layer, if we're doing that for history
 		// entries.
 		nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
-		writeCloser = makeFilteredLayerWriteCloser(nestedWriteCloser, i.layerModTime, i.layerLatestModTime)
+		writeCloser = makeFilteredLayerWriteCloser(nestedWriteCloser, i.layerModTime, i.layerLatestModTime, i.layerExclusions)
 		writer = writeCloser
 		// Okay, copy from the raw diff through the filter, compressor, and counter and
 		// digesters.
 		size, err := io.Copy(writer, rc)
+		if err != nil {
+			writeCloser.Close()
+			layerFile.Close()
+			rc.Close()
+			return nil, fmt.Errorf("storing %s to file: on copy: %w", what, err)
+		}
 		if err := writeCloser.Close(); err != nil {
 			layerFile.Close()
 			rc.Close()
-			return nil, fmt.Errorf("storing %s to file: %w on pipe close", what, err)
+			return nil, fmt.Errorf("storing %s to file: on pipe close: %w", what, err)
 		}
 		if err := layerFile.Close(); err != nil {
 			rc.Close()
-			return nil, fmt.Errorf("storing %s to file: %w on file close", what, err)
+			return nil, fmt.Errorf("storing %s to file: on file close: %w", what, err)
 		}
 		rc.Close()
 
@@ -999,12 +1020,12 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		if err != nil {
 			return nil, fmt.Errorf("storing %s to file: %w", what, err)
 		}
-		if i.compression == archive.Uncompressed {
+		if diffBeingAltered {
+			size = counter.Count
+		} else {
 			if size != counter.Count {
 				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, counter.Count)
 			}
-		} else {
-			size = counter.Count
 		}
 		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, size, srcHasher.Digest().String(), destHasher.Digest().String())
 		// Rename the layer so that we can more easily find it by digest later.
@@ -1205,23 +1226,28 @@ func (i *containerImageRef) makeExtraImageContentDiff(includeFooter bool, timest
 				ModTime:  *timestamp,
 				Size:     st.Size(),
 			}); err != nil {
-				return err
+				return fmt.Errorf("writing header for %q: %w", path, err)
 			}
 			if _, err := io.Copy(tw, content); err != nil {
 				return fmt.Errorf("writing content for %q: %w", path, err)
 			}
 			if err := tw.Flush(); err != nil {
-				return err
+				return fmt.Errorf("flushing content for %q: %w", path, err)
 			}
 			return nil
 		}(); err != nil {
-			return "", "", -1, err
+			return "", "", -1, fmt.Errorf("writing %q to prepend-to-archive blob: %w", contents, err)
 		}
 	}
-	if !includeFooter {
-		return diff.Name(), "", -1, nil
+	if includeFooter {
+		if err = tw.Close(); err != nil {
+			return "", "", -1, fmt.Errorf("closingprepend-to-archive blob after final write: %w", err)
+		}
+	} else {
+		if err = tw.Flush(); err != nil {
+			return "", "", -1, fmt.Errorf("flushing prepend-to-archive blob after final write: %w", err)
+		}
 	}
-	tw.Close()
 	return diff.Name(), digester.Digest(), counter.Count, nil
 }
 
@@ -1232,9 +1258,17 @@ func (i *containerImageRef) makeExtraImageContentDiff(includeFooter bool, timest
 // no later than layerLatestModTime (if a value is provided for it).
 // This implies that if both values are provided, the archive's timestamps will
 // be set to the earlier of the two values.
-func makeFilteredLayerWriteCloser(wc io.WriteCloser, layerModTime, layerLatestModTime *time.Time) io.WriteCloser {
-	if layerModTime == nil && layerLatestModTime == nil {
+func makeFilteredLayerWriteCloser(wc io.WriteCloser, layerModTime, layerLatestModTime *time.Time, exclusions []copier.ConditionalRemovePath) io.WriteCloser {
+	if layerModTime == nil && layerLatestModTime == nil && len(exclusions) == 0 {
 		return wc
+	}
+	exclusionsMap := make(map[string]copier.ConditionalRemovePath)
+	for _, exclusionSpec := range exclusions {
+		pathSpec := strings.Trim(path.Clean(exclusionSpec.Path), "/")
+		if pathSpec == "" {
+			continue
+		}
+		exclusionsMap[pathSpec] = exclusionSpec
 	}
 	wc = newTarFilterer(wc, func(hdr *tar.Header) (skip, replaceContents bool, replacementContents io.Reader) {
 		// Changing a zeroed field to a non-zero field can affect the
@@ -1243,6 +1277,14 @@ func makeFilteredLayerWriteCloser(wc io.WriteCloser, layerModTime, layerLatestMo
 		// format (and as a result, changing the length) of the header
 		// that we write.
 		modTime := hdr.ModTime
+		nameSpec := strings.Trim(path.Clean(hdr.Name), "/")
+		if conditions, ok := exclusionsMap[nameSpec]; ok {
+			if (conditions.ModTime == nil || conditions.ModTime.Equal(modTime)) &&
+				(conditions.Owner == nil || (conditions.Owner.UID == hdr.Uid && conditions.Owner.GID == hdr.Gid)) &&
+				(conditions.Mode == nil || (*conditions.Mode&os.ModePerm == os.FileMode(hdr.Mode)&os.ModePerm)) {
+				return true, false, nil
+			}
+		}
 		if layerModTime != nil {
 			modTime = *layerModTime
 		}
@@ -1318,7 +1360,7 @@ func (b *Builder) makeLinkedLayerInfos(layers []LinkedLayer, layerType string, l
 
 			digester := digest.Canonical.Digester()
 			sizeCountedFile := ioutils.NewWriteCounter(io.MultiWriter(digester.Hash(), f))
-			wc := makeFilteredLayerWriteCloser(ioutils.NopWriteCloser(sizeCountedFile), layerModTime, layerLatestModTime)
+			wc := makeFilteredLayerWriteCloser(ioutils.NopWriteCloser(sizeCountedFile), layerModTime, layerLatestModTime, nil)
 			_, copyErr := io.Copy(wc, rc)
 			wcErr := wc.Close()
 			if err := rc.Close(); err != nil {
@@ -1361,6 +1403,35 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 			name = parsed
 		}
 	}
+
+	cdir, err := b.store.ContainerDirectory(b.ContainerID)
+	if err != nil {
+		return nil, fmt.Errorf("getting the per-container data directory for %q: %w", b.ContainerID, err)
+	}
+
+	excludesFiles, err := filepath.Glob(filepath.Join(cdir, containerExcludesDir, "*"))
+	if err != nil {
+		return nil, fmt.Errorf("checking for commit exclusions for %q: %w", b.ContainerID, err)
+	}
+	var layerExclusions []copier.ConditionalRemovePath
+	for _, excludesFile := range excludesFiles {
+		if strings.Contains(excludesFile, containerExcludesSubstring) {
+			continue
+		}
+		excludesData, err := os.ReadFile(excludesFile)
+		if err != nil {
+			return nil, fmt.Errorf("reading commit exclusions for %q: %w", b.ContainerID, err)
+		}
+		var excludes []copier.ConditionalRemovePath
+		if err := json.Unmarshal(excludesData, &excludes); err != nil {
+			return nil, fmt.Errorf("parsing commit exclusions for %q: %w", b.ContainerID, err)
+		}
+		layerExclusions = append(layerExclusions, excludes...)
+	}
+	if options.CompatLayerOmissions == types.OptionalBoolTrue {
+		layerExclusions = append(layerExclusions, compatLayerExclusions...)
+	}
+
 	manifestType := options.PreferredManifestType
 	if manifestType == "" {
 		manifestType = define.OCIv1ImageManifest
@@ -1459,6 +1530,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		overrideConfig:        options.OverrideConfig,
 		extraImageContent:     maps.Clone(options.ExtraImageContent),
 		compatSetParent:       options.CompatSetParent,
+		layerExclusions:       layerExclusions,
 	}
 	if ref.created != nil {
 		for i := range ref.preEmptyLayers {

@@ -85,17 +85,10 @@ var (
 	}
 	fsSkip = []string{
 		// things that we volume mount or synthesize for RUN statements that currently bleed through
-		"(dir):etc:mtime",
-		"(dir):etc:(dir):hosts",
-		"(dir):etc:(dir):resolv.conf",
-		"(dir):run",
-		"(dir):run:mtime",
-		"(dir):run:(dir):.containerenv",
-		"(dir):run:(dir):secrets",
-		"(dir):proc",
-		"(dir):proc:mtime",
-		"(dir):sys",
-		"(dir):sys:mtime",
+		"(dir):dev:mtime",  // we let the timestamp be changed, if it exists at all, and so does docker build
+		"(dir):proc:mtime", // we let the timestamp be changed, and so does docker build, which creates it on RUN
+		"(dir):sys:mtime",  // we let the timestamp be changed, and so does docker build, which creates it on RUN
+		"(dir):etc:mtime",  // we try to preserve the timestamp on RUN, but docker build doesn't
 	}
 	testDate            = time.Unix(1485449953, 0)
 	compareLayers       = false
@@ -628,6 +621,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 		CompatSetParent:         test.compatSetParent,
 		CompatVolumes:           test.compatVolumes,
 		CompatScratchConfig:     test.compatScratchConfig,
+		CompatLayerOmissions:    test.compatLayerOmissions,
 		Args:                    maps.Clone(test.buildArgs),
 	}
 	// build the image and gather output. log the output if the build part of the test failed
@@ -1423,10 +1417,11 @@ type (
 		dockerUseBuildKit    bool                      // if building with docker, request that dockerd use buildkit
 		dockerBuilderVersion docker.BuilderVersion     // if building with docker, request the specific builder
 		testUsingSetParent   bool                      // test both with old (gets set) and new (left blank) config.Parent behavior
-		compatSetParent      types.OptionalBool        // placeholder for a value to set for the buildah compatSetParent flag
+		compatSetParent      types.OptionalBool        // placeholder for a value to set for the buildah CompatSetParent flag
 		testUsingVolumes     bool                      // test both with old (preserved) and new (just a config note) volume behavior
-		compatVolumes        types.OptionalBool        // placeholder for a value to set for the buildah compatVolumes flag
-		compatScratchConfig  types.OptionalBool        // placeholder for a value to set for the buildah compatScratchConfig flag
+		compatVolumes        types.OptionalBool        // placeholder for a value to set for the buildah CompatVolumes flag
+		compatScratchConfig  types.OptionalBool        // placeholder for a value to set for the buildah CompatScratchConfig flag
+		compatLayerOmissions types.OptionalBool        // value to set for the buildah CompatLayerOmissions flag
 		transientMounts      []string                  // one possible buildah-specific feature
 		fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
 		buildArgs            map[string]string         // build args to supply, as if --build-arg was used
@@ -3706,6 +3701,27 @@ var internalTestCases = []testCase{
 			"RUN --mount=type=cache,uid=10,target=/cache cp -a /cache/* /results/0+10",
 			"RUN touch -r /bin `find /results -print`",
 		}, "\n"),
+	},
+
+	{
+		name:              "mount-targets-new",
+		contextDir:        "mount-targets",
+		dockerUseBuildKit: true,
+	},
+
+	{
+		name:                 "mount-targets-old",
+		contextDir:           "mount-targets",
+		dockerUseBuildKit:    false,
+		compatScratchConfig:  types.OptionalBoolTrue,
+		compatLayerOmissions: types.OptionalBoolTrue,
+	},
+
+	{
+		name:              "mount-targets-mount",
+		contextDir:        "mount-targets",
+		dockerfile:        "Dockerfile.mount",
+		dockerUseBuildKit: true,
 	},
 }
 

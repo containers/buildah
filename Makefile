@@ -108,7 +108,7 @@ bin/inet: tests/inet/inet.go
 
 .PHONY: clean
 clean:
-	$(RM) -r bin tests/testreport/testreport
+	$(RM) -r bin tests/testreport/testreport tests/conformance/testdata/mount-targets/true
 	$(MAKE) -C docs clean
 
 .PHONY: docs
@@ -146,7 +146,7 @@ install.completions:
 	install -m 644 contrib/completions/bash/buildah $(DESTDIR)/$(BASHINSTALLDIR)/buildah
 
 .PHONY: test-conformance
-test-conformance:
+test-conformance: tests/conformance/testdata/mount-targets/true
 	$(GO_TEST) -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" -cover -timeout 60m ./tests/conformance
 
 .PHONY: test-integration
@@ -155,6 +155,9 @@ test-integration: install.tools
 
 tests/testreport/testreport: tests/testreport/testreport.go
 	$(GO_BUILD) $(GO_LDFLAGS) "-linkmode external -extldflags -static" -tags "$(STORAGETAGS) $(SECURITYTAGS)" -o tests/testreport/testreport ./tests/testreport/testreport.go
+
+tests/conformance/testdata/mount-targets/true: tests/conformance/testdata/mount-targets/true.go
+	$(GO_BUILD) $(GO_LDFLAGS) "-linkmode external -extldflags -static" -o tests/conformance/testdata/mount-targets/true tests/conformance/testdata/mount-targets/true.go
 
 .PHONY: test-unit
 test-unit: tests/testreport/testreport
@@ -166,8 +169,8 @@ test-unit: tests/testreport/testreport
 
 vendor-in-container:
 	goversion=$(shell sed -e '/^go /!d' -e '/^go /s,.* ,,g' go.mod) ; \
-	if test -d `go env GOCACHE` && test -w `go env GOCACHE` ; then \
-		podman run --privileged --rm --env HOME=/root -v `go env GOCACHE`:/root/.cache/go-build --env GOCACHE=/root/.cache/go-build -v `pwd`:/src -w /src docker.io/library/golang:$$goversion make vendor ; \
+	if test -d `$(GO) env GOCACHE` && test -w `$(GO) env GOCACHE` ; then \
+		podman run --privileged --rm --env HOME=/root -v `$(GO) env GOCACHE`:/root/.cache/go-build --env GOCACHE=/root/.cache/go-build -v `pwd`:/src -w /src docker.io/library/golang:$$goversion make vendor ; \
 	else \
 		podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src docker.io/library/golang:$$goversion make vendor ; \
 	fi
@@ -177,7 +180,7 @@ vendor:
 	$(GO) mod tidy
 	$(GO) mod vendor
 	$(GO) mod verify
-	if test -n "$(strip $(shell go env GOTOOLCHAIN))"; then go mod edit -toolchain none ; fi
+	if test -n "$(strip $(shell $(GO) env GOTOOLCHAIN))"; then go mod edit -toolchain none ; fi
 
 .PHONY: lint
 lint: install.tools

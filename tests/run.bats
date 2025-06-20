@@ -802,7 +802,11 @@ $output"
 	if ! is_rootless; then
 		run_buildah mount $cid
 		assert "$output" != ""
-		assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
+		if test -e "$output/etc/resolv.conf" ; then
+			assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
+		else
+			: # not there, like in the base image, which is what we really want
+		fi
 	fi
 	run_buildah rm -a
 
@@ -815,7 +819,11 @@ $output"
 	if ! is_rootless; then
 		run_buildah mount $cid
 		assert "$output" != ""
-		assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
+		if test -e "$output/etc/resolv.conf" ; then
+			assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
+		else
+			: # not there, like in the base image, which is what we really want
+		fi
 	fi
 	run_buildah rm -a
 
