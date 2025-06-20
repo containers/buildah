@@ -297,6 +297,16 @@ If you have four memory nodes on your system (0-3), use `--cpuset-mems=0,1`
 then processes in your container will only use memory from the first
 two memory nodes.
 
+**--created-annotation**
+
+Add an image *annotation* (see also **--annotation**) to the image metadata
+setting "org.opencontainers.image.created" to the current time, or to the
+datestamp specified to the **--source-date-epoch** or **--timestamp** flag,
+if either was used.  If *false*, no such annotation will be present in the
+written image.
+
+Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
+
 **--creds** *creds*
 
 The [username[:password]] to use to authenticate with the registry if required.
@@ -508,6 +518,8 @@ than once, attempting to use this option will trigger an error.
 **--inherit-annotations** *bool-value*
 
 Inherit the annotations from the base image or base stages. (default true).
+Use cases which set this flag to *false* may need to do the same for the
+**--created-annotation** flag.
 
 **--inherit-labels** *bool-value*
 

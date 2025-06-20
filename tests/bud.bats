@@ -161,7 +161,7 @@ _EOF
   assert "$output" != "$not_want_output" "expected some annotations to be set in base image $base"
 
   ## Since we are inheriting no annotations, built image should not contain any annotations.
-  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false -t $target --from $base $BUDFILES/base-with-labels
+  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false --created-annotation=false -t $target --from $base $BUDFILES/base-with-labels
 
   # no annotations should be inherited from base image
   want_output='map[]'
@@ -169,7 +169,7 @@ _EOF
   expect_output "$want_output"
 
   ## Build again but set a new annotation and don't inherit annotations from base image
-  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false --annotation hello=world -t $target --from $base $BUDFILES/base-with-labels
+  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false --created-annotation=false --annotation hello=world -t $target --from $base $BUDFILES/base-with-labels
 
   # no annotations should be inherited from base image
   want_output='map["hello":"world"]'
@@ -177,13 +177,13 @@ _EOF
   expect_output "$want_output"
 
   ## Try similar thing with another Containerfile
-  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false -t $target -f $BUDFILES/base-with-labels/Containerfile2
+  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false --created-annotation=false -t $target -f $BUDFILES/base-with-labels/Containerfile2
   # no annotations should be inherited from base image
   want_output='map[]'
   run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' $target
   expect_output "$want_output"
 
-  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false --annotation hello=world -t $target -f $BUDFILES/base-with-labels/Containerfile2
+  run_buildah build $WITH_POLICY_JSON --inherit-annotations=false --created-annotation=false --annotation hello=world -t $target -f $BUDFILES/base-with-labels/Containerfile2
   # no annotations should be inherited from base image
   want_output='map["hello":"world"]'
   run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' $target
@@ -212,7 +212,7 @@ _EOF
   cmp ${TEST_SCRATCH_DIR}/iid1 ${TEST_SCRATCH_DIR}/iid2
 
   ## Since we are inheriting no annotations, this should not use previous image present in the cache.
-  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false -t $target --from $base $BUDFILES/base-with-labels
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false --created-annotation=false -t $target --from $base $BUDFILES/base-with-labels
   ## should not contain `Using Cache`
   assert "$output" !~ "Using cache"
 
@@ -222,7 +222,7 @@ _EOF
   expect_output "$want_output"
 
   ## Build again but set a new annotation and don't inherit annotations from base image
-  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false --annotation hello=world -t $target --from $base $BUDFILES/base-with-labels
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false --created-annotation=false --annotation hello=world -t $target --from $base $BUDFILES/base-with-labels
 
   # no annotations should be inherited from base image
   want_output='map["hello":"world"]'
@@ -240,7 +240,7 @@ _EOF
   cmp ${TEST_SCRATCH_DIR}/iid1 ${TEST_SCRATCH_DIR}/iid2
 
   ## Since we are inheriting no annotations, this should not use previous image present in the cache.
-  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false -t $target -f $BUDFILES/base-with-labels/Containerfile2
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false --created-annotation=false -t $target -f $BUDFILES/base-with-labels/Containerfile2
   ## but this time since 1st instruction is cached it should still use cache for some part, only annotations should not be there
   expect_output --substring " Using cache"
 
@@ -250,7 +250,7 @@ _EOF
   expect_output "$want_output"
 
   ## Build again but set a new annotation and don't inherit annotations from base image
-  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false --annotation hello=world -t $target -f $BUDFILES/base-with-labels/Containerfile2
+  run_buildah build $WITH_POLICY_JSON --layers --inherit-annotations=false --created-annotation=false --annotation hello=world -t $target -f $BUDFILES/base-with-labels/Containerfile2
   ## but this time since 1st instruction is cached it should still use cache for some part, only last instruction will be changed since we are adding
   ## annotations to it
   expect_output --substring " Using cache"
@@ -2837,7 +2837,7 @@ _EOF
   assert "$output" != "$not_want_output" "expected some annotations to be set in base image $base"
 
   annotations=$(buildah inspect --format '{{ range $key, $value := .ImageAnnotations }}{{ $key }} {{end}}' $base)
-  annotationflags="--annotation hello=world"
+  annotationflags="--annotation hello=world --unsetannotation=org.opencontainers.image.created"
   for annotation in $annotations; do
     if test $annotation != io.buildah.version ; then
       annotationflags="$annotationflags --unsetannotation $annotation"
@@ -2875,7 +2875,7 @@ _EOF
   cmp ${TEST_SCRATCH_DIR}/iid1 ${TEST_SCRATCH_DIR}/iid2
 
   annotations=$(buildah inspect --format '{{ range $key, $value := .ImageAnnotations }}{{ $key }} {{end}}' $base)
-  annotationflags="--annotation hello=world"
+  annotationflags="--annotation hello=world --unsetannotation=org.opencontainers.image.created"
   for annotation in $annotations; do
     if test $annotation != io.buildah.version ; then
       annotationflags="$annotationflags --unsetannotation $annotation"
@@ -2908,7 +2908,7 @@ _EOF
   assert "$output" != "$not_want_output" "expected some annotations to be set in base image $base"
 
   annotations=$(buildah inspect --format '{{ range $key, $value := .ImageAnnotations }}{{ $key }} {{end}}' $base)
-  annotationflags="--annotation hello=world"
+  annotationflags="--annotation hello=world --created-annotation=false"
   for annotation in $annotations; do
     if test $annotation != io.buildah.version ; then
       annotationflags="$annotationflags --unsetannotation $annotation"
@@ -8077,5 +8077,43 @@ EOF
     tar -C "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag -xf "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/"$diff"
     hostname=$(cat "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/hostname.txt)
     assert $hostname = sandbox "expected the hostname to be the static value 'sandbox'"
+  done
+}
+
+@test "bud-sets-created-annotation" {
+  _prefetch busybox
+  mkdir ${TEST_SCRATCH_DIR}/buildcontext
+  cat > ${TEST_SCRATCH_DIR}/buildcontext/Dockerfile << _EOF
+  FROM busybox
+  RUN pwd
+_EOF
+  for flagdir in default: timestamp:--timestamp=0 sde:--source-date-epoch=0 suppressed:--unsetannotation=org.opencontainers.image.created specific:--created-annotation=false explicit:--created-annotation=true ; do
+    local flag=${flagdir##*:}
+    local subdir=${flagdir%%:*}
+    run_buildah build --layers --no-cache $flag -t oci:${TEST_SCRATCH_DIR}/$subdir ${TEST_SCRATCH_DIR}/buildcontext
+    local manifest=${TEST_SCRATCH_DIR}/$subdir/$(oci_image_manifest ${TEST_SCRATCH_DIR}/$subdir)
+    run jq -r '.annotations["org.opencontainers.image.created"]' "$manifest"
+    assert $status -eq 0
+    echo "$output"
+    local manifestcreated="$output"
+    local config=${TEST_SCRATCH_DIR}/$subdir/$(oci_image_config ${TEST_SCRATCH_DIR}/$subdir)
+    run jq -r '.created' "$config"
+    assert $status -eq 0
+    echo "$output"
+    local configcreated="$output"
+    if [[ "$flag" =~ "=0" ]]; then
+      assert $manifestcreated = $configcreated "manifest and config disagree on the image's created-time"
+      assert $manifestcreated = "1970-01-01T00:00:00Z"
+    elif [[ "$flag" =~ "unsetannotation" ]]; then
+      assert $configcreated != ""
+      assert $manifestcreated = "null"
+    elif [[ "$flag" =~ "created-annotation=false" ]]; then
+      assert $configcreated != ""
+      assert $manifestcreated = "null"
+    else
+      assert $manifestcreated = $configcreated "manifest and config disagree on the image's created-time"
+      assert $manifestcreated != ""
+      assert $manifestcreated != "1970-01-01T00:00:00Z"
+    fi
   done
 }

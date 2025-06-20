@@ -104,6 +104,9 @@ type containerImageRef struct {
 	extraImageContent     map[string]string
 	compatSetParent       types.OptionalBool
 	layerExclusions       []copier.ConditionalRemovePath
+	unsetAnnotations      []string
+	setAnnotations        []string
+	createdAnnotation     types.OptionalBool
 }
 
 type blobLayerInfo struct {
@@ -590,6 +593,23 @@ func (i *containerImageRef) newOCIManifestBuilder() (manifestBuilder, error) {
 	}
 
 	// Return partial manifest.  The Layers lists will be populated later.
+	annotations := make(map[string]string)
+	maps.Copy(annotations, i.annotations)
+	switch i.createdAnnotation {
+	case types.OptionalBoolFalse:
+		delete(annotations, v1.AnnotationCreated)
+	default:
+		fallthrough
+	case types.OptionalBoolTrue, types.OptionalBoolUndefined:
+		annotations[v1.AnnotationCreated] = created.UTC().Format(time.RFC3339Nano)
+	}
+	for _, k := range i.unsetAnnotations {
+		delete(annotations, k)
+	}
+	for _, kv := range i.setAnnotations {
+		k, v, _ := strings.Cut(kv, "=")
+		annotations[k] = v
+	}
 	return &ociManifestBuilder{
 		i: i,
 		// The default layer media type assumes no compression.
@@ -604,7 +624,7 @@ func (i *containerImageRef) newOCIManifestBuilder() (manifestBuilder, error) {
 				MediaType: v1.MediaTypeImageConfig,
 			},
 			Layers:      []v1.Descriptor{},
-			Annotations: i.annotations,
+			Annotations: annotations,
 		},
 	}, nil
 }
@@ -1525,6 +1545,8 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		layerLatestModTime:    layerLatestModTime,
 		historyComment:        b.HistoryComment(),
 		annotations:           b.Annotations(),
+		setAnnotations:        slices.Clone(options.Annotations),
+		unsetAnnotations:      slices.Clone(options.UnsetAnnotations),
 		preferredManifestType: manifestType,
 		squash:                options.Squash,
 		confidentialWorkload:  options.ConfidentialWorkloadOptions,
@@ -1543,6 +1565,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		extraImageContent:     maps.Clone(options.ExtraImageContent),
 		compatSetParent:       options.CompatSetParent,
 		layerExclusions:       layerExclusions,
+		createdAnnotation:     options.CreatedAnnotation,
 	}
 	if ref.created != nil {
 		for i := range ref.preEmptyLayers {

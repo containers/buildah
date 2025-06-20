@@ -209,7 +209,7 @@ function check_matrix() {
   $cid
 
   run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
-  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
+  run_buildah commit --created-annotation=false --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
   expect_output "map[]"

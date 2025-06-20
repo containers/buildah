@@ -2505,6 +2505,9 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		SourceDateEpoch:       s.executor.sourceDateEpoch,
 		RewriteTimestamp:      s.executor.rewriteTimestamp,
 		CompatLayerOmissions:  s.executor.compatLayerOmissions,
+		UnsetAnnotations:      s.executor.unsetAnnotations,
+		Annotations:           s.executor.annotations,
+		CreatedAnnotation:     s.executor.createdAnnotation,
 	}
 	if finalInstruction {
 		options.ConfidentialWorkloadOptions = s.executor.confidentialWorkload

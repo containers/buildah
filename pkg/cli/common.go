@@ -127,6 +127,7 @@ type BudResults struct {
 	CompatVolumes       bool
 	SourceDateEpoch     string
 	RewriteTimestamp    bool
+	CreatedAnnotation   bool
 }
 
 // FromAndBugResults represents the results for common flags
@@ -240,6 +241,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.InheritLabels, "inherit-labels", true, "inherit the labels from the base image or base stages.")
 	fs.BoolVar(&flags.InheritAnnotations, "inherit-annotations", true, "inherit the annotations from the base image or base stages.")
 	fs.StringArrayVar(&flags.CPPFlags, "cpp-flag", []string{}, "set additional flag to pass to C preprocessor (cpp)")
+	fs.BoolVar(&flags.CreatedAnnotation, "created-annotation", true, `set an "org.opencontainers.image.created" annotation in the image`)
 	fs.StringVar(&flags.Creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	fs.StringVarP(&flags.CWOptions, "cw", "", "", "confidential workload `options`")
 	fs.BoolVarP(&flags.DisableCompression, "disable-compression", "D", true, "don't compress layers by default")
@@ -326,7 +328,7 @@ newer:   only pull base and SBOM scanner images when newer images exist on the r
 	fs.String("variant", "", "override the `variant` of the specified image")
 	fs.StringSliceVar(&flags.UnsetEnvs, "unsetenv", nil, "unset environment variable from final image")
 	fs.StringSliceVar(&flags.UnsetLabels, "unsetlabel", nil, "unset label when inheriting labels from base image")
-	fs.StringSliceVar(&flags.UnsetAnnotations, "unsetannotation", nil, "unset annotation when inheriting annotation from base image")
+	fs.StringSliceVar(&flags.UnsetAnnotations, "unsetannotation", nil, "unset annotation when inheriting annotations from base image")
 	return fs
 }
 

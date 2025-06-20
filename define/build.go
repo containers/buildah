@@ -49,7 +49,8 @@ type CommonBuildOptions struct {
 	CPUSetMems string
 	// HTTPProxy determines whether *_proxy env vars from the build host are passed into the container.
 	HTTPProxy bool
-	// IdentityLabel if set ensures that default `io.buildah.version` label is not applied to build image.
+	// IdentityLabel if set controls whether or not a `io.buildah.version` label is added to the built image.
+	// Setting this to false does not clear the label if it would be inherited from the base image.
 	IdentityLabel types.OptionalBool
 	// Memory is the upper limit (in bytes) on how much memory running containers can use.
 	Memory int64
@@ -414,4 +415,7 @@ type BuildOptions struct {
 	CompatLayerOmissions types.OptionalBool
 	// NoPivotRoot inhibits the usage of pivot_root when setting up the rootfs
 	NoPivotRoot bool
+	// CreatedAnnotation controls whether or not an "org.opencontainers.image.created"
+	// annotation is present in the output image.
+	CreatedAnnotation types.OptionalBool
 }
