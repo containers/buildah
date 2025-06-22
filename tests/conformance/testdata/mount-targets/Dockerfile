@@ -1,0 +1,10 @@
+# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs
+
+FROM mirror.gcr.io/busybox AS builder
+COPY true /true/
+WORKDIR /true
+RUN touch -d @0 /true/true
+
+FROM scratch
+COPY --from=builder /true/true /
+RUN ["/true"]

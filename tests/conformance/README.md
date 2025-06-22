@@ -18,6 +18,7 @@ Conformance tests use Docker CE to build images to be compared with images built
 These are the base images used by various conformance tests:
 ```
 bash
+docker pull mirror.gcr.io/golang
 docker pull mirror.gcr.io/alpine
 docker pull mirror.gcr.io/busybox
 docker pull quay.io/libpod/centos:7

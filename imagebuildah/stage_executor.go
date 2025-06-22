@@ -2504,6 +2504,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		CompatSetParent:       s.executor.compatSetParent,
 		SourceDateEpoch:       s.executor.sourceDateEpoch,
 		RewriteTimestamp:      s.executor.rewriteTimestamp,
+		CompatLayerOmissions:  s.executor.compatLayerOmissions,
 	}
 	if finalInstruction {
 		options.ConfidentialWorkloadOptions = s.executor.confidentialWorkload
@@ -2546,9 +2547,10 @@ func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOp
 		extractRootfsOpts.StripXattrs = true
 	}
 	rc, errChan, err := s.builder.ExtractRootfs(buildah.CommitOptions{
-		HistoryTimestamp: s.executor.timestamp,
-		SourceDateEpoch:  s.executor.sourceDateEpoch,
-		RewriteTimestamp: s.executor.rewriteTimestamp,
+		HistoryTimestamp:     s.executor.timestamp,
+		SourceDateEpoch:      s.executor.sourceDateEpoch,
+		RewriteTimestamp:     s.executor.rewriteTimestamp,
+		CompatLayerOmissions: s.executor.compatLayerOmissions,
 	}, extractRootfsOpts)
 	if err != nil {
 		return fmt.Errorf("failed to extract rootfs from given container image: %w", err)
