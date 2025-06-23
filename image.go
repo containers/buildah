@@ -770,6 +770,16 @@ type saveBlobResult struct {
 	compressedSize     int64
 }
 
+func (r *saveBlobResult) rename() error {
+	// Rename the layer so that we can more easily find it by digest later.
+	finalBlobName := filepath.Join(filepath.Dir(r.path), r.compressedDigest.String())
+	if err := os.Rename(r.path, finalBlobName); err != nil {
+		return fmt.Errorf("storing %s to file while renaming %q to %q: %w", r.what, r.path, finalBlobName, err)
+	}
+	r.path = finalBlobName
+	return nil
+}
+
 func (i *containerImageRef) saveLayerBlob(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
 	defer rc.Close()
 	srcHasher := digest.Canonical.Digester()
@@ -1052,11 +1062,11 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		}
 
 		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, result.compressedSize, result.uncompressedDigest.String(), result.compressedDigest.String())
-		// Rename the layer so that we can more easily find it by digest later.
-		finalBlobName := filepath.Join(path, result.compressedDigest.String())
-		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
-			return nil, fmt.Errorf("storing %s to file while renaming %q to %q: %w", what, filepath.Join(path, "layer"), finalBlobName, err)
+
+		if err := result.rename(); err != nil {
+			return nil, err
 		}
+
 		mb.addLayer(result.compressedDigest, result.compressedSize, result.uncompressedDigest)
 	}
 
