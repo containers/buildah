@@ -771,13 +771,14 @@ type saveBlobResult struct {
 }
 
 func (i *containerImageRef) saveLayerBlob(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
+	defer rc.Close()
 	srcHasher := digest.Canonical.Digester()
 	// Set up to write the possibly-recompressed blob.
 	layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
-		rc.Close()
 		return nil, fmt.Errorf("opening file for %s: %w", what, err)
 	}
+	defer layerFile.Close()
 
 	counter := ioutils.NewWriteCounter(layerFile)
 	var destHasher digest.Digester
@@ -797,8 +798,6 @@ func (i *containerImageRef) saveLayerBlob(what, path string, rc io.ReadCloser) (
 	// Compress the layer, if we're recompressing it.
 	writeCloser, err := archive.CompressStream(multiWriter, i.compression)
 	if err != nil {
-		layerFile.Close()
-		rc.Close()
 		return nil, fmt.Errorf("compressing %s: %w", what, err)
 	}
 	writer := io.MultiWriter(writeCloser, srcHasher.Hash())
@@ -813,21 +812,14 @@ func (i *containerImageRef) saveLayerBlob(what, path string, rc io.ReadCloser) (
 	size, err := io.Copy(writer, rc)
 	if err != nil {
 		writeCloser.Close()
-		layerFile.Close()
-		rc.Close()
 		return nil, fmt.Errorf("storing %s to file: on copy: %w", what, err)
 	}
 	if err := writeCloser.Close(); err != nil {
-		layerFile.Close()
-		rc.Close()
 		return nil, fmt.Errorf("storing %s to file: on pipe close: %w", what, err)
 	}
 	if err := layerFile.Close(); err != nil {
-		rc.Close()
 		return nil, fmt.Errorf("storing %s to file: on file close: %w", what, err)
 	}
-	rc.Close()
-
 	result := &saveBlobResult{
 		compressedDigest:   destHasher.Digest(),
 		compressedSize:     counter.Count,
