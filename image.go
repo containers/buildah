@@ -770,6 +770,79 @@ type saveBlobResult struct {
 	compressedSize     int64
 }
 
+func (i *containerImageRef) saveLayerBlob(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
+	srcHasher := digest.Canonical.Digester()
+	// Set up to write the possibly-recompressed blob.
+	layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		rc.Close()
+		return nil, fmt.Errorf("opening file for %s: %w", what, err)
+	}
+
+	counter := ioutils.NewWriteCounter(layerFile)
+	var destHasher digest.Digester
+	var multiWriter io.Writer
+	// Avoid rehashing when we compress or mess with the layer contents somehow.
+	// At this point, there are multiple ways that can happen.
+	diffBeingAltered := i.compression != archive.Uncompressed
+	diffBeingAltered = diffBeingAltered || i.layerModTime != nil || i.layerLatestModTime != nil
+	diffBeingAltered = diffBeingAltered || len(i.layerExclusions) != 0
+	if diffBeingAltered {
+		destHasher = digest.Canonical.Digester()
+		multiWriter = io.MultiWriter(counter, destHasher.Hash())
+	} else {
+		destHasher = srcHasher
+		multiWriter = counter
+	}
+	// Compress the layer, if we're recompressing it.
+	writeCloser, err := archive.CompressStream(multiWriter, i.compression)
+	if err != nil {
+		layerFile.Close()
+		rc.Close()
+		return nil, fmt.Errorf("compressing %s: %w", what, err)
+	}
+	writer := io.MultiWriter(writeCloser, srcHasher.Hash())
+
+	// Use specified timestamps in the layer, if we're doing that for history
+	// entries.
+	nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
+	writeCloser = makeFilteredLayerWriteCloser(nestedWriteCloser, i.layerModTime, i.layerLatestModTime, i.layerExclusions)
+	writer = writeCloser
+	// Okay, copy from the raw diff through the filter, compressor, and counter and
+	// digesters.
+	size, err := io.Copy(writer, rc)
+	if err != nil {
+		writeCloser.Close()
+		layerFile.Close()
+		rc.Close()
+		return nil, fmt.Errorf("storing %s to file: on copy: %w", what, err)
+	}
+	if err := writeCloser.Close(); err != nil {
+		layerFile.Close()
+		rc.Close()
+		return nil, fmt.Errorf("storing %s to file: on pipe close: %w", what, err)
+	}
+	if err := layerFile.Close(); err != nil {
+		rc.Close()
+		return nil, fmt.Errorf("storing %s to file: on file close: %w", what, err)
+	}
+	rc.Close()
+
+	result := &saveBlobResult{
+		compressedDigest:   destHasher.Digest(),
+		compressedSize:     counter.Count,
+		uncompressedDigest: srcHasher.Digest(),
+		uncompressedSize:   size,
+		path:               layerFile.Name(),
+		what:               what,
+	}
+	if !diffBeingAltered && result.compressedSize != result.uncompressedSize {
+		return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, result.uncompressedSize, result.compressedSize)
+	}
+
+	return result, nil
+}
+
 func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
 	// These maps will let us check if a layer ID is part of one group or another.
 	parentLayerIDs := make(map[string]bool)
@@ -974,86 +1047,18 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 			}
 		}
 
-		result, err := func(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
-			srcHasher := digest.Canonical.Digester()
-			// Set up to write the possibly-recompressed blob.
-			layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
-			if err != nil {
-				rc.Close()
-				return nil, fmt.Errorf("opening file for %s: %w", what, err)
-			}
-
-			counter := ioutils.NewWriteCounter(layerFile)
-			var destHasher digest.Digester
-			var multiWriter io.Writer
-			// Avoid rehashing when we compress or mess with the layer contents somehow.
-			// At this point, there are multiple ways that can happen.
-			diffBeingAltered := i.compression != archive.Uncompressed
-			diffBeingAltered = diffBeingAltered || i.layerModTime != nil || i.layerLatestModTime != nil
-			diffBeingAltered = diffBeingAltered || len(i.layerExclusions) != 0
-			if diffBeingAltered {
-				destHasher = digest.Canonical.Digester()
-				multiWriter = io.MultiWriter(counter, destHasher.Hash())
-			} else {
-				destHasher = srcHasher
-				multiWriter = counter
-			}
-			// Compress the layer, if we're recompressing it.
-			writeCloser, err := archive.CompressStream(multiWriter, i.compression)
-			if err != nil {
-				layerFile.Close()
-				rc.Close()
-				return nil, fmt.Errorf("compressing %s: %w", what, err)
-			}
-			writer := io.MultiWriter(writeCloser, srcHasher.Hash())
-
-			// Use specified timestamps in the layer, if we're doing that for history
-			// entries.
-			nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
-			writeCloser = makeFilteredLayerWriteCloser(nestedWriteCloser, i.layerModTime, i.layerLatestModTime, i.layerExclusions)
-			writer = writeCloser
-			// Okay, copy from the raw diff through the filter, compressor, and counter and
-			// digesters.
-			size, err := io.Copy(writer, rc)
-			if err != nil {
-				writeCloser.Close()
-				layerFile.Close()
-				rc.Close()
-				return nil, fmt.Errorf("storing %s to file: on copy: %w", what, err)
-			}
-			if err := writeCloser.Close(); err != nil {
-				layerFile.Close()
-				rc.Close()
-				return nil, fmt.Errorf("storing %s to file: on pipe close: %w", what, err)
-			}
-			if err := layerFile.Close(); err != nil {
-				rc.Close()
-				return nil, fmt.Errorf("storing %s to file: on file close: %w", what, err)
-			}
-			rc.Close()
-			result := &saveBlobResult{
-				compressedDigest:   destHasher.Digest(),
-				compressedSize:     counter.Count,
-				uncompressedDigest: srcHasher.Digest(),
-				uncompressedSize:   size,
-				path:               layerFile.Name(),
-				what:               what,
-			}
-			if !diffBeingAltered && result.compressedSize != result.uncompressedSize {
-				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, result.uncompressedSize, result.compressedSize)
-			}
-			return result, nil
-		}(what, path, rc)
-		if errChan != nil {
-			err = <-errChan
-			if err != nil {
-				return nil, fmt.Errorf("extracting container rootfs: %w", err)
-			}
-		}
-
+		result, err := i.saveLayerBlob(what, path, rc)
 		if err != nil {
 			return nil, fmt.Errorf("storing %s to file: %w", what, err)
 		}
+
+		if errChan != nil {
+			rootErr := <-errChan
+			if rootErr != nil {
+				return nil, fmt.Errorf("extracting container rootfs: %w", rootErr)
+			}
+		}
+
 		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, result.compressedSize, result.uncompressedDigest.String(), result.compressedDigest.String())
 		// Rename the layer so that we can more easily find it by digest later.
 		finalBlobName := filepath.Join(path, result.compressedDigest.String())
