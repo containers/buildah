@@ -761,6 +761,15 @@ func (mb *ociManifestBuilder) manifestAndConfig() ([]byte, []byte, error) {
 	return omanifestbytes, oconfig, nil
 }
 
+type saveBlobResult struct {
+	what               string
+	path               string
+	uncompressedDigest digest.Digest
+	uncompressedSize   int64
+	compressedDigest   digest.Digest
+	compressedSize     int64
+}
+
 func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
 	// These maps will let us check if a layer ID is part of one group or another.
 	parentLayerIDs := make(map[string]bool)
@@ -964,6 +973,8 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 				}
 			}
 		}
+
+		var result *saveBlobResult
 		{
 			srcHasher := digest.Canonical.Digester()
 			// Set up to write the possibly-recompressed blob.
@@ -1021,8 +1032,19 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 				return nil, fmt.Errorf("storing %s to file: on file close: %w", what, err)
 			}
 			rc.Close()
-		}
+			result = &saveBlobResult{
+				compressedDigest:   destHasher.Digest(),
+				compressedSize:     counter.Count,
+				uncompressedDigest: srcHasher.Digest(),
+				uncompressedSize:   size,
+				path:               layerFile.Name(),
+				what:               what,
+			}
 
+			if !diffBeingAltered && result.compressedSize != result.uncompressedSize {
+				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, result.uncompressedSize, result.compressedSize)
+			}
+		}
 		if errChan != nil {
 			err = <-errChan
 			if err != nil {
@@ -1033,20 +1055,13 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 		if err != nil {
 			return nil, fmt.Errorf("storing %s to file: %w", what, err)
 		}
-		if diffBeingAltered {
-			size = counter.Count
-		} else {
-			if size != counter.Count {
-				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, counter.Count)
-			}
-		}
-		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, size, srcHasher.Digest().String(), destHasher.Digest().String())
+		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, result.compressedSize, result.uncompressedDigest.String(), result.compressedDigest.String())
 		// Rename the layer so that we can more easily find it by digest later.
-		finalBlobName := filepath.Join(path, destHasher.Digest().String())
+		finalBlobName := filepath.Join(path, result.compressedDigest.String())
 		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
 			return nil, fmt.Errorf("storing %s to file while renaming %q to %q: %w", what, filepath.Join(path, "layer"), finalBlobName, err)
 		}
-		mb.addLayer(destHasher.Digest(), size, srcHasher.Digest())
+		mb.addLayer(result.compressedDigest, result.compressedSize, result.uncompressedDigest)
 	}
 
 	// Only attempt to append history if history was not disabled explicitly.
