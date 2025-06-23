@@ -10,9 +10,9 @@ import (
 	"time"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/formats"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/libimage"
+	"github.com/containers/common/pkg/formats"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
