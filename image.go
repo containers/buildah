@@ -974,8 +974,7 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 			}
 		}
 
-		var result *saveBlobResult
-		{
+		result, err := func(what, path string, rc io.ReadCloser) (*saveBlobResult, error) {
 			srcHasher := digest.Canonical.Digester()
 			// Set up to write the possibly-recompressed blob.
 			layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
@@ -1032,7 +1031,7 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 				return nil, fmt.Errorf("storing %s to file: on file close: %w", what, err)
 			}
 			rc.Close()
-			result = &saveBlobResult{
+			result := &saveBlobResult{
 				compressedDigest:   destHasher.Digest(),
 				compressedSize:     counter.Count,
 				uncompressedDigest: srcHasher.Digest(),
@@ -1040,11 +1039,11 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 				path:               layerFile.Name(),
 				what:               what,
 			}
-
 			if !diffBeingAltered && result.compressedSize != result.uncompressedSize {
 				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, result.uncompressedSize, result.compressedSize)
 			}
-		}
+			return result, nil
+		}(what, path, rc)
 		if errChan != nil {
 			err = <-errChan
 			if err != nil {
