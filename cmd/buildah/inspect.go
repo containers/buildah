@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"text/template"
 
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/common/pkg/formats"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -113,7 +113,7 @@ func inspectCmd(c *cobra.Command, args []string, iopts inspectResults) error {
 		} else if !matched {
 			return fmt.Errorf("invalid format provided: %s", format)
 		}
-		t, err := template.New("format").Parse(format)
+		t, err := formats.NewParse("inspect", format)
 		if err != nil {
 			return fmt.Errorf("template parsing error: %w", err)
 		}

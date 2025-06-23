@@ -6,10 +6,10 @@ import (
 	"os"
 	"regexp"
 	"runtime"
-	"text/template"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	"github.com/containers/common/pkg/formats"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -71,7 +71,7 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 		} else if !matched {
 			return fmt.Errorf("invalid format provided: %s", format)
 		}
-		t, err := template.New("format").Parse(format)
+		t, err := formats.NewParse("info", format)
 		if err != nil {
 			return fmt.Errorf("template parsing error: %w", err)
 		}
