@@ -12,6 +12,11 @@ environment:
     DUMPSPEC_BINARY: /usr/bin/buildah-dumpspec
     TMPDIR: /var/tmp
 
+adjust:
+    - when: initiator != "packit"
+      environment+:
+        RELEASE_TESTING: true
+
 /local/root:
     summary: System test
     test: bash ./system.sh
