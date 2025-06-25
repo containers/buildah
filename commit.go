@@ -104,7 +104,8 @@ type CommitOptions struct {
 	OmitLayerHistoryEntry bool
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
-	// Deprecated use HistoryTimestamp instead.
+	// Deprecated: use HistoryTimestamp or SourceDateEpoch (possibly with
+	// RewriteTimestamp) instead.
 	OmitTimestamp bool
 	// SignBy is the fingerprint of a GPG key to use for signing the image.
 	SignBy string
@@ -130,7 +131,8 @@ type CommitOptions struct {
 	// contents of a rootfs.
 	ConfidentialWorkloadOptions ConfidentialWorkloadOptions
 	// UnsetEnvs is a list of environments to not add to final image.
-	// Deprecated: use UnsetEnv() before committing instead.
+	// Deprecated: use UnsetEnv() before committing, or set OverrideChanges
+	// instead.
 	UnsetEnvs []string
 	// OverrideConfig is an optional Schema2Config which can override parts
 	// of the working container's configuration for the image that is being
@@ -167,6 +169,15 @@ type CommitOptions struct {
 	// corresponding members in the Builder object, in the committed image
 	// is not guaranteed.
 	PrependedLinkedLayers, AppendedLinkedLayers []LinkedLayer
+	// UnsetAnnotations is a list of annotations (names only) to withhold
+	// from the image.
+	UnsetAnnotations []string
+	// Annotations is a list of annotations (in the form "key=value") to
+	// add to the image.
+	Annotations []string
+	// CreatedAnnotation controls whether or not an "org.opencontainers.image.created"
+	// annotation is present in the output image.
+	CreatedAnnotation types.OptionalBool
 }
 
 // LinkedLayer combines a history entry with the location of either a directory

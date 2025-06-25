@@ -66,6 +66,9 @@ type commitInputOptions struct {
 	encryptLayers      []int
 	unsetenvs          []string
 	addFile            []string
+	unsetAnnotation    []string
+	annotation         []string
+	createdAnnotation  bool
 }
 
 func init() {
@@ -187,6 +190,11 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 
 	flags.StringSliceVar(&opts.unsetenvs, "unsetenv", nil, "unset env from final image")
 	_ = cmd.RegisterFlagCompletionFunc("unsetenv", completion.AutocompleteNone)
+	flags.StringSliceVar(&opts.unsetAnnotation, "unsetannotation", nil, "unset annotation when inheriting annotations from base image")
+	_ = cmd.RegisterFlagCompletionFunc("unsetannotation", completion.AutocompleteNone)
+	flags.StringArrayVar(&opts.annotation, "annotation", []string{}, "set metadata for an image (default [])")
+	_ = cmd.RegisterFlagCompletionFunc("annotation", completion.AutocompleteNone)
+	flags.BoolVar(&opts.createdAnnotation, "created-annotation", true, `set an "org.opencontainers.image.created" annotation in the image`)
 }
 
 func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error {
@@ -311,6 +319,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		OverrideChanges:       iopts.changes,
 		OverrideConfig:        overrideConfig,
 		ExtraImageContent:     addFiles,
+		UnsetAnnotations:      iopts.unsetAnnotation,
+		Annotations:           iopts.annotation,
+		CreatedAnnotation:     types.NewOptionalBool(iopts.createdAnnotation),
 	}
 	exclusiveFlags := 0
 	if c.Flag("reference-time").Changed {

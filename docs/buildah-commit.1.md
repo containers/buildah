@@ -29,6 +29,13 @@ will be used.  The new file will be owned by UID 0, GID 0, have 0644
 permissions, and be given the timestamp specified to the **--timestamp** option
 if it is specified.  This option can be specified multiple times.
 
+**--annotation** *annotation[=value]*
+
+Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
+If *annotation* is named, but neither `=` nor a `value` is provided, then the *annotation* is set to an empty value.
+
+Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. See containers-auth.json(5) for more information. This file is created using `buildah login`.
@@ -54,6 +61,16 @@ This option can be specified multiple times.
 Read a JSON-encoded version of an image configuration object from the specified
 file, and merge the values from it with the configuration of the image being
 committed.
+
+**--created-annotation**
+
+Add an image *annotation* (see also **--annotation**) to the image metadata
+setting "org.opencontainers.image.created" to the current time, or to the
+datestamp specified to the **--source-date-epoch** or **--timestamp** flag,
+if either was used.  If *false*, no such annotation will be present in the
+written image.
+
+Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
 
 **--creds** *creds*
 
@@ -349,6 +366,10 @@ not affect the timestamps of layer contents.
 **--tls-verify** *bool-value*
 
 Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
+
+**--unsetannotation** *annotation*
+
+Unset the image annotation, causing the annotation not to be inherited from the base image.
 
 **--unsetenv** *env*
 

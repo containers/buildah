@@ -171,6 +171,7 @@ type Executor struct {
 	noPivotRoot                             bool
 	sourceDateEpoch                         *time.Time
 	rewriteTimestamp                        bool
+	createdAnnotation                       types.OptionalBool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -342,6 +343,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		noPivotRoot:                             options.NoPivotRoot,
 		sourceDateEpoch:                         options.SourceDateEpoch,
 		rewriteTimestamp:                        options.RewriteTimestamp,
+		createdAnnotation:                       options.CreatedAnnotation,
 	}
 	// sort unsetAnnotations because we will later write these
 	// values to the history of the image therefore we want to

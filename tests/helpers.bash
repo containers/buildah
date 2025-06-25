@@ -914,6 +914,18 @@ function oci_image_manifest_digest() {
   echo "$output"
 }
 
+########################
+#  oci_image_manifest  #
+########################
+# prints the relative path of the manifest for the main image in an OCI
+# layout in "$1"
+function oci_image_manifest() {
+  local diff_id=$(oci_image_manifest_digest "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo blobs/"$alg"/"$val"
+}
+
 #############################
 #  oci_image_config_digest  #
 #############################
