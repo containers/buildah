@@ -131,6 +131,7 @@ github.com/containers/common/pkg/completion
 github.com/containers/common/pkg/config
 github.com/containers/common/pkg/download
 github.com/containers/common/pkg/filters
+github.com/containers/common/pkg/formats
 github.com/containers/common/pkg/hooks
 github.com/containers/common/pkg/hooks/0.1.0
 github.com/containers/common/pkg/hooks/1.0.0

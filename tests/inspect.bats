@@ -28,8 +28,8 @@ load helpers
   run_buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image
   inspect_after_commit=$output
 
-  # ...except that at some point in November 2019 buildah-inspect started
-  # including version. Strip it out,
+  # ...except that in #2510/#3036/#3829 we started adding a label with
+  # buildah's version. Strip it out for comparison.
   run_buildah --version
   local -a output_fields=($output)
   buildah_version=${output_fields[2]}
