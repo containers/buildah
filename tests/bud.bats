@@ -8117,3 +8117,32 @@ _EOF
     fi
   done
 }
+
+@test "bud-with-source-date-epoch-arg" {
+  _prefetch busybox
+  local timestamp=60
+  local datestamp="1970-01-01T00:01:00Z"
+  mkdir -p $TEST_SCRATCH_DIR/buildcontext
+  cat > $TEST_SCRATCH_DIR/buildcontext/Dockerfile <<EOF
+  FROM busybox
+  RUN echo \$SOURCE_DATE_EPOCH | tee /SOURCE_DATE_EPOCH_BEFORE
+  ARG SOURCE_DATE_EPOCH
+  RUN echo \$SOURCE_DATE_EPOCH | tee /SOURCE_DATE_EPOCH_AFTER
+EOF
+  run_buildah build --layers --no-cache --build-arg=SOURCE_DATE_EPOCH=$timestamp --rewrite-timestamp -t target $TEST_SCRATCH_DIR/buildcontext
+  run_buildah from target
+  local cid="$output"
+  run_buildah run "$cid" cat /SOURCE_DATE_EPOCH_BEFORE
+  assert "$output" = "" "SOURCE_DATE_EPOCH wasn't empty before it was declared"
+  run_buildah run "$cid" cat /SOURCE_DATE_EPOCH_AFTER
+  assert "$output" = "$timestamp" "SOURCE_DATE_EPOCH was wrong after it was declared"
+  run_buildah build --layers --no-cache --build-arg=SOURCE_DATE_EPOCH=$timestamp --rewrite-timestamp -t oci:$TEST_SCRATCH_DIR/layout $TEST_SCRATCH_DIR/buildcontext
+  local manifest=${TEST_SCRATCH_DIR}/layout/$(oci_image_manifest ${TEST_SCRATCH_DIR}/layout)
+  run jq -r '.annotations."org.opencontainers.image.created"' $manifest
+  assert $status = 0 "error running jq"
+  assert "$output" = "$datestamp" "SOURCE_DATE_EPOCH build arg didn't affect image creation date annotation"
+  local config=${TEST_SCRATCH_DIR}/layout/$(oci_image_config ${TEST_SCRATCH_DIR}/layout)
+  run jq -r .created $config
+  assert $status = 0 "error running jq"
+  assert "$output" = "$datestamp" "SOURCE_DATE_EPOCH build arg didn't affect image config creation date"
+}

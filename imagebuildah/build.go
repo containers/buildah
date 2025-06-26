@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/containerd/platforms"
 	"github.com/containers/buildah"
@@ -217,6 +218,15 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		if err != nil {
 			return "", nil, err
 		}
+	}
+
+	if sourceDateEpoch, ok := options.Args[internal.SourceDateEpochName]; ok && options.SourceDateEpoch == nil {
+		sde, err := strconv.ParseInt(sourceDateEpoch, 10, 64)
+		if err != nil {
+			return "", nil, fmt.Errorf("parsing SOURCE_DATE_EPOCH build-arg %q: %w", sourceDateEpoch, err)
+		}
+		sdeTime := time.Unix(sde, 0)
+		options.SourceDateEpoch = &sdeTime
 	}
 
 	systemContext := options.SystemContext
