@@ -41,6 +41,7 @@ type addCopyResults struct {
 	excludes         []string
 	parents          bool
 	timestamp        string
+	link             bool
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -74,6 +75,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	flags.StringVar(&opts.chown, "chown", "", "set the user and group ownership of the destination content")
 	flags.StringVar(&opts.chmod, "chmod", "", "set the access permissions of the destination content")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing registries when pulling images")
+	flags.BoolVar(&opts.link, "link", false, "enable layer caching for this operation (creates an independent layer)")
 	if err := flags.MarkHidden("creds"); err != nil {
 		panic(fmt.Sprintf("error marking creds as hidden: %v", err))
 	}
@@ -263,6 +265,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		MaxRetries:            iopts.retry,
 		Parents:               iopts.parents,
 		Timestamp:             timestamp,
+		Link:                  iopts.link,
 	}
 	if iopts.contextdir != "" {
 		var excludes []string
