@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestOpenBuilderCommonBuildOpts(t *testing.T) {
-	// This test cannot be parallized as this uses NewBuilder()
+	// This test cannot be parallelized as this uses NewBuilder()
 	// which eventually and indirectly accesses a global variable
 	// defined in `go-selinux`, this must be fixed at `go-selinux`
 	// or builder must enable sometime of locking mechanism i.e if

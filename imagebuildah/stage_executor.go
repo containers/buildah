@@ -1945,7 +1945,7 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 					mountOptionSource = "."
 				}
 			}
-			// Source specificed is part of stage, image or additional-build-context.
+			// Source specified is part of stage, image or additional-build-context.
 			if mountOptionFrom != "" {
 				// If this is not a stage then get digest of image or additional build context
 				if _, ok := s.executor.stages[mountOptionFrom]; !ok {
@@ -2274,7 +2274,7 @@ func (s *StageExecutor) pullCache(ctx context.Context, cacheKey string) (referen
 
 // intermediateImageExists returns image ID if an intermediate image of currNode exists in the image store from a previous build.
 // It verifies this by checking the parent of the top layer of the image and the history.
-// If more than one image matches as potiential candidates then priority is given to the most recently built image.
+// If more than one image matches as potential candidates then priority is given to the most recently built image.
 func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *parser.Node, addedContentDigest string, buildAddsLayer bool, lastInstruction bool) (string, error) {
 	cacheCandidates := []storage.Image{}
 	// Get the list of images available in the image store
