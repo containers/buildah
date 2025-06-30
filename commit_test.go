@@ -42,7 +42,7 @@ func makeFile(t *testing.T, base string, size int64) string {
 }
 
 func TestCommitLinkedLayers(t *testing.T) {
-	// This test cannot be parallized as this uses NewBuilder()
+	// This test cannot be parallelized as this uses NewBuilder()
 	// which eventually and indirectly accesses a global variable
 	// defined in `go-selinux`, this must be fixed at `go-selinux`
 	// or builder must enable sometime of locking mechanism i.e if
@@ -256,7 +256,7 @@ func TestCommitLinkedLayers(t *testing.T) {
 }
 
 func TestCommitCompression(t *testing.T) {
-	// This test cannot be parallized as this uses NewBuilder()
+	// This test cannot be parallelized as this uses NewBuilder()
 	// which eventually and indirectly accesses a global variable
 	// defined in `go-selinux`, this must be fixed at `go-selinux`
 	// or builder must enable sometime of locking mechanism i.e if
@@ -352,7 +352,7 @@ func TestCommitCompression(t *testing.T) {
 }
 
 func TestCommitEmpty(t *testing.T) {
-	// This test cannot be parallized as this uses NewBuilder()
+	// This test cannot be parallelized as this uses NewBuilder()
 	// which eventually and indirectly accesses a global variable
 	// defined in `go-selinux`, this must be fixed at `go-selinux`
 	// or builder must enable sometime of locking mechanism i.e if

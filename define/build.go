@@ -307,7 +307,7 @@ type BuildOptions struct {
 	// and layer contents are recorded as-is.
 	Timestamp *time.Time
 	// SourceDateEpoch specifies a timestamp to use for the image's
-	// created-on date and the corrsponding field in new history entries,
+	// created-on date and the corresponding field in new history entries,
 	// and any content written as specified in the BuildOutput field.  If
 	// left unset, the current time is used for the configuration and
 	// manifest, and layer and BuildOutput contents retain their original
