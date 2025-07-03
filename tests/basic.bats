@@ -133,3 +133,12 @@ load helpers
   run_buildah images -q
   expect_output ""
 }
+
+@test "release" {
+  [[ "${RELEASE_TESTING:-false}" == "true" ]] || \
+    skip "Release testing may be enabled by setting \$RELEASE_TESTING = 'true'."
+
+  run_buildah --version
+
+  assert "$output" "!~" "dev" "The Buildah version string does not mention 'dev'."
+}
