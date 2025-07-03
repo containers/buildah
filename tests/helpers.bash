@@ -833,7 +833,7 @@ auth:
 '
   # roughly equivalent to "htpasswd -nbB testuser testpassword", the registry uses
   # the same package this does for verifying passwords against hashes in htpasswd files
-  htpasswd=${testuser}:$(buildah passwd ${testpassword})
+  htpasswd=${testuser}:$(passwd ${testpassword})
 
   # generate the htpasswd and config.yml files for the registry
   mkdir -p "${TEST_SCRATCH_DIR}"/registry/root "${TEST_SCRATCH_DIR}"/registry/run "${TEST_SCRATCH_DIR}"/registry/certs "${TEST_SCRATCH_DIR}"/registry/config
