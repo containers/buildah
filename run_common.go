@@ -204,6 +204,54 @@ func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDP
 	return cfile, nil
 }
 
+// createSSLCertFile creates a containers CA cert file
+func (b *Builder) createSSLCertFile(rdir, containerPath string, chownOpts *idtools.IDPair) (_ string, retErr error) {
+	resolvedSSLCertPath, err := util.ResolveRootCACertFile()
+	if err != nil {
+		return "", fmt.Errorf("error resolving cert file on host: %w", err)
+	}
+
+	inCertFile, err := os.Open(resolvedSSLCertPath)
+	if err != nil {
+		return "", fmt.Errorf("error opening ssl cert file on host: %w", err)
+	}
+	defer func() {
+		if err := inCertFile.Close(); err != nil && retErr == nil {
+			retErr = fmt.Errorf("error closing ssl cert file on host: %w", err)
+		}
+	}()
+
+	cfile := filepath.Join(rdir, filepath.Base(containerPath))
+	outCertFile, err := os.Create(cfile)
+	if err != nil {
+		return "", fmt.Errorf("error opening ssl cert file for container: %w", err)
+	}
+	defer func() {
+		if err := outCertFile.Close(); err != nil && retErr == nil {
+			retErr = fmt.Errorf("error closing ssl cert file for container: %w", err)
+		}
+	}()
+
+	if _, err = io.Copy(outCertFile, inCertFile); err != nil {
+		return "", fmt.Errorf("error copying cert file for container: %w", err)
+	}
+
+	uid := 0
+	gid := 0
+	if chownOpts != nil {
+		uid = chownOpts.UID
+		gid = chownOpts.GID
+	}
+	if err = os.Chown(cfile, uid, gid); err != nil {
+		return "", err
+	}
+	if err = relabel(cfile, b.MountLabel, false); err != nil {
+		return "", err
+	}
+
+	return cfile, nil
+}
+
 func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
 	switch terminalPolicy {
 	case DefaultTerminal:

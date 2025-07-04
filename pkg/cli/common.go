@@ -133,32 +133,33 @@ type BudResults struct {
 // FromAndBugResults represents the results for common flags
 // in build and from
 type FromAndBudResults struct {
-	AddHost        []string
-	BlobCache      string
-	CapAdd         []string
-	CapDrop        []string
-	CDIConfigDir   string
-	CgroupParent   string
-	CPUPeriod      uint64
-	CPUQuota       int64
-	CPUSetCPUs     string
-	CPUSetMems     string
-	CPUShares      uint64
-	DecryptionKeys []string
-	Devices        []string
-	DNSSearch      []string
-	DNSServers     []string
-	DNSOptions     []string
-	HTTPProxy      bool
-	Isolation      string
-	Memory         string
-	MemorySwap     string
-	Retry          int
-	RetryDelay     string
-	SecurityOpt    []string
-	ShmSize        string
-	Ulimit         []string
-	Volumes        []string
+	AddHost         []string
+	BlobCache       string
+	CapAdd          []string
+	CapDrop         []string
+	CDIConfigDir    string
+	CgroupParent    string
+	CPUPeriod       uint64
+	CPUQuota        int64
+	CPUSetCPUs      string
+	CPUSetMems      string
+	CPUShares       uint64
+	DecryptionKeys  []string
+	Devices         []string
+	DNSSearch       []string
+	DNSServers      []string
+	DNSOptions      []string
+	HTTPProxy       bool
+	Isolation       string
+	Memory          string
+	MemorySwap      string
+	Retry           int
+	RetryDelay      string
+	SecurityOpt     []string
+	ShmSize         string
+	Ulimit          []string
+	Volumes         []string
+	WithSSLCertFile bool
 }
 
 // GetUserNSFlags returns the common flags for usernamespace
@@ -429,6 +430,7 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.String("variant", "", "override the `variant` of the specified image")
 	fs.StringArrayVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
 	fs.StringVar(&flags.ShmSize, "shm-size", defaultContainerConfig.Containers.ShmSize, "size of '/dev/shm'. The format is `<number><unit>`.")
+	fs.BoolVar(&flags.WithSSLCertFile, "with-ssl-cert-file", false, "mount host root CA bundle within container during build, and set SSL_CERT_FILE to point to that bundle")
 	fs.StringSliceVar(&flags.Ulimit, "ulimit", defaultContainerConfig.Containers.DefaultUlimits.Get(), "ulimit options")
 	fs.StringArrayVarP(&flags.Volumes, "volume", "v", defaultContainerConfig.Volumes(), "bind mount a volume into the container")
 

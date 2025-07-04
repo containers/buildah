@@ -114,6 +114,8 @@ type CommonBuildOptions struct {
 	OCIHooksDir []string
 	// Paths to unmask
 	Unmasks []string
+	// WithSSLCertFile specifies whether the host root CAs should be ephemerally mounted within the container
+	WithSSLCertFile bool
 }
 
 // BuildOptions can be used to alter how an image is built.

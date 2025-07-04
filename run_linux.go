@@ -4,6 +4,8 @@ package buildah
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
@@ -358,6 +360,17 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	g.SetProcessApparmorProfile(b.CommonBuildOpts.ApparmorProfile)
 
+	var optionalContainerCaBundlePath string
+	if b.CommonBuildOpts.WithSSLCertFile {
+		// we populate this later in this function, but generate the filename
+		// now so we can set it in the env. We make it random so that this path
+		// is not relied on, and instead the env var is used
+		var randSuffix [8]byte
+		_, _ = rand.Read(randSuffix[:]) // documented to never return an err
+		optionalContainerCaBundlePath = "/cabundle-" + hex.EncodeToString(randSuffix[:])
+		g.AddProcessEnv("SSL_CERT_FILE", optionalContainerCaBundlePath)
+	}
+
 	// Now grab the spec from the generator.  Set the generator to nil so that future contributors
 	// will quickly be able to tell that they're supposed to be modifying the spec directly from here.
 	spec := g.Config
@@ -492,6 +505,14 @@ rootless=%d
 		}
 
 		bindFiles["/run/.containerenv"] = containerenvPath
+	}
+
+	if b.CommonBuildOpts.WithSSLCertFile {
+		resolvedSSLCertPath, err := b.createSSLCertFile(path, optionalContainerCaBundlePath, rootIDPair)
+		if err != nil {
+			return err
+		}
+		bindFiles[optionalContainerCaBundlePath] = resolvedSSLCertPath
 	}
 
 	// Setup OCI hooks
