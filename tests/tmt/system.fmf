@@ -10,6 +10,7 @@ environment:
     COPY_BINARY: /usr/bin/buildah-copy
     TUTORIAL_BINARY: /usr/bin/buildah-tutorial
     DUMPSPEC_BINARY: /usr/bin/buildah-dumpspec
+    PASSWD_BINARY: /usr/bin/buildah-passwd
     TMPDIR: /var/tmp
 
 adjust:
