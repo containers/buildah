@@ -59,7 +59,7 @@ export GOLANGCI_LINT_VERSION := 2.1.0
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently
 #           use source debugging tools like delve.
-all: bin/buildah bin/imgtype bin/copy bin/inet bin/tutorial bin/dumpspec docs
+all: bin/buildah bin/imgtype bin/copy bin/inet bin/tutorial bin/dumpspec bin/passwd docs
 
 bin/buildah: $(SOURCES) internal/mkcw/embed/entrypoint_amd64.gz
 	$(GO_BUILD) $(BUILDAH_LDFLAGS) $(GO_GCFLAGS) "$(GOGCFLAGS)" -o $@ $(BUILDFLAGS) ./cmd/buildah
@@ -105,6 +105,9 @@ bin/tutorial: $(SOURCES)
 
 bin/inet: tests/inet/inet.go
 	$(GO_BUILD) $(BUILDAH_LDFLAGS) -o $@ $(BUILDFLAGS) ./tests/inet/inet.go
+
+bin/passwd: tests/passwd/passwd.go
+	$(GO_BUILD) $(BUILDAH_LDFLAGS) -o $@ $(BUILDFLAGS) ./tests/passwd/passwd.go
 
 .PHONY: clean
 clean:
