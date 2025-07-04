@@ -1321,6 +1321,11 @@ will convert /foo into a `shared` mount point.  The propagation properties of th
 mount can be changed directly. For instance if `/` is the source mount for
 `/foo`, then use `mount --make-shared /` to convert `/` into a `shared` mount.
 
+**--with-ssl-cert-file**
+
+If set, bind mount the host CA cert file (override location by setting `SSL_CERT_FILE`) within the RUN containers,
+and set the environment variable `SSL_CERT_FILE` to point to it.
+
 ## BUILD TIME VARIABLES
 
 The ENV instruction in a Containerfile can be used to define variable values.  When the image

@@ -8146,3 +8146,19 @@ EOF
   assert $status = 0 "error running jq"
   assert "$output" = "$datestamp" "SOURCE_DATE_EPOCH build arg didn't affect image config creation date"
 }
+
+@test "build-with-ssl-cert-file" {
+  echo "foofoofoofoo" > "${TEST_SCRATCH_DIR}/foocafile"
+  echo "barbarbarbar" > "${TEST_SCRATCH_DIR}/barcafile"
+
+  # use foocafile, and ensure that "foo" is output
+  SSL_CERT_FILE="${TEST_SCRATCH_DIR}/foocafile" run_buildah build -f <(echo 'FROM alpine'; echo 'RUN cat "${SSL_CERT_FILE}"') --tag="oci-archive:${TEST_SCRATCH_DIR}/foo.tar" --timestamp 0 --with-ssl-cert-file
+  expect_output --substring "foofoofoofoo"
+
+  # use barcafile, and ensure that "bar" is output
+  SSL_CERT_FILE="${TEST_SCRATCH_DIR}/barcafile" run_buildah build -f <(echo 'FROM alpine'; echo 'RUN cat "${SSL_CERT_FILE}"') --tag="oci-archive:${TEST_SCRATCH_DIR}/bar.tar" --timestamp 0 --with-ssl-cert-file
+  expect_output --substring "barbarbarbar"
+
+  # however regardless the produced images from both above should be identical as this is not persisted to image
+  diff "${TEST_SCRATCH_DIR}/foo.tar" "${TEST_SCRATCH_DIR}/bar.tar"
+}

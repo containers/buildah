@@ -189,6 +189,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 		b, _ := flags.GetBool("identity-label")
 		identityLabel = types.NewOptionalBool(b)
 	}
+	withSSLCertFile, _ := flags.GetBool("with-ssl-cert-file")
 	omitHistory, _ := flags.GetBool("omit-history")
 
 	ulimit := []string{}
@@ -201,29 +202,30 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	ociHooks, _ := flags.GetStringArray("hooks-dir")
 
 	commonOpts := &define.CommonBuildOptions{
-		AddHost:       addHost,
-		CPUPeriod:     cpuPeriod,
-		CPUQuota:      cpuQuota,
-		CPUSetCPUs:    findFlagFunc("cpuset-cpus").Value.String(),
-		CPUSetMems:    findFlagFunc("cpuset-mems").Value.String(),
-		CPUShares:     cpuShares,
-		CgroupParent:  findFlagFunc("cgroup-parent").Value.String(),
-		DNSOptions:    dnsOptions,
-		DNSSearch:     dnsSearch,
-		DNSServers:    dnsServers,
-		HTTPProxy:     httpProxy,
-		IdentityLabel: identityLabel,
-		Memory:        memoryLimit,
-		MemorySwap:    memorySwap,
-		NoHostname:    noHostname,
-		NoHosts:       noHosts,
-		OmitHistory:   omitHistory,
-		ShmSize:       findFlagFunc("shm-size").Value.String(),
-		Ulimit:        ulimit,
-		Volumes:       volumes,
-		Secrets:       secrets,
-		SSHSources:    sshsources,
-		OCIHooksDir:   ociHooks,
+		AddHost:         addHost,
+		CPUPeriod:       cpuPeriod,
+		CPUQuota:        cpuQuota,
+		CPUSetCPUs:      findFlagFunc("cpuset-cpus").Value.String(),
+		CPUSetMems:      findFlagFunc("cpuset-mems").Value.String(),
+		CPUShares:       cpuShares,
+		CgroupParent:    findFlagFunc("cgroup-parent").Value.String(),
+		DNSOptions:      dnsOptions,
+		DNSSearch:       dnsSearch,
+		DNSServers:      dnsServers,
+		HTTPProxy:       httpProxy,
+		IdentityLabel:   identityLabel,
+		Memory:          memoryLimit,
+		MemorySwap:      memorySwap,
+		NoHostname:      noHostname,
+		NoHosts:         noHosts,
+		OmitHistory:     omitHistory,
+		ShmSize:         findFlagFunc("shm-size").Value.String(),
+		Ulimit:          ulimit,
+		Volumes:         volumes,
+		Secrets:         secrets,
+		SSHSources:      sshsources,
+		OCIHooksDir:     ociHooks,
+		WithSSLCertFile: withSSLCertFile,
 	}
 	securityOpts, _ := flags.GetStringArray("security-opt")
 	defConfig, err := config.Default()
