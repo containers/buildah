@@ -125,7 +125,7 @@ export LDFLAGS="-X main.buildInfo=`date +%s` -X main.cniVersion=${CNI_VERSION}"
 
 export BUILDTAGS="seccomp $(hack/systemd_tag.sh) $(hack/libsubid_tag.sh) libsqlite3"
 %if !%{defined build_with_btrfs}
-export BUILDTAGS+=" btrfs_noversion exclude_graphdriver_btrfs"
+export BUILDTAGS+=" exclude_graphdriver_btrfs"
 %endif
 
 %if %{defined fips}
