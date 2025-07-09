@@ -138,6 +138,7 @@ export BUILDTAGS+=" libtrust_openssl"
 %gobuild -o bin/tutorial ./tests/tutorial
 %gobuild -o bin/inet ./tests/inet
 %gobuild -o bin/dumpspec ./tests/dumpspec
+%gobuild -o bin/passwd ./tests/passwd
 %{__make} docs
 
 %install
@@ -150,6 +151,7 @@ cp bin/copy    %{buildroot}/%{_bindir}/%{name}-copy
 cp bin/tutorial %{buildroot}/%{_bindir}/%{name}-tutorial
 cp bin/inet     %{buildroot}/%{_bindir}/%{name}-inet
 cp bin/dumpspec %{buildroot}/%{_bindir}/%{name}-dumpspec
+cp bin/passwd %{buildroot}/%{_bindir}/%{name}-passwd
 
 rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 
@@ -175,6 +177,7 @@ rm %{buildroot}%{_datadir}/%{name}/test/system/tools/build/*
 %{_bindir}/%{name}-tutorial
 %{_bindir}/%{name}-inet
 %{_bindir}/%{name}-dumpspec
+%{_bindir}/%{name}-passwd
 %{_datadir}/%{name}/test
 
 %changelog

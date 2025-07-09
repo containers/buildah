@@ -9,6 +9,7 @@ COPY_BINARY=${COPY_BINARY:-$TEST_SOURCES/../bin/copy}
 TUTORIAL_BINARY=${TUTORIAL_BINARY:-$TEST_SOURCES/../bin/tutorial}
 INET_BINARY=${INET_BINARY:-$TEST_SOURCES/../bin/inet}
 DUMPSPEC_BINARY=${DUMPSPEC_BINARY:-$TEST_SOURCES/../bin/dumpspec}
+PASSWD_BINARY=${PASSWD_BINARY:-$TEST_SOURCES/../bin/passwd}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=${BUILDAH_RUNTIME:-$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)}
@@ -833,7 +834,7 @@ auth:
 '
   # roughly equivalent to "htpasswd -nbB testuser testpassword", the registry uses
   # the same package this does for verifying passwords against hashes in htpasswd files
-  htpasswd=${testuser}:$(buildah passwd ${testpassword})
+  htpasswd=${testuser}:$(${PASSWD_BINARY} ${testpassword})
 
   # generate the htpasswd and config.yml files for the registry
   mkdir -p "${TEST_SCRATCH_DIR}"/registry/root "${TEST_SCRATCH_DIR}"/registry/run "${TEST_SCRATCH_DIR}"/registry/certs "${TEST_SCRATCH_DIR}"/registry/config
