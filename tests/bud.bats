@@ -7272,6 +7272,15 @@ _EOF
   fi
 }
 
+@test "build proxy - ADD URL" {
+  _prefetch alpine
+  target=alpine-image
+  http_proxy=http://127.0.0.1:47 HTTPS_PROXY=http://127.0.0.1:47 \
+    run_buildah 125 build $WITH_POLICY_JSON -t alpine-image -f $BUDFILES/add-checksum/Containerfile $BUDFILES/add-checksum
+  expect_output --substring "127.0.0.1:47" "connection to fake proxy must fail"
+  expect_output --substring "connection refused" "connection to fake proxy must fail"
+}
+
 @test "bud-with-mount-bind-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
