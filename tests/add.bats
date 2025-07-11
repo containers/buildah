@@ -392,3 +392,120 @@ EOF
   run_buildah copy --chmod=0755 "$cid" $TEST_SCRATCH_DIR/context/check-dates.sh /
   run_buildah run "$cid" sh -x /check-dates.sh
 }
+
+@test "add-link-flag" {
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  
+  run_buildah config --workingdir=/ $cid
+  
+  # Test 1: Simple add
+  run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile
+  
+  # Test 2: Add with rename (file to file with different name)
+  run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile /renamed-file
+  
+  # Test 3: Multiple files to directory
+  mkdir $root/subdir
+  run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /subdir
+  
+  run_buildah unmount $cid
+  run_buildah commit $WITH_POLICY_JSON $cid add-link-image
+
+  run_buildah inspect --type=image add-link-image
+  layers=$(echo "$output" | jq -r '.OCIv1.rootfs.diff_ids | length')
+  if [ "$layers" -lt 3 ]; then
+    echo "Expected at least 3 layers from 3 --link operations, but found $layers"
+    echo "Layers found:"
+    echo "$output" | jq -r '.OCIv1.rootfs.diff_ids[]'
+    exit 1
+  fi
+
+  run_buildah from $WITH_POLICY_JSON add-link-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  
+  test -s $newroot/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
+  
+  test -s $newroot/renamed-file
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/renamed-file
+  
+  test -s $newroot/subdir/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/subdir/randomfile
+  test -s $newroot/subdir/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/other-randomfile $newroot/subdir/other-randomfile
+}
+
+@test "add-link-archive" {
+  createrandom ${TEST_SCRATCH_DIR}/file1
+  createrandom ${TEST_SCRATCH_DIR}/file2
+  
+  tar -c -C ${TEST_SCRATCH_DIR} -f ${TEST_SCRATCH_DIR}/archive.tar file1 file2
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  
+  run_buildah config --workingdir=/ $cid
+  
+  run_buildah add --link $cid ${TEST_SCRATCH_DIR}/archive.tar
+  
+  run_buildah add --link $cid ${TEST_SCRATCH_DIR}/archive.tar /destdir/
+  
+  run_buildah commit $WITH_POLICY_JSON $cid add-link-archive-image
+
+  run_buildah inspect --type=image add-link-archive-image
+  layers=$(echo "$output" | jq -r '.OCIv1.rootfs.diff_ids | length')
+  if [ "$layers" -lt 2 ]; then
+    echo "Expected at least 2 layers from 2 --link operations, but found $layers"
+    exit 1
+  fi
+
+  run_buildah from $WITH_POLICY_JSON add-link-archive-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  
+  test -s $newroot/file1
+  cmp ${TEST_SCRATCH_DIR}/file1 $newroot/file1
+  test -s $newroot/file2
+  cmp ${TEST_SCRATCH_DIR}/file2 $newroot/file2
+  
+  test -s $newroot/destdir/file1
+  cmp ${TEST_SCRATCH_DIR}/file1 $newroot/destdir/file1
+  test -s $newroot/destdir/file2
+  cmp ${TEST_SCRATCH_DIR}/file2 $newroot/destdir/file2
+}
+
+@test "add-link-directory" {
+  mkdir -p ${TEST_SCRATCH_DIR}/testdir/subdir
+  createrandom ${TEST_SCRATCH_DIR}/testdir/file1
+  createrandom ${TEST_SCRATCH_DIR}/testdir/subdir/file2
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  
+  run_buildah config --workingdir=/ $cid
+  
+  run_buildah add --link $cid ${TEST_SCRATCH_DIR}/testdir /testdir
+  
+  run_buildah commit $WITH_POLICY_JSON $cid add-link-dir-image
+
+  run_buildah from $WITH_POLICY_JSON add-link-dir-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  
+  test -d $newroot/testdir
+  test -s $newroot/testdir/file1
+  test -s $newroot/testdir/subdir/file2
+  
+  cmp ${TEST_SCRATCH_DIR}/testdir/file1 $newroot/testdir/file1
+  cmp ${TEST_SCRATCH_DIR}/testdir/subdir/file2 $newroot/testdir/subdir/file2
+}

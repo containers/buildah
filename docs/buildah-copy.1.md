@@ -65,6 +65,13 @@ is preserved.
 
 Path to an alternative .containerignore (.dockerignore) file. Requires \-\-contextdir be specified.
 
+**--link**
+
+Create an independent image layer for the added files instead of modifying the working
+container's filesystem. If `buildah run` creates a file and `buildah copy --link` adds a file
+to the same path, the file from `buildah copy --link` will be present in the committed image.
+The --link layer is applied after all container filesystem changes at commit time.
+
 **--parents**
 
 Preserve leading directories in the paths of items being copied, relative to either the

@@ -8151,3 +8151,250 @@ EOF
   assert $status = 0 "error running jq"
   assert "$output" = "$datestamp" "SOURCE_DATE_EPOCH build arg didn't affect image config creation date"
 }
+
+@test "bud --link consistent diffID with --no-cache" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-diffid-nocache
+  mkdir -p $contextdir
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine
+RUN echo "before link layer" > /before.txt
+COPY --link test.txt /test.txt
+RUN echo "after link layer" > /after.txt
+RUN ls -l /test.txt
+RUN cat /test.txt
+EOF
+  
+  echo "test content" > $contextdir/test.txt
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-layout1 $contextdir
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-layout2 $contextdir
+  
+  diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout1 2)
+  diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout2 2)
+  echo $diffid1
+  echo $diffid2
+  
+  assert "$diffid1" = "$diffid2" "COPY --link should produce identical diffIDs with --no-cache"
+}
+
+@test "bud --link consistent diffID with different base images" {
+  _prefetch alpine busybox
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-diffid-bases
+  mkdir -p $contextdir
+  
+  echo "shared content" > $contextdir/shared.txt
+  
+  cat > $contextdir/Containerfile.alpine << EOF
+FROM alpine
+RUN echo "alpine setup" > /setup.txt
+COPY --link shared.txt /shared.txt
+RUN echo "alpine complete" > /complete.txt
+RUN cat /shared.txt
+EOF
+  
+  cat > $contextdir/Containerfile.busybox << EOF
+FROM busybox
+RUN echo "busybox setup" > /setup.txt
+COPY --link shared.txt /shared.txt
+RUN echo "busybox complete" > /complete.txt
+RUN cat /shared.txt
+EOF
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -f $contextdir/Containerfile.alpine -t oci:${TEST_SCRATCH_DIR}/oci-layout-alpine $contextdir
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -f $contextdir/Containerfile.busybox -t oci:${TEST_SCRATCH_DIR}/oci-layout-busybox $contextdir
+  
+  diffid_alpine=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout-alpine 2)
+  diffid_busybox=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout-busybox 2)
+  
+  assert "$diffid_alpine" = "$diffid_busybox" "COPY --link should produce identical diffIDs regardless of base image"
+}
+
+@test "bud --link consistent diffID with multiple files" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-diffid-multi
+  mkdir -p $contextdir/subdir
+  
+  echo "file1" > $contextdir/file1.txt
+  echo "file2" > $contextdir/file2.txt
+  echo "subfile" > $contextdir/subdir/sub.txt
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine
+RUN echo "setup" > /setup.txt
+COPY --link file1.txt file2.txt /files/
+ADD --link subdir /subdir
+RUN echo "complete" > /complete.txt
+RUN ls -l /files/
+EOF
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-layout-multi1 $contextdir
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-layout-multi2 $contextdir
+  
+  copy_diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout-multi1 2)
+  copy_diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout-multi2 2)
+  add_diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout-multi1 3)
+  add_diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-layout-multi2 3)
+  
+  assert "$copy_diffid1" = "$copy_diffid2" "COPY --link with multiple files should have consistent diffID"
+  assert "$add_diffid1" = "$add_diffid2" "ADD --link should have consistent diffID"
+}
+
+@test "bud --link with glob patterns consistent diffID" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-diffid-glob
+  mkdir -p $contextdir
+  
+  echo "test1" > $contextdir/test1.txt
+  echo "test2" > $contextdir/test2.txt
+  echo "json1" > $contextdir/data1.json
+  echo "json2" > $contextdir/data2.json
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine
+COPY --link test*.txt /tests/
+COPY --link *.json /data/
+RUN echo "globbing complete" > /complete.txt
+RUN ls -l /tests/
+RUN ls -l /data/
+EOF
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-glob-1 $contextdir
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-glob-2 $contextdir
+  
+  glob_txt_diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-glob-1 1)
+  glob_txt_diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-glob-2 1)
+  glob_json_diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-glob-1 2)
+  glob_json_diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-glob-2 2)
+  
+  assert "$glob_txt_diffid1" = "$glob_txt_diffid2" "COPY --link with glob *.txt should have consistent diffID"
+  assert "$glob_json_diffid1" = "$glob_json_diffid2" "COPY --link with glob *.json should have consistent diffID"
+}
+
+@test "bud --link cache behavior basic" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-cache
+  mkdir -p $contextdir
+  
+  echo "test content" > $contextdir/testfile.txt
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine
+COPY --link testfile.txt /testfile.txt
+RUN echo "build complete" > /complete.txt
+RUN cat /testfile.txt
+EOF
+  
+  # First build
+  run_buildah build --layers $WITH_POLICY_JSON -t link-cache1 $contextdir
+  
+  run_buildah build --layers $WITH_POLICY_JSON -t link-cache2 $contextdir
+  assert "$output" =~ "Using cache"
+  
+  # Modify content
+  echo "modified content" > $contextdir/testfile.txt
+  
+  run_buildah build --layers $WITH_POLICY_JSON -t link-cache3 $contextdir
+  assert "$output" !~ "STEP 2/3: COPY --link testfile.txt /testfile.txt"$'\n'".*Using cache"
+}
+
+@test "bud --link with chmod and chown" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-perms
+  mkdir -p $contextdir
+  
+  echo "test content" > $contextdir/testfile.txt
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine
+COPY --link --chmod=755 --chown=1000:1000 testfile.txt /testfile.txt
+RUN stat -c '%u:%g %a' /testfile.txt
+EOF
+  
+  run_buildah build --layers $WITH_POLICY_JSON -t link-perms $contextdir
+  expect_output --substring "1000:1000 755"
+}
+
+@test "bud --link multi-stage build cache" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-multistage
+  mkdir -p $contextdir
+  
+  echo "stage1 content" > $contextdir/stage1.txt
+  echo "stage2 content" > $contextdir/stage2.txt
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine AS stage1
+ADD --link stage1.txt /stage1.txt
+RUN echo "stage1 complete" > /complete.txt
+RUN cat /stage1.txt
+
+FROM alpine AS stage2
+COPY --from=stage1 /stage1.txt /from-stage1.txt
+ADD --link stage2.txt /stage2.txt
+RUN echo "stage2 complete" > /complete.txt
+RUN cat /stage2.txt
+
+EOF
+  
+  run_buildah build --layers $WITH_POLICY_JSON -t link-multistage1 $contextdir
+  
+  run_buildah build --layers $WITH_POLICY_JSON -t link-multistage2 $contextdir
+  assert "$output" =~ "Using cache"
+  
+  run_buildah from --name test-ctr link-multistage2
+  run_buildah run test-ctr cat /from-stage1.txt
+  expect_output "stage1 content"
+  run_buildah run test-ctr cat /stage2.txt
+  expect_output "stage2 content"
+  run_buildah rm test-ctr
+}
+
+@test "bud --link ADD with remote URL consistent diffID" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-url
+  mkdir -p $contextdir
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine
+ADD --link https://github.com/moby/moby/raw/master/README.md /README.md
+RUN echo "remote add complete" > /complete.txt
+RUN cat /README.md
+EOF
+  
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-url1 $contextdir
+  run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-url2 $contextdir
+  
+  diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-url1 1)
+  diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-url2 1)
+  
+  assert "$diffid1" = "$diffid2" "ADD --link with URL should have consistent diffID"
+}
+
+@test "bud --link respects dockerignore" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/link-ignore
+  mkdir -p $contextdir
+  
+  echo "included" > $contextdir/included.txt
+  echo "excluded" > $contextdir/excluded.txt
+  
+  echo "excluded.txt" > $contextdir/.dockerignore
+  
+  cat > $contextdir/Dockerfile << EOF
+FROM alpine
+RUN echo "Starting" > /start.txt
+COPY --link *.txt /files/
+RUN echo "Ending" > /end.txt
+RUN ls -l /files/
+EOF
+  
+  run_buildah build --layers $WITH_POLICY_JSON -t link-ignore $contextdir
+  expect_output --substring "included.txt"
+  assert "$output" !~ "excluded.txt"
+}
