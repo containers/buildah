@@ -2148,7 +2148,7 @@ func (s *StageExecutor) generateCacheKey(ctx context.Context, currNode *parser.N
 	var manifestType string
 	var err error
 	if s.builder.FromImageID != "" {
-		manifestType, baseHistory, diffIDs, err = s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, s.builder.FromImageID)
+		_, _, manifestType, baseHistory, diffIDs, err = s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, s.builder.FromImageID)
 		if err != nil {
 			return "", fmt.Errorf("getting history of base image %q: %w", s.builder.FromImageID, err)
 		}
@@ -2284,7 +2284,7 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 	var baseHistory []v1.History
 	var baseDiffIDs []digest.Digest
 	if s.builder.FromImageID != "" {
-		_, baseHistory, baseDiffIDs, err = s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, s.builder.FromImageID)
+		_, _, _, baseHistory, baseDiffIDs, err = s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, s.builder.FromImageID)
 		if err != nil {
 			return "", fmt.Errorf("getting history of base image %q: %w", s.builder.FromImageID, err)
 		}
@@ -2328,7 +2328,7 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 
 		// Next we double check that the history of this image is equivalent to the previous
 		// lines in the Dockerfile up till the point we are at in the build.
-		manifestType, history, diffIDs, err := s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, image.ID)
+		imageOS, imageArchitecture, manifestType, history, diffIDs, err := s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, image.ID)
 		if err != nil {
 			// It's possible that this image is for another architecture, which results
 			// in a custom-crafted error message that we'd have to use substring matching
@@ -2341,6 +2341,25 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 		if manifestType != s.executor.outputFormat {
 			continue
 		}
+
+		// Compare the cached image's platform with the current build's target platform
+		currentArch := s.executor.architecture
+		currentOS := s.executor.os
+		if currentArch == "" && currentOS == "" {
+			currentOS, currentArch, _, err = parse.Platform(s.stage.Builder.Platform)
+			if err != nil {
+				logrus.Debugf("unable to parse default OS and Arch for the current build: %v", err)
+			}
+		}
+		if currentArch != "" && imageArchitecture != currentArch {
+			logrus.Debugf("cached image %q has architecture %q but current build targets %q, ignoring it", image.ID, imageArchitecture, currentArch)
+			continue
+		}
+		if currentOS != "" && imageOS != currentOS {
+			logrus.Debugf("cached image %q has OS %q but current build targets %q, ignoring it", image.ID, imageOS, currentOS)
+			continue
+		}
+
 		// children + currNode is the point of the Dockerfile we are currently at.
 		foundMatch, err := s.historyAndDiffIDsMatch(baseHistory, baseDiffIDs, currNode, history, diffIDs, addedContentDigest, buildAddsLayer, lastInstruction)
 		if err != nil {

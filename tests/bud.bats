@@ -8398,3 +8398,84 @@ EOF
   expect_output --substring "included.txt"
   assert "$output" !~ "excluded.txt"
 }
+
+@test "bud multi-platform --layers should create separate images for each platform" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/bud/multiplatform-layers
+  mkdir -p $contextdir
+
+  # Create a simple Dockerfile that starts from scratch to test the specific caching bug
+  cat > $contextdir/hello.txt << _EOF
+Hello from multi-platform build!
+_EOF
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM scratch
+COPY hello.txt /hello.txt
+CMD ["/hello.txt"]
+_EOF
+
+  # Build for multiple platforms with --layers and --manifest
+  # This should create separate images for each platform, not reuse cached images incorrectly
+  local manifestname="multiplatform-test-$(safename)"
+  run_buildah build $WITH_POLICY_JSON --layers --platform linux/amd64,linux/arm64 --manifest "$manifestname" -f $contextdir/Dockerfile $contextdir
+
+  # Verify that the build completed successfully
+  expect_output --substring "linux/amd64"
+  expect_output --substring "linux/arm64"
+
+  # Check that we have a manifest list
+  run_buildah manifest exists "$manifestname"
+
+  # Inspect the manifest list to verify it contains entries for both platforms
+  run_buildah manifest inspect "$manifestname"
+  local manifest_content="$output"
+
+  # Verify the manifest contains both amd64 and arm64 entries
+  assert "$manifest_content" =~ "amd64" "manifest should contain amd64 platform"
+  assert "$manifest_content" =~ "arm64" "manifest should contain arm64 platform"
+
+  # Count the number of manifests - should have at least 2 (one for each platform)
+  run jq -r '.manifests | length' <<< "$manifest_content"
+  local manifest_count="$output"
+  assert "$manifest_count" -ge 2 "manifest list should contain at least 2 platform-specific manifests"
+
+  # Verify that the platforms are correctly specified in the manifest
+  run jq -r '.manifests[].platform.architecture' <<< "$manifest_content"
+  local architectures="$output"
+  assert "$architectures" =~ "amd64" "manifest should list amd64 architecture"
+  assert "$architectures" =~ "arm64" "manifest should list arm64 architecture"
+
+  # Verify we have multiple different image IDs (not the same image reused)
+  # This is the key test - before the fix, the same image would be reused for both platforms
+  run jq -r '.manifests[].digest' <<< "$manifest_content"
+  local digests=($output)
+
+  # Each platform should have a unique digest - they should not be the same
+  if [ "${#digests[@]}" -ge 2 ]; then
+    local first_digest="${digests[0]}"
+    local found_different=false
+    for digest in "${digests[@]:1}"; do
+      if [ "$digest" != "$first_digest" ]; then
+        found_different=true
+        break
+      fi
+    done
+    assert "$found_different" = true "each platform should have a unique image digest, not reuse the same cached image"
+  fi
+}
+
+@test "bud multi-platform --layers should not reuse different platform if default platform is being used" {
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+  otherarch="ppc64le"
+
+  # just make sure that other arch is not equivalent to host arch
+  if [[ "$otherarch" == "$myarch" ]]; then
+    otherarch="amd64"
+  fi
+  run_buildah build --layers --platform linux/$otherarch -f $BUDFILES/from-scratch/Containerfile2 $BUDFILES/from-scratch/
+  # Second build should not use cache at all
+  run_buildah build --layers -f $BUDFILES/from-scratch/Containerfile2 $BUDFILES/from-scratch/
+  assert "$output" !~ "Using cache"
+}

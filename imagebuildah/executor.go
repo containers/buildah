@@ -179,6 +179,8 @@ type imageTypeAndHistoryAndDiffIDs struct {
 	history      []v1.History
 	diffIDs      []digest.Digest
 	err          error
+	architecture string
+	os           string
 }
 
 // newExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -476,30 +478,30 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 	}
 }
 
-// getImageTypeAndHistoryAndDiffIDs returns the manifest type, history, and diff IDs list of imageID.
-func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID string) (string, []v1.History, []digest.Digest, error) {
+// getImageTypeAndHistoryAndDiffIDs returns the os, architecture, manifest type, history, and diff IDs list of imageID.
+func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID string) (string, string, string, []v1.History, []digest.Digest, error) {
 	b.imageInfoLock.Lock()
 	imageInfo, ok := b.imageInfoCache[imageID]
 	b.imageInfoLock.Unlock()
 	if ok {
-		return imageInfo.manifestType, imageInfo.history, imageInfo.diffIDs, imageInfo.err
+		return imageInfo.os, imageInfo.architecture, imageInfo.manifestType, imageInfo.history, imageInfo.diffIDs, imageInfo.err
 	}
 	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, "@"+imageID)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("getting image reference %q: %w", imageID, err)
+		return "", "", "", nil, nil, fmt.Errorf("getting image reference %q: %w", imageID, err)
 	}
 	ref, err := imageRef.NewImage(ctx, nil)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("creating new image from reference to image %q: %w", imageID, err)
+		return "", "", "", nil, nil, fmt.Errorf("creating new image from reference to image %q: %w", imageID, err)
 	}
 	defer ref.Close()
 	oci, err := ref.OCIConfig(ctx)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("getting possibly-converted OCI config of image %q: %w", imageID, err)
+		return "", "", "", nil, nil, fmt.Errorf("getting possibly-converted OCI config of image %q: %w", imageID, err)
 	}
 	manifestBytes, manifestFormat, err := ref.Manifest(ctx)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("getting manifest of image %q: %w", imageID, err)
+		return "", "", "", nil, nil, fmt.Errorf("getting manifest of image %q: %w", imageID, err)
 	}
 	if manifestFormat == "" && len(manifestBytes) > 0 {
 		manifestFormat = manifest.GuessMIMEType(manifestBytes)
@@ -510,9 +512,11 @@ func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID
 		history:      oci.History,
 		diffIDs:      oci.RootFS.DiffIDs,
 		err:          nil,
+		architecture: oci.Architecture,
+		os:           oci.OS,
 	}
 	b.imageInfoLock.Unlock()
-	return manifestFormat, oci.History, oci.RootFS.DiffIDs, nil
+	return oci.OS, oci.Architecture, manifestFormat, oci.History, oci.RootFS.DiffIDs, nil
 }
 
 func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, onlyBaseImage bool, err error) {
