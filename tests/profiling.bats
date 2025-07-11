@@ -7,7 +7,7 @@ load helpers
   run_buildah info --trace-profile="$tmpfile"
   assert "$status" -eq 0 "buildah info with --trace-profile should succeed"
   [ -s "$tmpfile" ] || die "trace profile should not be empty"
-  run go tool trace -d=2 "$tmpfile"
+  run go tool trace -pprof=net "$tmpfile"
   assert "$status" -eq 0 "go tool trace should succeed"
   rm -f "$tmpfile"
 }
