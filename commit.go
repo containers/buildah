@@ -325,7 +325,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	// work twice.
 	if options.OmitTimestamp {
 		if options.HistoryTimestamp != nil {
-			return imgID, nil, "", fmt.Errorf("OmitTimestamp ahd HistoryTimestamp can not be used together")
+			return imgID, nil, "", fmt.Errorf("OmitTimestamp and HistoryTimestamp can not be used together")
 		}
 		timestamp := time.Unix(0, 0).UTC()
 		options.HistoryTimestamp = &timestamp
