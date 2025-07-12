@@ -2093,6 +2093,11 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 		return "", nil, err
 	}
 
+	// If the destination isn't container storage, then we don't tag it
+	if dest.Transport().Name() != is.Transport.Name() {
+		return cacheID, nil, nil
+	}
+
 	policyContext, err := util.GetPolicyContext(s.systemContext)
 	if err != nil {
 		return "", nil, err
