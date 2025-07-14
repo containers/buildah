@@ -11,7 +11,7 @@ require (
 	github.com/containers/image/v5 v5.35.1-0.20250627164940-d1b934afaf03
 	github.com/containers/luksy v0.0.0-20250609192159-bc60f96d4194
 	github.com/containers/ocicrypt v1.2.1
-	github.com/containers/storage v1.58.1-0.20250625164029-83650abfa8de
+	github.com/containers/storage v1.59.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v28.3.2+incompatible
@@ -116,7 +116,7 @@ require (
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 // indirect
 	github.com/sylabs/sif/v2 v2.21.1 // indirect
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
-	github.com/tchap/go-patricia/v2 v2.3.2 // indirect
+	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/vbatts/tar-split v0.12.1 // indirect
