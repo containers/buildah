@@ -844,7 +844,7 @@ func (s *stageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		NoPivot:              os.Getenv("BUILDAH_NOPIVOT") != "" || s.executor.noPivotRoot,
 		Quiet:                s.executor.quiet,
 		CompatBuiltinVolumes: types.OptionalBoolFalse,
-		RunMounts:            run.Mounts,
+		RunMounts:            slices.Concat(run.Mounts, s.executor.transientRunMounts),
 		Runtime:              s.executor.runtime,
 		Secrets:              s.executor.secrets,
 		SSHSources:           s.executor.sshsources,
