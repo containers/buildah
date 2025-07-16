@@ -8,7 +8,7 @@ require (
 	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containernetworking/cni v1.3.0
 	github.com/containers/common v0.63.2-0.20250630085511-f1e5103afb9b
-	github.com/containers/image/v5 v5.35.1-0.20250627164940-d1b934afaf03
+	github.com/containers/image/v5 v5.36.0
 	github.com/containers/luksy v0.0.0-20250609192159-bc60f96d4194
 	github.com/containers/ocicrypt v1.2.1
 	github.com/containers/storage v1.59.0

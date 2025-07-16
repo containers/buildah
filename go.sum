@@ -58,8 +58,8 @@ github.com/containernetworking/plugins v1.7.1 h1:CNAR0jviDj6FS5Vg85NTgKWLDzZPfi/
 github.com/containernetworking/plugins v1.7.1/go.mod h1:xuMdjuio+a1oVQsHKjr/mgzuZ24leAsqUYRnzGoXHy0=
 github.com/containers/common v0.63.2-0.20250630085511-f1e5103afb9b h1:RQgdsBC+ED8hVAYm/lIgbB5gO7fDzaa9waOP+Vf7GmY=
 github.com/containers/common v0.63.2-0.20250630085511-f1e5103afb9b/go.mod h1:gjzev1MLeaf3myYCfkeptujct/QKi1mJuzebRdwIul0=
-github.com/containers/image/v5 v5.35.1-0.20250627164940-d1b934afaf03 h1:BYtS5zxRIRhKBPqmT7P16gtTzBB6E0Wjh3WCxs5R6hg=
-github.com/containers/image/v5 v5.35.1-0.20250627164940-d1b934afaf03/go.mod h1:UVN8Sjtf55b/ClTHTestmPZxXJ88fymFqV5Ju0NQF0M=
+github.com/containers/image/v5 v5.36.0 h1:Zh+xFcLjRmicnOT5AFPHH/xj+e3s9ojDN/9X2Kx1+Jo=
+github.com/containers/image/v5 v5.36.0/go.mod h1:VZ6cyDHbxZoOt4dklUJ+WNEH9FrgSgfH3qUBYKFlcT0=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/luksy v0.0.0-20250609192159-bc60f96d4194 h1:mm+XFgCXPx3pFFkFJ0CH6KgX1os5jfrD/T6S/6ht4FE=
@@ -85,8 +85,8 @@ github.com/disiqueira/gotree/v3 v3.0.2 h1:ik5iuLQQoufZBNPY518dXhiO5056hyNBIK9lWh
 github.com/disiqueira/gotree/v3 v3.0.2/go.mod h1:ZuyjE4+mUQZlbpkI24AmruZKhg3VHEgPLDY8Qk+uUu8=
 github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
 github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
-github.com/docker/cli v28.3.0+incompatible h1:s+ttruVLhB5ayeuf2BciwDVxYdKi+RoUlxmwNHV3Vfo=
-github.com/docker/cli v28.3.0+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
+github.com/docker/cli v28.3.2+incompatible h1:mOt9fcLE7zaACbxW1GeS65RI67wIJrTnqS3hP2huFsY=
+github.com/docker/cli v28.3.2+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/distribution v2.8.3+incompatible h1:AtKxIZ36LoNK51+Z6RpzLpddBirtxJnzDrHLEKxTAYk=
 github.com/docker/distribution v2.8.3+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v28.3.2+incompatible h1:wn66NJ6pWB1vBZIilP8G3qQPqHy5XymfYn5vsqeA5oA=
