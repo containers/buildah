@@ -7,7 +7,7 @@ go 1.23.3
 require (
 	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containernetworking/cni v1.3.0
-	github.com/containers/common v0.63.2-0.20250630085511-f1e5103afb9b
+	github.com/containers/common v0.64.0
 	github.com/containers/image/v5 v5.36.0
 	github.com/containers/luksy v0.0.0-20250609192159-bc60f96d4194
 	github.com/containers/ocicrypt v1.2.1
@@ -23,12 +23,12 @@ require (
 	github.com/moby/buildkit v0.23.2
 	github.com/moby/sys/capability v0.4.0
 	github.com/moby/sys/userns v0.1.0
-	github.com/opencontainers/cgroups v0.0.3
+	github.com/opencontainers/cgroups v0.0.4
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/opencontainers/runc v1.3.0
 	github.com/opencontainers/runtime-spec v1.2.1
-	github.com/opencontainers/runtime-tools v0.9.1-0.20250303011046-260e151b8552
+	github.com/opencontainers/runtime-tools v0.9.1-0.20250523060157-0ea5ed0382a2
 	github.com/opencontainers/selinux v1.12.0
 	github.com/openshift/imagebuilder v1.2.16
 	github.com/seccomp/libseccomp-golang v0.11.0
@@ -115,7 +115,6 @@ require (
 	github.com/smallstep/pkcs7 v0.1.1 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 // indirect
 	github.com/sylabs/sif/v2 v2.21.1 // indirect
-	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
