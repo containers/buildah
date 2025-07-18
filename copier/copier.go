@@ -51,62 +51,6 @@ func init() {
 // will be concatenated.
 // The matched paths are returned in lexical order, which makes the output deterministic.
 func extendedGlob(pattern string) (matches []string, err error) {
-	subdirs := func(dir string) []string {
-		var subdirectories []string
-		if err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
-				if rel, err := filepath.Rel(dir, path); err == nil {
-					subdirectories = append(subdirectories, rel)
-				}
-			}
-			return nil
-		}); err != nil {
-			subdirectories = []string{"."}
-		}
-		return subdirectories
-	}
-	expandPatterns := func(pattern string) []string {
-		components := []string{}
-		dir := pattern
-		file := ""
-		for dir != filepath.VolumeName(dir) && dir != string(os.PathSeparator) {
-			dir, file = filepath.Split(dir)
-			if file != "" {
-				components = append([]string{file}, components...)
-			}
-			dir = strings.TrimSuffix(dir, string(os.PathSeparator))
-		}
-		patterns := []string{filepath.VolumeName(dir) + string(os.PathSeparator)}
-		for i := range components {
-			var nextPatterns []string
-			if components[i] == "**" {
-				for _, parent := range patterns {
-					nextSubdirs := subdirs(parent)
-					for _, nextSubdir := range nextSubdirs {
-						nextPatterns = append(nextPatterns, filepath.Join(parent, nextSubdir))
-					}
-				}
-			} else {
-				for _, parent := range patterns {
-					nextPattern := filepath.Join(parent, components[i])
-					nextPatterns = append(nextPatterns, nextPattern)
-				}
-			}
-			patterns = []string{}
-			seen := map[string]struct{}{}
-			for _, nextPattern := range nextPatterns {
-				if _, seen := seen[nextPattern]; seen {
-					continue
-				}
-				patterns = append(patterns, nextPattern)
-				seen[nextPattern] = struct{}{}
-			}
-		}
-		return patterns
-	}
 	patterns := expandPatterns(pattern)
 	for _, pattern := range patterns {
 		theseMatches, err := filepath.Glob(pattern)
@@ -117,6 +61,66 @@ func extendedGlob(pattern string) (matches []string, err error) {
 	}
 	sort.Strings(matches)
 	return matches, nil
+}
+
+// subDirs returns a recursive search of all directories under the given dir
+func subDirs(dir string) []string {
+	var subdirectories []string
+	if err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if rel, err := filepath.Rel(dir, path); err == nil {
+				subdirectories = append(subdirectories, rel)
+			}
+		}
+		return nil
+	}); err != nil {
+		subdirectories = []string{"."}
+	}
+	return subdirectories
+}
+
+// expandPatterns fans out a glob pattern so that "**" is expanded to all possible subdirectory paths at that location.
+func expandPatterns(pattern string) []string {
+	components := []string{}
+	dir := pattern
+	file := ""
+	for dir != filepath.VolumeName(dir) && dir != string(os.PathSeparator) {
+		dir, file = filepath.Split(dir)
+		if file != "" {
+			components = append([]string{file}, components...)
+		}
+		dir = strings.TrimSuffix(dir, string(os.PathSeparator))
+	}
+	patterns := []string{filepath.VolumeName(dir) + string(os.PathSeparator)}
+	for i := range components {
+		var nextPatterns []string
+		if components[i] == "**" {
+			for _, parent := range patterns {
+				nextSubdirs := subDirs(parent)
+				for _, nextSubdir := range nextSubdirs {
+					nextPatterns = append(nextPatterns, filepath.Join(parent, nextSubdir))
+				}
+			}
+		} else {
+			for _, parent := range patterns {
+				nextPattern := filepath.Join(parent, components[i])
+				nextPatterns = append(nextPatterns, nextPattern)
+			}
+		}
+		patterns = []string{}
+		seen := map[string]struct{}{}
+		for _, nextPattern := range nextPatterns {
+			if _, seen := seen[nextPattern]; seen {
+				continue
+			}
+			patterns = append(patterns, nextPattern)
+			seen[nextPattern] = struct{}{}
+		}
+	}
+	return patterns
 }
 
 // isArchivePath returns true if the specified path can be read like a (possibly
