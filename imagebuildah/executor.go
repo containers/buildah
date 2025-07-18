@@ -78,6 +78,7 @@ type Executor struct {
 	runtime                        string
 	runtimeArgs                    []string
 	transientMounts                []Mount
+	transientRunMounts             []string
 	compression                    archive.Compression
 	output                         string
 	outputFormat                   string
@@ -264,6 +265,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		runtime:                                 options.Runtime,
 		runtimeArgs:                             options.RuntimeArgs,
 		transientMounts:                         transientMounts,
+		transientRunMounts:                      options.TransientRunMounts,
 		compression:                             options.Compression,
 		output:                                  options.Output,
 		outputFormat:                            options.OutputFormat,
