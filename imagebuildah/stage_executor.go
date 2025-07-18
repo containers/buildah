@@ -2119,6 +2119,12 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 	if err != nil {
 		return "", nil, fmt.Errorf("copying image %q: %w", cacheID, err)
 	}
+
+	// If the destination isn't container storage, then we're done and can return early
+	if dest.Transport().Name() != is.Transport.Name() {
+		return cacheID, nil, nil
+	}
+
 	manifestDigest, err := manifest.Digest(manifestBytes)
 	if err != nil {
 		return "", nil, fmt.Errorf("computing digest of manifest for image %q: %w", cacheID, err)

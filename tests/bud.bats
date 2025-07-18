@@ -8479,3 +8479,12 @@ _EOF
   run_buildah build --layers -f $BUDFILES/from-scratch/Containerfile2 $BUDFILES/from-scratch/
   assert "$output" !~ "Using cache"
 }
+
+@test "build-to-oci-archive-succeeds-with-simple-from-build-file" {
+  local out_file=${TEST_SCRATCH_DIR}/simple-busybox-oci.tar
+
+  run_buildah build -f <(echo 'FROM busybox') --tag=oci-archive:"${out_file}"
+
+  # confirm tar is written
+  stat "${out_file}"
+}
