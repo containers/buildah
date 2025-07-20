@@ -36,6 +36,9 @@ func getCopyOptions(store storage.Store, reportWriter io.Writer, sourceSystemCon
 	destinationCtx := getSystemContext(store, nil, "")
 	if destinationSystemContext != nil {
 		*destinationCtx = *destinationSystemContext
+		if destinationCtx.OSChoice == "windows" {
+			sourceCtx.OSChoice = "windows"
+		}
 	}
 	return &cp.Options{
 		ReportWriter:          reportWriter,
