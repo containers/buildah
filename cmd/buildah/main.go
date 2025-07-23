@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 	"strings"
 	"syscall"
 
@@ -38,6 +39,8 @@ type globalFlags struct {
 	CPUProfile                 string
 	cpuProfileFile             *os.File
 	MemoryProfile              string
+	TraceProfile               string
+	traceProfileFile           *os.File
 	UserShortNameAliasConfPath string
 	CgroupManager              string
 }
@@ -105,6 +108,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "warn", `the log level to be used, one of "trace", "debug", "info", "warn", "error", "fatal", or "panic"`)
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CPUProfile, "cpu-profile", "", "`file` to write CPU profile")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.MemoryProfile, "memory-profile", "", "`file` to write memory profile")
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.TraceProfile, "trace-profile", "", "`file` to write trace profile")
 
 	if err := rootCmd.PersistentFlags().MarkHidden("cpu-profile"); err != nil {
 		logrus.Fatalf("unable to mark cpu-profile flag as hidden: %v", err)
@@ -117,6 +121,9 @@ func init() {
 	}
 	if err := rootCmd.PersistentFlags().MarkHidden("memory-profile"); err != nil {
 		logrus.Fatalf("unable to mark memory-profile flag as hidden: %v", err)
+	}
+	if err := rootCmd.PersistentFlags().MarkHidden("trace-profile"); err != nil {
+		logrus.Fatalf("unable to mark trace-profile flag as hidden: %v", err)
 	}
 }
 
@@ -154,6 +161,16 @@ func before(cmd *cobra.Command) error {
 		}
 		if err = pprof.StartCPUProfile(globalFlagResults.cpuProfileFile); err != nil {
 			logrus.Fatalf("error starting CPU profiling: %v", err)
+		}
+	}
+
+	if globalFlagResults.TraceProfile != "" {
+		globalFlagResults.traceProfileFile, err = os.Create(globalFlagResults.TraceProfile)
+		if err != nil {
+			logrus.Fatalf("could not create trace output file %s: %v", globalFlagResults.TraceProfile, err)
+		}
+		if err := trace.Start(globalFlagResults.traceProfileFile); err != nil {
+			logrus.Fatalf("could not start trace: %v", err)
 		}
 	}
 
@@ -218,6 +235,10 @@ func after(cmd *cobra.Command) error {
 		if err := pprof.Lookup("heap").WriteTo(memoryProfileFile, 1); err != nil {
 			logrus.Fatalf("could not write memory profile %s: %v", globalFlagResults.MemoryProfile, err)
 		}
+	}
+	if globalFlagResults.TraceProfile != "" {
+		trace.Stop()
+		globalFlagResults.traceProfileFile.Close()
 	}
 	return nil
 }
