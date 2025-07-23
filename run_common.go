@@ -2119,11 +2119,12 @@ func (b *Builder) createMountTargets(spec *specs.Spec) ([]copier.ConditionalRemo
 	if len(targets.Paths) == 0 {
 		return nil, nil
 	}
-	created, _, err := copier.Ensure(rootfsPath, rootfsPath, targets)
+	created, noted, err := copier.Ensure(rootfsPath, rootfsPath, targets)
 	if err != nil {
 		return nil, err
 	}
 	logrus.Debugf("created mount targets at %v", created)
+	logrus.Debugf("parents of mount targets at %+v", noted)
 	var remove []copier.ConditionalRemovePath
 	for _, target := range created {
 		cleanedTarget := strings.Trim(path.Clean(filepath.ToSlash(target)), "/")
@@ -2154,7 +2155,7 @@ func (b *Builder) createMountTargets(spec *specs.Spec) ([]copier.ConditionalRemo
 	if err := os.Mkdir(filepath.Join(cdir, containerExcludesDir), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, fmt.Errorf("creating exclusions directory: %w", err)
 	}
-	encoded, err := json.Marshal(remove)
+	encoded, err := json.Marshal(append(slices.Clone(noted), remove...))
 	if err != nil {
 		return nil, fmt.Errorf("encoding list of items to exclude at commit-time: %w", err)
 	}
