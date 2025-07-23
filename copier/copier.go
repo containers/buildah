@@ -479,6 +479,7 @@ func Put(root string, directory string, options PutOptions, bulkReader io.Reader
 // MkdirOptions controls parts of Mkdir()'s behavior.
 type MkdirOptions struct {
 	UIDMap, GIDMap []idtools.IDMap // map from containerIDs to hostIDs when creating directories
+	ModTimeNew     *time.Time      // set mtime and atime of newly-created directories
 	ChownNew       *idtools.IDPair // set ownership of newly-created directories
 	ChmodNew       *os.FileMode    // set permissions on newly-created directories
 }
@@ -2199,6 +2200,7 @@ func copierHandlerMkdir(req request, idMappings *idtools.IDMappings) (*response,
 	}
 
 	subdir := ""
+	var created []string
 	for _, component := range strings.Split(rel, string(os.PathSeparator)) {
 		subdir = filepath.Join(subdir, component)
 		path := filepath.Join(req.Root, subdir)
@@ -2209,11 +2211,23 @@ func copierHandlerMkdir(req request, idMappings *idtools.IDMappings) (*response,
 			if err = chmod(path, dirMode); err != nil {
 				return errorResponse("copier: mkdir: error setting permissions on %q to 0%o: %v", path, dirMode)
 			}
+			created = append(created, path)
 		} else {
 			// FreeBSD can return EISDIR for "mkdir /":
 			// https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=59739.
 			if !errors.Is(err, os.ErrExist) && !errors.Is(err, syscall.EISDIR) {
 				return errorResponse("copier: mkdir: error checking directory %q: %v", path, err)
+			}
+		}
+	}
+	// set timestamps last, in case we needed to create some nested directories, which would
+	// update the timestamps on directories that we'd just set timestamps on, if we had done
+	// that immediately
+	if req.MkdirOptions.ModTimeNew != nil {
+		when := *req.MkdirOptions.ModTimeNew
+		for _, newDirectory := range created {
+			if err = lutimes(false, newDirectory, when, when); err != nil {
+				return errorResponse("copier: mkdir: error setting datestamp on %q: %v", newDirectory, err)
 			}
 		}
 	}
