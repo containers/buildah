@@ -2119,7 +2119,7 @@ func (b *Builder) createMountTargets(spec *specs.Spec) ([]copier.ConditionalRemo
 	if len(targets.Paths) == 0 {
 		return nil, nil
 	}
-	created, err := copier.Ensure(rootfsPath, rootfsPath, targets)
+	created, _, err := copier.Ensure(rootfsPath, rootfsPath, targets)
 	if err != nil {
 		return nil, err
 	}
