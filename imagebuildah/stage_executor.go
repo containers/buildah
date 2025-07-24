@@ -2113,7 +2113,8 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 		return "", nil, fmt.Errorf("getting source imageReference for %q: %w", cacheID, err)
 	}
 	options := cp.Options{
-		RemoveSignatures: true, // more like "ignore signatures", since they don't get removed when src and dest are the same image
+		RemoveSignatures:     true, // more like "ignore signatures", since they don't get removed when src and dest are the same image
+		DestinationTimestamp: s.executor.timestamp,
 	}
 	manifestBytes, err := cp.Image(ctx, policyContext, dest, src, &options)
 	if err != nil {

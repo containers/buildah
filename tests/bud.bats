@@ -7856,6 +7856,17 @@ _EOF
   diff "${outpath}.b" "${outpath}.c"
 }
 
+@test "build-with-timestamp-applies-to-oci-archive-with-base" {
+  local outpath="${TEST_SCRATCH_DIR}/timestamp-oci.tar"
+
+  run_buildah build -f <(echo 'FROM alpine') --tag=oci-archive:${outpath}.a --timestamp 0
+  sleep 1.1 # sleep at least 1 second, so that timestamps are incremented
+  run_buildah build -f <(echo 'FROM alpine') --tag=oci-archive:${outpath}.b --timestamp 0
+
+  # should be the same
+  diff "${outpath}.a" "${outpath}.b"
+}
+
 @test "bud-source-date-epoch-arg" {
   _prefetch busybox
   local timestamp=60
