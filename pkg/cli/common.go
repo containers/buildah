@@ -128,6 +128,7 @@ type BudResults struct {
 	SourceDateEpoch     string
 	RewriteTimestamp    bool
 	CreatedAnnotation   bool
+	TransientRunMounts  []string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -296,6 +297,7 @@ newer:   only pull base and SBOM scanner images when newer images exist on the r
 	fs.BoolVar(&flags.Rm, "rm", true, "remove intermediate containers after a successful build")
 	// "runtime" definition moved to avoid name collision in podman build.  Defined in cmd/buildah/build.go.
 	fs.StringSliceVar(&flags.RuntimeFlags, "runtime-flag", []string{}, "add global flags for the container runtime")
+	fs.StringArrayVar(&flags.TransientRunMounts, "run-mount", []string{}, "set transient run mounts, e.g. type=secret,id=mysecret")
 	fs.StringVar(&flags.SbomPreset, "sbom", "", "scan working container using `preset` configuration")
 	fs.StringVar(&flags.SbomScannerImage, "sbom-scanner-image", "", "scan working container using scanner command from `image`")
 	fs.StringArrayVar(&flags.SbomScannerCommand, "sbom-scanner-command", nil, "scan working container using `command` in scanner image")
