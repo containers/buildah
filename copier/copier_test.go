@@ -2045,12 +2045,15 @@ func TestExtendedGlob(t *testing.T) {
 func testEnsure(t *testing.T) {
 	zero := time.Unix(0, 0)
 	worldReadable := os.FileMode(0o644)
+	ugReadable := os.FileMode(0o750)
 
 	testCases := []struct {
-		description string
-		subdir      string
-		options     EnsureOptions
-		expected    []string
+		description   string
+		subdir        string
+		mkdirs        []string
+		options       EnsureOptions
+		expectCreated []string
+		expectNoted   []EnsureParentPath
 	}{
 		{
 			description: "base",
@@ -2078,7 +2081,7 @@ func testEnsure(t *testing.T) {
 					},
 				},
 			},
-			expected: []string{
+			expectCreated: []string{
 				"subdir",
 				"subdir/a",
 				"subdir/a/b",
@@ -2087,6 +2090,7 @@ func testEnsure(t *testing.T) {
 				"subdir/a/b/c",
 				"subdir/a/b/d",
 			},
+			expectNoted: []EnsureParentPath{},
 		},
 		{
 			description: "nosubdir",
@@ -2103,11 +2107,62 @@ func testEnsure(t *testing.T) {
 					},
 				},
 			},
-			expected: []string{
+			expectCreated: []string{
 				"a",
 				"a/b",
 				"a/b/c",
 				"a/b/d",
+			},
+			expectNoted: []EnsureParentPath{},
+		},
+		{
+			description: "mkdir-first",
+			subdir:      "dir/subdir",
+			mkdirs:      []string{"dir", "dir/subdir"},
+			options: EnsureOptions{
+				Paths: []EnsurePath{
+					{
+						Path:     filepath.Join(string(os.PathSeparator), "a", "b", "a"),
+						Typeflag: tar.TypeReg,
+						Chmod:    &worldReadable,
+					},
+					{
+						Path:     filepath.Join("a", "b", "b"),
+						Typeflag: tar.TypeReg,
+						ModTime:  &zero,
+					},
+					{
+						Path:     filepath.Join(string(os.PathSeparator), "a", "b", "c"),
+						Typeflag: tar.TypeDir,
+						ModTime:  &zero,
+					},
+					{
+						Path:     filepath.Join("a", "b", "d"),
+						Typeflag: tar.TypeDir,
+					},
+				},
+			},
+			expectCreated: []string{
+				"dir/subdir/a",
+				"dir/subdir/a/b",
+				"dir/subdir/a/b/a",
+				"dir/subdir/a/b/b",
+				"dir/subdir/a/b/c",
+				"dir/subdir/a/b/d",
+			},
+			expectNoted: []EnsureParentPath{
+				{
+					Path:  "dir",
+					Mode:  &ugReadable,
+					Owner: &idtools.IDPair{UID: 1, GID: 1},
+					// ModTime gets updated when we create dir/subdir, can't check it
+				},
+				{
+					Path:    "dir/subdir",
+					Mode:    &ugReadable,
+					Owner:   &idtools.IDPair{UID: 1, GID: 1},
+					ModTime: &zero,
+				},
 			},
 		},
 	}
@@ -2115,9 +2170,30 @@ func testEnsure(t *testing.T) {
 		t.Run(testCases[i].description, func(t *testing.T) {
 			testStarted := time.Now()
 			tmpdir := t.TempDir()
-			created, err := Ensure(tmpdir, testCases[i].subdir, testCases[i].options)
+			for _, mkdir := range testCases[i].mkdirs {
+				err := Mkdir(tmpdir, mkdir, MkdirOptions{
+					ModTimeNew: &zero,
+					ChmodNew:   &ugReadable,
+					ChownNew:   &idtools.IDPair{UID: 1, GID: 1},
+				})
+				require.NoError(t, err, "unexpected error ensuring")
+			}
+			created, noted, err := Ensure(tmpdir, testCases[i].subdir, testCases[i].options)
 			require.NoError(t, err, "unexpected error ensuring")
-			require.EqualValues(t, testCases[i].expected, created, "did not expect these")
+			require.EqualValues(t, testCases[i].expectCreated, created, "did not expect to create these")
+			require.Equal(t, len(testCases[i].expectNoted), len(noted), "noticed the wrong number of things")
+			for n := range noted {
+				require.Equalf(t, testCases[i].expectNoted[n].Path, noted[n].Path, "noticed item %d path", n)
+				if testCases[i].expectNoted[n].Mode != nil {
+					require.Equalf(t, testCases[i].expectNoted[n].Mode.Perm(), noted[n].Mode.Perm(), "noticed item %q mode", noted[n].Path)
+				}
+				if testCases[i].expectNoted[n].Owner != nil {
+					require.Equalf(t, *testCases[i].expectNoted[n].Owner, *noted[n].Owner, "noticed item %q owner", noted[n].Path)
+				}
+				if testCases[i].expectNoted[n].ModTime != nil {
+					require.Equalf(t, testCases[i].expectNoted[n].ModTime.UnixNano(), noted[n].ModTime.UnixNano(), "noticed item %q mtime", noted[n].Path)
+				}
+			}
 			for _, item := range testCases[i].options.Paths {
 				target := filepath.Join(tmpdir, testCases[i].subdir, item.Path)
 				st, err := os.Stat(target)
@@ -2298,7 +2374,7 @@ func testConditionalRemove(t *testing.T) {
 					Chmod:    what.mode,
 				})
 			}
-			created, err := Ensure(tmpdir, testCases[i].subdir, create)
+			created, _, err := Ensure(tmpdir, testCases[i].subdir, create)
 			require.NoErrorf(t, err, "unexpected error creating %#v", create)
 			remove := testCases[i].remove
 			for _, what := range created {
