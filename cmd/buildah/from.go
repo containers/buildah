@@ -75,7 +75,7 @@ missing: pull images if the named images are not present in store,
 never: only use images present in store if available,
 newer: only pull images when newer images exist on the registry than those in the store.`)
 
-	flags.Lookup("pull").NoOptDefVal = "true" // allow `--pull ` to be set to `true` as expected.
+	flags.Lookup("pull").NoOptDefVal = "always" // treat a --pull with no argument like --pull=always
 
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
 	if err := flags.MarkHidden("pull-always"); err != nil {
