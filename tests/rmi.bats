@@ -237,7 +237,7 @@ EOF
   cid=$output
   run_buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
   run_buildah commit $WITH_POLICY_JSON $cid new-image
-  run_buildah from --quiet --pull=true $WITH_POLICY_JSON new-image
+  run_buildah from --quiet $WITH_POLICY_JSON new-image
   cid=$output
   run_buildah config --env 'foo=bar' $cid
   run_buildah commit $WITH_POLICY_JSON $cid new-image-2
