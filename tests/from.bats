@@ -410,6 +410,12 @@ load helpers
   run_buildah inspect --format "{{.FromImageDigest}}" docker.io/busybox
   fromDigest="$output"
   run_buildah pull $WITH_POLICY_JSON docker.io/busybox
+  run_buildah from $WITH_POLICY_JSON --name busyboxc --pull docker.io/busybox
+  expect_output --substring "Getting"
+  run_buildah rm busyboxc
+  run_buildah from $WITH_POLICY_JSON --name busyboxc --pull=true docker.io/busybox
+  expect_output --substring "Getting"
+  run_buildah rm busyboxc
   run_buildah from $WITH_POLICY_JSON --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
   run_buildah commit $WITH_POLICY_JSON busyboxc fakename-img
