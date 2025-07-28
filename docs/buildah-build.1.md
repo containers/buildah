@@ -794,7 +794,8 @@ The `buildah build` command allows building images for all Linux architectures, 
 
 **--pull**
 
-Pull image policy. The default is **missing**.
+Pull image policy. If not specified, the default is **missing**. If an explicit
+**--pull** argument is provided without any value, use the **always** behavior.
 
 - **always**: Pull base and SBOM scanner images from the registries listed in
 registries.conf.  Raise an error if a base or SBOM scanner image is not found
