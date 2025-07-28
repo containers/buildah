@@ -1462,6 +1462,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 	if options.CompatLayerOmissions == types.OptionalBoolTrue {
 		layerExclusions = append(layerExclusions, compatLayerExclusions...)
 	}
+	logrus.Debugf("excluding these items from committed layer: %#v", layerExclusions)
 
 	manifestType := options.PreferredManifestType
 	if manifestType == "" {
