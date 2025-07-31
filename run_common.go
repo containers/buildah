@@ -452,6 +452,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 
 	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
+	defer reapStrays()
 
 	// Set up bind mounts for things that a namespaced user might not be able to get to directly.
 	unmountAll, err := bind.SetupIntermediateMountNamespace(spec, bundlePath)
@@ -1081,6 +1082,23 @@ func runAcceptTerminal(logger *logrus.Logger, consoleListener *net.UnixListener,
 	return terminalFD, nil
 }
 
+func reapStrays() {
+	// Reap the exit status of anything that was reparented to us, not that
+	// we care about their exit status.
+	logrus.Debugf("checking for reparented child processes")
+	for range 100 {
+		wpid, err := unix.Wait4(-1, nil, unix.WNOHANG, nil)
+		if err != nil {
+			break
+		}
+		if wpid == 0 {
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			logrus.Debugf("caught reparented child process %d", wpid)
+		}
+	}
+}
+
 func runUsingRuntimeMain() {
 	var options runUsingRuntimeSubprocOptions
 	// Set logging.
@@ -1129,6 +1147,7 @@ func runUsingRuntimeMain() {
 
 	// Run the container, start to finish.
 	status, err := runUsingRuntime(options.Options, options.ConfigureNetwork, options.MoreCreateArgs, ospec, options.BundlePath, options.ContainerName, containerCreateW, containerStartR)
+	reapStrays()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error running container: %v\n", err)
 		os.Exit(1)
