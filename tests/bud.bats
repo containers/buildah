@@ -8479,3 +8479,26 @@ _EOF
   run_buildah build --layers -f $BUDFILES/from-scratch/Containerfile2 $BUDFILES/from-scratch/
   assert "$output" !~ "Using cache"
 }
+
+@test "bud --layers should not include pulled up parent directories of mount points" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir $contextdir
+  mkdir $contextdir/dev
+  mkdir $contextdir/proc
+  mkdir $contextdir/sys
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM scratch
+COPY / /
+COPY --from=quay.io/libpod/busybox / /
+RUN rm -f /Dockerfile
+RUN --mount=type=bind,ro,src=/Dockerfile,target=/var/spool/mail/tmpfile touch /newfile
+_EOF
+  run_buildah build --layers -t oci:${TEST_SCRATCH_DIR}/oci-image ${contextdir}
+  lastlayer=$(oci_image_last_diff ${TEST_SCRATCH_DIR}/oci-image)
+  run tar tf ${TEST_SCRATCH_DIR}/oci-image/"${lastlayer}"
+  echo "$output"
+  assert "$status" = "0"
+  assert "${#lines[*]}" = "1"
+}
