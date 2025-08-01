@@ -2152,23 +2152,28 @@ func (b *Builder) createMountTargets(spec *specs.Spec) ([]copier.ConditionalRemo
 	if err != nil {
 		return nil, fmt.Errorf("finding working container bookkeeping directory: %w", err)
 	}
-	if err := os.Mkdir(filepath.Join(cdir, containerExcludesDir), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return nil, fmt.Errorf("creating exclusions directory: %w", err)
+	for excludesDir, exclusions := range map[string][]copier.ConditionalRemovePath{
+		containerExcludesDir: remove,
+		containerPulledUpDir: noted,
+	} {
+		if err := os.Mkdir(filepath.Join(cdir, excludesDir), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+			return nil, fmt.Errorf("creating exclusions directory: %w", err)
+		}
+		encoded, err := json.Marshal(exclusions)
+		if err != nil {
+			return nil, fmt.Errorf("encoding list of items to exclude at commit-time: %w", err)
+		}
+		f, err := os.CreateTemp(filepath.Join(cdir, excludesDir), "filter*"+containerExcludesSubstring)
+		if err != nil {
+			return nil, fmt.Errorf("creating exclusions file: %w", err)
+		}
+		defer os.Remove(f.Name())
+		defer f.Close()
+		if err := ioutils.AtomicWriteFile(strings.TrimSuffix(f.Name(), containerExcludesSubstring), encoded, 0o600); err != nil {
+			return nil, fmt.Errorf("writing exclusions file: %w", err)
+		}
 	}
-	encoded, err := json.Marshal(append(slices.Clone(noted), remove...))
-	if err != nil {
-		return nil, fmt.Errorf("encoding list of items to exclude at commit-time: %w", err)
-	}
-	f, err := os.CreateTemp(filepath.Join(cdir, containerExcludesDir), "filter*"+containerExcludesSubstring)
-	if err != nil {
-		return nil, fmt.Errorf("creating exclusions file: %w", err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	if err := ioutils.AtomicWriteFile(strings.TrimSuffix(f.Name(), containerExcludesSubstring), encoded, 0o600); err != nil {
-		return nil, fmt.Errorf("writing exclusions file: %w", err)
-	}
-	// return that set of paths directly, in case the caller would prefer
-	// to clear them out before commit-time
+	// return the set of to-remove-now paths directly, in case the caller would prefer
+	// to clear them out itself now instead of waiting until commit-time
 	return remove, nil
 }

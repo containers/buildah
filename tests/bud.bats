@@ -8481,7 +8481,7 @@ _EOF
 }
 
 @test "bud --layers should not include pulled up parent directories of mount points" {
-  _prefetch busybox
+  _prefetch quay.io/libpod/busybox
   local contextdir=${TEST_SCRATCH_DIR}/context
   mkdir $contextdir
   mkdir $contextdir/dev
@@ -8495,10 +8495,43 @@ COPY --from=quay.io/libpod/busybox / /
 RUN rm -f /Dockerfile
 RUN --mount=type=bind,ro,src=/Dockerfile,target=/var/spool/mail/tmpfile touch /newfile
 _EOF
+
+  # the most recent layer should only have the one newly-added file in it
   run_buildah build --layers -t oci:${TEST_SCRATCH_DIR}/oci-image ${contextdir}
   lastlayer=$(oci_image_last_diff ${TEST_SCRATCH_DIR}/oci-image)
   run tar tf ${TEST_SCRATCH_DIR}/oci-image/"${lastlayer}"
   echo "$output"
   assert "$status" = "0"
   assert "${#lines[*]}" = "1"
+}
+
+@test "bud should include excluded pulled up parent directories in squashed images" {
+  _prefetch quay.io/libpod/busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir $contextdir
+  mkdir $contextdir/dev
+  mkdir $contextdir/etc
+  mkdir $contextdir/proc
+  mkdir $contextdir/sys
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM scratch
+COPY / /
+COPY --from=quay.io/libpod/busybox / /
+RUN rm -f /Dockerfile
+RUN --mount=type=bind,ro,src=/Dockerfile,target=/etc/removed-file --mount=type=bind,ro,src=/Dockerfile,target=/var/spool/mail/tmpfile touch /newfile
+_EOF
+
+  local source_date_epoch=$(date +%s)
+  # build a copy of the image that's all squashed
+  run_buildah build --no-cache --squash --source-date-epoch=$source_date_epoch --rewrite-timestamp -t dir:${TEST_SCRATCH_DIR}/squashed-image ${contextdir}
+  # build a copy of the image that's "normal"
+  run_buildah build --no-cache --layers --source-date-epoch=$source_date_epoch --rewrite-timestamp -t not-squashed-image ${contextdir}
+  # now squash it, with no record of needing to exclude anything carrying over
+  run_buildah from --name not-squashed-container not-squashed-image
+  run_buildah commit --squash not-squashed-container dir:${TEST_SCRATCH_DIR}/squashed-later-image
+  # find the diffs for the two versions, which should look the same
+  local squashed=${TEST_SCRATCH_DIR}/squashed-image/$(dir_image_last_diff ${TEST_SCRATCH_DIR}/squashed-image)
+  local squashedlater=${TEST_SCRATCH_DIR}/squashed-later-image/$(dir_image_last_diff ${TEST_SCRATCH_DIR}/squashed-later-image)
+  cmp ${squashed} ${squashedlater}
 }
