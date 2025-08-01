@@ -1045,3 +1045,16 @@ _EOF
   cat ${TEST_SCRATCH_DIR}/mountinfo3
   assert $(cat ${TEST_SCRATCH_DIR}/mountinfo3) -eq 1
 }
+
+@test "run reaps stray processes" {
+  if test `uname` != Linux ; then
+    skip "not meaningful except on Linux"
+  fi
+  _prefetch busybox
+  run_buildah from --pull=never --quiet busybox
+  local cid="$output"
+  echo '$' ${WAIT_BINARY} ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} run --runtime=${CRASH_BINARY} "$cid" pwd
+  run ${WAIT_BINARY} ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} run --runtime=${CRASH_BINARY} "$cid" pwd
+  echo "$output"
+  assert "$output" !~ "caught reparented child process"
+}
