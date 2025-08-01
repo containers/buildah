@@ -8502,3 +8502,18 @@ _EOF
   assert "$status" = "0"
   assert "${#lines[*]}" = "1"
 }
+
+@test "bud COPY one file to ..../. creates the destination directory" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p ${contextdir}
+  echo hello, this is a file > ${contextdir}/file.txt
+  cat > ${contextdir}/Dockerfile << _EOF
+FROM busybox
+COPY /file.txt /app/.
+WORKDIR /app
+RUN pwd
+_EOF
+  run_buildah build --layers ${contextdir}
+  run_buildah build ${contextdir}
+}
