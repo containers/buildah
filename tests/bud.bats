@@ -662,6 +662,38 @@ _EOF
   expect_output --substring "Cache burst add diff"
 }
 
+@test "bud --layers with --mount type bind should preserve cache when file mod time changes but content stays same" {
+  _prefetch alpine
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/samplefile << _EOF
+samplefile content unchanged
+_EOF
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN --mount=type=bind,source=samplefile,target=file,Z cat file
+_EOF
+
+  # on first run since there is no cache so content must be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  expect_output --substring "samplefile content unchanged"
+
+  # on second run since there is cache so content should not be printed
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  # output should not contain content from the file since entire build is cached
+  assert "$output" !~ "samplefile content unchanged"
+
+  # Change mod time of this file (this changes modification time)
+ touch -d "@1577836800" $contextdir/samplefile
+
+  # on third run since content is unchanged, cache should still be used despite different mod time
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f $contextdir/Containerfile $contextdir
+  # output should not contain content from the file since cache should still be valid
+  assert "$output" !~ "samplefile content unchanged"
+}
+
 @test "bud --layers should not hit cache if heredoc is changed - with ARG" {
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
