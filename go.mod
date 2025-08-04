@@ -11,7 +11,7 @@ require (
 	github.com/containers/image/v5 v5.36.0
 	github.com/containers/luksy v0.0.0-20250714213221-8fccf784694e
 	github.com/containers/ocicrypt v1.2.1
-	github.com/containers/storage v1.59.0
+	github.com/containers/storage v1.59.1
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v28.3.3+incompatible
