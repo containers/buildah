@@ -8152,6 +8152,158 @@ EOF
   assert "$output" = "$datestamp" "SOURCE_DATE_EPOCH build arg didn't affect image config creation date"
 }
 
+@test "bud source-date-epoch and timestamp inform cache checks" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir $contextdir
+
+  # We'll build a multiple-layer image based on busybox.
+  cat > $contextdir/Dockerfile <<-EOF
+  FROM busybox
+  ARG SOURCE_DATE_EPOCH
+  COPY Dockerfile /root/Dockerfile
+  RUN pwd > /pwd.txt
+EOF
+
+  run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/baseiidfile ${contextdir}
+  local baseiid=$(cat ${TEST_SCRATCH_DIR}/baseiidfile) iid
+
+  # Try an assortment of layer-mutating flags.
+  run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile-sde --source-date-epoch=86400 ${contextdir}
+  local iidsde=$(cat ${TEST_SCRATCH_DIR}/iidfile-sde)
+  assert "$iidsde" != "$baseiid"
+
+  run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile-ts --timestamp=86400 ${contextdir}
+  local iidts=$(cat ${TEST_SCRATCH_DIR}/iidfile-ts)
+  assert "$iidts" != "$baseiid"
+  assert "$iidts" != "$basesde"
+
+  run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile-rt --source-date-epoch=86400 --rewrite-timestamp ${contextdir}
+  local iidrt=$(cat ${TEST_SCRATCH_DIR}/iidfile-rt)
+  assert "$iidrt" != "$baseiid"
+  assert "$iidrt" != "$basets"
+  assert "$iidrt" != "$basesde"
+
+  run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile --source-date-epoch=86400 ${contextdir}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  assert "$iid" == "$iidsde"
+
+  run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile --timestamp=86400 ${contextdir}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  assert "$iid" == "$iidts"
+
+  run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile --source-date-epoch=86400 --rewrite-timestamp ${contextdir}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  assert "$iid" == "$iidrt"
+}
+
+@test "bud unset/inherit=false for labels and annotations inform cache checks" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir $contextdir
+
+  # We'll build a multiple-layer image based on busybox.
+  cat > $contextdir/Dockerfile <<-EOF
+  FROM busybox
+  COPY Dockerfile /root/Dockerfile
+  RUN pwd > /pwd.txt
+EOF
+
+  # Build an image with a label and an annotation that we don't want in the end.
+  run_buildah build --layers=true --annotation=annotation1=annotationvalue1 --annotation=annotation2=annotationvalue2 --label=label1=labelvalue1 --label=label2=labelvalue2 --iidfile ${TEST_SCRATCH_DIR}/baseiidfile ${contextdir}
+  local baseiid=$(cat ${TEST_SCRATCH_DIR}/baseiidfile) iid
+  baseiid="${baseiid##*:}"
+  assert "${baseiid}" != ""
+  # Double-check that the label and annotation made it in.
+  run_buildah inspect -t image "${baseiid}"
+  run jq -r .ImageAnnotations <<< "${output}"
+  assert "${status}" == 0
+  assert "${output}" =~ annotation1
+  assert "${output}" =~ annotation2
+  run_buildah inspect -t image "${baseiid}"
+  run jq -r .OCIv1.config.Labels <<< "${output}"
+  assert "${status}" == 0
+  assert "${output}" =~ label1
+  assert "${output}" =~ label2
+
+  # Derive future images from the one we just built.
+  cat > $contextdir/Dockerfile <<-EOF
+  FROM ${baseiid}
+  COPY Dockerfile /root/Dockerfile
+  RUN pwd > /pwd.txt
+EOF
+
+  # Build a derived image without that annotation.
+  run_buildah build --layers=true --unsetannotation=annotation1 --iidfile ${TEST_SCRATCH_DIR}/unsetaiidfile ${contextdir}
+  local unsetaiid=$(cat ${TEST_SCRATCH_DIR}/unsetaiidfile)
+  unsetaiid="${unsetaiid##*:}"
+  assert "${unsetaiid}" != "${baseiid}"
+  # Try it again.  We should get cache hits all the way to the end.
+  run_buildah build --layers=true --unsetannotation=annotation1 --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid="${iid##*:}"
+  assert "${iid}" == "${unsetaiid}"
+  # Double-check that the annotation that we wanted to discard was discarded.
+  run_buildah inspect -t image "${iid}"
+  run jq -r .ImageAnnotations <<< "${output}"
+  assert "${status}" == 0
+  assert "${output}" !~ annotation1
+  assert "${output}" =~ annotation2
+
+  # Build a derived image without that label.
+  run_buildah build --layers=true --unsetlabel=label1 --iidfile ${TEST_SCRATCH_DIR}/unsetliidfile ${contextdir}
+  local unsetliid=$(cat ${TEST_SCRATCH_DIR}/unsetliidfile)
+  unsetliid="${unsetliid##*:}"
+  assert "${unsetliid}" != "${baseiid}"
+  # Try it again.  We should get cache hits all the way to the end.
+  run_buildah build --layers=true --unsetlabel=label1 --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid="${iid##*:}"
+  assert "${iid}" == "${unsetliid}"
+  # Double-check that the label that we wanted to discard was discarded.
+  run_buildah inspect -t image "${iid}"
+  run jq -r .OCIv1.config.Labels <<< "${output}"
+  assert "${status}" == 0
+  assert "${output}" !~ label1
+  assert "${output}" =~ label2
+
+  # Build a derived image without any inherited annotations.
+  run_buildah build --layers=true --inherit-annotations=false --iidfile ${TEST_SCRATCH_DIR}/disavowaiidfile ${contextdir}
+  local disavowaiid=$(cat ${TEST_SCRATCH_DIR}/disavowaiidfile)
+  disavowaiid="${disavowaiid##*:}"
+  assert "${disavowaiid}" != "${baseiid}"
+  # Try it again.  We should get cache hits all the way to the end.
+  run_buildah build --layers=true --inherit-annotations=false --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid="${iid##*:}"
+  assert "${iid}" == "${disavowaiid}"
+  assert "${iid}" != "${unsetaiid}"
+  # Double-check that the annotations were discarded.
+  run_buildah inspect -t image "${iid}"
+  run jq -r .ImageAnnotations <<< "${output}"
+  assert "${status}" == 0
+  assert "${output}" !~ annotation1
+  assert "${output}" !~ annotation2
+
+  # Build a derived image without any inherited labels.
+  run_buildah build --layers=true --inherit-labels=false --iidfile ${TEST_SCRATCH_DIR}/disavowliidfile ${contextdir}
+  local disavowliid=$(cat ${TEST_SCRATCH_DIR}/disavowliidfile)
+  disavowliid="${disavowliid##*:}"
+  assert "${disavowliid}" != "${baseiid}"
+  # Try it again.  We should get cache hits all the way to the end.
+  run_buildah build --layers=true --inherit-labels=false --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid="${iid##*:}"
+  assert "${iid}" == "${disavowliid}"
+  assert "${iid}" != "${unsetliid}"
+  # Double-check that the labels were discarded.
+  run_buildah inspect -t image "${iid}"
+  run jq -r .OCIv1.config.Labels <<< "${output}"
+  assert "${status}" == 0
+  assert "${output}" !~ label1
+  assert "${output}" !~ label2
+}
+
 @test "bud --link consistent diffID with --no-cache" {
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/bud/link-diffid-nocache
