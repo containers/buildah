@@ -64,6 +64,59 @@ type Mount = specs.Mount
 
 type BuildOptions = define.BuildOptions
 
+// selectAnnotations selects annotations that were meant for a particular level, and
+// returns them in bare "k=v" form, without the levels (list) prefix
+func selectAnnotations(inputs []string, level string, includeNoLevels bool) []string {
+	if len(inputs) == 0 {
+		return slices.Clone(inputs)
+	}
+	var s []string
+	for _, kv := range inputs {
+		k, v, equals := strings.Cut(kv, "=")
+		levelSpec, key, levelSpecified := strings.Cut(k, ":")
+		if levelSpecified {
+			if !slices.Contains(strings.Split(levelSpec, ","), level) {
+				continue
+			}
+			k = key
+		} else {
+			if !includeNoLevels {
+				continue
+			}
+		}
+		if equals {
+			s = append(s, k+"="+v)
+		} else {
+			s = append(s, k)
+		}
+	}
+	return s
+}
+
+// requireAnnotationLevels checks if there are any annotations that were meant for levels other than
+// those that were passed in, and returns an error if it finds any
+func requireAnnotationLevels(inputs []string, allowedLevels []string) error {
+	if len(inputs) == 0 {
+		return nil
+	}
+	const noLevel = "manifest"
+	allowedFunc := func(s string) bool { return slices.Contains(allowedLevels, s) }
+	for _, kv := range inputs {
+		k, _, _ := strings.Cut(kv, "=")
+		levelSpec, _, levelSpecified := strings.Cut(k, ":")
+		if levelSpecified {
+			if !slices.ContainsFunc(strings.Split(levelSpec, ","), allowedFunc) {
+				return fmt.Errorf("disallowed annotation level %q in %q: only %q allowed", levelSpec, k, allowedLevels)
+			}
+		} else {
+			if !allowedFunc(noLevel) {
+				return fmt.Errorf("disallowed unspecified annotation level %q in %q", noLevel, k)
+			}
+		}
+	}
+	return nil
+}
+
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be
 // URLs), creates one or more new Executors, and then runs
 // Prepare/Execute/Commit/Delete over the entire set of instructions.
@@ -188,6 +241,22 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		}
 	}
 
+	if options.Manifest != "" {
+		if err := requireAnnotationLevels(options.Annotations, []string{"manifest", "manifest-descriptor", "index"}); err != nil {
+			return "", nil, err
+		}
+		if err := requireAnnotationLevels(options.UnsetAnnotations, []string{"manifest"}); err != nil {
+			return "", nil, err
+		}
+	} else {
+		if err := requireAnnotationLevels(options.Annotations, []string{"manifest"}); err != nil {
+			return "", nil, err
+		}
+		if err := requireAnnotationLevels(options.UnsetAnnotations, []string{"manifest"}); err != nil {
+			return "", nil, err
+		}
+	}
+
 	manifestList := options.Manifest
 	options.Manifest = ""
 	type instance struct {
@@ -264,6 +333,8 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		platformOptions.SystemContext = &platformContext
 		platformOptions.OS = platformContext.OSChoice
 		platformOptions.Architecture = platformContext.ArchitectureChoice
+		platformOptions.Annotations = selectAnnotations(options.Annotations, "manifest", true)
+		platformOptions.UnsetAnnotations = selectAnnotations(options.UnsetAnnotations, "manifest", true)
 		logPrefix := ""
 		if len(options.Platforms) > 1 {
 			logPrefix = "[" + platforms.Format(platformSpec) + "] "
@@ -358,9 +429,59 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		if err != nil {
 			return "", nil, err
 		}
+		// In case it already exists, pull up its annotations.
+		inspectData, err := list.Inspect()
+		if err != nil {
+			return "", nil, err
+		}
+		// If we're adding annotations to the index, add them now.
+		indexAnnotations := maps.Clone(inspectData.Annotations)
+		for _, k := range selectAnnotations(options.UnsetAnnotations, "index", false) {
+			delete(indexAnnotations, k)
+		}
+		for _, kv := range selectAnnotations(options.Annotations, "index", false) {
+			k, v, _ := strings.Cut(kv, "=")
+			if v != "" {
+				if indexAnnotations == nil {
+					indexAnnotations = make(map[string]string)
+				}
+				indexAnnotations[k] = v
+			} else {
+				delete(indexAnnotations, k)
+			}
+		}
+		err = list.AnnotateInstance("", &libimage.ManifestListAnnotateOptions{
+			IndexAnnotations: indexAnnotations,
+		})
+		if err != nil {
+			return "", nil, err
+		}
 		// Add each instance to the list in turn.
 		storeTransportName := istorage.Transport.Name()
 		for _, instance := range instances {
+			// If we're adding annotations to the instance, build them now.
+			var instanceAnnotations map[string]string
+			for _, k := range selectAnnotations(options.UnsetAnnotations, "manifest-descriptor", false) {
+				delete(instanceAnnotations, k)
+			}
+			for _, kv := range selectAnnotations(options.Annotations, "manifest-descriptor", false) {
+				k, v, _ := strings.Cut(kv, "=")
+				if v != "" {
+					if instanceAnnotations == nil {
+						instanceAnnotations = make(map[string]string)
+					}
+					instanceAnnotations[k] = v
+				} else {
+					delete(instanceAnnotations, k)
+				}
+			}
+			err = list.AnnotateInstance("", &libimage.ManifestListAnnotateOptions{
+				IndexAnnotations: indexAnnotations,
+			})
+			if err != nil {
+				return "", nil, err
+			}
+			// Add the instance and set the things we want to set in it.
 			instanceDigest, err := list.Add(ctx, storeTransportName+":"+instance.ID, nil)
 			if err != nil {
 				return "", nil, err
@@ -369,6 +490,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 				Architecture: instance.Architecture,
 				OS:           instance.OS,
 				Variant:      instance.Variant,
+				Annotations:  instanceAnnotations,
 			})
 			if err != nil {
 				return "", nil, err

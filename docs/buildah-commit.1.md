@@ -34,6 +34,8 @@ if it is specified.  This option can be specified multiple times.
 Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
 If *annotation* is named, but neither `=` nor a `value` is provided, then the *annotation* is set to an empty value.
 
+If the annotation name is prefixed with "manifest:", the prefix will be stripped from it.
+
 Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
 
 **--authfile** *path*
@@ -370,6 +372,8 @@ Require HTTPS and verification of certificates when talking to container registr
 **--unsetannotation** *annotation*
 
 Unset the image annotation, causing the annotation not to be inherited from the base image.
+
+If the annotation name is prefixed with "manifest:", the prefix will be stripped from it.
 
 **--unsetenv** *env*
 

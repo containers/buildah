@@ -607,10 +607,24 @@ func (i *containerImageRef) newOCIManifestBuilder() (manifestBuilder, error) {
 		annotations[v1.AnnotationCreated] = created.UTC().Format(time.RFC3339Nano)
 	}
 	for _, k := range i.unsetAnnotations {
+		levelSpec, key, levelsSpecified := strings.Cut(k, ":")
+		if levelsSpecified {
+			k = key
+			if !slices.Contains(strings.Split(levelSpec, ","), "manifest") {
+				return nil, fmt.Errorf("can't unset non-manifest (%q) annotation %q", levelSpec, k)
+			}
+		}
 		delete(annotations, k)
 	}
 	for _, kv := range i.setAnnotations {
 		k, v, _ := strings.Cut(kv, "=")
+		levelSpec, key, levelsSpecified := strings.Cut(k, ":")
+		if levelsSpecified {
+			k = key
+			if !slices.Contains(strings.Split(levelSpec, ","), "manifest") {
+				return nil, fmt.Errorf("can't set non-manifest (%q) annotation %q", levelSpec, k)
+			}
+		}
 		annotations[k] = v
 	}
 	return &ociManifestBuilder{
