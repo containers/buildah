@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
@@ -51,6 +52,11 @@ func TestGeneratePathChecksum(t *testing.T) {
 			return err
 		}
 		header.Name = filepath.ToSlash(relPath)
+
+		// Zero out timestamp fields to match the modified generatePathChecksum function
+		header.ModTime = time.Time{}
+		header.AccessTime = time.Time{}
+		header.ChangeTime = time.Time{}
 
 		if err := tarWriter.WriteHeader(header); err != nil {
 			return err
