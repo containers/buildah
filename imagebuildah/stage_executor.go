@@ -1298,7 +1298,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 
 	if len(children) == 0 {
 		// There are no steps.
-		if s.builder.FromImageID == "" || s.executor.squash || s.executor.confidentialWorkload.Convert || len(s.executor.labels) > 0 || len(s.executor.annotations) > 0 || len(s.executor.unsetEnvs) > 0 || len(s.executor.unsetLabels) > 0 || len(s.executor.sbomScanOptions) > 0 || len(s.executor.unsetAnnotations) > 0 {
+		if s.builder.FromImageID == "" || s.executor.squash || s.executor.confidentialWorkload.Convert || len(s.executor.annotations) > 0 || len(s.executor.unsetEnvs) > 0 || len(s.executor.unsetLabels) > 0 || len(s.executor.sbomScanOptions) > 0 || len(s.executor.unsetAnnotations) > 0 || s.executor.inheritLabels == types.OptionalBoolFalse || s.executor.inheritAnnotations == types.OptionalBoolFalse {
 			// We either don't have a base image, or we need to
 			// transform the contents of the base image, or we need
 			// to make some changes to just the config blob.  Whichever

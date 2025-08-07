@@ -261,6 +261,116 @@ _EOF
   expect_output "$want_output"
 }
 
+@test "bud with no instructions but with CLI flags that require a new image be written" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir $contextdir
+  # Build a multiple-layer image based on busybox.
+  cat > $contextdir/Dockerfile <<-EOF
+  FROM busybox
+  RUN pwd > /pwd.txt
+  LABEL baseimage=true
+EOF
+  run_buildah build --layers --annotation annotation1=annotationvalue1 --iidfile ${TEST_SCRATCH_DIR}/baseiid.txt ${contextdir}
+  run cat ${TEST_SCRATCH_DIR}/baseiid.txt
+  local baseiid=${output##*:}
+
+  # Set up to build an image that's based on our image, but with one CLI-motivated change.
+  cat > $contextdir/Dockerfile <<-EOF
+  FROM ${baseiid}
+EOF
+
+  # Try them all.
+  for mutatorArg in --squash --label=A=B --env=C=D --annotation=E=F --unsetenv=PATH --unsetlabel=io.buildah.version --unsetannotation=org.opencontainers.image.created --inherit-labels=false --inherit-annotations=false ; do
+    : > ${TEST_SCRATCH_DIR}/iid.txt
+    run_buildah build --iidfile ${TEST_SCRATCH_DIR}/iid.txt ${mutatorArg} ${contextdir}
+    test -s ${TEST_SCRATCH_DIR}/iid.txt
+    run cat ${TEST_SCRATCH_DIR}/iid.txt
+    local iid="${output##*:}"
+    assert ${iid} != ${baseiid}
+    run_buildah inspect -t image ${iid}
+    case "${mutatorArg}" in
+    --squash)
+      # Should have exactly one layer, even though our base had at least two.
+      run jq '.OCIv1.rootfs.diff_ids|length' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == 1
+      # Go back and check the base, as a control.
+      run_buildah inspect -t image ${baseiid}
+      run jq '.OCIv1.rootfs.diff_ids|length' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" != 1
+      ;;
+    --label=A=B)
+      # Should have had the requested label set.
+      run jq -r '.OCIv1.config.Labels.["A"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == B
+      # Go back and check the base, as a control.
+      run_buildah inspect -t image ${baseiid}
+      run jq '.OCIv1.config.Labels.["A"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == null
+      ;;
+    --annotation=E=F)
+      # Should have had the requested annotation set.
+      run jq -r '.ImageAnnotations["E"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == F
+      # Go back and check the base, as a control.
+      run_buildah inspect -t image ${baseiid}
+      run jq '.ImageAnnotations["E"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == null
+      ;;
+    --unsetenv=PATH)
+      # Should NOT have had a $PATH set.
+      run jq -r '.OCIv1.config.Env' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" !~ PATH
+      # Go back and check the base, as a control.
+      run_buildah inspect -t image ${baseiid}
+      run jq '.OCIv1.config.Env' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" =~ PATH
+      ;;
+    --unsetannotation=org.opencontainers.image.created)
+      # Should NOT have had a creation annotation set.
+      run jq -r '.ImageAnnotations' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" !~ created
+      # Go back and check the base, as a control.
+      run_buildah inspect -t image ${baseiid}
+      run jq '.ImageAnnotations' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" =~ org.opencontainers.image.created
+      ;;
+    --inherit-labels=false)
+      # Should NOT have had a "baseimage" label.
+      run jq -r '.OCIv1.config.Labels["baseimage"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == null
+      # Go back and check the base, as a control.
+      run_buildah inspect -t image ${baseiid}
+      run jq -r '.OCIv1.config.Labels["baseimage"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == true
+      ;;
+    --inherit-annotations=false)
+      # Should NOT have had an "annotation1" annotation.
+      run jq -r '.ImageAnnotations["annotation1"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == null
+      # Go back and check the base, as a control.
+      run_buildah inspect -t image ${baseiid}
+      run jq -r '.ImageAnnotations["annotation1"]' <<< "$output"
+      assert ${status} == 0
+      assert "${output}" == annotationvalue1
+      ;;
+    esac
+  done
+}
+
 @test "bud: build push with --force-compression" {
   skip_if_no_podman
   blobcachedir=${TEST_SCRATCH_DIR}/blobcachelocal
