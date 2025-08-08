@@ -1699,6 +1699,9 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 		if options.ChmodDirs != nil {
 			hdr.Mode = int64(*options.ChmodDirs)
 		}
+		if !strings.HasSuffix(hdr.Name, "/") {
+			hdr.Name += "/"
+		}
 	} else {
 		if options.ChownFiles != nil {
 			hdr.Uid, hdr.Gid = options.ChownFiles.UID, options.ChownFiles.GID
