@@ -5,6 +5,8 @@ package copier
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -100,4 +102,10 @@ func TestConditionalRemoveChroot(t *testing.T) {
 	canChroot = true
 	testConditionalRemove(t)
 	canChroot = couldChroot
+}
+
+func checkStatInfoOwnership(t *testing.T, result *StatForItem) {
+	t.Helper()
+	require.EqualValues(t, 0, result.UID, "expected the owning user to be reported")
+	require.EqualValues(t, 0, result.GID, "expected the owning group to be reported")
 }
