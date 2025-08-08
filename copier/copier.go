@@ -1591,6 +1591,7 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 	if name != "" {
 		hdr.Name = filepath.ToSlash(name)
 	}
+	hdr.Uname, hdr.Gname = "", ""
 	if options.Rename != nil {
 		hdr.Name = handleRename(options.Rename, hdr.Name)
 	}

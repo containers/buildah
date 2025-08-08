@@ -1555,10 +1555,15 @@ func testGetMultiple(t *testing.T) {
 					tr := tar.NewReader(pipeReader)
 					hdr, err := tr.Next()
 					actualContents := []string{}
-					for err == nil {
+					for hdr != nil {
 						actualContents = append(actualContents, filepath.FromSlash(hdr.Name))
+						assert.Equal(t, "", hdr.Uname, "expected user name field to be cleared")
+						assert.Equal(t, "", hdr.Gname, "expected group name field to be cleared")
 						if testCase.timestamp != nil {
 							assert.Truef(t, testCase.timestamp.Equal(hdr.ModTime), "timestamp was supposed to be forced for %q", hdr.Name)
+						}
+						if err != nil {
+							break
 						}
 						hdr, err = tr.Next()
 					}
