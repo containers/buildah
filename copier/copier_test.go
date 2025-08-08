@@ -716,6 +716,7 @@ func testStat(t *testing.T) {
 									if actualContent, ok := testArchive.contents[testItem.Name]; ok {
 										testItem.Size = int64(len(actualContent))
 									}
+									checkStatInfoOwnership(t, result)
 									require.Equal(t, testItem.Size, result.Size, "unexpected size difference for %q", name)
 									require.True(t, result.IsRegular, "expected %q.IsRegular to be true", glob)
 									require.False(t, result.IsDir, "expected %q.IsDir to be false", glob)
