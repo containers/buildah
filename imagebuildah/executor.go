@@ -600,7 +600,19 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 				prefix += ": "
 			}
 			suffix := "\n"
-			fmt.Fprintf(stageExecutor.executor.out, prefix+format+suffix, args...)
+			builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
+			headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
+			userArgs := argsMapToSlice(stage.Builder.Args)
+			userArgs = append(builtinArgs, append(userArgs, headingArgs...)...)
+			argsCopy := args
+			for i := range args {
+				argsCopy[i], err = imagebuilder.ProcessWord(args[i].(string), userArgs)
+				if err != nil {
+					argsCopy[i] = args[i]
+					fmt.Printf("while replacing arg variables with values for format in logging %q: %w\n", args[i], err)
+				}
+			}
+			fmt.Fprintf(stageExecutor.executor.out, prefix+format+suffix, argsCopy...)
 		}
 	}
 	b.stagesLock.Unlock()
