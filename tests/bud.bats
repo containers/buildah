@@ -8874,3 +8874,42 @@ _EOF
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never ${contextdir}
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never --squash ${contextdir}
 }
+
+@test "bud build argument expansion in log" {
+  _prefetch alpine
+  target=build-arg-expand-log
+
+  # Test basic build argument expansion
+  run_buildah build $WITH_POLICY_JSON -t ${target} --build-arg foo=foovalue -f $BUDFILES/build-arg/Dockerfile $BUDFILES/build-arg
+  expect_output --substring "RUN echo foovalue"
+
+  # Test with a more complex build argument
+  run_buildah build $WITH_POLICY_JSON -t ${target}-complex --build-arg foo="/usr/local/bin" -f $BUDFILES/build-arg/Dockerfile $BUDFILES/build-arg
+  expect_output --substring "RUN echo /usr/local/bin"
+
+  # Test with multiple build arguments
+  contextdir=${TEST_SCRATCH_DIR}/build-arg-expansion
+  mkdir -p $contextdir
+
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+ARG NEWROOT
+ARG PREFIX
+RUN mkdir \$NEWROOT
+RUN echo \$PREFIX/bin
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t ${target}-multi --build-arg NEWROOT=/new-root-fs --build-arg PREFIX=/usr $contextdir
+  expect_output --substring "RUN mkdir /new-root-fs"
+  expect_output --substring "RUN echo /usr/bin"
+
+  # Test that unexpanded variables show as empty when no build-arg is provided
+  cat > $contextdir/Containerfile2 << _EOF
+FROM alpine
+ARG UNDEFINEDVAR
+RUN echo \$UNDEFINEDVAR hello
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t ${target}-undefined -f $contextdir/Containerfile2 $contextdir
+  expect_output --substring "RUN echo  hello"
+}
