@@ -27,6 +27,11 @@ docker pull registry.fedoraproject.org/fedora-minimal:42-x86_64
 docker pull registry.fedoraproject.org/fedora-minimal
 ```
 
+This test program is used as input in a few of the conformance tests:
+```
+make tests/conformance/testdata/mount-targets/true
+```
+
 You can run all of the tests with go test (and under `buildah unshare` or `podman unshare` if you're not root):
 ```
 go test -v -timeout=30m -tags "$(./btrfs_installed_tag.sh)" ./tests/conformance
