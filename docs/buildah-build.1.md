@@ -49,6 +49,19 @@ Instead of building for a set of platforms specified using the **--platform** op
 Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
 If *annotation* is named, but neither `=` nor a `value` is provided, then the *annotation* is set to an empty value.
 
+If the annotation name is prefixed with "manifest:", the prefix will be stripped from it and the annotation will
+be added to the built image(s).
+
+If the annotation name is prefixed with "manifest-descriptor:", and the **--manifest** flag is being used, the prefix will
+be stripped from it and the annotation will be set on new entries which are added to the list of instances in the image index
+instead of to the image metadata.  If the **--manifest** flag is not being used, this will trigger an error.
+
+If the annotation name is prefixed with "index:", and the **--manifest** flag is being used, the prefix will be stripped
+from it and the annotation will be set in the image index instead of in the image metadata.  If the **--manifest** flag is not being used, this value will trigger an error.
+
+One or more of the "manifest:", "manifest-descriptor:", and "index:" prefixes can be combined
+into a comma-separated list, for example as "manifest,manifest-descriptor:".
+
 Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
 
 **--arch**="ARCH"
@@ -1124,6 +1137,9 @@ include:
 **--unsetannotation** *annotation*
 
 Unset the image annotation, causing the annotation not to be inherited from the base image.
+
+If the annotation name is prefixed with "manifest:", the prefix will be stripped from it and
+the rest of the argument will be treated as the name of the annotation.
 
 **--unsetenv** *env*
 

@@ -8844,3 +8844,94 @@ _EOF
   run_buildah build --layers ${contextdir}
   run_buildah build ${contextdir}
 }
+
+@test "bud-with-annotation-levels" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir $contextdir
+  cat > $contextdir/Dockerfile << EOF
+FROM busybox
+RUN pwd > pwd.txt
+EOF
+  cat > $contextdir/Dockerfile2 << EOF
+FROM localhost/foo
+RUN pwd > pwd.txt
+EOF
+  for level in "" manifest: manifest-descriptor: index: ; do
+    local annotation=a=b
+    run_buildah build --annotation ${level}${annotation} --annotation image=annotation --annotation manifest:manifest=annotation --manifest foo ${contextdir}
+    case "$level" in
+      "manifest:")
+        run_buildah inspect -t image foo
+        run jq -r '.ImageAnnotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = ${annotation##*=}
+        run_buildah manifest inspect foo
+        run jq -r '.manifests[0].annotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = null
+        run_buildah manifest inspect foo
+        run jq -r '.annotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = null
+        ;;
+      "manifest-descriptor:")
+        run_buildah inspect -t image foo
+        run jq -r '.ImageAnnotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = null
+        run_buildah manifest inspect foo
+        run jq -r '.manifests[0].annotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = ${annotation##*=}
+        run_buildah manifest inspect foo
+        run jq -r '.annotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = null
+        ;;
+      "index:")
+        run_buildah inspect -t image foo
+        run jq -r '.ImageAnnotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = null
+        run_buildah manifest inspect foo
+        run jq -r '.manifests[0].annotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = null
+        run_buildah manifest inspect foo
+        run jq -r '.annotations["'${annotation%%=*}'"]' <<< "$output"
+        assert $status = 0
+        assert "$output" = ${annotation##*=}
+        ;;
+    esac
+    run_buildah build --unsetannotation ${annotation%%=*} --manifest foo2 -f ${contextdir}/Dockerfile2 ${contextdir}
+    run_buildah inspect -t image foo2
+    run jq -r '.ImageAnnotations["'${annotation%%=*}'"]' <<< "$output"
+    assert $status = 0
+    assert "$output" = null
+    run_buildah inspect -t image foo2
+    run jq -r '.ImageAnnotations["image"]' <<< "$output"
+    assert $status = 0
+    assert "$output" = annotation
+    run_buildah inspect -t image foo2
+    run jq -r '.ImageAnnotations["manifest"]' <<< "$output"
+    assert $status = 0
+    assert "$output" = annotation
+    run_buildah manifest rm foo2
+    run_buildah manifest rm foo
+  done
+  run_buildah 125 build --annotation manifest-descriptor:a=b ${contextdir}
+  assert "$output" =~ "disallowed annotation level"
+  run_buildah 125 build --annotation index:a=b ${contextdir}
+  assert "$output" =~ "disallowed annotation level"
+  run_buildah 125 build --unsetannotation index:a=b ${contextdir}
+  assert "$output" =~ "disallowed annotation level"
+  run_buildah 125 build --annotation index-descriptor:a=b ${contextdir}
+  assert "$output" =~ "disallowed annotation level"
+  run_buildah 125 build --unsetannotation index-descriptor:a=b ${contextdir}
+  assert "$output" =~ "disallowed annotation level"
+  run_buildah 125 build --annotation made-up:a=b ${contextdir}
+  assert "$output" =~ "disallowed annotation level"
+  run_buildah 125 build --unsetannotation made-up:a=b ${contextdir}
+  assert "$output" =~ "disallowed annotation level"
+}

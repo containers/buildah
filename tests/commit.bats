@@ -624,3 +624,35 @@ load helpers
     fi
   done
 }
+
+@test "commit-with-annotation-levels" {
+  _prefetch busybox
+  run_buildah from -q busybox
+  local cid="$output"
+  for level in "" manifest: ; do
+    for annotation in a=b c=d ; do
+      local subdir=${level%:}${annotation%%=*}
+      run_buildah commit --annotation ${level}${annotation} "$cid" oci:${TEST_SCRATCH_DIR}/$subdir
+      local manifest=${TEST_SCRATCH_DIR}/$subdir/$(oci_image_manifest ${TEST_SCRATCH_DIR}/$subdir)
+      run jq -r '.annotations["'${annotation%%=*}'"]' "$manifest"
+      assert $status -eq 0
+      echo "$output"
+      assert "$output" = ${annotation##*=}
+      run_buildah from --quiet oci:${TEST_SCRATCH_DIR}/$subdir
+      subcid="$output"
+      run_buildah commit --unsetannotation ${level}${annotation%%=*} "$subcid" oci:${TEST_SCRATCH_DIR}/cleaned-$subdir
+      manifest=${TEST_SCRATCH_DIR}/cleaned-$subdir/$(oci_image_manifest ${TEST_SCRATCH_DIR}/cleaned-$subdir)
+      run jq -r '.annotations["'${annotation%%=*}'"]' "$manifest"
+      echo "$output"
+      assert "$output" = null
+    done
+  done
+  run_buildah 125 commit --annotation manifest-descriptor:a=b "$cid" oci:${TEST_SCRATCH_DIR}/nonce
+  assert "$output" =~ "can't set non-manifest.*annotation"
+  run_buildah 125 commit --annotation index:a=b "$cid" oci:${TEST_SCRATCH_DIR}/nonce
+  assert "$output" =~ "can't set non-manifest.*annotation"
+  run_buildah 125 commit --annotation index-descriptor:a=b "$cid" oci:${TEST_SCRATCH_DIR}/nonce
+  assert "$output" =~ "can't set non-manifest.*annotation"
+  run_buildah 125 commit --annotation made-up:a=b "$cid" oci:${TEST_SCRATCH_DIR}/nonce
+  assert "$output" =~ "can't set non-manifest.*annotation"
+}
