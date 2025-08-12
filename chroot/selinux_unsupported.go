@@ -17,3 +17,7 @@ func setSelinuxLabel(spec *specs.Spec) error {
 	}
 	return nil
 }
+
+func formatMountLabel(spec *specs.Spec, mountOptions string) string {
+	return mountOptions
+}

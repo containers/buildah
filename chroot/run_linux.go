@@ -416,37 +416,115 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 
 	// Now bind mount all of those things to be under the rootfs's location in this
 	// mount namespace.
-	commonFlags := uintptr(unix.MS_BIND | unix.MS_REC | unix.MS_PRIVATE)
-	bindFlags := commonFlags
-	devFlags := commonFlags | unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_RDONLY
-	procFlags := devFlags | unix.MS_NODEV
-	sysFlags := devFlags | unix.MS_NODEV
+	bindFlags := uintptr(unix.MS_BIND | unix.MS_REC | unix.MS_PRIVATE)
+	devFlags := uintptr(unix.MS_NOEXEC | unix.MS_NOSUID)
+	devNodeFlags := bindFlags | devFlags
+	procFlags := devNodeFlags | unix.MS_NODEV
+	sysFlags := procFlags | unix.MS_RDONLY
 
-	// Bind /dev read-only.
+	// Mount a /dev tmpfs.
 	subDev := filepath.Join(spec.Root.Path, "/dev")
-	if err := unix.Mount("/dev", subDev, "bind", devFlags, ""); err != nil {
+	if err := unix.Mount("tmpfs", subDev, "tmpfs", devFlags, formatMountLabel(spec, "size=65536k,mode=755")); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			err = os.Mkdir(subDev, 0o755)
-			if err == nil {
-				err = unix.Mount("/dev", subDev, "bind", devFlags, "")
+			if err2 := os.Mkdir(subDev, 0o755); err2 != nil {
+				return undoBinds, fmt.Errorf("creating mount target directory %q for mount namespace: %w", subDev, err2)
 			}
+			err = unix.Mount("tmpfs", subDev, "tmpfs", devFlags, "size=65536k,mode=755")
 		}
 		if err != nil {
-			return undoBinds, fmt.Errorf("bind mounting /dev from host into mount namespace: %w", err)
+			return undoBinds, fmt.Errorf("mounting a tmpfs on /dev: %w", err)
 		}
 	}
-	// Make sure it's read-only.
-	if err = unix.Statfs(subDev, &fs); err != nil {
-		return undoBinds, fmt.Errorf("checking if directory %q was bound read-only: %w", subDev, err)
-	}
-	if fs.Flags&unix.ST_RDONLY == 0 {
-		if err := unix.Mount(subDev, subDev, "bind", devFlags|unix.MS_REMOUNT|unix.MS_BIND, ""); err != nil {
-			return undoBinds, fmt.Errorf("remounting /dev in mount namespace read-only: %w", err)
-		}
-	}
-	logrus.Debugf("bind mounted %q to %q", "/dev", filepath.Join(spec.Root.Path, "/dev"))
 
-	// Bind /proc read-only.
+	// Create (if we can) or bind mount (if we can find them on the host) in the minimum set
+	// of device nodes and subdirectories.
+	bindDevNodes := map[string]struct {
+		isDir, isReadOnly bool
+		dev               uint64
+		mode              uint32
+	}{
+		// in the order they're listed in the spec
+		"null":    {false, false, unix.Mkdev(1, 3), unix.S_IFCHR | 0o666},
+		"zero":    {false, false, unix.Mkdev(1, 5), unix.S_IFCHR | 0o666},
+		"full":    {false, false, unix.Mkdev(1, 7), unix.S_IFCHR | 0o666},
+		"random":  {false, false, unix.Mkdev(1, 8), unix.S_IFCHR | 0o666},
+		"urandom": {false, false, unix.Mkdev(1, 9), unix.S_IFCHR | 0o666},
+		"tty":     {false, false, unix.Mkdev(5, 0), unix.S_IFCHR | 0o666},
+		// some directories
+		"mqueue": {true, false, 0, 0},
+		"pts":    {true, true, 0, 0},
+		"shm":    {true, false, 0, 0},
+	}
+	bindDevLinks := map[string]string{
+		"core":   "/proc/kcore",
+		"fd":     "/proc/self/fd",
+		"ptmx":   "pts/ptmx",
+		"stdin":  "/proc/self/fd/0",
+		"stdout": "/proc/self/fd/1",
+		"stderr": "/proc/self/fd/2",
+	}
+	if spec.Process.Terminal {
+		bindDevLinks["console"] = "tty"
+	}
+	for node, flags := range bindDevNodes {
+		devNode := filepath.Join("/dev", node)
+		if slices.ContainsFunc(spec.Linux.Devices, func(dSpec specs.LinuxDevice) bool { return dSpec.Path == devNode }) {
+			continue
+		}
+		subDevNode := filepath.Join(spec.Root.Path, devNode)
+		if flags.mode != 0 {
+			mode := flags.mode
+			if flags.isReadOnly {
+				mode &= ^uint32(0o222)
+			}
+			err := unix.Mknod(subDevNode, mode, int(flags.dev))
+			if err == nil {
+				continue
+			}
+			if err != nil && !errors.Is(err, os.ErrPermission) {
+				return undoBinds, fmt.Errorf("attempting to create %q under %q: %w", devNode, spec.Root.Path, err)
+			}
+		}
+		if _, err := os.Stat(devNode); err != nil && errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		devNodeFlags := devNodeFlags
+		if flags.isReadOnly {
+			devNodeFlags |= unix.MS_RDONLY
+		}
+		if err := unix.Mount(devNode, subDevNode, "bind", devNodeFlags, ""); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				if flags.isDir {
+					err = os.Mkdir(subDevNode, 0o100)
+				} else {
+					var f *os.File
+					if f, err = os.OpenFile(subDevNode, os.O_CREATE|os.O_RDWR, 0o600); err == nil {
+						f.Close()
+					}
+				}
+				if err != nil {
+					return undoBinds, fmt.Errorf("creating mount target at %s for mount namespace: %w", subDevNode, err)
+				}
+				err = unix.Mount(devNode, subDevNode, "bind", devNodeFlags, "")
+			}
+			if err != nil {
+				return undoBinds, fmt.Errorf("bind mounting %s from host in the mount namespace: %w", devNode, err)
+			}
+		}
+		if flags.isReadOnly {
+			if err := makeReadOnly(subDevNode, devNodeFlags); err != nil {
+				return undoBinds, err
+			}
+		}
+	}
+	for link, target := range bindDevLinks {
+		subLink := filepath.Join(spec.Root.Path, "/dev", link)
+		if err := os.Symlink(target, subLink); err != nil {
+			return undoBinds, fmt.Errorf("symlinking from %q to %q in rootfs: %w", target, subLink, err)
+		}
+	}
+
+	// Bind /proc read-write.
 	subProc := filepath.Join(spec.Root.Path, "/proc")
 	if err := unix.Mount("/proc", subProc, "bind", procFlags, ""); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -459,7 +537,7 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			return undoBinds, fmt.Errorf("bind mounting /proc from host into mount namespace: %w", err)
 		}
 	}
-	logrus.Debugf("bind mounted %q to %q", "/proc", filepath.Join(spec.Root.Path, "/proc"))
+	logrus.Debugf("bind mounted %q to %q", "/proc", subProc)
 
 	// Bind /sys read-only.
 	subSys := filepath.Join(spec.Root.Path, "/sys")
@@ -508,13 +586,13 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		}
 		// Skip anything that we just mounted.
 		switch m.Destination {
-		case "/dev", "/proc", "/sys":
+		case "/dev":
+			logrus.Debugf("already mounted a tmpfs on %q", filepath.Join(spec.Root.Path, m.Destination))
+			continue
+		case "/proc", "/sys":
 			logrus.Debugf("already bind mounted %q on %q", m.Destination, filepath.Join(spec.Root.Path, m.Destination))
 			continue
 		default:
-			if strings.HasPrefix(m.Destination, "/dev/") {
-				continue
-			}
 			if strings.HasPrefix(m.Destination, "/proc/") {
 				continue
 			}
