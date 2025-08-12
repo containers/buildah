@@ -5,6 +5,7 @@ package chroot
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/containers/buildah/copier"
 	"github.com/containers/storage/pkg/mount"
+	"github.com/containers/storage/pkg/system"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
@@ -524,6 +526,67 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		}
 	}
 
+	// Now try to bind in the explicitly-asked-for devices.  We probably
+	// can't create device nodes, but at least try, first.
+	var deviceFinder deviceFinder
+	for _, deviceSpec := range spec.Linux.Devices {
+		devicePath := filepath.Join(spec.Root.Path, deviceSpec.Path)
+		devSpec := unix.Mkdev(uint32(deviceSpec.Major), uint32(deviceSpec.Minor))
+		requestedMode := uint32(0o600)
+		if deviceSpec.FileMode != nil {
+			requestedMode = uint32(deviceSpec.FileMode.Perm())
+		}
+		var modeBit uint32
+		switch deviceSpec.Type {
+		case "b":
+			modeBit = unix.S_IFBLK
+		case "c":
+			modeBit = unix.S_IFCHR
+		case "u":
+			modeBit = unix.S_IFSOCK
+		case "p":
+			modeBit = unix.S_IFIFO
+		default:
+			return undoBinds, fmt.Errorf("unsupported device node type %q for %q", deviceSpec.Type, deviceSpec.Path)
+		}
+		err := unix.Mknod(devicePath, requestedMode|modeBit, int(devSpec))
+		if err == nil {
+			uid, gid := -1, -1
+			if deviceSpec.UID != nil && *deviceSpec.UID != 0xffffffff {
+				uid = int(*deviceSpec.UID)
+			}
+			if deviceSpec.GID != nil && *deviceSpec.GID != 0xffffffff {
+				gid = int(*deviceSpec.GID)
+			}
+			if uid != -1 || gid != -1 {
+				if err = unix.Chown(devicePath, uid, gid); err != nil {
+					return undoBinds, fmt.Errorf("setting permissions on device node %q: %w", devicePath, err)
+				}
+			}
+			logrus.Debugf("created device node %q (%q)", deviceSpec.Path, devicePath)
+			continue
+		}
+		if !errors.Is(err, os.ErrPermission) {
+			return undoBinds, fmt.Errorf("creating device node %q: %w", devicePath, err)
+		}
+		sysDevPath, err := deviceFinder.bySpec(deviceSpec)
+		if err != nil {
+			logrus.Debugf("unable to bind mount %q (%q: %v), sorry about that", deviceSpec.Path, sysDevPath, err)
+			continue
+		}
+		if err = unix.Mount(sysDevPath, devicePath, "bind", devNodeFlags, ""); err != nil && errors.Is(err, os.ErrNotExist) {
+			if f, err2 := os.OpenFile(devicePath, os.O_CREATE|os.O_RDWR, 0o600); err2 == nil {
+				f.Close()
+			}
+			err = unix.Mount(sysDevPath, devicePath, "bind", devNodeFlags, "")
+		}
+		if err != nil {
+			logrus.Debugf("unable to bind mount %q (%q: %v), sorry about that", deviceSpec.Path, sysDevPath, err)
+		} else {
+			logrus.Debugf("bind mounted device node %q from %q", deviceSpec.Path, devicePath)
+		}
+	}
+
 	// Bind /proc read-write.
 	subProc := filepath.Join(spec.Root.Path, "/proc")
 	if err := unix.Mount("/proc", subProc, "bind", procFlags, ""); err != nil {
@@ -919,4 +982,69 @@ func setPdeathsig(cmd *exec.Cmd) {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
+}
+
+// deviceFinder.bySpec finds a device node, any device node, that matches the
+// type/major/minor, preferably with the same owners, but that's not a
+// deal-breaker, and returns its path
+func (d *deviceFinder) bySpec(spec specs.LinuxDevice) (string, error) {
+	if d.devices == nil {
+		d.devices = make(map[string]specs.LinuxDevice)
+		err := filepath.Walk("/dev", func(path string, _ fs.FileInfo, err error) error {
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+			var device specs.LinuxDevice
+			var st syscall.Stat_t
+			device.Path = path
+			if err = syscall.Stat(path, &st); err != nil {
+				return err
+			}
+			mode := os.FileMode(st.Mode) & 0o777
+			device.FileMode = &mode
+			switch st.Mode & (syscall.S_IFBLK | syscall.S_IFCHR | syscall.S_IFIFO | syscall.S_IFSOCK) {
+			case syscall.S_IFBLK:
+				device.Type = "b"
+			case syscall.S_IFCHR:
+				device.Type = "c"
+			case syscall.S_IFIFO:
+				device.Type = "p"
+			case syscall.S_IFSOCK:
+				device.Type = "u"
+			default:
+				return nil
+			}
+			device.UID = &st.Uid
+			device.GID = &st.Gid
+			sst, err := system.FromStatT(&st)
+			if err != nil {
+				return err
+			}
+			device.Major = int64(unix.Major(sst.Rdev()))
+			device.Minor = int64(unix.Minor(sst.Rdev()))
+			d.devices[path] = device
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	// if there's one with the same name and it looks like the right
+	// device, that's going to have to be good enough
+	if matched, ok := d.devices[spec.Path]; ok {
+		if matched.Major == spec.Major && matched.Minor == spec.Minor {
+			return matched.Path, nil
+		}
+	}
+	// check all of the ones we found, in case this is a name change
+	for path, catalogued := range d.devices {
+		if catalogued.Major == spec.Major && catalogued.Minor == spec.Minor {
+			return path, nil
+		}
+	}
+	return "", syscall.ENOENT
+}
+
+type deviceFinder struct {
+	devices map[string]specs.LinuxDevice
 }
