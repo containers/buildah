@@ -8707,15 +8707,24 @@ RUN --mount=type=bind,ro,src=/Dockerfile,target=/etc/removed-file --mount=type=b
 _EOF
 
   local source_date_epoch=$(date +%s)
-  # build a copy of the image that's all squashed
-  run_buildah build --no-cache --squash --source-date-epoch=$source_date_epoch --rewrite-timestamp -t dir:${TEST_SCRATCH_DIR}/squashed-image ${contextdir}
-  # build a copy of the image that's "normal"
-  run_buildah build --no-cache --layers --source-date-epoch=$source_date_epoch --rewrite-timestamp -t not-squashed-image ${contextdir}
-  # now squash it, with no record of needing to exclude anything carrying over
-  run_buildah from --name not-squashed-container not-squashed-image
-  run_buildah commit --squash not-squashed-container dir:${TEST_SCRATCH_DIR}/squashed-later-image
-  # find the diffs for the two versions, which should look the same
+  # build a copy of the image that's all squashed from the start
+  run_buildah build --no-cache --squash=true  --source-date-epoch=$source_date_epoch --rewrite-timestamp -t dir:${TEST_SCRATCH_DIR}/squashed-image ${contextdir}
+  # build a copy of the image where we only commit at the end
+  run_buildah build --no-cache --layers=false --source-date-epoch=$source_date_epoch --rewrite-timestamp -t not-layered-image  ${contextdir}
+  # build a copy of the image where we commit at every step
+  run_buildah build --no-cache --layers=true  --source-date-epoch=$source_date_epoch --rewrite-timestamp -t layered-image ${contextdir}
+  # now squash them, with no internal record of needing to exclude anything carrying over
+  run_buildah from --name not-layered-container not-layered-image
+  run_buildah commit --squash not-layered-container dir:${TEST_SCRATCH_DIR}/squashed-not-layered-image
+  run_buildah from --name layered-container layered-image
+  run_buildah commit --squash layered-container dir:${TEST_SCRATCH_DIR}/squashed-layered-image
+  # find the diffs for the three versions, which should look the same thanks to the --source-date-epoch --rewrite-timestamp combo
   local squashed=${TEST_SCRATCH_DIR}/squashed-image/$(dir_image_last_diff ${TEST_SCRATCH_DIR}/squashed-image)
-  local squashedlater=${TEST_SCRATCH_DIR}/squashed-later-image/$(dir_image_last_diff ${TEST_SCRATCH_DIR}/squashed-later-image)
-  cmp ${squashed} ${squashedlater}
+  local notlayered=${TEST_SCRATCH_DIR}/squashed-not-layered-image/$(dir_image_last_diff ${TEST_SCRATCH_DIR}/squashed-not-layered-image)
+  local layered=${TEST_SCRATCH_DIR}/squashed-layered-image/$(dir_image_last_diff ${TEST_SCRATCH_DIR}/squashed-layered-image)
+  tar tvf ${squashed} > ${TEST_SCRATCH_DIR}/squashed-image-rootfs.txt
+  tar tvf ${notlayered} > ${TEST_SCRATCH_DIR}/squashed-not-layered-image-rootfs.txt
+  tar tvf ${layered} > ${TEST_SCRATCH_DIR}/squashed-layered-image-rootfs.txt
+  diff -u ${TEST_SCRATCH_DIR}/squashed-layered-image-rootfs.txt ${TEST_SCRATCH_DIR}/squashed-image-rootfs.txt
+  diff -u ${TEST_SCRATCH_DIR}/squashed-layered-image-rootfs.txt ${TEST_SCRATCH_DIR}/squashed-not-layered-image-rootfs.txt
 }

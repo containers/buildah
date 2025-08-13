@@ -184,7 +184,7 @@ func TestGetNoCrossDevice(t *testing.T) {
 	tr := tar.NewReader(&buf)
 	th, err := tr.Next() // should be the "subdir" directory
 	require.NoError(t, err, "error reading first entry archived")
-	assert.Equal(t, "subdir", th.Name, `first entry in archive was not named "subdir"`)
+	assert.Equal(t, "subdir/", th.Name, `first entry in archive was not named "subdir/"`)
 
 	th, err = tr.Next()
 	assert.Error(t, err, "should not have gotten a second entry in archive")
