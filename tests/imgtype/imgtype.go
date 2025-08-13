@@ -40,6 +40,7 @@ func main() {
 	root := flag.String("root", storeOptions.GraphRoot, "storage root directory")
 	runroot := flag.String("runroot", storeOptions.RunRoot, "storage runtime directory")
 	driver := flag.String("storage-driver", storeOptions.GraphDriverName, "storage driver")
+	imagestore := flag.String("imagestore", storeOptions.ImageStore, "storage imagestore")
 	opts := flag.String("storage-opts", "", "storage option list (comma separated)")
 	policy := flag.String("signature-policy", "", "signature policy file")
 	mtype := flag.String("expected-manifest-type", define.OCIv1ImageManifest, "expected manifest type")
@@ -76,6 +77,9 @@ func main() {
 	if driver != nil {
 		storeOptions.GraphDriverName = *driver
 		storeOptions.GraphDriverOptions = nil
+	}
+	if imagestore != nil {
+		storeOptions.ImageStore = *imagestore
 	}
 	if opts != nil && *opts != "" {
 		storeOptions.GraphDriverOptions = strings.Split(*opts, ",")

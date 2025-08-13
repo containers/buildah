@@ -391,7 +391,7 @@ function run_buildah() {
         retry=$(( retry - 1 ))
 
         # stdout is only emitted upon error; this echo is to help a debugger
-        echo "${_LOG_PROMPT} $BUILDAH_BINARY $*"
+        echo "${_LOG_PROMPT} ${BUILDAH_BINARY} $*"
         run env CONTAINERS_CONF=${CONTAINERS_CONF:-$(dirname ${BASH_SOURCE})/containers.conf} timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
         # without "quotes", multiple lines are glommed together into one
         if [ -n "$output" ]; then
