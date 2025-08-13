@@ -13,6 +13,7 @@ import (
 
 	"github.com/containers/buildah/tests/testreport/types"
 	"github.com/containers/storage/pkg/mount"
+	"github.com/containers/storage/pkg/system"
 	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -352,8 +353,42 @@ func getLinuxNamespaces(_ *types.TestReport) error {
 	return nil
 }
 
-func getLinuxDevices(_ *types.TestReport) error {
-	// TODO
+func getLinuxDevices(r *types.TestReport) error {
+	devicesList, err := os.ReadDir("/dev")
+	if err != nil {
+		return err
+	}
+	for _, device := range devicesList {
+		var st syscall.Stat_t
+		var deviceSpec specs.LinuxDevice
+		deviceSpec.Path = filepath.Join("/dev", device.Name())
+		if err := syscall.Stat(deviceSpec.Path, &st); err != nil {
+			continue
+		}
+		mode := os.FileMode(st.Mode) & 0o777
+		deviceSpec.FileMode = &mode
+		switch st.Mode & (syscall.S_IFBLK | syscall.S_IFCHR | syscall.S_IFIFO | syscall.S_IFSOCK) {
+		case syscall.S_IFBLK:
+			deviceSpec.Type = "b"
+		case syscall.S_IFCHR:
+			deviceSpec.Type = "c"
+		case syscall.S_IFIFO:
+			deviceSpec.Type = "p"
+		case syscall.S_IFSOCK:
+			deviceSpec.Type = "u"
+		default:
+			continue
+		}
+		deviceSpec.UID = &st.Uid
+		deviceSpec.GID = &st.Gid
+		sst, err := system.FromStatT(&st)
+		if err != nil {
+			return err
+		}
+		deviceSpec.Major = int64(unix.Major(sst.Rdev()))
+		deviceSpec.Minor = int64(unix.Minor(sst.Rdev()))
+		r.Spec.Linux.Devices = append(r.Spec.Linux.Devices, deviceSpec)
+	}
 	return nil
 }
 
