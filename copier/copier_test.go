@@ -716,6 +716,7 @@ func testStat(t *testing.T) {
 									if actualContent, ok := testArchive.contents[testItem.Name]; ok {
 										testItem.Size = int64(len(actualContent))
 									}
+									checkStatInfoOwnership(t, result)
 									require.Equal(t, testItem.Size, result.Size, "unexpected size difference for %q", name)
 									require.True(t, result.IsRegular, "expected %q.IsRegular to be true", glob)
 									require.False(t, result.IsDir, "expected %q.IsDir to be false", glob)
@@ -912,22 +913,22 @@ func testGetMultiple(t *testing.T) {
 				{Name: "non-archive-a", Typeflag: tar.TypeReg, Size: 1199, Mode: 0o600},
 				{Name: "hlink-0", Typeflag: tar.TypeLink, Linkname: "file-0", Size: 123456789, Mode: 0o600},
 				{Name: "something-a", Typeflag: tar.TypeReg, Size: 34, Mode: 0o600},
-				{Name: "subdir-a", Typeflag: tar.TypeDir, Mode: 0o700},
+				{Name: "subdir-a/", Typeflag: tar.TypeDir, Mode: 0o700},
 				{Name: "subdir-a/file-n", Typeflag: tar.TypeReg, Size: 108, Mode: 0o660},
 				{Name: "subdir-a/file-o", Typeflag: tar.TypeReg, Size: 45, Mode: 0o660},
 				{Name: "subdir-a/file-a", Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0o600},
 				{Name: "subdir-a/file-b", Typeflag: tar.TypeSymlink, Linkname: "../../file-b", Size: 23, Mode: 0o600},
 				{Name: "subdir-a/file-c", Typeflag: tar.TypeReg, Size: 56, Mode: 0o600},
-				{Name: "subdir-b", Typeflag: tar.TypeDir, Mode: 0o700},
+				{Name: "subdir-b/", Typeflag: tar.TypeDir, Mode: 0o700},
 				{Name: "subdir-b/file-n", Typeflag: tar.TypeReg, Size: 216, Mode: 0o660},
 				{Name: "subdir-b/file-o", Typeflag: tar.TypeReg, Size: 67, Mode: 0o660},
-				{Name: "subdir-c", Typeflag: tar.TypeDir, Mode: 0o700},
+				{Name: "subdir-c/", Typeflag: tar.TypeDir, Mode: 0o700},
 				{Name: "subdir-c/file-p", Typeflag: tar.TypeReg, Size: 432, Mode: 0o666},
 				{Name: "subdir-c/file-q", Typeflag: tar.TypeReg, Size: 78, Mode: 0o666},
-				{Name: "subdir-d", Typeflag: tar.TypeDir, Mode: 0o700},
+				{Name: "subdir-d/", Typeflag: tar.TypeDir, Mode: 0o700},
 				{Name: "subdir-d/hlink-0", Typeflag: tar.TypeLink, Linkname: "../file-0", Size: 123456789, Mode: 0o600},
-				{Name: "subdir-e", Typeflag: tar.TypeDir, Mode: 0o700},
-				{Name: "subdir-e/subdir-f", Typeflag: tar.TypeDir, Mode: 0o700},
+				{Name: "subdir-e/", Typeflag: tar.TypeDir, Mode: 0o700},
+				{Name: "subdir-e/subdir-f/", Typeflag: tar.TypeDir, Mode: 0o700},
 				{Name: "subdir-e/subdir-f/hlink-b", Typeflag: tar.TypeLink, Linkname: "../../file-b", Size: 23, Mode: 0o600},
 			},
 			contents: map[string][]byte{
@@ -952,22 +953,22 @@ func testGetMultiple(t *testing.T) {
 						"something-a",
 						"archive-a",
 						"non-archive-a",
-						"subdir-a",
+						"subdir-a/",
 						"subdir-a/file-n",
 						"subdir-a/file-o",
 						"subdir-a/file-a",
 						"subdir-a/file-b",
 						"subdir-a/file-c",
-						"subdir-b",
+						"subdir-b/",
 						"subdir-b/file-n",
 						"subdir-b/file-o",
-						"subdir-c",
+						"subdir-c/",
 						"subdir-c/file-p",
 						"subdir-c/file-q",
-						"subdir-d",
+						"subdir-d/",
 						"subdir-d/hlink-0",
-						"subdir-e",
-						"subdir-e/subdir-f",
+						"subdir-e/",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -995,7 +996,7 @@ func testGetMultiple(t *testing.T) {
 						"file-q",           // from subdir-c
 						"file-q",           // from link-c -> subdir-c
 						"hlink-0",          // from subdir-d
-						"subdir-f",         // from subdir-e
+						"subdir-f/",        // from subdir-e
 						"subdir-f/hlink-b", // from subdir-e
 					},
 				},
@@ -1019,16 +1020,16 @@ func testGetMultiple(t *testing.T) {
 						"link-c",
 						"hlink-0",
 						// "subdir-a/file-c", // strings.HasPrefix("**/*-c", "subdir-a/") is false
-						"subdir-b",
+						"subdir-b/",
 						"subdir-b/file-n",
 						"subdir-b/file-o",
-						"subdir-c",
+						"subdir-c/",
 						"subdir-c/file-p",
 						"subdir-c/file-q",
-						"subdir-d",
+						"subdir-d/",
 						"subdir-d/hlink-0",
-						"subdir-e",
-						"subdir-e/subdir-f",
+						"subdir-e/",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -1048,7 +1049,7 @@ func testGetMultiple(t *testing.T) {
 						"file-q", // from link-c -> subdir-c
 						"hlink-0",
 						"hlink-0",
-						"subdir-f",
+						"subdir-f/",
 						"subdir-f/hlink-b",
 					},
 				},
@@ -1066,22 +1067,22 @@ func testGetMultiple(t *testing.T) {
 						"something-a",
 						"archive-a",
 						"non-archive-a",
-						"subdir-a",
+						"subdir-a/",
 						"subdir-a/file-a",
 						"subdir-a/file-b",
 						"subdir-a/file-c",
 						"subdir-a/file-n",
 						"subdir-a/file-o",
-						"subdir-b",
+						"subdir-b/",
 						"subdir-b/file-n",
 						"subdir-b/file-o",
-						"subdir-c",
+						"subdir-c/",
 						"subdir-c/file-p",
 						"subdir-c/file-q",
-						"subdir-d",
+						"subdir-d/",
 						"subdir-d/hlink-0",
-						"subdir-e",
-						"subdir-e/subdir-f",
+						"subdir-e/",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -1110,7 +1111,7 @@ func testGetMultiple(t *testing.T) {
 						"something-a",
 						"archive-a",
 						"non-archive-a",
-						"subdir-f",
+						"subdir-f/",
 						"subdir-f/hlink-b",
 					},
 				},
@@ -1133,7 +1134,7 @@ func testGetMultiple(t *testing.T) {
 					items: []string{
 						// "subdir-a/file-c", // strings.HasPrefix("**/*-c", "subdir-a/") is false
 						"link-c",
-						"subdir-c",
+						"subdir-c/",
 						"subdir-c/file-p",
 						"subdir-c/file-q",
 					},
@@ -1241,7 +1242,7 @@ func testGetMultiple(t *testing.T) {
 					name:    "subdirectory",
 					pattern: "subdir-e",
 					items: []string{
-						"subdir-f",
+						"subdir-f/",
 						"subdir-f/hlink-b",
 					},
 				},
@@ -1275,7 +1276,7 @@ func testGetMultiple(t *testing.T) {
 					name:    "subdir-without-name",
 					pattern: "subdir-e",
 					items: []string{
-						"subdir-f",
+						"subdir-f/",
 						"subdir-f/hlink-b",
 					},
 				},
@@ -1284,8 +1285,8 @@ func testGetMultiple(t *testing.T) {
 					pattern:            "subdir-e",
 					keepDirectoryNames: true,
 					items: []string{
-						"subdir-e",
-						"subdir-e/subdir-f",
+						"subdir-e/",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -1336,7 +1337,7 @@ func testGetMultiple(t *testing.T) {
 						"archive-a",
 						"non-archive-a",
 						"something-a",
-						"subdir-b",
+						"subdir-b/",
 						"subdir-b/file-n",
 						"subdir-b/file-o",
 						"subdir-b/file-a",
@@ -1391,11 +1392,11 @@ func testGetMultiple(t *testing.T) {
 						"something-a",
 						"archive-a",
 						"non-archive-a",
-						"subdir-a",
-						"subdir-b",
-						"subdir-c",
-						"subdir-d",
-						"subdir-e",
+						"subdir-a/",
+						"subdir-b/",
+						"subdir-c/",
+						"subdir-d/",
+						"subdir-e/",
 						"subdir-a/file-n",
 						"subdir-a/file-o",
 						"subdir-a/file-a",
@@ -1408,7 +1409,7 @@ func testGetMultiple(t *testing.T) {
 						"subdir-c/file-q",
 						"subdir-c/file-q",
 						"subdir-d/hlink-0",
-						"subdir-e/subdir-f",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -1420,11 +1421,11 @@ func testGetMultiple(t *testing.T) {
 					items: []string{
 						"file-0",
 						"file-b",
-						"subdir-a",
-						"subdir-b",
-						"subdir-c",
-						"subdir-d",
-						"subdir-e",
+						"subdir-a/",
+						"subdir-b/",
+						"subdir-c/",
+						"subdir-d/",
+						"subdir-e/",
 						"subdir-a/file-c",
 						"subdir-b/file-n",
 						"subdir-b/file-o",
@@ -1434,7 +1435,7 @@ func testGetMultiple(t *testing.T) {
 						"subdir-c/file-q",
 						"hlink-0",
 						"subdir-d/hlink-0",
-						"subdir-e/subdir-f",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -1448,7 +1449,7 @@ func testGetMultiple(t *testing.T) {
 						"something-a",
 						"archive-a",
 						"non-archive-a",
-						"subdir-a",
+						"subdir-a/",
 						"subdir-a/file-n",
 						"subdir-a/file-o",
 						"subdir-a/file-a",
@@ -1461,7 +1462,7 @@ func testGetMultiple(t *testing.T) {
 					pattern: "/subdir-b/*",
 					parents: true,
 					items: []string{
-						"subdir-b",
+						"subdir-b/",
 						"subdir-b/file-n",
 						"subdir-b/file-o",
 					},
@@ -1471,18 +1472,18 @@ func testGetMultiple(t *testing.T) {
 					pattern: "../../subdir-b/*",
 					parents: true,
 					items: []string{
-						"subdir-b",
+						"subdir-b/",
 						"subdir-b/file-n",
 						"subdir-b/file-o",
 					},
 				},
 				{
 					name:    "dir-with-parents",
-					pattern: "subdir-e/subdir-f",
+					pattern: "subdir-e/subdir-f/",
 					parents: true,
 					items: []string{
-						"subdir-e",
-						"subdir-e/subdir-f",
+						"subdir-e/",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -1491,8 +1492,8 @@ func testGetMultiple(t *testing.T) {
 					pattern: "subdir-e/subdir-f/hlink-b",
 					parents: true,
 					items: []string{
-						"subdir-e",
-						"subdir-e/subdir-f",
+						"subdir-e/",
+						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
@@ -1555,10 +1556,15 @@ func testGetMultiple(t *testing.T) {
 					tr := tar.NewReader(pipeReader)
 					hdr, err := tr.Next()
 					actualContents := []string{}
-					for err == nil {
+					for hdr != nil {
 						actualContents = append(actualContents, filepath.FromSlash(hdr.Name))
+						assert.Equal(t, "", hdr.Uname, "expected user name field to be cleared")
+						assert.Equal(t, "", hdr.Gname, "expected group name field to be cleared")
 						if testCase.timestamp != nil {
 							assert.Truef(t, testCase.timestamp.Equal(hdr.ModTime), "timestamp was supposed to be forced for %q", hdr.Name)
+						}
+						if err != nil {
+							break
 						}
 						hdr, err = tr.Next()
 					}
