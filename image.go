@@ -787,20 +787,37 @@ func (mb *ociManifestBuilder) manifestAndConfig() ([]byte, []byte, error) {
 }
 
 // filterExclusionsByImage returns a slice of the members of "exclusions" which are present in the image with the specified ID
-func (i containerImageRef) filterExclusionsByImage(exclusions []copier.EnsureParentPath, imageID string) ([]copier.EnsureParentPath, error) {
+func (i containerImageRef) filterExclusionsByImage(ctx context.Context, exclusions []copier.EnsureParentPath, imageID string) ([]copier.EnsureParentPath, error) {
 	if len(exclusions) == 0 || imageID == "" {
 		return nil, nil
 	}
 	var paths []copier.EnsureParentPath
 	mountPoint, err := i.store.MountImage(imageID, nil, i.mountLabel)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
+	cleanup := func() {
 		if _, err := i.store.UnmountImage(imageID, false); err != nil {
 			logrus.Debugf("unmounting image %q: %v", imageID, err)
 		}
-	}()
+	}
+	if err != nil && errors.Is(err, storage.ErrLayerUnknown) {
+		// if an imagestore is being used, this could be expected
+		if b, err2 := NewBuilder(ctx, i.store, BuilderOptions{
+			FromImage:       imageID,
+			PullPolicy:      define.PullNever,
+			ContainerSuffix: "tmp",
+		}); err2 == nil {
+			mountPoint, err = b.Mount(i.mountLabel)
+			cleanup = func() {
+				cid := b.ContainerID
+				if err := b.Delete(); err != nil {
+					logrus.Debugf("unmounting image %q as container %q: %v", imageID, cid, err)
+				}
+			}
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("mounting image %q to examine its contents: %w", imageID, err)
+	}
+	defer cleanup()
 	globs := make([]string, 0, len(exclusions))
 	for _, exclusion := range exclusions {
 		globs = append(globs, exclusion.Path)
@@ -835,7 +852,7 @@ func (i containerImageRef) filterExclusionsByImage(exclusions []copier.EnsurePar
 	return paths, nil
 }
 
-func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
+func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
 	// These maps will let us check if a layer ID is part of one group or another.
 	parentLayerIDs := make(map[string]bool)
 	apiLayerIDs := make(map[string]bool)
@@ -1038,7 +1055,7 @@ func (i *containerImageRef) NewImageSource(_ context.Context, _ *types.SystemCon
 					// And we _might_ need to filter out directories that modified
 					// by creating and removing mount targets, _if_ they were the
 					// same in the base image for this stage.
-					layerPullUps, err := i.filterExclusionsByImage(i.layerPullUps, i.fromImageID)
+					layerPullUps, err := i.filterExclusionsByImage(ctx, i.layerPullUps, i.fromImageID)
 					if err != nil {
 						return nil, fmt.Errorf("checking which exclusions are in base image %q: %w", i.fromImageID, err)
 					}
