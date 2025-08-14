@@ -8853,3 +8853,24 @@ _EOF
   run_buildah build --layers ${contextdir}
   run_buildah build ${contextdir}
 }
+
+@test "bud with a previously-used graphroot with base image in it used as imagestore" {
+  # there are subtle differences between "this was always the imagestore" and
+  # "this was a graphroot, but i'm using it as an imagestore now"
+  case "${STORAGE_DRIVER}" in
+    overlay) ;;
+    *) skip "imagestore flag is compatible with overlay, but not ${STORAGE_DRIVER}" ;;
+  esac
+
+  _prefetch quay.io/libpod/alpine:latest
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p ${contextdir}
+  cat > ${contextdir}/Dockerfile << _EOF
+FROM quay.io/libpod/alpine:latest
+RUN mkdir hello
+_EOF
+
+  run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never --no-cache --layers=true ${contextdir}
+  run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never ${contextdir}
+  run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never --squash ${contextdir}
+}
