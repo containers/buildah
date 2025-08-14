@@ -3,6 +3,9 @@
 load helpers
 
 function mkcw_check_image() {
+  skip_if_unable_to_mount
+  skip_if_unable_to_buildah_mount
+
   local imageID="$1"
   # Mount the container and take a look at what it got from the image.
   run_buildah from "$imageID"

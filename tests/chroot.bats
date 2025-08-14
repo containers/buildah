@@ -165,7 +165,7 @@ load helpers
   # unshare from util-linux 2.39 also accepts INNER:OUTER:SIZE for --map-users
   # and --map-groups, but fedora 37's is too old, so the older OUTER,INNER,SIZE
   # (using commas instead of colons as field separators) will have to do
-  unshare --setuid 0 --setgid 0 --map-users=1,0,1024 --map-groups=1,0,1024 -UinCfpm bash ${TEST_SCRATCH_DIR}/script2
+  unshare --setuid 0 --setgid 0 --map-users=1,0,1024 --map-groups=1,0,1024 -UinCfpm bash -x ${TEST_SCRATCH_DIR}/script2
 EOF
   cat > ${TEST_SCRATCH_DIR}/script2 <<- EOF
   set -e
@@ -180,5 +180,5 @@ EOF
 EOF
   chmod +x ${TEST_SCRATCH_DIR}
   chmod +rx ${TEST_SCRATCH_DIR}/script1 ${TEST_SCRATCH_DIR}/script2
-  env -i unshare -inCfpm bash ${TEST_SCRATCH_DIR}/script1
+  env -i unshare -inCfpm bash -x ${TEST_SCRATCH_DIR}/script1
 }

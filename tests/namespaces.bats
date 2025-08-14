@@ -102,7 +102,9 @@ idmapping_check_permission() {
 }
 
 @test "idmapping" {
+  skip_if_unable_to_buildah_mount
   skip_if_rootless_environment
+
   mkdir -p $TEST_SCRATCH_DIR/no-cni-configs
   RUNOPTS="--cni-config-dir=${TEST_SCRATCH_DIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
 
@@ -441,7 +443,9 @@ _EOF
 }
 
 @test "idmapping-and-squash" {
-        skip_if_rootless_environment
+	skip_if_unable_to_buildah_mount
+	skip_if_rootless_environment
+
 	createrandom ${TEST_SCRATCH_DIR}/randomfile
 	run_buildah from --userns-uid-map 0:32:16 --userns-gid-map 0:48:16 scratch
 	cid=$output
@@ -454,11 +458,11 @@ _EOF
 	mountpoint=$output
 	run stat -c %u:%g $mountpoint/randomfile
 	[ "$status" -eq 0 ]
-        expect_output "0:0"
+	expect_output "0:0"
 
 	run stat -c %u:%g $mountpoint/randomfile2
 	[ "$status" -eq 0 ]
-        expect_output "1:1"
+	expect_output "1:1"
 }
 
 @test "invalid userns-uid-map userns-gid-map" {

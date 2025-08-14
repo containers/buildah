@@ -36,6 +36,8 @@ load helpers
 }
 
 @test "mount" {
+  skip_if_unable_to_buildah_mount
+
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
@@ -49,6 +51,8 @@ load helpers
 }
 
 @test "by-name" {
+  skip_if_unable_to_buildah_mount
+
   run_buildah from $WITH_POLICY_JSON --name scratch-working-image-for-test scratch
   cid=$output
   run_buildah mount scratch-working-image-for-test
@@ -58,6 +62,8 @@ load helpers
 }
 
 @test "commit" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 

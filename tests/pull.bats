@@ -275,13 +275,14 @@ load helpers
 
 @test "pull image into a full storage" {
   skip_if_rootless_environment
-  mkdir /tmp/buildah-test
-  mount -t tmpfs -o size=5M tmpfs /tmp/buildah-test
-  run dd if=/dev/urandom of=/tmp/buildah-test/full
-  run_buildah 125 --root=/tmp/buildah-test pull $WITH_POLICY_JSON alpine
+  skip_if_unable_to_mount
+
+  mkdir ${TEST_SCRATCH_DIR}/buildah-test
+  mount -t tmpfs -o size=5M tmpfs ${TEST_SCRATCH_DIR}/buildah-test
+  run dd if=/dev/urandom of=${TEST_SCRATCH_DIR}/buildah-test/full
+  run_buildah 125 --root=${TEST_SCRATCH_DIR}/buildah-test pull $WITH_POLICY_JSON busybox
   expect_output --substring "no space left on device"
-  umount /tmp/buildah-test
-  rm -rf /tmp/buildah-test
+  umount ${TEST_SCRATCH_DIR}/buildah-test
 }
 
 @test "pull with authfile" {
@@ -382,15 +383,18 @@ load helpers
 
 @test "pull image with TMPDIR set" {
   skip_if_rootless_environment
-  testdir=${TEST_SCRATCH_DIR}/buildah-test
+  skip_if_unable_to_mount
+
+  local testdir=${TEST_SCRATCH_DIR}/buildah-test
   mkdir -p $testdir
   mount -t tmpfs -o size=1M tmpfs $testdir
 
   TMPDIR=$testdir run_buildah 125 pull --policy always $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
+  umount $testdir
+
   expect_output --substring "no space left on device"
 
   run_buildah pull --policy always $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
-  umount $testdir
   rm -rf $testdir
 }
 
