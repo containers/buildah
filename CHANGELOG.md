@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.41.3 (2025-08-14)
+
+    Commit: don't depend on MountImage(), because .imagestore
+
 ## v1.41.2 (2025-08-13)
 
     Rework how we decide what to filter out of layer diffs
