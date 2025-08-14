@@ -3,6 +3,7 @@
 load helpers
 
 @test "overlay specific level" {
+  skip_if_root_is_on_overlay
   if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
   elif test "$STORAGE_DRIVER" = "vfs"; then
@@ -33,6 +34,7 @@ load helpers
 }
 
 @test "overlay source permissions and owners" {
+  skip_if_root_is_on_overlay
   if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
   elif test "$STORAGE_DRIVER" = "vfs"; then
@@ -64,6 +66,7 @@ load helpers
 }
 
 @test "overlay path contains colon" {
+  skip_if_root_is_on_overlay
   if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
   elif test "$STORAGE_DRIVER" = "vfs"; then

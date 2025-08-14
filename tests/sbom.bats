@@ -3,6 +3,8 @@
 load helpers
 
 @test "commit-sbom-types" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine ghcr.io/anchore/syft ghcr.io/aquasecurity/trivy
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
@@ -35,6 +37,8 @@ load helpers
 }
 
 @test "bud-sbom-types" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine ghcr.io/anchore/syft ghcr.io/aquasecurity/trivy
   for layers in --layers=true --layers=false --squash ; do
     for sbomtype in syft syft-cyclonedx syft-spdx trivy trivy-cyclonedx trivy-spdx; do

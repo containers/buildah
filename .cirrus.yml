@@ -209,6 +209,12 @@ integration_task:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
+            BUILDAH_ISOLATION: chroot
+            RUNTIME_N: " using chroot isolation"
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
             BUILDAH_RUNTIME: crun
             RUNTIME_N: " using crun"
         - env:
@@ -222,6 +228,12 @@ integration_task:
             IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
         # OVERLAY
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            BUILDAH_ISOLATION: chroot
+            RUNTIME_N: " using chroot isolation"
         - env:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
@@ -323,6 +335,13 @@ integration_rootless_task:
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
             PRIV_NAME: rootless
+            BUILDAH_ISOLATION: chroot
+            RUNTIME_N: " using chroot isolation"
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
             BUILDAH_RUNTIME: crun
             RUNTIME_N: " using crun"
         - env:
@@ -337,6 +356,13 @@ integration_rootless_task:
             IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
             PRIV_NAME: rootless
+        - env:
+            DISTRO_NV: "${DEBIAN_NAME}"
+            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
+            BUILDAH_ISOLATION: chroot
+            RUNTIME_N: " using chroot isolation"
 
     gce_instance:
         <<: *integration_gce_instance
@@ -389,7 +415,7 @@ non_blocking_integration_rootless_task:
         <<: *standardlogs
 
 in_podman_task:
-    name: "Containerized Integration"
+    name: "Containerized Integration (privileged=$PODMAN_PRIVILEGED) w/ $STORAGE_DRIVER"
     alias: in_podman
     skip: *not_build_docs
     depends_on: *smoke_vendor
@@ -398,11 +424,25 @@ in_podman_task:
         cpu: 8
         memory: "8G"
 
-    env:
-        # This is key, cause the scripts to re-execute themselves inside a container.
-        IN_PODMAN: 'true'
-        BUILDAH_ISOLATION: 'chroot'
-        STORAGE_DRIVER: 'vfs'
+    matrix:
+        - env:
+              # Setting IN_PODMAN tells the scripts to re-execute themselves inside a container.
+              IN_PODMAN: 'true'
+              BUILDAH_ISOLATION: 'chroot'
+              STORAGE_DRIVER: 'vfs'
+              PODMAN_PRIVILEGED: 'true'
+        - env:
+              # Setting IN_PODMAN tells the scripts to re-execute themselves inside a container.
+              IN_PODMAN: 'true'
+              BUILDAH_ISOLATION: 'chroot'
+              STORAGE_DRIVER: 'vfs'
+              PODMAN_PRIVILEGED: 'false'
+        - env:
+              # Setting IN_PODMAN tells the scripts to re-execute themselves inside a container.
+              IN_PODMAN: 'true'
+              BUILDAH_ISOLATION: 'chroot'
+              STORAGE_DRIVER: 'overlay'
+              PODMAN_PRIVILEGED: 'false'
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'

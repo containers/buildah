@@ -3,6 +3,7 @@
 load helpers
 
 @test "run" {
+	skip_if_unable_to_buildah_mount
 	skip_if_no_runtime
 
 	_prefetch alpine
@@ -182,6 +183,7 @@ function configure_and_check_user() {
 
 @test "run-user" {
 	skip_if_no_runtime
+	skip_if_unable_to_buildah_mount
 
 	eval $(go env)
 	echo CGO_ENABLED=${CGO_ENABLED}
@@ -274,6 +276,7 @@ function configure_and_check_user() {
 
 @test "run --hostname" {
 	skip_if_no_runtime
+	skip_if_hostname_is_locked
 
 	_prefetch alpine
 	${OCI} --version
@@ -287,6 +290,7 @@ function configure_and_check_user() {
 
 @test "run should also override /etc/hostname" {
 	skip_if_no_runtime
+	skip_if_hostname_is_locked
 
 	_prefetch alpine
 	${OCI} --version
@@ -338,6 +342,7 @@ function configure_and_check_user() {
 
 @test "run overlay --volume with custom upper and workdir" {
 	skip_if_no_runtime
+	skip_if_root_is_on_overlay
 
 	zflag=
 	if which selinuxenabled > /dev/null 2> /dev/null ; then
@@ -568,6 +573,8 @@ function configure_and_check_user() {
 }
 
 @test "run-builtin-volume-omitted" {
+	skip_if_unable_to_buildah_mount
+
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
 	_prefetch quay.io/libpod/registry:volume_omitted
@@ -626,7 +633,7 @@ function configure_and_check_user() {
 	expect_output --substring "alpine:latest"
 
 	rootless=0
-	if [ "$(id -u)" -ne 0 ]; then
+	if is_rootless || ! have_cap_sys_admin ; then
 		rootless=1
 	fi
 
@@ -665,6 +672,7 @@ function configure_and_check_user() {
 }
 
 @test "run check /etc/hosts" {
+	skip_if_unable_to_buildah_mount
         skip_if_rootless_environment
 	skip_if_no_runtime
 	skip_if_in_container
@@ -772,6 +780,7 @@ function configure_and_check_user() {
 }
 
 @test "run check /etc/resolv.conf" {
+	skip_if_unable_to_buildah_mount
         skip_if_rootless_environment
 	skip_if_no_runtime
 
@@ -1010,6 +1019,7 @@ _EOF
 
 @test "container_name_as_hostname" {
   skip_if_no_runtime
+  skip_if_hostname_is_locked
 
   _prefetch alpine
   echo '[containers]' > ${TEST_SCRATCH_DIR}/containers.conf

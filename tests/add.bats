@@ -14,6 +14,8 @@ load helpers
 }
 
 @test "add-local-plain" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 
@@ -59,6 +61,8 @@ load helpers
 }
 
 @test "add-local-archive" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 
@@ -201,6 +205,8 @@ load helpers
 }
 
 @test "add --ignorefile" {
+  skip_if_unable_to_buildah_mount
+
   mytest=${TEST_SCRATCH_DIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
@@ -234,6 +240,8 @@ stuff/mystuff"
 }
 
 @test "add quietly" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --quiet $WITH_POLICY_JSON busybox
@@ -246,6 +254,8 @@ stuff/mystuff"
 }
 
 @test "add from container" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --quiet $WITH_POLICY_JSON busybox
@@ -265,6 +275,8 @@ stuff/mystuff"
 }
 
 @test "add from image" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox ubuntu
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
@@ -394,6 +406,8 @@ EOF
 }
 
 @test "add-link-flag" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 
@@ -401,19 +415,19 @@ EOF
   cid=$output
   run_buildah mount $cid
   root=$output
-  
+
   run_buildah config --workingdir=/ $cid
-  
+
   # Test 1: Simple add
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile
-  
+
   # Test 2: Add with rename (file to file with different name)
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile /renamed-file
-  
+
   # Test 3: Multiple files to directory
   mkdir $root/subdir
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /subdir
-  
+
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid add-link-image
 
@@ -430,13 +444,13 @@ EOF
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -s $newroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
-  
+
   test -s $newroot/renamed-file
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/renamed-file
-  
+
   test -s $newroot/subdir/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/subdir/randomfile
   test -s $newroot/subdir/other-randomfile
@@ -444,20 +458,22 @@ EOF
 }
 
 @test "add-link-archive" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/file1
   createrandom ${TEST_SCRATCH_DIR}/file2
-  
+
   tar -c -C ${TEST_SCRATCH_DIR} -f ${TEST_SCRATCH_DIR}/archive.tar file1 file2
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  
+
   run_buildah config --workingdir=/ $cid
-  
+
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/archive.tar
-  
+
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/archive.tar /destdir/
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid add-link-archive-image
 
   run_buildah inspect --type=image add-link-archive-image
@@ -471,12 +487,12 @@ EOF
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -s $newroot/file1
   cmp ${TEST_SCRATCH_DIR}/file1 $newroot/file1
   test -s $newroot/file2
   cmp ${TEST_SCRATCH_DIR}/file2 $newroot/file2
-  
+
   test -s $newroot/destdir/file1
   cmp ${TEST_SCRATCH_DIR}/file1 $newroot/destdir/file1
   test -s $newroot/destdir/file2
@@ -484,28 +500,30 @@ EOF
 }
 
 @test "add-link-directory" {
+  skip_if_unable_to_buildah_mount
+
   mkdir -p ${TEST_SCRATCH_DIR}/testdir/subdir
   createrandom ${TEST_SCRATCH_DIR}/testdir/file1
   createrandom ${TEST_SCRATCH_DIR}/testdir/subdir/file2
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  
+
   run_buildah config --workingdir=/ $cid
-  
+
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/testdir /testdir
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid add-link-dir-image
 
   run_buildah from $WITH_POLICY_JSON add-link-dir-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -d $newroot/testdir
   test -s $newroot/testdir/file1
   test -s $newroot/testdir/subdir/file2
-  
+
   cmp ${TEST_SCRATCH_DIR}/testdir/file1 $newroot/testdir/file1
   cmp ${TEST_SCRATCH_DIR}/testdir/subdir/file2 $newroot/testdir/subdir/file2
 }

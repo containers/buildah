@@ -14,6 +14,8 @@ load helpers
 }
 
 @test "copy-local-multiple" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
   createrandom ${TEST_SCRATCH_DIR}/third-randomfile
@@ -53,6 +55,8 @@ load helpers
 }
 
 @test "copy-local-plain" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
   createrandom ${TEST_SCRATCH_DIR}/third-randomfile
@@ -79,6 +83,8 @@ load helpers
 }
 
 @test "copy-local-subdirectory" {
+  skip_if_unable_to_buildah_mount
+
   mkdir -p ${TEST_SCRATCH_DIR}/subdir
   createrandom ${TEST_SCRATCH_DIR}/subdir/randomfile
   createrandom ${TEST_SCRATCH_DIR}/subdir/other-randomfile
@@ -101,6 +107,8 @@ load helpers
 }
 
 @test "copy-local-force-directory" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
@@ -124,6 +132,8 @@ load helpers
 }
 
 @test "copy-url-mtime" {
+  skip_if_unable_to_buildah_mount
+
   # Create a file with random content and a non-now timestamp (so we can
   # can trust that buildah correctly set mtime on copy)
   createrandom ${TEST_SCRATCH_DIR}/randomfile
@@ -237,6 +247,8 @@ load helpers
 }
 
 @test "copy-symlink" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   ln -s ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/link-randomfile
 
@@ -260,6 +272,8 @@ load helpers
 }
 
 @test "ignore-socket" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   # This seems to be the least-worst way to create a socket: run and kill nc
   nc -lkU ${TEST_SCRATCH_DIR}/test.socket &
@@ -293,6 +307,8 @@ load helpers
 }
 
 @test "copy-symlink-archive-suffix" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile.tar.gz
   ln -s ${TEST_SCRATCH_DIR}/randomfile.tar.gz ${TEST_SCRATCH_DIR}/link-randomfile.tar.gz
 
@@ -327,6 +343,8 @@ load helpers
 }
 
 @test "copy --ignorefile" {
+  skip_if_unable_to_buildah_mount
+
   mytest=${TEST_SCRATCH_DIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
@@ -360,6 +378,8 @@ stuff/mystuff"
 }
 
 @test "copy --exclude" {
+  skip_if_unable_to_buildah_mount
+
   mytest=${TEST_SCRATCH_DIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
@@ -386,6 +406,8 @@ stuff/mystuff"
 
 
 @test "copy --parents" {
+  skip_if_unable_to_buildah_mount
+
   mytest=${TEST_SCRATCH_DIR}/mytest
   mkdir -p ${mytest}
   mkdir -p ${mytest}/x
@@ -448,6 +470,8 @@ parents/y/b.txt"
 }
 
 @test "copy-quiet" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -462,6 +486,8 @@ parents/y/b.txt"
 }
 
 @test "copy-from-container" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --quiet $WITH_POLICY_JSON busybox
@@ -481,6 +507,8 @@ parents/y/b.txt"
 }
 
 @test "copy-container-root" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --quiet $WITH_POLICY_JSON busybox
@@ -498,6 +526,8 @@ parents/y/b.txt"
 }
 
 @test "add-from-image" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
@@ -670,6 +700,8 @@ parents/y/b.txt"
 }
 
 @test "copy-link-flag" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 
@@ -677,10 +709,10 @@ parents/y/b.txt"
   cid=$output
   run_buildah mount $cid
   root=$output
-  
+
   run_buildah config --workingdir=/ $cid
   run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/randomfile
-  
+
   run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /subdir/  
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid copy-link-image
@@ -693,7 +725,7 @@ parents/y/b.txt"
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -s $newroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
   test -s $newroot/subdir/randomfile
@@ -703,23 +735,25 @@ parents/y/b.txt"
 }
 
 @test "copy-link-directory" {
+  skip_if_unable_to_buildah_mount
+
   mkdir -p ${TEST_SCRATCH_DIR}/sourcedir
   createrandom ${TEST_SCRATCH_DIR}/sourcedir/file1
   createrandom ${TEST_SCRATCH_DIR}/sourcedir/file2
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  
+
   run_buildah config --workingdir=/ $cid
   run_buildah copy --link $cid ${TEST_SCRATCH_DIR}/sourcedir /destdir
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid copy-link-dir-image
 
   run_buildah from $WITH_POLICY_JSON copy-link-dir-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -d $newroot/destdir
   test -s $newroot/destdir/file1
   cmp ${TEST_SCRATCH_DIR}/sourcedir/file1 $newroot/destdir/file1
@@ -729,15 +763,15 @@ parents/y/b.txt"
 
 @test "copy-link-with-chown" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
-  
+
   _prefetch busybox
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  
+
   run_buildah copy --link --chown bin:bin $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid copy-link-chown-image
-  
+
   run_buildah from $WITH_POLICY_JSON copy-link-chown-image
   newcid=$output
   run_buildah run $newcid ls -l /tmp/random
@@ -746,15 +780,15 @@ parents/y/b.txt"
 
 @test "copy-link-with-chmod" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
-  
+
   _prefetch busybox
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  
+
   run_buildah copy --link --chmod 777 $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid copy-link-chmod-image
-  
+
   run_buildah from $WITH_POLICY_JSON copy-link-chmod-image
   newcid=$output
   run_buildah run $newcid ls -l /tmp/random

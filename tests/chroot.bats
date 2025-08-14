@@ -143,6 +143,7 @@ load helpers
   if [ "$(id -u)" -ne 0 ]; then
     skip "expects to already be root"
   fi
+  skip_if_root_is_on_overlay
   _prefetch docker.io/library/busybox
   cp -v ${TEST_SOURCES}/containers.conf ${TEST_SCRATCH_DIR}/containers.conf
   chmod ugo+r ${TEST_SCRATCH_DIR}/containers.conf

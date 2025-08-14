@@ -615,18 +615,18 @@ function has_supplemental_groups() {
     [ "$(id -g)" != "$(id -G)" ]
 }
 
-#################################
-#  skip_if_rootless_environment # `mount` or its variant needs unshare
-#################################
+##################################
+#  skip_if_rootless_environment  # `mount` or its variant needs unshare
+##################################
 function skip_if_rootless_environment() {
     if is_rootless; then
         skip "${1:-test is being invoked from rootless environment and might need unshare}"
     fi
 }
 
-#################################
-#  skip_if_root_environment     #
-#################################
+##############################
+#  skip_if_root_environment  #
+##############################
 function skip_if_root_environment() {
     if ! is_rootless; then
         skip "${1:-test is being invoked from root environment}"
@@ -651,9 +651,9 @@ function skip_if_rootless() {
     fi
 }
 
-##################################
-#  skip_if_rootless_and_cgroupv1 #
-##################################
+###################################
+#  skip_if_rootless_and_cgroupv1  #
+###################################
 function skip_if_rootless_and_cgroupv1() {
     if test "$BUILDAH_ISOLATION" = "rootless"; then
         if ! is_cgroupsv2; then
@@ -680,6 +680,27 @@ function skip_if_no_podman() {
     run which ${PODMAN_BINARY:-podman}
     if [[ $status -ne 0 ]]; then
         skip "podman is not installed"
+    fi
+}
+
+################################
+#  skip_if_hostname_is_locked  #  we can't set a hostname in a new UTS namespace - probably seccomp, but maybe also selinux?
+################################
+function skip_if_hostname_is_locked() {
+    skip_if_no_unshare
+    local tryhostname=hostname$RANDOM
+    run unshare -Uru sh -c 'hostname $tryhostname && hostname'
+    if [[ "$output" != "$tryhostname"  ]] ; then
+        skip "setting hostname in a new UTS namespace failed; if we're in a container, check the seccomp filter"
+    fi
+}
+
+################################
+#  skip_if_root_is_on_overlay  #  we can't put overlay upper or workdir directories on overlay
+################################
+function skip_if_root_is_on_overlay() {
+    if test $(stat -f -c %T /) = overlayfs ; then
+        skip "can't test overlay without a non-overlay location to use as an upper directory"
     fi
 }
 
@@ -746,14 +767,66 @@ function skip_if_no_unshare() {
   if ! unshare -Urm true ; then
     skip "unshare was not able to create a mount namespace"
   fi
-  if ! unshare -Urmpf true ; then
+  if ! unshare -Urpf true ; then
     skip "unshare was not able to create a pid namespace"
+  fi
+  if ! unshare -Uru true ; then
+    skip "unshare was not able to create a uts namespace"
   fi
   if ! unshare -U --map-users $(id -u),0,1 true ; then
     skip "unshare does not support --map-users"
   fi
   if ! unshare -Ur --setuid 0 true ; then
     skip "unshare does not support --setuid"
+  fi
+}
+
+############################
+#  have_kernel_capability  #
+############################
+function have_kernel_capability() {
+  local capeff=$(awk '/^CapEff:/{print $2}' /proc/self/status)
+  local caps=$(capsh --decode=${capeff})
+  [[ "$caps" =~ "$1" ]]
+}
+
+########################
+#  have_cap_sys_admin  #
+########################
+function have_cap_sys_admin() {
+  have_kernel_capability cap_sys_admin
+}
+
+##############################
+#  skip_if_no_cap_sys_admin  #
+##############################
+function skip_if_no_cap_sys_admin() {
+  if ! have_cap_sys_admin ; then
+    skip "test requires cap_sys_admin"
+  fi
+}
+
+#############################
+#  skip_if_unable_to_mount  #
+#############################
+function skip_if_unable_to_mount() {
+  # If this test calls `mount`, usually for a tmpfs, we need cap_sys_admin over
+  # the current mount namespace.
+  if ! have_cap_sys_admin ; then
+    skip "test uses mount"
+  fi
+}
+
+#####################################
+#  skip_if_unable_to_buildah_mount  #
+#####################################
+function skip_if_unable_to_buildah_mount() {
+  # If this test calls `buildah mount`, it's not enough to let buildah create a
+  # user namespace which will have cap_sys_admin over its own mount namespace,
+  # because we need to be able to see that mount from the mount namespace that
+  # the test is running in.
+  if ! have_cap_sys_admin && test "${STORAGE_DRIVER}" != vfs ; then
+    skip "test uses buildah mount"
   fi
 }
 
