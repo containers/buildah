@@ -27,6 +27,15 @@ The CGroup manager to use for container cgroups. Supported values are cgroupfs o
 Note: Setting this flag can cause certain commands to break when called on containers previously created by the other CGroup manager type.
 Note: CGroup manager is not supported in rootless mode when using CGroups Version V1.
 
+**--imagestore** *path*
+
+Path under which content for pulled and built images will be stored.  By default, the configured **--root** location
+is used for pulled and built images as well as containers.  If the storage driver is
+*overlay*, then any images which have previously been written to the **--root** location will still
+be available.
+
+This will override the *imagestore* option in containers-storage.conf(5).
+
 **--log-level** **value**
 
 The log level to be used. Either "trace", "debug", "info", "warn", "error", "fatal", or "panic", defaulting to "warn".
@@ -53,13 +62,13 @@ be used, as the default behavior of using the system-wide configuration
 
 **--root** **value**
 
-Storage root dir (default: "/var/lib/containers/storage" for UID 0, "$HOME/.local/share/containers/storage" for other users)
-Default root dir is configured in /etc/containers/storage.conf
+Storage root dir (default: "/var/lib/containers/storage" for UID 0, "$HOME/.local/share/containers/storage" for other users).
+The default root dir is configured in /etc/containers/storage.conf.
 
 **--runroot** **value**
 
-Storage state dir (default: "/run/containers/storage" for UID 0, "/run/user/$UID" for other users)
-Default state dir is configured in /etc/containers/storage.conf
+Storage state dir (default: "/run/containers/storage" for UID 0, "/run/user/$UID" for other users).
+The default state dir is configured in /etc/containers/storage.conf.
 
 **--short-name-alias-conf** *path*
 

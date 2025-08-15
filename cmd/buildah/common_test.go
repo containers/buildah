@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 	flag.StringVar(&options.GraphRoot, "root", "", "storage root dir")
 	flag.StringVar(&options.RunRoot, "runroot", "", "storage state dir")
 	flag.StringVar(&options.GraphDriverName, "storage-driver", "", "storage driver")
+	flag.StringVar(&options.ImageStore, "imagestore", "", "storage imagestore")
 	flag.StringVar(&testSystemContext.SystemRegistriesConfPath, "registries-conf", "", "registries list")
 	flag.BoolVar(&debug, "debug", false, "turn on debug logging")
 	flag.Parse()
@@ -58,6 +59,7 @@ func TestGetStore(t *testing.T) {
 	flags := testCmd.PersistentFlags()
 	flags.String("root", storeOptions.GraphRoot, "")
 	flags.String("runroot", storeOptions.RunRoot, "")
+	flags.String("imagestore", storeOptions.ImageStore, "")
 	flags.String("storage-driver", storeOptions.GraphDriverName, "")
 	flags.String("signature-policy", "", "")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
