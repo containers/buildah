@@ -100,7 +100,36 @@ REGISTRY_FQIN=${REGISTRY_FQIN:-quay.io/libpod/registry:2.8.2}
 ALPINE_FQIN=${ALPINE_FQIN:-quay.io/libpod/alpine}
 
 # for in-container testing
-IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
+podman_privilege_level() {
+    if [[ "$PODMAN_PRIVILEGED" == "false" ]] ; then
+        echo unprivileged
+    else
+        echo privileged
+    fi
+}
+podman_cgroup_flags() {
+    # fixme: eventually test unprivileged with these flags, too;
+    # as of 20215-08-15, selinux policy has the host's cgroupfs
+    # as system_u:object_r:cgroup_t:s0 and container_t can't
+    # 'remount' it, even if only to make it read-only
+    if [[ $(podman_privilege_level) == privileged ]] ; then
+        echo --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw
+    fi
+}
+podman_privileged_flag() {
+    if [[ $(podman_privilege_level) == privileged ]] ; then
+        echo --privileged
+    else
+        # fixme: work around the VM not having a containers-selinux
+        # that includes
+        # https://github.com/containers/container-selinux/pull/367
+        # which should be fixed in container-selinux 237 and later
+        echo --security-opt=mask=/proc/interrupts
+    fi
+}
+
+PODMAN_PRIVILEGE_LEVEL=$(podman_privilege_level)
+IN_PODMAN_NAME="in_podman_${PODMAN_PRIVILEGE_LEVEL}_$CIRRUS_TASK_ID"
 IN_PODMAN="${IN_PODMAN:-false}"
 
 # rootless_user
@@ -194,18 +223,17 @@ in_podman() {
 
     showrun podman run -i --name="$IN_PODMAN_NAME" \
                    --net=host \
-                   --privileged \
-                   --cgroupns=host \
+                   $(podman_privileged_flag) \
+                   $(podman_cgroup_flags) \
                    "${envargs[@]}" \
                    -e BUILDAH_ISOLATION \
                    -e STORAGE_DRIVER \
                    -e "IN_PODMAN=false" \
                    -e "CONTAINER=podman" \
                    -e "CGROUP_MANAGER=cgroupfs" \
-                   -v "$HOME/auth:$HOME/auth:ro" \
-                   -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+                   -v "$HOME/auth:$HOME/auth:ro,U,z" \
                    --device /dev/fuse:rwm \
-                   -v "$GOSRC:$GOSRC:z" \
+                   -v "$GOSRC:$GOSRC:U,z" \
                    --workdir "$GOSRC" \
                    "$@"
 }
