@@ -31,6 +31,8 @@ func main() {
 	var maxParallelDownloads uint
 	var compressionFormat string
 	var manifestFormat string
+	var preserveDigests bool
+	tlsVerify := true
 	compressionLevel := -1
 
 	if buildah.InitReexec() {
@@ -51,6 +53,11 @@ func main() {
 			if err := cobra.ExactArgs(2)(cmd, args); err != nil {
 				return err
 			}
+			if cmd.Flag("tls-verify").Changed {
+				systemContext.DockerInsecureSkipTLSVerify = types.NewOptionalBool(!tlsVerify)
+			}
+			systemContext.OCIInsecureSkipTLSVerify = !tlsVerify
+			systemContext.DockerDaemonInsecureSkipTLSVerify = !tlsVerify
 			if compressionLevel != -1 {
 				systemContext.CompressionLevel = &compressionLevel
 			}
@@ -78,6 +85,12 @@ func main() {
 			if err != nil {
 				return err
 			}
+			defer func() {
+				_, err := store.Shutdown(false)
+				if err != nil {
+					logrus.Error(err)
+				}
+			}()
 			imageStorage.Transport.SetStore(store)
 
 			conf, err := config.Default()
@@ -124,26 +137,21 @@ func main() {
 				DestinationCtx:        &systemContext,
 				MaxParallelDownloads:  maxParallelDownloads,
 				ForceManifestMIMEType: manifestFormat,
+				PreserveDigests:       preserveDigests,
 			}
 			if _, err = cp.Image(context.TODO(), policyContext, dest, src, &options); err != nil {
 				return err
 			}
-
-			defer func() {
-				_, err := store.Shutdown(false)
-				if err != nil {
-					logrus.Error(err)
-				}
-			}()
 			return nil
 		},
+		SilenceUsage: true,
 	}
 
-	rootCmd.PersistentFlags().StringVar(&storeOptions.GraphRoot, "root", "", "storage root")
-	rootCmd.PersistentFlags().StringVar(&storeOptions.RunRoot, "runroot", "", "runtime root")
+	rootCmd.PersistentFlags().StringVarP(&storeOptions.GraphRoot, "root", "g", storeOptions.GraphRoot, "storage root")
+	rootCmd.PersistentFlags().StringVarP(&storeOptions.RunRoot, "runroot", "R", storeOptions.RunRoot, "runtime root")
 	rootCmd.PersistentFlags().StringVar(&storeOptions.ImageStore, "imagestore", "", "storage imagestore")
 	rootCmd.PersistentFlags().BoolVar(&storeOptions.TransientStore, "transient-store", false, "store some information in transient storage")
-	rootCmd.PersistentFlags().StringVar(&storeOptions.GraphDriverName, "storage-driver", "", "storage driver")
+	rootCmd.PersistentFlags().StringVarP(&storeOptions.GraphDriverName, "storage-driver", "s", "", "storage driver")
 	rootCmd.PersistentFlags().StringSliceVar(&storeOptions.GraphDriverOptions, "storage-opt", nil, "storage option")
 	rootCmd.PersistentFlags().StringVar(&systemContext.SystemRegistriesConfPath, "registries-conf", "", "location of registries.conf")
 	rootCmd.PersistentFlags().StringVar(&systemContext.SystemRegistriesConfDirPath, "registries-conf-dir", "", "location of registries.d")
@@ -156,6 +164,9 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&systemContext.DirForceDecompress, "dest-decompress", false, "force decompression of layers for dir: destinations")
 	rootCmd.PersistentFlags().StringVar(&compressionFormat, "dest-compress-format", "", "compression type")
 	rootCmd.PersistentFlags().IntVar(&compressionLevel, "dest-compress-level", 0, "compression level")
+	rootCmd.PersistentFlags().StringVar(&systemContext.AuthFilePath, "authfile", systemContext.AuthFilePath, "path of the authentication file")
+	rootCmd.PersistentFlags().BoolVar(&tlsVerify, "tls-verify", tlsVerify, "require HTTPS and verify certificates when talking to registries or docker daemons")
+	rootCmd.PersistentFlags().BoolVar(&preserveDigests, "preserve-digests", preserveDigests, "preserve digests of images and lists")
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
