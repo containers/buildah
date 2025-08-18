@@ -37,6 +37,7 @@ func main() {
 	expectedConfigType := ""
 
 	debug := flag.Bool("debug", false, "turn on debug logging")
+	authFile := flag.String("authfile", "", "path of the authentication file")
 	root := flag.String("root", storeOptions.GraphRoot, "storage root directory")
 	runroot := flag.String("runroot", storeOptions.RunRoot, "storage runtime directory")
 	driver := flag.String("storage-driver", storeOptions.GraphDriverName, "storage driver")
@@ -49,6 +50,7 @@ func main() {
 	rebuildm := flag.Bool("rebuild-manifest", false, "rebuild the manifest JSON")
 	showc := flag.Bool("show-config", false, "output the configuration JSON")
 	rebuildc := flag.Bool("rebuild-config", false, "rebuild the configuration JSON")
+	tlsVerify := flag.Bool("tls-verify", true, "turn on TLS verification")
 	flag.Parse()
 	logrus.SetLevel(logrus.ErrorLevel)
 	if debug != nil && *debug {
@@ -90,6 +92,14 @@ func main() {
 	}
 	systemContext := &types.SystemContext{
 		SignaturePolicyPath: *policy,
+	}
+	if authFile != nil {
+		systemContext.AuthFilePath = *authFile
+	}
+	if tlsVerify != nil {
+		systemContext.DockerInsecureSkipTLSVerify = types.NewOptionalBool(!*tlsVerify)
+		systemContext.OCIInsecureSkipTLSVerify = !*tlsVerify
+		systemContext.DockerDaemonInsecureSkipTLSVerify = !*tlsVerify
 	}
 	args := flag.Args()
 	if len(args) == 0 {
