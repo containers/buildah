@@ -7193,7 +7193,7 @@ _EOF
 
   # Build and export container to tar
   run_buildah build --no-cache $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
-  podman export $(podman create --name ${target} --net=host ${target}) --output=$contextdir.tar
+  podman export $(podman create --name ${target} --cgroupns=host --net=host ${target}) --output=$contextdir.tar
 
   # We are done exporting so remove images and containers which are not needed
   podman rm -f ${target}
@@ -7218,7 +7218,7 @@ _EOF
 
   # Build and export container to tar
   run_buildah build --no-cache $WITH_POLICY_JSON -t ${target} -f $BUDFILES/add-run-dir/Dockerfile
-  podman export $(podman create --name ${target} --net=host ${target}) --output=$contextdir.tar
+  podman export $(podman create --name ${target} --cgroupns=host --net=host ${target}) --output=$contextdir.tar
 
   # We are done exporting so remove images and containers which are not needed
   podman rm -f ${target}

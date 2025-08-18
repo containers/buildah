@@ -488,7 +488,7 @@ load helpers
   skip_if_no_podman
 
   _prefetch busybox
-  podman create --net=host --name busyboxc-podman busybox top
+  podman create --cgroupns=host --net=host --name busyboxc-podman busybox top
   run_buildah from $WITH_POLICY_JSON --name busyboxc busybox
   expect_output --substring "busyboxc"
   podman rm -f busyboxc-podman
