@@ -5425,10 +5425,11 @@ EOM
 
   ${OCI} --version
   _prefetch alpine busybox
-
-  run_buildah build --build-arg base=alpine --build-arg toolchainname=busybox --build-arg destinationpath=/tmp --pull=false $WITH_POLICY_JSON -f $BUDFILES/from-with-arg/Containerfile .
+  toolchainname=busybox
+  destinationpath=/tmp
+  run_buildah build --build-arg base=alpine --build-arg toolchainname=$toolchainname --build-arg destinationpath=$destinationpath --pull=false $WITH_POLICY_JSON -f $BUDFILES/from-with-arg/Containerfile .
   expect_output --substring "FROM alpine"
-  expect_output --substring 'STEP 4/4: COPY --from=\$\{toolchainname\} \/ \$\{destinationpath\}'
+  expect_output --substring "STEP 4/4: COPY --from=$toolchainname \/ $destinationpath"
   run_buildah rm -a
 }
 
@@ -6186,7 +6187,7 @@ _EOF
   # must push cache twice i.e for first step and second step
   run printf "STEP 2/3: ARG VAR=hello\n--> Pushing cache"
   step1=$output
-  run printf "STEP 3/3: RUN echo \"Hello \$VAR\""
+  run printf "STEP 3/3: RUN echo \"Hello hello\""
   step2=$output
   run printf "Hello hello"
   step3=$output
