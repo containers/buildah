@@ -29,6 +29,7 @@ type globalFlags struct {
 	Root                       string
 	RunRoot                    string
 	ImageStore                 string
+	TransientStore             bool
 	StorageDriver              string
 	RegistriesConf             string
 	RegistriesConfDir          string
@@ -100,6 +101,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CgroupManager, "cgroup-manager", defaultContainerConfig.Engine.CgroupManager, "cgroup manager")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.StorageDriver, "storage-driver", storageOptions.GraphDriverName, "storage-driver")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.ImageStore, "imagestore", storageOptions.ImageStore, "storage imagestore")
+	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.TransientStore, "transient-store", storageOptions.TransientStore, "store some information in transient storage")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.StorageOpts, "storage-opt", defaultStoreDriverOptions, "storage driver option")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSUID, "userns-uid-map", []string{}, "default `ctrID:hostID:length` UID mapping to use")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSGID, "userns-gid-map", []string{}, "default `ctrID:hostID:length` GID mapping to use")

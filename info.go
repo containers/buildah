@@ -134,6 +134,7 @@ func storeInfo(store storage.Store) (map[string]any, error) {
 	info["GraphRoot"] = store.GraphRoot()
 	info["RunRoot"] = store.RunRoot()
 	info["GraphImageStore"] = store.ImageStore()
+	info["GraphTransientStore"] = store.TransientStore()
 	info["GraphDriverName"] = store.GraphDriverName()
 	info["GraphOptions"] = store.GraphOptions()
 	statusPairs, err := store.Status()

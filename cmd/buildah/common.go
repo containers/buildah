@@ -35,6 +35,9 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 	if c.Flag("imagestore").Changed {
 		options.ImageStore = globalFlagResults.ImageStore
 	}
+	if c.Flag("transient-store").Changed {
+		options.TransientStore = globalFlagResults.TransientStore
+	}
 	if c.Flag("storage-driver").Changed {
 		options.GraphDriverName = globalFlagResults.StorageDriver
 		// If any options setup in config, these should be dropped if user overrode the driver
