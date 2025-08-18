@@ -605,7 +605,7 @@ function configure_and_check_user() {
 	run_buildah 1 run ${cid} /etc
 }
 
-@test "Verify /run/.containerenv exist" {
+@test "verify /run/.containerenv exist" {
         skip_if_rootless_environment
 	skip_if_no_runtime
 
@@ -626,7 +626,7 @@ function configure_and_check_user() {
 	expect_output --substring "alpine:latest"
 
 	rootless=0
-	if ["$(id -u)" -ne 0 ]; then
+	if [ "$(id -u)" -ne 0 ]; then
 		rootless=1
 	fi
 
