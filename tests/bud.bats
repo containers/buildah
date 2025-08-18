@@ -394,7 +394,7 @@ _EOF
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
   run_buildah build $WITH_POLICY_JSON -t $imgname --platform linux/amd64 $contextdir
 
-  # Helper function. push our image with the given options, and run skopeo inspect
+  # Helper function. push our image with the given options, and use imgtype to inspect it
   function _test_buildah_push() {
     run_buildah push \
                 --blob-cache=${blobcachedir} \
@@ -405,14 +405,11 @@ _EOF
                 $imgname \
                 docker://localhost:${REGISTRY_PORT}/$imgname
 
-    echo "# skopeo inspect $imgname"
-    run podman run --rm \
-        --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z \
-        --net host \
-        quay.io/skopeo/stable inspect \
-        --authfile=/test.auth \
-        --tls-verify=false \
-        --raw \
+    echo "# imgtype -show-manifest $imgname"
+    run imgtype \
+        -show-manifest \
+        -tls-verify=false \
+        -authfile ${TEST_SCRATCH_DIR}/test.auth \
         docker://localhost:${REGISTRY_PORT}/$imgname
     echo "$output"
   }
