@@ -502,6 +502,10 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 
 	// Bind, overlay, or tmpfs mount everything we've been asked to mount.
 	for _, m := range spec.Mounts {
+		// tags.cncf.io/container-device-interface/specs-go.Mount.Type used to not exist, i.e., would be empty.
+		if m.Type == "" && (slices.Contains(m.Options, "bind") || slices.Contains(m.Options, "rbind")) {
+			m.Type = "bind"
+		}
 		// Skip anything that we just mounted.
 		switch m.Destination {
 		case "/dev", "/proc", "/sys":

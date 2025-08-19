@@ -3,7 +3,6 @@
 load helpers
 
 @test "bud with CDI" {
-  skip_if_chroot
   _prefetch busybox
   cdidir=${TEST_SCRATCH_DIR}/cdi-config-dir
   mkdir -p $cdidir
@@ -16,7 +15,6 @@ load helpers
 }
 
 @test "from with CDI" {
-  skip_if_chroot
   _prefetch busybox
   cdidir=${TEST_SCRATCH_DIR}/cdi-config-dir
   mkdir -p $cdidir
@@ -31,7 +29,6 @@ load helpers
 }
 
 @test "run with CDI" {
-  skip_if_chroot
   _prefetch busybox
   cdidir=${TEST_SCRATCH_DIR}/cdi-config-dir
   mkdir -p $cdidir
