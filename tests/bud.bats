@@ -874,7 +874,6 @@ _EOF
 }
 
 @test "bud build with heredoc content which is a bash file" {
-  skip_if_in_container
   _prefetch busybox
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.bash_file .
   expect_output --substring "this is the output of test9"
@@ -882,7 +881,6 @@ _EOF
 }
 
 @test "bud build with heredoc content with inline interpreter" {
-  skip_if_in_container
   _prefetch busybox
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.she_bang .
   expect_output --substring "#
@@ -891,7 +889,6 @@ this is the output of test12"
 }
 
 @test "bud build with heredoc verify mount leak" {
-  skip_if_in_container
   _prefetch alpine
   run_buildah 1 build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.verify_mount_leak .
   expect_output --substring "this is the output of test"
