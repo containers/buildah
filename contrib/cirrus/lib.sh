@@ -202,8 +202,9 @@ in_podman() {
                    -e "IN_PODMAN=false" \
                    -e "CONTAINER=podman" \
                    -e "CGROUP_MANAGER=cgroupfs" \
-                   -v "$HOME/auth:$HOME/auth:ro" \
+                   -v "$HOME/auth:$HOME/auth:ro,z" \
                    -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+                   -v "/etc/containers/certs.d:/etc/containers/certs.d:O" \
                    --device /dev/fuse:rwm \
                    -v "$GOSRC:$GOSRC:z" \
                    --workdir "$GOSRC" \
@@ -219,15 +220,17 @@ verify_local_registry(){
     showrun podman ps --all
     showrun podman images
     showrun ls -alF $HOME/auth
+    mkdir -p /etc/containers/certs.d/localhost:5000
+    cp -v $HOME/auth/domain.crt /etc/containers/certs.d/localhost:5000/ca.crt
     showrun podman pull $ALPINE_FQIN
-    showrun podman login --tls-verify=false localhost:5000 --username testuser --password testpassword
+    showrun podman login localhost:5000 --username testuser --password testpassword
     showrun podman tag $ALPINE_FQIN $CUSTOM_FQIN
-    showrun podman push --tls-verify=false --creds=testuser:testpassword $CUSTOM_FQIN
+    showrun podman push --creds=testuser:testpassword $CUSTOM_FQIN
     showrun podman ps --all
     showrun podman images
     showrun podman rmi $ALPINE_FQIN
     showrun podman rmi $CUSTOM_FQIN
-    showrun podman pull --tls-verify=false --creds=testuser:testpassword $CUSTOM_FQIN
+    showrun podman pull --creds=testuser:testpassword $CUSTOM_FQIN
     showrun podman ps --all
     showrun podman images
     echo "Success, local registry is working, cleaning up."
@@ -249,12 +252,10 @@ execute_local_registry() {
     mkdir -p $authdirpath
     openssl req \
         -newkey rsa:4096 -nodes -sha256 -x509 -days 2 \
-        -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=registry host certificate" \
-        -addext subjectAltName=DNS:localhost \
+        -subj "/CN=localhost" \
+        -addext "subjectAltName = DNS:localhost, IP:127.0.0.1" \
         -keyout $authdirpath/domain.key \
         -out $authdirpath/domain.crt
-
-    cp $authdirpath/domain.crt $authdirpath/domain.cert
 
     echo "Creating http credentials file"
     showrun htpasswd -Bbn testuser testpassword > $authdirpath/htpasswd
