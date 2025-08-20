@@ -6,11 +6,11 @@ import (
 	"os"
 
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/image/v5/copy"
-	"github.com/containers/image/v5/manifest"
-	"github.com/containers/image/v5/oci/layout"
-	"github.com/containers/image/v5/signature"
-	"github.com/containers/image/v5/types"
+	"go.podman.io/image/v5/copy"
+	"go.podman.io/image/v5/manifest"
+	"go.podman.io/image/v5/oci/layout"
+	"go.podman.io/image/v5/signature"
+	"go.podman.io/image/v5/types"
 )
 
 // PushOptions includes data to alter certain knobs when pushing a source

@@ -3,9 +3,9 @@ package buildah
 import (
 	"testing"
 
-	"github.com/containers/storage"
 	"github.com/openshift/imagebuilder"
 	"github.com/stretchr/testify/assert"
+	"go.podman.io/storage"
 )
 
 func TestGetImageName(t *testing.T) {

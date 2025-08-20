@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/libimage"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/libimage"
 )
 
 var (

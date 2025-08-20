@@ -14,13 +14,13 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/pkg/config"
-	"github.com/containers/storage"
-	"github.com/containers/storage/pkg/unshare"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/pkg/config"
+	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/unshare"
 )
 
 type globalFlags struct {

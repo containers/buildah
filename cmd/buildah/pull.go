@@ -11,9 +11,9 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/pkg/auth"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/pkg/auth"
 )
 
 type pullOptions struct {

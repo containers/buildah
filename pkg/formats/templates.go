@@ -3,7 +3,7 @@ package formats
 import (
 	"text/template"
 
-	"github.com/containers/common/pkg/formats"
+	"go.podman.io/common/pkg/formats"
 )
 
 // Parse creates a new anonymous template with the basic functions
