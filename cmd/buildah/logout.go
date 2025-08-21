@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/pkg/auth"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/pkg/auth"
 )
 
 func init() {

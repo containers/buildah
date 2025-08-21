@@ -11,10 +11,10 @@ import (
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/libimage"
-	"github.com/containers/common/pkg/formats"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/libimage"
+	"go.podman.io/common/pkg/formats"
 )
 
 const none = "<none>"

@@ -10,10 +10,10 @@ import (
 	"github.com/containerd/platforms"
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	"github.com/containers/buildah/define"
-	iversion "github.com/containers/image/v5/version"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/cobra"
+	iversion "go.podman.io/image/v5/version"
 )
 
 // Overwritten at build time

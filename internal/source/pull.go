@@ -6,13 +6,13 @@ import (
 	"os"
 
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/image/v5/copy"
-	"github.com/containers/image/v5/oci/layout"
-	"github.com/containers/image/v5/pkg/shortnames"
-	"github.com/containers/image/v5/signature"
-	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage/pkg/fileutils"
+	"go.podman.io/image/v5/copy"
+	"go.podman.io/image/v5/oci/layout"
+	"go.podman.io/image/v5/pkg/shortnames"
+	"go.podman.io/image/v5/signature"
+	"go.podman.io/image/v5/transports/alltransports"
+	"go.podman.io/image/v5/types"
+	"go.podman.io/storage/pkg/fileutils"
 )
 
 // PullOptions includes data to alter certain knobs when pulling a source

@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/containers/buildah/define"
-	"github.com/containers/image/v5/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/image/v5/types"
 )
 
 func TestCommonBuildOptionsFromFlagSet(t *testing.T) {

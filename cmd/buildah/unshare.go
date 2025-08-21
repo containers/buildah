@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/containers/storage"
-	"github.com/containers/storage/pkg/unshare"
 	"github.com/moby/sys/capability"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/unshare"
 )
 
 var (

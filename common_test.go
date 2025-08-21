@@ -10,17 +10,17 @@ import (
 	"testing"
 	"time"
 
-	cp "github.com/containers/image/v5/copy"
-	"github.com/containers/image/v5/signature"
-	imageStorage "github.com/containers/image/v5/storage"
-	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/containers/storage"
-	storageTypes "github.com/containers/storage/types"
 	digest "github.com/opencontainers/go-digest"
 	ispec "github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	cp "go.podman.io/image/v5/copy"
+	"go.podman.io/image/v5/signature"
+	imageStorage "go.podman.io/image/v5/storage"
+	"go.podman.io/image/v5/transports/alltransports"
+	"go.podman.io/storage"
+	storageTypes "go.podman.io/storage/types"
 )
 
 type testRetryCopyImageWrappedStore struct {

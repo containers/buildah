@@ -14,11 +14,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/containers/storage/pkg/ioutils"
-	"github.com/containers/storage/pkg/reexec"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/storage/pkg/ioutils"
+	"go.podman.io/storage/pkg/reexec"
 )
 
 // use defined names for our various commands. we absolutely don't support

@@ -9,9 +9,9 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/util"
-	"github.com/containers/common/pkg/formats"
-	"github.com/containers/storage"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/pkg/formats"
+	"go.podman.io/storage"
 )
 
 var containersHeader = map[string]string{

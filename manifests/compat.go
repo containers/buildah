@@ -6,8 +6,8 @@
 package manifests
 
 import (
-	"github.com/containers/common/libimage/manifests"
-	"github.com/containers/storage"
+	"go.podman.io/common/libimage/manifests"
+	"go.podman.io/storage"
 )
 
 type (

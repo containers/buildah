@@ -1,7 +1,7 @@
 package formats
 
 import (
-	"github.com/containers/common/pkg/formats"
+	"go.podman.io/common/pkg/formats"
 )
 
 const (

@@ -10,8 +10,8 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/pkg/formats"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/pkg/formats"
 	"golang.org/x/term"
 )
 

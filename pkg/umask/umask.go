@@ -1,7 +1,7 @@
 package umask
 
 import (
-	"github.com/containers/common/pkg/umask"
+	"go.podman.io/common/pkg/umask"
 )
 
 func CheckUmask() {

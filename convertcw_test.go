@@ -16,9 +16,9 @@ import (
 
 	"github.com/containers/buildah/internal/mkcw"
 	mkcwtypes "github.com/containers/buildah/internal/mkcw/types"
-	"github.com/containers/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/storage"
 )
 
 // dummyAttestationHandler replies with a fixed response code to requests to

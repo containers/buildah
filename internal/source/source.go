@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containers/image/v5/image"
-	"github.com/containers/image/v5/oci/layout"
-	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.podman.io/image/v5/image"
+	"go.podman.io/image/v5/oci/layout"
+	"go.podman.io/image/v5/types"
 )
 
 // MediaTypeSourceImageConfig specifies the media type of a source-image config.
