@@ -564,8 +564,30 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 		for _, candidate := range resolved.PullCandidates {
 			ref, err := docker.NewReference(candidate.Value)
 			if err != nil {
-				logrus.Debugf("parsing image reference %q: %v", candidate.Value.String(), err)
-				continue
+				// github.com/containers/common/libimage.Runtime.Pull() will catch
+				// references that include both a tag and a digest, and drop the
+				// tag as part of pulling the image.  Fall back to doing roughly
+				// the same here.
+				var nonDigestedRef reference.Named
+				if named, err2 := reference.ParseNamed(candidate.Value.String()); err2 == nil {
+					_, isTagged := named.(reference.NamedTagged)
+					digested, isDigested := named.(reference.Digested)
+					if isTagged && isDigested {
+						if nonDigestedRef, err2 = reference.WithDigest(reference.TrimNamed(named), digested.Digest()); err2 != nil {
+							nonDigestedRef = nil
+						}
+					}
+				}
+				if nonDigestedRef == nil {
+					// not a tagged-and-digested reference, either, so log the original error
+					logrus.Debugf("parsing image reference %q: %v", candidate.Value.String(), err)
+					continue
+				}
+				ref, err = docker.NewReference(nonDigestedRef)
+				if err != nil {
+					logrus.Debugf("re-parsing image reference %q: %v", nonDigestedRef.String(), err)
+					continue
+				}
 			}
 			src, err := ref.NewImageSource(ctx, systemContext)
 			if err != nil {
