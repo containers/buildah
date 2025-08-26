@@ -378,8 +378,9 @@ func mountFlagsForFSFlags(fsFlags uintptr) uintptr {
 	return mountFlags
 }
 
-func makeReadOnly(mntpoint string, flags uintptr) error {
+func makeReadOnly(mntpoint string, flags uintptr, data string) error {
 	var fs unix.Statfs_t
+	flags &= ^uintptr(unix.MS_PRIVATE | unix.MS_SHARED | unix.MS_SLAVE | unix.MS_UNBINDABLE)
 	// Make sure it's read-only.
 	if err := unix.Statfs(mntpoint, &fs); err != nil {
 		return fmt.Errorf("checking if directory %q was bound read-only: %w", mntpoint, err)
@@ -387,7 +388,7 @@ func makeReadOnly(mntpoint string, flags uintptr) error {
 	if fs.Flags&unix.ST_RDONLY == 0 {
 		// All callers currently pass MS_RDONLY in "flags", but in case they stop doing
 		// that at some point in the future...
-		if err := unix.Mount(mntpoint, mntpoint, "bind", flags|unix.MS_RDONLY|unix.MS_REMOUNT|unix.MS_BIND, ""); err != nil {
+		if err := unix.Mount("", mntpoint, "", flags|unix.MS_RDONLY|unix.MS_REMOUNT|unix.MS_BIND, data); err != nil {
 			return fmt.Errorf("remounting %s in mount namespace read-only: %w", mntpoint, err)
 		}
 	}
@@ -431,7 +432,7 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			if err2 := os.Mkdir(subDev, 0o755); err2 != nil {
 				return undoBinds, fmt.Errorf("creating mount target directory %q for mount namespace: %w", subDev, err2)
 			}
-			err = unix.Mount("tmpfs", subDev, "tmpfs", devFlags, "size=65536k,mode=755")
+			err = unix.Mount("tmpfs", subDev, "tmpfs", devFlags, formatMountLabel(spec, "size=65536k,mode=755"))
 		}
 		if err != nil {
 			return undoBinds, fmt.Errorf("mounting a tmpfs on /dev: %w", err)
@@ -494,7 +495,7 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		if flags.isReadOnly {
 			devNodeFlags |= unix.MS_RDONLY
 		}
-		if err := unix.Mount(devNode, subDevNode, "bind", devNodeFlags, ""); err != nil {
+		if err := unix.Mount(devNode, subDevNode, "", devNodeFlags, formatMountLabel(spec, "")); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				if flags.isDir {
 					err = os.Mkdir(subDevNode, 0o100)
@@ -507,14 +508,14 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 				if err != nil {
 					return undoBinds, fmt.Errorf("creating mount target at %s for mount namespace: %w", subDevNode, err)
 				}
-				err = unix.Mount(devNode, subDevNode, "bind", devNodeFlags, "")
+				err = unix.Mount(devNode, subDevNode, "", devNodeFlags, formatMountLabel(spec, ""))
 			}
 			if err != nil {
 				return undoBinds, fmt.Errorf("bind mounting %s from host in the mount namespace: %w", devNode, err)
 			}
 		}
 		if flags.isReadOnly {
-			if err := makeReadOnly(subDevNode, devNodeFlags); err != nil {
+			if err := makeReadOnly(subDevNode, devNodeFlags, formatMountLabel(spec, "")); err != nil {
 				return undoBinds, err
 			}
 		}
@@ -574,11 +575,11 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			logrus.Debugf("unable to bind mount %q (%q: %v), sorry about that", deviceSpec.Path, sysDevPath, err)
 			continue
 		}
-		if err = unix.Mount(sysDevPath, devicePath, "bind", devNodeFlags, ""); err != nil && errors.Is(err, os.ErrNotExist) {
+		if err = unix.Mount(sysDevPath, devicePath, "", devNodeFlags, formatMountLabel(spec, "")); err != nil && errors.Is(err, os.ErrNotExist) {
 			if f, err2 := os.OpenFile(devicePath, os.O_CREATE|os.O_RDWR, 0o600); err2 == nil {
 				f.Close()
 			}
-			err = unix.Mount(sysDevPath, devicePath, "bind", devNodeFlags, "")
+			err = unix.Mount(sysDevPath, devicePath, "", devNodeFlags, formatMountLabel(spec, ""))
 		}
 		if err != nil {
 			logrus.Debugf("unable to bind mount %q (%q: %v), sorry about that", deviceSpec.Path, sysDevPath, err)
@@ -589,11 +590,11 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 
 	// Bind /proc read-write.
 	subProc := filepath.Join(spec.Root.Path, "/proc")
-	if err := unix.Mount("/proc", subProc, "bind", procFlags, ""); err != nil {
+	if err := unix.Mount("/proc", subProc, "", procFlags, formatMountLabel(spec, "")); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			err = os.Mkdir(subProc, 0o755)
 			if err == nil {
-				err = unix.Mount("/proc", subProc, "bind", procFlags, "")
+				err = unix.Mount("/proc", subProc, "", procFlags, formatMountLabel(spec, ""))
 			}
 		}
 		if err != nil {
@@ -604,29 +605,27 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 
 	// Bind /sys read-only.
 	subSys := filepath.Join(spec.Root.Path, "/sys")
-	if err := unix.Mount("/sys", subSys, "bind", sysFlags, ""); err != nil {
+	if err := unix.Mount("/sys", subSys, "", sysFlags, formatMountLabel(spec, "")); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			err = os.Mkdir(subSys, 0o755)
 			if err == nil {
-				err = unix.Mount("/sys", subSys, "bind", sysFlags, "")
+				err = unix.Mount("/sys", subSys, "", sysFlags, formatMountLabel(spec, ""))
 			}
 		}
 		if err != nil {
 			return undoBinds, fmt.Errorf("bind mounting /sys from host into mount namespace: %w", err)
 		}
 	}
-	if err := makeReadOnly(subSys, sysFlags); err != nil {
+	if err := makeReadOnly(subSys, sysFlags, formatMountLabel(spec, "")); err != nil {
 		return undoBinds, err
 	}
-
 	mnts, _ := mount.GetMounts()
 	for _, m := range mnts {
-		if !strings.HasPrefix(m.Mountpoint, "/sys/") &&
-			m.Mountpoint != "/sys" {
+		if !strings.HasPrefix(m.Mountpoint, "/sys/") && m.Mountpoint != "/sys" {
 			continue
 		}
 		subSys := filepath.Join(spec.Root.Path, m.Mountpoint)
-		if err := unix.Mount(m.Mountpoint, subSys, "bind", sysFlags, ""); err != nil {
+		if err := unix.Mount(m.Mountpoint, subSys, "", sysFlags, formatMountLabel(spec, "")); err != nil {
 			msg := fmt.Sprintf("could not bind mount %q, skipping: %v", m.Mountpoint, err)
 			if strings.HasPrefix(m.Mountpoint, "/sys") {
 				logrus.Info(msg)
@@ -635,7 +634,7 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			}
 			continue
 		}
-		if err := makeReadOnly(subSys, sysFlags); err != nil {
+		if err := makeReadOnly(subSys, sysFlags, formatMountLabel(spec, "")); err != nil {
 			return undoBinds, err
 		}
 	}
@@ -644,8 +643,12 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 	// Bind, overlay, or tmpfs mount everything we've been asked to mount.
 	for _, m := range spec.Mounts {
 		// tags.cncf.io/container-device-interface/specs-go.Mount.Type used to not exist, i.e., would be empty.
-		if m.Type == "" && (slices.Contains(m.Options, "bind") || slices.Contains(m.Options, "rbind")) {
-			m.Type = "bind"
+		if m.Type == "" {
+			if slices.Contains(m.Options, "rbind") {
+				m.Type = "rbind"
+			} else if slices.Contains(m.Options, "bind") {
+				m.Type = "bind"
+			}
 		}
 		// Skip anything that we just mounted.
 		switch m.Destination {
@@ -664,19 +667,43 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			}
 		}
 		// Skip anything that isn't a bind or overlay or tmpfs mount.
-		if m.Type != "bind" && m.Type != "tmpfs" && m.Type != "overlay" {
+		if m.Type != "bind" && m.Type != "rbind" && m.Type != "tmpfs" && m.Type != "overlay" {
 			logrus.Debugf("skipping mount of type %q on %q", m.Type, m.Destination)
 			continue
 		}
 		// If the target is already there, we can just mount over it.
 		var srcinfo os.FileInfo
+		recursiveFlag := uintptr(0)
 		switch m.Type {
-		case "bind":
+		case "bind", "rbind":
+			// Check if the mountpoint needs to be a directory or a file.
 			srcinfo, err = os.Stat(m.Source)
 			if err != nil {
 				return undoBinds, fmt.Errorf("examining %q for mounting in mount namespace: %w", m.Source, err)
 			}
+			// if the source is mounted with ro/nodev/noexec/nosuid flags, use them as default flags
+			if err = unix.Statfs(m.Source, &fs); err != nil {
+				return undoBinds, fmt.Errorf("checking mount flags on %q to pick up as defaults: %w", m.Source, err)
+			}
+			var bindSourceMountFlags []string
+			if fs.Flags&unix.ST_RDONLY == unix.ST_RDONLY {
+				bindSourceMountFlags = append(bindSourceMountFlags, "ro")
+			}
+			if fs.Flags&unix.ST_NODEV == unix.ST_NODEV {
+				bindSourceMountFlags = append(bindSourceMountFlags, "nodev")
+			}
+			if fs.Flags&unix.ST_NOEXEC == unix.ST_NOEXEC {
+				bindSourceMountFlags = append(bindSourceMountFlags, "noexec")
+			}
+			if fs.Flags&unix.ST_NOSUID == unix.ST_NOSUID {
+				bindSourceMountFlags = append(bindSourceMountFlags, "nosuid")
+			}
+			m.Options = append(bindSourceMountFlags, m.Options...)
+			if m.Type == "rbind" {
+				recursiveFlag = unix.MS_REC
+			}
 		case "overlay", "tmpfs":
+			// Check if the mountpoint needs to be a directory or a file.
 			srcinfo, err = os.Stat("/")
 			if err != nil {
 				return undoBinds, fmt.Errorf("examining / to use as a template for a %s mount: %w", m.Type, err)
@@ -718,97 +745,171 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		}
 		// Sort out which flags we're asking for, and what statfs() should be telling us
 		// if we successfully mounted with them.
-		requestFlags := uintptr(0)
-		expectedImportantFlags := uintptr(0)
-		importantFlags := uintptr(0)
-		possibleImportantFlags := uintptr(unix.ST_NODEV | unix.ST_NOEXEC | unix.ST_NOSUID | unix.ST_RDONLY)
+		initialFlags := uintptr(0)
+		safetyFlags := uintptr(0)
+		propagationFlag := uintptr(unix.MS_PRIVATE)
+		propagationString := "private"
+		syncAndTimeFlags := uintptr(0)
+		togglableSafetyFlags := uintptr(unix.ST_NODEV | unix.ST_NOEXEC | unix.ST_NOSUID | unix.ST_RDONLY)
 		for _, option := range m.Options {
+			rPrefixMeansRecursive := false
 			switch option {
-			case "nodev":
-				requestFlags |= unix.MS_NODEV
-				importantFlags |= unix.ST_NODEV
-				expectedImportantFlags |= unix.ST_NODEV
-			case "dev":
-				requestFlags &= ^uintptr(unix.MS_NODEV)
-				importantFlags |= unix.ST_NODEV
-				expectedImportantFlags &= ^uintptr(unix.ST_NODEV)
-			case "noexec":
-				requestFlags |= unix.MS_NOEXEC
-				importantFlags |= unix.ST_NOEXEC
-				expectedImportantFlags |= unix.ST_NOEXEC
-			case "exec":
-				requestFlags &= ^uintptr(unix.MS_NOEXEC)
-				importantFlags |= unix.ST_NOEXEC
-				expectedImportantFlags &= ^uintptr(unix.ST_NOEXEC)
-			case "nosuid":
-				requestFlags |= unix.MS_NOSUID
-				importantFlags |= unix.ST_NOSUID
-				expectedImportantFlags |= unix.ST_NOSUID
-			case "suid":
-				requestFlags &= ^uintptr(unix.MS_NOSUID)
-				importantFlags |= unix.ST_NOSUID
-				expectedImportantFlags &= ^uintptr(unix.ST_NOSUID)
-			case "ro":
-				requestFlags |= unix.MS_RDONLY
-				importantFlags |= unix.ST_RDONLY
-				expectedImportantFlags |= unix.ST_RDONLY
-			case "rw":
-				requestFlags &= ^uintptr(unix.MS_RDONLY)
-				importantFlags |= unix.ST_RDONLY
-				expectedImportantFlags &= ^uintptr(unix.ST_RDONLY)
+			// request flags that we only care about on the initial mount attempt
+			case "remount":
+				initialFlags |= unix.MS_REMOUNT
+			// mount flags that we'll remount to try to get right
+			case "nodev", "rnodev":
+				safetyFlags |= unix.ST_NODEV
+				rPrefixMeansRecursive = true
+			case "dev", "rdev":
+				safetyFlags &= ^uintptr(unix.ST_NODEV)
+				rPrefixMeansRecursive = true
+			case "noexec", "rnoexec":
+				safetyFlags |= unix.ST_NOEXEC
+				rPrefixMeansRecursive = true
+			case "exec", "rexec":
+				safetyFlags &= ^uintptr(unix.ST_NOEXEC)
+				rPrefixMeansRecursive = true
+			case "nosuid", "rnosuid":
+				safetyFlags |= unix.ST_NOSUID
+				rPrefixMeansRecursive = true
+			case "suid", "rsuid":
+				safetyFlags &= ^uintptr(unix.ST_NOSUID)
+				rPrefixMeansRecursive = true
+			case "ro", "rro":
+				safetyFlags |= unix.ST_RDONLY
+				rPrefixMeansRecursive = option == "rro"
+			case "rw", "rrw":
+				safetyFlags &= ^uintptr(unix.ST_RDONLY)
+				rPrefixMeansRecursive = option == "rrw"
+			// mount propagation flags
+			case "private", "rprivate":
+				propagationFlag = unix.MS_PRIVATE
+				propagationString = option
+				rPrefixMeansRecursive = true
+			case "shared", "rshared":
+				propagationFlag = unix.MS_SHARED
+				propagationString = option
+				rPrefixMeansRecursive = true
+			case "slave", "rslave":
+				propagationFlag = unix.MS_SLAVE
+				propagationString = option
+				rPrefixMeansRecursive = true
+			case "unbindable", "runbindable":
+				propagationFlag = unix.MS_UNBINDABLE
+				propagationString = option
+				rPrefixMeansRecursive = true
+			// mount flags that we'll ask for, but settle for whatever
+			case "async", "rasync":
+				syncAndTimeFlags &= ^uintptr(unix.MS_SYNCHRONOUS)
+				rPrefixMeansRecursive = true
+			case "sync", "rsync":
+				syncAndTimeFlags |= unix.MS_SYNCHRONOUS
+				rPrefixMeansRecursive = true
+			case "dirsync", "rdirsync":
+				syncAndTimeFlags |= unix.MS_DIRSYNC
+				rPrefixMeansRecursive = true
+			case "nodirsync", "rnodirsync":
+				syncAndTimeFlags &= ^uintptr(unix.MS_DIRSYNC)
+				rPrefixMeansRecursive = true
+			case "atime", "ratime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_NOATIME | unix.MS_NODIRATIME)
+				rPrefixMeansRecursive = true
+			case "noatime", "rnoatime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_RELATIME | unix.MS_STRICTATIME)
+				syncAndTimeFlags |= unix.MS_NOATIME | unix.MS_NODIRATIME
+				rPrefixMeansRecursive = true
+			case "diratime", "rdiratime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_NODIRATIME)
+				rPrefixMeansRecursive = true
+			case "nodiratime", "rnodiratime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_RELATIME | unix.MS_STRICTATIME)
+				syncAndTimeFlags |= unix.MS_NODIRATIME
+				rPrefixMeansRecursive = true
+			case "lazytime", "rlazytime":
+				syncAndTimeFlags |= unix.MS_LAZYTIME
+				rPrefixMeansRecursive = true
+			case "nolazytime", "rnolazytime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_LAZYTIME)
+				rPrefixMeansRecursive = true
+			case "relatime", "rrelatime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_NOATIME | unix.MS_NODIRATIME | unix.MS_STRICTATIME)
+				syncAndTimeFlags |= unix.MS_RELATIME
+				rPrefixMeansRecursive = true
+			case "norelatime", "rnorelatime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_RELATIME)
+				rPrefixMeansRecursive = true
+			case "strictatime", "rstrictatime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_NOATIME | unix.MS_NODIRATIME | unix.MS_RELATIME)
+				syncAndTimeFlags |= unix.MS_STRICTATIME
+				rPrefixMeansRecursive = true
+			case "nostrictatime", "rnostrictatime":
+				syncAndTimeFlags &= ^uintptr(unix.MS_STRICTATIME)
+				rPrefixMeansRecursive = true
+			case "loud":
+				syncAndTimeFlags &= ^uintptr(unix.MS_SILENT)
+			case "slient":
+				syncAndTimeFlags |= unix.MS_SILENT
+			}
+			if rPrefixMeansRecursive && strings.HasPrefix(option, "r") {
+				recursiveFlag = unix.MS_REC
 			}
 		}
+		initialFlags |= safetyFlags
+		initialFlags |= syncAndTimeFlags
 		switch m.Type {
 		case "bind":
 			// Do the initial bind mount.  We'll worry about the flags in a bit.
 			logrus.Debugf("bind mounting %q on %q %v", m.Destination, filepath.Join(spec.Root.Path, m.Destination), m.Options)
-			if err = unix.Mount(m.Source, target, "", bindFlags|requestFlags, ""); err != nil {
+			if err = unix.Mount(m.Source, target, "", unix.MS_BIND|initialFlags|recursiveFlag, formatMountLabel(spec, "")); err != nil {
 				return undoBinds, fmt.Errorf("bind mounting %q from host to %q in mount namespace (%q): %w", m.Source, m.Destination, target, err)
 			}
 			logrus.Debugf("bind mounted %q to %q", m.Source, target)
 		case "tmpfs":
 			// Mount a tmpfs.  We'll worry about the flags in a bit.
-			if err = mount.Mount(m.Source, target, m.Type, strings.Join(append(m.Options, "private"), ",")); err != nil {
+			if err = mount.Mount(m.Source, target, m.Type, formatMountLabel(spec, strings.Join(append(m.Options, propagationString), ","))); err != nil {
 				return undoBinds, fmt.Errorf("mounting tmpfs to %q in mount namespace (%q, %q): %w", m.Destination, target, strings.Join(append(m.Options, "private"), ","), err)
 			}
 			logrus.Debugf("mounted a tmpfs to %q", target)
 		case "overlay":
 			// Mount an overlay.  We'll worry about the flags in a bit.
-			if err = mount.Mount(m.Source, target, m.Type, strings.Join(append(m.Options, "private"), ",")); err != nil {
+			if err = mount.Mount(m.Source, target, m.Type, formatMountLabel(spec, strings.Join(append(m.Options, propagationString), ","))); err != nil {
 				return undoBinds, fmt.Errorf("mounting overlay to %q in mount namespace (%q, %q): %w", m.Destination, target, strings.Join(append(m.Options, "private"), ","), err)
 			}
 			logrus.Debugf("mounted a overlay to %q", target)
 		}
-		// Time to worry about the flags.
+		// Set the mount propagation for this new mountpoint.
+		if err = unix.Mount("", target, "", propagationFlag|recursiveFlag, formatMountLabel(spec, "")); err != nil {
+			return undoBinds, fmt.Errorf("ensuring that %q is a %v mount: %w", target, mountFlagNames(propagationFlag|recursiveFlag), err)
+		}
+		// Time to worry about the per-mount flags that we can toggle.  Read the currently-set flags.
 		if err = unix.Statfs(target, &fs); err != nil {
 			return undoBinds, fmt.Errorf("checking if volume %q was mounted with requested flags: %w", target, err)
 		}
-		effectiveImportantFlags := uintptr(fs.Flags) & importantFlags
-		if effectiveImportantFlags != expectedImportantFlags {
-			// Do a remount to try to get the desired flags to stick.
-			effectiveUnimportantFlags := uintptr(fs.Flags) & ^possibleImportantFlags
-			remountFlags := unix.MS_REMOUNT | bindFlags | requestFlags | mountFlagsForFSFlags(effectiveUnimportantFlags)
-			// If we are requesting a read-only mount, add any possibleImportantFlags present in fs.Flags to remountFlags.
-			if requestFlags&unix.ST_RDONLY == unix.ST_RDONLY {
-				remountFlags |= uintptr(fs.Flags) & possibleImportantFlags
+		statfsFlags := uintptr(fs.Flags)
+		effectiveSafetyFlags := mountFlagsForFSFlags(statfsFlags) & togglableSafetyFlags
+		effectiveNonSafetyFlags := mountFlagsForFSFlags(statfsFlags) & ^togglableSafetyFlags
+		if effectiveSafetyFlags != safetyFlags {
+			// Do a remount to try to get the desired flags to stick for at least this mount.
+			remountFlags := unix.MS_BIND | unix.MS_REMOUNT | safetyFlags
+			// Accept whatever state the async/atime flags are in, and just request the values they currently have.
+			if err = unix.Mount("", target, "", remountFlags|recursiveFlag|effectiveNonSafetyFlags, formatMountLabel(spec, "")); err != nil {
+				return undoBinds, fmt.Errorf("remounting %s %q in mount namespace with flags %v (%v) instead of %v: %w", propagationString, target, mountFlagNames(remountFlags), mountFlagNames(remountFlags|recursiveFlag|effectiveNonSafetyFlags), statFlagNames(statfsFlags), err)
 			}
-			if err = unix.Mount(target, target, m.Type, remountFlags, ""); err != nil {
-				return undoBinds, fmt.Errorf("remounting %q in mount namespace with flags %v instead of %v: %w", target, mountFlagNames(requestFlags), statFlagNames(effectiveImportantFlags), err)
-			}
-			// Check if the desired flags stuck.
+			// Check if the desired flags stuck on this mount point.
 			if err = unix.Statfs(target, &fs); err != nil {
-				return undoBinds, fmt.Errorf("checking if directory %q was remounted with requested flags %v instead of %v: %w", target, mountFlagNames(requestFlags), statFlagNames(effectiveImportantFlags), err)
+				return undoBinds, fmt.Errorf("checking if directory %q was remounted with requested flags %v instead of %v: %w", target, mountFlagNames(remountFlags), statFlagNames(statfsFlags), err)
 			}
-			newEffectiveImportantFlags := uintptr(fs.Flags) & importantFlags
-			if newEffectiveImportantFlags != expectedImportantFlags {
-				return undoBinds, fmt.Errorf("unable to remount %q with requested flags %v instead of %v, just got %v back", target, mountFlagNames(requestFlags), statFlagNames(effectiveImportantFlags), statFlagNames(newEffectiveImportantFlags))
+			newEffectiveSafetyFlags := mountFlagsForFSFlags(uintptr(fs.Flags)) & togglableSafetyFlags
+			if newEffectiveSafetyFlags != safetyFlags {
+				return undoBinds, fmt.Errorf("unable to remount %s %q with requested flags %v (%v) instead of %v (%v), just got %v back", propagationString, target, mountFlagNames(remountFlags), mountFlagNames(remountFlags|recursiveFlag|effectiveNonSafetyFlags), statFlagNames(newEffectiveSafetyFlags), statFlagNames(statfsFlags), statFlagNames(uintptr(fs.Flags)))
 			}
 		}
 	}
 
 	// Set up any read-only paths that we need to.  If we're running inside
 	// of a container, some of these locations will already be read-only, in
-	// which case can declare victory and move on.
+	// which case we can declare victory and move on.
 	for _, roPath := range spec.Linux.ReadonlyPaths {
 		r := filepath.Join(spec.Root.Path, roPath)
 		target, err := filepath.EvalSymlinks(r)
@@ -834,29 +935,16 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		// Mount the location over itself, so that we can remount it as read-only, making
 		// sure to preserve any combination of nodev/noexec/nosuid that's already in play.
 		roFlags := mountFlagsForFSFlags(uintptr(fs.Flags)) | unix.MS_RDONLY
-		if err := unix.Mount(target, target, "", bindFlags|roFlags, ""); err != nil {
+		if err := unix.Mount(target, target, "", unix.MS_BIND|unix.MS_REC|roFlags, formatMountLabel(spec, "")); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				// No target, no problem.
 				continue
 			}
 			return undoBinds, fmt.Errorf("bind mounting %q onto itself in preparation for making it read-only: %w", target, err)
 		}
-		// Remount the location read-only.
-		if err = unix.Statfs(target, &fs); err != nil {
-			return undoBinds, fmt.Errorf("checking if directory %q was bound read-only: %w", target, err)
-		}
-		if fs.Flags&unix.ST_RDONLY == 0 {
-			if err := unix.Mount(target, target, "", unix.MS_REMOUNT|unix.MS_RDONLY|bindFlags|mountFlagsForFSFlags(uintptr(fs.Flags)), ""); err != nil {
-				return undoBinds, fmt.Errorf("remounting %q in mount namespace read-only: %w", target, err)
-			}
-		}
-		// Check again.
-		if err = unix.Statfs(target, &fs); err != nil {
-			return undoBinds, fmt.Errorf("checking if directory %q was remounted read-only: %w", target, err)
-		}
-		if fs.Flags&unix.ST_RDONLY == 0 {
-			// Still not read only.
-			return undoBinds, fmt.Errorf("verifying that %q in mount namespace was remounted read-only: %w", target, err)
+		// Remount the location read-only if the bind mount wasn't enough.
+		if err = makeReadOnly(target, unix.MS_REC|roFlags, formatMountLabel(spec, "")); err != nil {
+			return undoBinds, err
 		}
 	}
 
@@ -952,22 +1040,17 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			// The target's a directory, so read-only bind mount an empty directory on it.
 			roFlags := uintptr(syscall.MS_BIND | syscall.MS_NOSUID | syscall.MS_NODEV | syscall.MS_NOEXEC | syscall.MS_RDONLY)
 			if !isReadOnly || (hasContent && isAccessible) {
-				if err = unix.Mount(roEmptyDir, target, "bind", roFlags, ""); err != nil {
+				if err = unix.Mount(roEmptyDir, target, "", roFlags, formatMountLabel(spec, "")); err != nil {
 					return undoBinds, fmt.Errorf("masking directory %q in mount namespace: %w", target, err)
 				}
-				if err = unix.Statfs(target, &fs); err != nil {
-					return undoBinds, fmt.Errorf("checking if masked directory %q was mounted read-only in mount namespace: %w", target, err)
-				}
-				if fs.Flags&unix.ST_RDONLY == 0 {
-					if err = unix.Mount(target, target, "", syscall.MS_REMOUNT|roFlags|mountFlagsForFSFlags(uintptr(fs.Flags)), ""); err != nil {
-						return undoBinds, fmt.Errorf("making sure masked directory %q in mount namespace is read only: %w", target, err)
-					}
+				if err = makeReadOnly(target, roFlags, formatMountLabel(spec, "")); err != nil {
+					return undoBinds, fmt.Errorf("making sure masked directory %q in mount namespace is read only: %w", target, err)
 				}
 			}
 		} else {
 			// If the target's is not a directory or os.DevNull, bind mount os.DevNull over it.
 			if !isDevNull(targetinfo) {
-				if err = unix.Mount(os.DevNull, target, "", uintptr(syscall.MS_BIND|syscall.MS_RDONLY|syscall.MS_PRIVATE), ""); err != nil {
+				if err = unix.Mount(os.DevNull, target, "", uintptr(syscall.MS_BIND|syscall.MS_RDONLY|syscall.MS_PRIVATE), formatMountLabel(spec, "")); err != nil {
 					return undoBinds, fmt.Errorf("masking non-directory %q in mount namespace: %w", target, err)
 				}
 			}
