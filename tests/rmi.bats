@@ -74,6 +74,8 @@ load helpers
 }
 
 @test "use prune to remove dangling images" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
 
   createrandom ${TEST_SCRATCH_DIR}/randomfile
@@ -114,6 +116,8 @@ load helpers
 }
 
 @test "use prune to remove dangling images with parent" {
+  skip_if_unable_to_buildah_mount
+
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 

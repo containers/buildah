@@ -7,6 +7,7 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,4 +20,9 @@ func setSelinuxLabel(spec *specs.Spec) error {
 		}
 	}
 	return nil
+}
+
+// formatMountLabel adds a mount label mount flag to the mount options list
+func formatMountLabel(spec *specs.Spec, mountOptions string) string {
+	return label.FormatMountLabel(mountOptions, spec.Linux.MountLabel)
 }

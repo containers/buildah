@@ -632,3 +632,36 @@ func TestLinuxIDMappingShift(t *testing.T) {
 		},
 	)
 }
+
+func TestLinuxDevices(t *testing.T) {
+	t.Parallel()
+	if unix.Getuid() != 0 {
+		t.Skip("tests need to be run as root")
+	}
+	zeroAlias := "/dev/zero-by-another-name"
+	testMinimal(t,
+		func(g *generate.Generator, _, _ string) {
+			g.AddDevice(specs.LinuxDevice{
+				Path:  zeroAlias,
+				Type:  "c",
+				Major: 1,
+				Minor: 5,
+			})
+		},
+		func(t *testing.T, report *types.TestReport) {
+			require.NotNil(t, report.Spec.Linux, "linux part of spec")
+			require.NotNil(t, report.Spec.Linux.Devices, "linux devices part of spec")
+			found := false
+			for _, device := range report.Spec.Linux.Devices {
+				t.Logf("device node %q is owned by %d:%d", device.Path, *device.UID, *device.GID)
+				if device.Path == zeroAlias {
+					found = true
+					require.Equal(t, "c", device.Type)
+					require.EqualValues(t, 1, device.Major)
+					require.EqualValues(t, 5, device.Minor)
+				}
+			}
+			require.Truef(t, found, "expected to find a device for %q, didn't find one", zeroAlias)
+		},
+	)
+}

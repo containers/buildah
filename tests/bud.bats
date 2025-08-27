@@ -394,7 +394,7 @@ _EOF
   run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
   run_buildah build $WITH_POLICY_JSON -t $imgname --platform linux/amd64 $contextdir
 
-  # Helper function. push our image with the given options, and run skopeo inspect
+  # Helper function. push our image with the given options, and use imgtype to inspect it
   function _test_buildah_push() {
     run_buildah push \
                 --blob-cache=${blobcachedir} \
@@ -405,14 +405,11 @@ _EOF
                 $imgname \
                 docker://localhost:${REGISTRY_PORT}/$imgname
 
-    echo "# skopeo inspect $imgname"
-    run podman run --rm \
-        --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z \
-        --net host \
-        quay.io/skopeo/stable inspect \
-        --authfile=/test.auth \
-        --tls-verify=false \
-        --raw \
+    echo "# imgtype -show-manifest $imgname"
+    run imgtype \
+        -show-manifest \
+        -tls-verify=false \
+        -authfile ${TEST_SCRATCH_DIR}/test.auth \
         docker://localhost:${REGISTRY_PORT}/$imgname
     echo "$output"
   }
@@ -877,7 +874,6 @@ _EOF
 }
 
 @test "bud build with heredoc content which is a bash file" {
-  skip_if_in_container
   _prefetch busybox
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.bash_file .
   expect_output --substring "this is the output of test9"
@@ -885,7 +881,6 @@ _EOF
 }
 
 @test "bud build with heredoc content with inline interpreter" {
-  skip_if_in_container
   _prefetch busybox
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.she_bang .
   expect_output --substring "#
@@ -894,7 +889,6 @@ this is the output of test12"
 }
 
 @test "bud build with heredoc verify mount leak" {
-  skip_if_in_container
   _prefetch alpine
   run_buildah 1 build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile.verify_mount_leak .
   expect_output --substring "this is the output of test"
@@ -922,6 +916,8 @@ this is the output of test12"
 }
 
 @test "bud with .dockerignore - unmatched" {
+  skip_if_unable_to_buildah_mount
+
   # Here .dockerignore contains 'unmatched', which will not match anything.
   # Therefore everything in the subdirectory should be copied into the image.
   #
@@ -2218,6 +2214,8 @@ _EOF
 }
 
 @test "bud with --layers, multistage, and COPY with --from" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/use-layers
   cp -a $BUDFILES/use-layers $contextdir
@@ -2340,6 +2338,8 @@ _EOF
 }
 
 @test "bud-multistage-cache" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine busybox
   target=foo
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.extended $BUDFILES/multi-stage-builds
@@ -2859,6 +2859,8 @@ _EOF
 }
 
 @test "bud-from-multiple-files-one-from" {
+  skip_if_unable_to_buildah_mount
+
   target=scratch-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/from-multiple-files/Dockerfile1.scratch -f $BUDFILES/from-multiple-files/Dockerfile2.nofrom $BUDFILES/from-multiple-files
   run_buildah from --quiet ${target}
@@ -2884,6 +2886,8 @@ _EOF
 }
 
 @test "bud-from-multiple-files-two-froms" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=scratch-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile1.scratch -f Dockerfile2.withfrom $BUDFILES/from-multiple-files
@@ -3169,6 +3173,8 @@ _EOF
 }
 
 @test "bud-multi-stage-builds" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=multi-stage-index
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds/Dockerfile.index $BUDFILES/multi-stage-builds
@@ -3205,6 +3211,8 @@ _EOF
 }
 
 @test "bud-multi-stage-builds-small-as" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=multi-stage-index
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/multi-stage-builds-small-as/Dockerfile.index $BUDFILES/multi-stage-builds-small-as
@@ -3242,6 +3250,8 @@ _EOF
 }
 
 @test "bud-preserve-subvolumes" {
+  skip_if_unable_to_buildah_mount
+
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
 
@@ -3490,6 +3500,8 @@ function validate_instance_compression {
 }
 
 @test "bud-volume-perms" {
+  skip_if_unable_to_buildah_mount
+
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
 
@@ -3557,6 +3569,8 @@ function validate_instance_compression {
 }
 
 @test "bud-from-glob" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile2.glob $BUDFILES/from-multiple-files
@@ -3627,6 +3641,8 @@ function validate_instance_compression {
 }
 
 @test "bud with symlinks" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/symlink
@@ -3646,6 +3662,8 @@ function validate_instance_compression {
 }
 
 @test "bud with symlinks to relative path" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.relative-symlink $BUDFILES/symlink
@@ -3664,6 +3682,8 @@ function validate_instance_compression {
 }
 
 @test "bud with multiple symlinks in a path" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/symlink/Dockerfile.multiple-symlinks $BUDFILES/symlink
@@ -3697,6 +3717,8 @@ function validate_instance_compression {
 }
 
 @test "bud multi-stage with symlink to absolute path" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch ubuntu
   target=ubuntu-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.absolute-symlink $BUDFILES/symlink
@@ -3714,6 +3736,8 @@ function validate_instance_compression {
 }
 
 @test "bud multi-stage with dir symlink to absolute path" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch ubuntu
   target=ubuntu-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.absolute-dir-symlink $BUDFILES/symlink
@@ -3877,6 +3901,8 @@ function validate_instance_compression {
 }
 
 @test "bud-onbuild" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=onbuild
   run_buildah build --format docker $WITH_POLICY_JSON -t ${target} $BUDFILES/onbuild
@@ -3978,6 +4004,8 @@ _EOF
 }
 
 @test "bud-from-stdin" {
+  skip_if_unable_to_buildah_mount
+
   target=scratch-image
   cat $BUDFILES/from-multiple-files/Dockerfile1.scratch | run_buildah build $WITH_POLICY_JSON -t ${target} -f - $BUDFILES/from-multiple-files
   run_buildah from --quiet ${target}
@@ -4271,6 +4299,8 @@ _EOF
 }
 
 @test "bud with FROM AS skip FROM construct" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   run_buildah build $WITH_POLICY_JSON -t test1 -f $BUDFILES/from-as/Dockerfile.skip $BUDFILES/from-as
   expect_output --substring "LOCAL=/1"
@@ -4362,6 +4392,8 @@ _EOF
 }
 
 @test "bud with copy-from in Dockerfile no prior FROM" {
+  skip_if_unable_to_buildah_mount
+
   want_tag=20221018
   _prefetch busybox quay.io/libpod/testimage:$want_tag
   target=no-prior-from
@@ -4385,6 +4417,8 @@ _EOF
 }
 
 @test "bud with copy-from referencing the base image" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
   target=busybox-derived
   target_mt=busybox-mt-derived
@@ -4416,6 +4450,8 @@ _EOF
 }
 
 @test "bud-target" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine ubuntu
   target=target
   run_buildah build $WITH_POLICY_JSON -t ${target} --target mytarget $BUDFILES/target
@@ -4671,6 +4707,8 @@ _EOF
 }
 
 @test "bud-copy-workdir" {
+  skip_if_unable_to_buildah_mount
+
   target=testimage
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/copy-workdir
   run_buildah from ${target}
@@ -4684,6 +4722,8 @@ _EOF
 
 # regression test for https://github.com/containers/podman/issues/10671
 @test "bud-copy-workdir --layers" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
 
   target=testimage
@@ -4765,6 +4805,8 @@ _EOF
 }
 
 @test "bud-copy-dockerignore-hardlinks" {
+  skip_if_unable_to_buildah_mount
+
   target=image
   local contextdir=${TEST_SCRATCH_DIR}/hardlinks
   mkdir -p $contextdir/subdir
@@ -4970,6 +5012,8 @@ _EOF
 }
 
 @test "bud with Dockerfile from stdin" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=df-stdin
   run_buildah build $WITH_POLICY_JSON -t ${target} - < $BUDFILES/context-from-stdin/Dockerfile
@@ -4987,6 +5031,8 @@ _EOF
 }
 
 @test "bud with Dockerfile from stdin tar" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch alpine
   target=df-stdin
   # 'cmd1 < <(cmd2)' == 'cmd2 | cmd1' but runs cmd1 in this shell, not sub.
@@ -6783,6 +6829,8 @@ _EOF
 }
 
 @test "bud-copy--parents-links" {
+  skip_if_unable_to_buildah_mount
+
   target=image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-parents/Containerfile-hardlinks $BUDFILES/copy-parents
 
@@ -7196,7 +7244,7 @@ _EOF
 
   # Build and export container to tar
   run_buildah build --no-cache $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
-  podman export $(podman create --name ${target} --net=host ${target}) --output=$contextdir.tar
+  podman export $(podman create --name ${target} --cgroupns=host --net=host ${target}) --output=$contextdir.tar
 
   # We are done exporting so remove images and containers which are not needed
   podman rm -f ${target}
@@ -7221,7 +7269,7 @@ _EOF
 
   # Build and export container to tar
   run_buildah build --no-cache $WITH_POLICY_JSON -t ${target} -f $BUDFILES/add-run-dir/Dockerfile
-  podman export $(podman create --name ${target} --net=host ${target}) --output=$contextdir.tar
+  podman export $(podman create --name ${target} --cgroupns=host --net=host ${target}) --output=$contextdir.tar
 
   # We are done exporting so remove images and containers which are not needed
   podman rm -f ${target}
@@ -7770,6 +7818,14 @@ _EOF
 }
 
 @test "build no write file on host - CVE-2024-1753" {
+  if test $(stat -f -c %T /) = overlayfs && test "${STORAGE_DRIVER}" = overlay ; then
+    # a tmpfs would be handy for the upper here, but one can't be used as an upper for
+    # overlay mounts that need userxattr because tmpfs doesn't support user.* xattrs,
+    # and we would have no other place to put the upper that we use for the overlay
+    # that keeps changes in the mount from changing the mounted location
+    skip "can't test read-write (overlay) mount from another stage without a non-overlay location to use as an upper directory"
+  fi
+
   _prefetch alpine
   cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
 FROM alpine as base
@@ -7961,6 +8017,14 @@ EOF
 }
 
 @test "build-mounts-build-context-rw" {
+  if test $(stat -f -c %T /) = overlayfs && test "${STORAGE_DRIVER}" = overlay ; then
+    # a tmpfs would be handy for the upper here, but one can't be used as an upper for
+    # overlay mounts that need userxattr because tmpfs doesn't support user.* xattrs,
+    # and we would have no other place to put the upper that we use for the overlay
+    # that keeps changes in the mount from changing the mounted location
+    skip "can't test read-write (overlay) mount from another stage without a non-overlay location to use as an upper directory"
+  fi
+
   zflag=
   if which selinuxenabled > /dev/null 2> /dev/null ; then
     if selinuxenabled ; then
@@ -8187,6 +8251,8 @@ EOF
 }
 
 @test "bud-with-timestamp-config-effects" {
+  skip_if_hostname_is_locked
+
   _prefetch busybox
   local timestamp=60
   mkdir -p $TEST_SCRATCH_DIR/context
@@ -8203,7 +8269,7 @@ EOF
     config=$(dir_image_config "$TEST_SCRATCH_DIR"/docker-layers-$cliflag)
     run jq -r .config.Hostname "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/"$config"
     echo "$output"
-    test $status -eq 0
+    assert $status -eq 0
     assert "$output" == sandbox
     run jq -r .config.Domainname "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/"$config"
     echo "$output"

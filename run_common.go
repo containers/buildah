@@ -1429,6 +1429,10 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 			// Already mounting something there, no need to bother with this one.
 			continue
 		}
+		// tags.cncf.io/container-device-interface/specs-go.Mount.Type used to not exist, i.e., would be empty.
+		if mount.Type == "" && (slices.Contains(mount.Options, "bind") || slices.Contains(mount.Options, "rbind")) {
+			mount.Type = "bind"
+		}
 		// Add the mount.
 		mounts = append(mounts, mount)
 	}

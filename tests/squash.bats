@@ -17,6 +17,8 @@ function check_lengths() {
 }
 
 @test "squash" {
+	skip_if_unable_to_buildah_mount
+
 	createrandom ${TEST_SCRATCH_DIR}/randomfile
 	run_buildah from scratch
 	cid=$output
@@ -56,6 +58,8 @@ function check_lengths() {
 }
 
 @test "squash-using-dockerfile" {
+	skip_if_unable_to_buildah_mount
+
 	createrandom ${TEST_SCRATCH_DIR}/randomfile
 	image=stage0
 	from=scratch

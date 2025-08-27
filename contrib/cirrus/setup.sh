@@ -13,6 +13,9 @@ req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE CIRRUS_CHANGE_TI
 msg "Running df."
 df -hT
 
+msg "Showing /proc/self/mountinfo."
+cat /proc/self/mountinfo
+
 msg "Disabling git repository owner-check system-wide."
 # Newer versions of git bark if repo. files are unexpectedly owned.
 # This mainly affects rootless and containerized testing.  But

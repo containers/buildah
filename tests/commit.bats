@@ -29,6 +29,8 @@ load helpers
 # Use case is typically seen on environments where current session
 # is invalid login session.
 @test "commit image on rootless setup with mount" {
+  skip_if_unable_to_buildah_mount
+
   unset XDG_RUNTIME_DIR
   run dd if=/dev/zero of=${TEST_SCRATCH_DIR}/file count=1 bs=10M
   run_buildah from scratch
@@ -354,6 +356,8 @@ load helpers
 }
 
 @test "commit-with-extra-files" {
+  skip_if_unable_to_buildah_mount
+
   _prefetch busybox
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid=$output
@@ -417,9 +421,13 @@ load helpers
 
 @test "commit with insufficient disk space" {
   skip_if_rootless_environment
+  skip_if_unable_to_mount
+
   _prefetch busybox
   local tmp=$TEST_SCRATCH_DIR/buildah-test
   mkdir -p $tmp
+  # Mount a tmpfs of limited size in the place where we'll be
+  # storing temporary copies of the layer we're committing.
   mount -t tmpfs -o size=4M tmpfs $tmp
   # Create a temporary file which should not be easy to compress,
   # which we'll add to our container for committing, but which is
