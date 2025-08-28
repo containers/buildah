@@ -8888,3 +8888,26 @@ _EOF
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never ${contextdir}
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never --squash ${contextdir}
 }
+
+@test "build-with-run-mount" {
+  local out_path=${TEST_SCRATCH_DIR}/run-mount.tar
+
+  # add an ephemeral mount
+  FOO=world run_buildah build \
+      --secret id=mysecret,env=FOO \
+      --run-mount type=secret,id=mysecret,dst=/bar,required \
+      --timestamp 0 \
+      --tag oci-archive:"${out_path}.a" \
+      -f <(printf 'FROM busybox\nRUN echo "hello $(cat /bar) welcome"')
+  expect_output --substring "hello world welcome"
+
+  # if we run the same, but no secret and no mount, we should get identical tarball
+  run_buildah build \
+      --timestamp 0 \
+      --tag oci-archive:"${out_path}.b" \
+      -f <(printf 'FROM busybox\nRUN echo "hello $(cat /bar) welcome"')
+  expect_output --substring "hello  welcome"
+
+  # should be the same, as the ephemeral run mount should not affect the result
+  diff "${out_path}.a" "${out_path}.b"
+}

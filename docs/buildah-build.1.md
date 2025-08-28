@@ -842,6 +842,20 @@ that value, with that value.
 
 Remove intermediate containers after a successful build (default true).
 
+**--run-mount** *mount-instruction*
+
+Adds this mount to each `RUN` command in a Containerfile before executing. For example:
+
+`buildah build --run-mount type=secret,id=mysecret ...`
+
+and a Containerfile entry of:
+
+`RUN cat /run/secrets/mysecret`
+
+Has the same effect as:
+
+`RUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret`
+
 **--runtime** *path*
 
 The *path* to an alternate OCI-compatible runtime, which will be used to run
