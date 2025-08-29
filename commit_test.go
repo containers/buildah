@@ -12,19 +12,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containers/image/v5/manifest"
-	ociLayout "github.com/containers/image/v5/oci/layout"
-	imageStorage "github.com/containers/image/v5/storage"
-	"github.com/containers/image/v5/transports"
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage"
-	"github.com/containers/storage/pkg/archive"
-	storageTypes "github.com/containers/storage/types"
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/image/v5/manifest"
+	ociLayout "go.podman.io/image/v5/oci/layout"
+	imageStorage "go.podman.io/image/v5/storage"
+	"go.podman.io/image/v5/transports"
+	"go.podman.io/image/v5/types"
+	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/archive"
+	storageTypes "go.podman.io/storage/types"
 )
 
 func makeFile(t *testing.T, base string, size int64) string {

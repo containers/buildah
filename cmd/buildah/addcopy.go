@@ -12,11 +12,11 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/pkg/auth"
-	"github.com/containers/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"go.podman.io/common/pkg/auth"
+	"go.podman.io/storage"
 )
 
 type addCopyResults struct {

@@ -3,12 +3,12 @@ package volumes
 import (
 	"testing"
 
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage"
-	storageTypes "github.com/containers/storage/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/image/v5/types"
+	"go.podman.io/storage"
+	storageTypes "go.podman.io/storage/types"
 )
 
 func TestGetMount(t *testing.T) {

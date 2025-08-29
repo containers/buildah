@@ -12,14 +12,14 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
 	"github.com/containers/buildah/util"
-	"github.com/containers/image/v5/manifest"
-	is "github.com/containers/image/v5/storage"
-	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage"
-	"github.com/containers/storage/pkg/unshare"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/image/v5/manifest"
+	is "go.podman.io/image/v5/storage"
+	"go.podman.io/image/v5/transports/alltransports"
+	"go.podman.io/image/v5/types"
+	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/unshare"
 )
 
 func main() {

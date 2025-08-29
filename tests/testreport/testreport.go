@@ -12,10 +12,10 @@ import (
 	"syscall"
 
 	"github.com/containers/buildah/tests/testreport/types"
-	"github.com/containers/storage/pkg/mount"
 	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/storage/pkg/mount"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )

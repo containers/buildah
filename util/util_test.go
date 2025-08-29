@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/containers/common/pkg/config"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
+	"go.podman.io/common/pkg/config"
 )
 
 func TestMergeEnv(t *testing.T) {

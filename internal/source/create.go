@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/containers/storage/pkg/fileutils"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.podman.io/storage/pkg/fileutils"
 )
 
 // CreateOptions includes data to alter certain knobs when creating a source

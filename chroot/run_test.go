@@ -16,12 +16,12 @@ import (
 
 	"github.com/containers/buildah/tests/testreport/types"
 	"github.com/containers/buildah/util"
-	"github.com/containers/storage/pkg/mount"
-	"github.com/containers/storage/pkg/reexec"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/storage/pkg/mount"
+	"go.podman.io/storage/pkg/reexec"
 	"golang.org/x/sys/unix"
 )
 

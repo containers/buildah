@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/containers/storage/pkg/mount"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/storage/pkg/mount"
 )
 
 func TestBindFromChroot(t *testing.T) {

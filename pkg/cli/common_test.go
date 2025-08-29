@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/containers/buildah/define"
-	"github.com/containers/common/pkg/completion"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"go.podman.io/common/pkg/completion"
 )
 
 func testFlagCompletion(t *testing.T, flags pflag.FlagSet, flagCompletions completion.FlagCompletions) {

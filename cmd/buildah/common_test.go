@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/containers/buildah"
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/image/v5/types"
+	"go.podman.io/storage"
 )
 
 var (

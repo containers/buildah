@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/containers/image/v5/manifest"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/image/v5/manifest"
 )
 
 // fillAllFields recursively fills in 1 or "1" for every field in the passed-in
