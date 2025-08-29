@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -519,6 +520,12 @@ func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID
 	return oci.OS, oci.Architecture, manifestFormat, oci.History, oci.RootFS.DiffIDs, nil
 }
 
+// Checks if is word is using any variable in the form of `$VAR`, `${VAR}` etc
+func containsVariable(arg string) bool {
+	re := regexp.MustCompile(`\$\{?[a-zA-Z_][a-zA-Z0-9_]*\}?`)
+	return re.MatchString(arg)
+}
+
 func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, onlyBaseImage bool, err error) {
 	stage := stages[stageIndex]
 	ib := stage.Builder
@@ -600,7 +607,26 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 				prefix += ": "
 			}
 			suffix := "\n"
-			fmt.Fprintf(stageExecutor.executor.out, prefix+format+suffix, args...)
+			builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
+			headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
+			userArgs := argsMapToSlice(stage.Builder.Args)
+			userArgs = append(builtinArgs, append(userArgs, headingArgs...)...)
+			processedArgs := make([]any, 0, len(args))
+			for i := range args {
+				if arg, ok := args[i].(string); ok {
+					if containsVariable(arg) {
+						processedArg, err := imagebuilder.ProcessWord(arg, userArgs)
+						if err != nil {
+							processedArg = arg
+							fmt.Fprintf(stageExecutor.executor.err, "while replacing arg variables with values for format in logging %q: %v\n", arg, err)
+						}
+						processedArgs = append(processedArgs, processedArg)
+					} else {
+						processedArgs = append(processedArgs, arg)
+					}
+				}
+			}
+			fmt.Fprintf(stageExecutor.executor.out, prefix+format+suffix, processedArgs...)
 		}
 	}
 	b.stagesLock.Unlock()
