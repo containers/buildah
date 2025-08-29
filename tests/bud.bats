@@ -8888,3 +8888,15 @@ _EOF
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never ${contextdir}
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never --squash ${contextdir}
 }
+
+@test "use-secret-to-env-variable" {
+  local outpath="${TEST_SCRATCH_DIR}/timestamp-after-secret.tar"
+
+  BAR=baz run_buildah build --secret id=mysecret,env=BAR -f <(printf "FROM alpine\nRUN --mount=type=secret,id=mysecret,env=FOO,required sh -c 'echo "'"Hello $FOO"'"'") --tag=oci-archive:${outpath}.a --timestamp 0
+  expect_output --substring "Hello baz"
+  BAR=boz run_buildah build --secret id=mysecret,env=BAR -f <(printf "FROM alpine\nRUN --mount=type=secret,id=mysecret,env=FOO,required sh -c 'echo "'"Hello $FOO"'"'") --tag=oci-archive:${outpath}.b --timestamp 0
+  expect_output --substring "Hello boz"
+
+  # even though different secret was passed to each(baz vs boz), we expect the same result, ie should not affect build history
+  diff "${outpath}.a" "${outpath}.b"
+}
