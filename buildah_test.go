@@ -6,12 +6,12 @@ import (
 	"os"
 	"testing"
 
-	imagetypes "github.com/containers/image/v5/types"
-	"github.com/containers/storage"
-	"github.com/containers/storage/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	imagetypes "go.podman.io/image/v5/types"
+	"go.podman.io/storage"
+	"go.podman.io/storage/types"
 )
 
 var testSystemContext = imagetypes.SystemContext{

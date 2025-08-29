@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containers/common/pkg/seccomp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"go.podman.io/common/pkg/seccomp"
 )
 
 const seccompAvailable = true

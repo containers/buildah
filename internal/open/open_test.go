@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/containers/storage/pkg/reexec"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/storage/pkg/reexec"
 	"golang.org/x/sys/unix"
 )
 

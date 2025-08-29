@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage/pkg/archive"
-	"github.com/containers/storage/pkg/fileutils"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.podman.io/image/v5/types"
+	"go.podman.io/storage/pkg/archive"
+	"go.podman.io/storage/pkg/fileutils"
 )
 
 // AddOptions include data to alter certain knobs when adding a source artifact

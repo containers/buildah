@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/containers/storage/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/storage/pkg/reexec"
 )
 
 const (

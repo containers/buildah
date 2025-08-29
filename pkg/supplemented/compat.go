@@ -6,11 +6,11 @@
 package supplemented
 
 import (
-	"github.com/containers/common/pkg/manifests"
-	"github.com/containers/common/pkg/supplemented"
-	cp "github.com/containers/image/v5/copy"
-	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
+	"go.podman.io/common/pkg/manifests"
+	"go.podman.io/common/pkg/supplemented"
+	cp "go.podman.io/image/v5/copy"
+	"go.podman.io/image/v5/types"
 )
 
 var (

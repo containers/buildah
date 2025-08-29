@@ -7,9 +7,9 @@ import (
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/libimage"
 	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
+	"go.podman.io/common/libimage"
 )
 
 type rmiOptions struct {
