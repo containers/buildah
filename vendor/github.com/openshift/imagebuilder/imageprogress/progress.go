@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"go.podman.io/storage/pkg/regexp"
+	"github.com/containers/storage/pkg/regexp"
 )
 
 const (
