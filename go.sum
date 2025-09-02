@@ -215,6 +215,8 @@ github.com/opencontainers/selinux v1.12.0 h1:6n5JV4Cf+4y0KNXW48TLj5DwfXpvWlxXplU
 github.com/opencontainers/selinux v1.12.0/go.mod h1:BTPX+bjVbWGXw7ZZWUbdENt8w0htPSrlgOOysQaU62U=
 github.com/openshift/imagebuilder v0.0.0-20250829113700-b78784c6c168 h1:de0wl2zoGLUeS9561jdX47NEHDIQb6iicvg9/zogT1Y=
 github.com/openshift/imagebuilder v0.0.0-20250829113700-b78784c6c168/go.mod h1:I9FlC4LVo0z/8GM8wdWVhxmw3tUVNM6tiwb8tRv4jvQ=
+github.com/openshift/imagebuilder v1.2.17 h1:xusHiBvK7PpBsEeMGTg61Zx5kSajybjUAbBzVEJKH6g=
+github.com/openshift/imagebuilder v1.2.17/go.mod h1:I9FlC4LVo0z/8GM8wdWVhxmw3tUVNM6tiwb8tRv4jvQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 h1:GFCKgmp0tecUJ0sJuv4pzYCqS9+RGSn52M3FUwPs+uo=
