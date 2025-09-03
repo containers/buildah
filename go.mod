@@ -7,14 +7,14 @@ go 1.23.3
 require (
 	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containernetworking/cni v1.3.0
-	github.com/containers/common v0.64.1
-	github.com/containers/image/v5 v5.36.1
+	github.com/containers/common v0.64.2
+	github.com/containers/image/v5 v5.36.2
 	github.com/containers/luksy v0.0.0-20250609192159-bc60f96d4194
 	github.com/containers/ocicrypt v1.2.1
 	github.com/containers/storage v1.59.1
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/docker/docker v28.3.2+incompatible
+	github.com/docker/docker v28.3.3+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.12.1
@@ -117,7 +117,7 @@ require (
 	github.com/sylabs/sif/v2 v2.21.1 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
-	github.com/ulikunitz/xz v0.5.12 // indirect
+	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	github.com/vbauerster/mpb/v8 v8.10.2 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
