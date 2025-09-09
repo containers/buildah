@@ -8888,3 +8888,20 @@ _EOF
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never ${contextdir}
   run_buildah --root=${TEST_SCRATCH_DIR}/newroot --storage-opt=imagestore=${TEST_SCRATCH_DIR}/root build --pull=never --squash ${contextdir}
 }
+
+@test "bud with exec-form RUN instruction" {
+  baseimage=busybox
+  _prefetch $baseimage
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Dockerfile <<-EOF
+  FROM scratch AS mkdir
+  RUN --mount=type=bind,from="${baseimage}",destination=/usr ["busybox", "sh", "-x", "-c", "mkdir /brand-new-subdir"]
+  FROM "${baseimage}"
+  RUN --mount=type=bind,from=mkdir,destination=/mounted find /mounted -print
+EOF
+  run_buildah build --layers=true "${contextdir}"
+  expect_output --substring /mounted/brand-new-subdir
+  run_buildah build --layers=false "${contextdir}"
+  expect_output --substring /mounted/brand-new-subdir
+}
