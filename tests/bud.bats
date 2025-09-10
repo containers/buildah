@@ -1251,6 +1251,8 @@ _EOF
   RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 stat / /var/tmp
   RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 test \`stat -c %u /var/tmp\` -eq 1000
   RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 touch /var/tmp/should-be-able-to-write
+  RUN --mount=type=cache,id=${cacheid},target=/new-parent/var/tmp,uid=1000,gid=1000 touch /var/tmp/should-be-able-to-write
+  RUN --mount=type=cache,id=${cacheid},target=/var/new-parent/tmp,uid=1000,gid=1000 touch /var/tmp/should-be-able-to-write
 EOF
   run_buildah build $WITH_POLICY_JSON ${contextdir}
 
@@ -1262,12 +1264,63 @@ EOF
   RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 stat / /var/tmp
   RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 test \`stat -c %u /var/tmp\` -eq 1000
   RUN --mount=type=cache,id=${cacheid},target=/var/tmp,uid=1000,gid=1000 touch /var/tmp/should-be-able-to-write
+  RUN --mount=type=cache,id=${cacheid},target=/new/parent/var/tmp,uid=1000,gid=1000 touch /new/parent/var/tmp/should-be-able-to-write
+  RUN --mount=type=cache,id=${cacheid},target=/var/new/parent/tmp,uid=1000,gid=1000 touch /var/new/parent/tmp/should-be-able-to-write
 EOF
   if test `id -u` -eq 0 ; then
     run_buildah build --userns-uid-map 0:1:1023 --userns-gid-map 0:1:1023 $WITH_POLICY_JSON ${contextdir}
   else
     run_buildah build --userns auto:size=1023 $WITH_POLICY_JSON ${contextdir}
   fi
+}
+
+@test "build-mount-cache-writeable-as-unprivileged-user" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir ${contextdir}
+
+  cat > ${contextdir}/Dockerfile << EOF
+  FROM busybox
+  USER 1000:1000
+  RUN --mount=type=cache,target=/usr/local/bin,id=/usr/local/bin/$$,uid=1000,gid=1000 touch /usr/local/bin/new-file
+  RUN --mount=type=cache,target=/var/not/already/there,id=/var/not/already/there/$$,uid=1000,gid=1000 touch /var/not/already/there/new-file
+EOF
+  run_buildah build $WITH_POLICY_JSON ${contextdir}
+}
+
+@test "build-mount-bind-readable-as-unprivileged-user" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir ${contextdir}
+
+  cat > ${contextdir}/Dockerfile << EOF
+  FROM busybox
+  USER 1000:1000
+  RUN --mount=type=bind,target=/usr/local,from=busybox busybox ls /usr/local/bin/busybox
+  RUN --mount=type=bind,target=/var/not/already/there,from=busybox busybox ls /var/not/already/there/bin/busybox
+EOF
+  run_buildah build $WITH_POLICY_JSON ${contextdir}
+}
+
+@test "build-mount-secret-readable-as-unprivileged-user" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir ${contextdir}
+  local secretfile=${TEST_SCRATCH_DIR}/secret.txt
+
+  echo -n hidingInPlainSight > ${secretfile}
+  cat > ${contextdir}/Dockerfile << EOF
+  FROM busybox
+  USER 1000:1000
+  RUN --mount=type=secret,id=theSecret,target=/var/not/already/there,uid=1000,gid=1000 wc -c /var/not/already/there
+EOF
+  run_buildah build --secret id=theSecret,type=file,src=${secretfile} $WITH_POLICY_JSON ${contextdir}
+  cat > ${contextdir}/Dockerfile << EOF
+  FROM busybox
+  USER 1000:1000
+  RUN --mount=type=secret,id=theSecret,target=/top/var/tmp/there,uid=1000,gid=1000 wc -c /top/var/tmp/there
+EOF
+  run_buildah build --secret id=theSecret,type=file,src=${secretfile} $WITH_POLICY_JSON ${contextdir}
 }
 
 @test "build test if supplemental groups has gid with --isolation chroot" {
