@@ -277,8 +277,8 @@ func containerOutputHeader(truncate bool) {
 
 func parseCtrFilter(filter string) (*containerFilterParams, error) {
 	params := new(containerFilterParams)
-	filters := strings.Split(filter, ",")
-	for _, param := range filters {
+	filters := strings.SplitSeq(filter, ",")
+	for param := range filters {
 		pair := strings.SplitN(param, "=", 2)
 		if len(pair) != 2 {
 			return nil, fmt.Errorf("incorrect filter value %q, should be of form filter=value", param)
