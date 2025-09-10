@@ -880,7 +880,7 @@ func buildPost(t *testing.T, test testCase, err error, buildTool, outputString, 
 // FSTree holds the information we have about an image's filesystem
 type FSTree struct {
 	Layers []Layer `json:"layers,omitempty"`
-	Tree   FSEntry `json:"tree,omitempty"`
+	Tree   FSEntry `json:"tree"`
 }
 
 // Layer keeps track of the digests and contents of a layer blob
@@ -900,7 +900,7 @@ type FSHeader struct {
 	Mode     int64             `json:"mode,omitempty"`
 	UID      int               `json:"uid"`
 	GID      int               `json:"gid"`
-	ModTime  time.Time         `json:"mtime,omitempty"`
+	ModTime  time.Time         `json:"mtime"`
 	Devmajor int64             `json:"devmajor,omitempty"`
 	Devminor int64             `json:"devminor,omitempty"`
 	Xattrs   map[string]string `json:"xattrs,omitempty"`

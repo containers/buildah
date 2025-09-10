@@ -162,13 +162,13 @@ type request struct {
 	preservedDirectory       string
 	Globs                    []string `json:",omitempty"` // used by stat, get
 	preservedGlobs           []string
-	StatOptions              StatOptions              `json:",omitempty"`
-	GetOptions               GetOptions               `json:",omitempty"`
-	PutOptions               PutOptions               `json:",omitempty"`
-	MkdirOptions             MkdirOptions             `json:",omitempty"`
-	RemoveOptions            RemoveOptions            `json:",omitempty"`
-	EnsureOptions            EnsureOptions            `json:",omitempty"`
-	ConditionalRemoveOptions ConditionalRemoveOptions `json:",omitempty"`
+	StatOptions              StatOptions
+	GetOptions               GetOptions
+	PutOptions               PutOptions
+	MkdirOptions             MkdirOptions
+	RemoveOptions            RemoveOptions
+	EnsureOptions            EnsureOptions
+	ConditionalRemoveOptions ConditionalRemoveOptions
 }
 
 func (req *request) Excludes() []string {
@@ -248,15 +248,15 @@ func (req *request) GIDMap() []idtools.IDMap {
 
 // Response encodes a single response.
 type response struct {
-	Error             string                    `json:",omitempty"`
-	Stat              statResponse              `json:",omitempty"`
-	Eval              evalResponse              `json:",omitempty"`
-	Get               getResponse               `json:",omitempty"`
-	Put               putResponse               `json:",omitempty"`
-	Mkdir             mkdirResponse             `json:",omitempty"`
-	Remove            removeResponse            `json:",omitempty"`
-	Ensure            ensureResponse            `json:",omitempty"`
-	ConditionalRemove conditionalRemoveResponse `json:",omitempty"`
+	Error             string `json:",omitempty"`
+	Stat              statResponse
+	Eval              evalResponse
+	Get               getResponse
+	Put               putResponse
+	Mkdir             mkdirResponse
+	Remove            removeResponse
+	Ensure            ensureResponse
+	ConditionalRemove conditionalRemoveResponse
 }
 
 // statResponse encodes a response for a single Stat request.
