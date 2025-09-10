@@ -801,7 +801,7 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 	}
 	loggedOutput := strings.TrimSuffix(errorBuffer.String(), "\n")
 	if len(loggedOutput) > 0 {
-		for _, output := range strings.Split(loggedOutput, "\n") {
+		for output := range strings.SplitSeq(loggedOutput, "\n") {
 			logrus.Debug(output)
 		}
 	}
@@ -1588,8 +1588,8 @@ func mapWithPrefixedKeysWithoutKeyPrefix[K any](m map[string]K, p string) map[st
 	}
 	cloned := make(map[string]K, len(m))
 	for k, v := range m {
-		if strings.HasPrefix(k, p) {
-			cloned[strings.TrimPrefix(k, p)] = v
+		if after, ok := strings.CutPrefix(k, p); ok {
+			cloned[after] = v
 		}
 	}
 	return cloned
@@ -1819,7 +1819,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			return fmt.Errorf("%q is not a subdirectory of %q: %w", directory, req.Root, err)
 		}
 		subdir := ""
-		for _, component := range strings.Split(rel, string(os.PathSeparator)) {
+		for component := range strings.SplitSeq(rel, string(os.PathSeparator)) {
 			subdir = filepath.Join(subdir, component)
 			path := filepath.Join(req.Root, subdir)
 			if err := os.Mkdir(path, 0o700); err == nil {
@@ -2219,7 +2219,7 @@ func copierHandlerMkdir(req request, idMappings *idtools.IDMappings) (*response,
 
 	subdir := ""
 	var created []string
-	for _, component := range strings.Split(rel, string(os.PathSeparator)) {
+	for component := range strings.SplitSeq(rel, string(os.PathSeparator)) {
 		subdir = filepath.Join(subdir, component)
 		path := filepath.Join(req.Root, subdir)
 		if err := os.Mkdir(path, 0o700); err == nil {
