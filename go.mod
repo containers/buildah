@@ -2,7 +2,7 @@ module github.com/containers/buildah
 
 // Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
 
-go 1.23.3
+go 1.24.0
 
 require (
 	github.com/containerd/platforms v1.0.0-rc.1

@@ -672,10 +672,10 @@ func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, 
 	// read the Dockerfile so that we can pull base images
 	dockerfileContent, err := os.ReadFile(dockerfileName)
 	require.NoErrorf(t, err, "reading dockerfile %q", dockerfileName)
-	for _, line := range strings.Split(string(dockerfileContent), "\n") {
+	for line := range strings.SplitSeq(string(dockerfileContent), "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# syntax=") {
-			pullImageIfMissing(t, client, strings.TrimPrefix(line, "# syntax="))
+		if after, ok := strings.CutPrefix(line, "# syntax="); ok {
+			pullImageIfMissing(t, client, after)
 		}
 	}
 	parsed, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfileContent))
@@ -880,7 +880,7 @@ func buildPost(t *testing.T, test testCase, err error, buildTool, outputString, 
 // FSTree holds the information we have about an image's filesystem
 type FSTree struct {
 	Layers []Layer `json:"layers,omitempty"`
-	Tree   FSEntry `json:"tree,omitempty"`
+	Tree   FSEntry `json:"tree"`
 }
 
 // Layer keeps track of the digests and contents of a layer blob
@@ -900,7 +900,7 @@ type FSHeader struct {
 	Mode     int64             `json:"mode,omitempty"`
 	UID      int               `json:"uid"`
 	GID      int               `json:"gid"`
-	ModTime  time.Time         `json:"mtime,omitempty"`
+	ModTime  time.Time         `json:"mtime"`
 	Devmajor int64             `json:"devmajor,omitempty"`
 	Devminor int64             `json:"devminor,omitempty"`
 	Xattrs   map[string]string `json:"xattrs,omitempty"`
@@ -1131,8 +1131,8 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 		}
 		// if the item is a whiteout, strip the "this is a whiteout
 		// entry" prefix and remove the item it names
-		if strings.HasPrefix(base, ".wh.") {
-			delete(dirEntry.Children, strings.TrimPrefix(base, ".wh."))
+		if after, ok := strings.CutPrefix(base, ".wh."); ok {
+			delete(dirEntry.Children, after)
 			continue
 		}
 		// if the item already exists, make sure we don't get confused
@@ -1281,8 +1281,8 @@ func compareJSON(a, b map[string]any, skip []string) (missKeys, leftKeys, diffKe
 			var nextSkip []string
 			prefix := k + ":"
 			for _, s := range skip {
-				if strings.HasPrefix(s, prefix) {
-					nextSkip = append(nextSkip, strings.TrimPrefix(s, prefix))
+				if after, ok0 := strings.CutPrefix(s, prefix); ok0 {
+					nextSkip = append(nextSkip, after)
 				}
 			}
 			submiss, subleft, subdiff, ok := compareJSON(v.(map[string]any), vb.(map[string]any), nextSkip)
