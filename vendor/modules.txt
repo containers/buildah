@@ -135,9 +135,7 @@ github.com/docker/docker/api/types/volume
 github.com/docker/docker/client
 github.com/docker/docker/internal/lazyregexp
 github.com/docker/docker/internal/multierror
-github.com/docker/docker/pkg/archive
 github.com/docker/docker/pkg/homedir
-github.com/docker/docker/pkg/idtools
 github.com/docker/docker/pkg/jsonmessage
 github.com/docker/docker/pkg/stdcopy
 # github.com/docker/docker-credential-helpers v0.9.3
@@ -159,8 +157,8 @@ github.com/felixge/httpsnoop
 ## explicit; go 1.17
 github.com/fsnotify/fsnotify
 github.com/fsnotify/fsnotify/internal
-# github.com/fsouza/go-dockerclient v1.12.1
-## explicit; go 1.23
+# github.com/fsouza/go-dockerclient v1.12.2
+## explicit; go 1.24.0
 github.com/fsouza/go-dockerclient
 # github.com/go-jose/go-jose/v4 v4.0.5
 ## explicit; go 1.21
