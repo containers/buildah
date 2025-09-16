@@ -11,7 +11,7 @@ import (
 )
 
 // These are additional predefined layouts for use in Time.Format and Time.Parse
-// with --since and --until parameters for `docker logs` and `docker events`
+// with --since and --until parameters for `docker logs` and `docker events`.
 const (
 	rFC3339Local     = "2006-01-02T15:04:05"           // RFC3339 with local timezone
 	rFC3339NanoLocal = "2006-01-02T15:04:05.999999999" // RFC3339Nano with local timezone
@@ -108,7 +108,7 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 //	seconds, nanoseconds, err := ParseTimestamp("1136073600.000000001",0)
 //	if err == nil since := time.Unix(seconds, nanoseconds)
 //
-// returns seconds as def(aultSeconds) if value == ""
+// returns seconds as def(aultSeconds) if value == "".
 func ParseTimestamps(value string, def int64) (secs, nanoSecs int64, err error) {
 	if value == "" {
 		return def, 0, nil
@@ -117,19 +117,19 @@ func ParseTimestamps(value string, def int64) (secs, nanoSecs int64, err error) 
 }
 
 func parseTimestamp(value string) (int64, int64, error) {
-	sa := strings.SplitN(value, ".", 2)
-	s, err := strconv.ParseInt(sa[0], 10, 64)
+	secStr, nsStr, ok := strings.Cut(value, ".")
+	s, err := strconv.ParseInt(secStr, 10, 64)
 	if err != nil {
 		return s, 0, err
 	}
-	if len(sa) != 2 {
+	if !ok {
 		return s, 0, nil
 	}
-	n, err := strconv.ParseInt(sa[1], 10, 64)
+	n, err := strconv.ParseInt(nsStr, 10, 64)
 	if err != nil {
 		return s, n, err
 	}
 	// should already be in nanoseconds but just in case convert n to nanoseconds
-	n = int64(float64(n) * math.Pow(float64(10), float64(9-len(sa[1]))))
+	n = int64(float64(n) * math.Pow(float64(10), float64(9-len(nsStr))))
 	return s, n, nil
 }
