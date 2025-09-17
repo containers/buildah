@@ -15,44 +15,44 @@ import (
 )
 
 const (
-	// JSONString const to save on duplicate variable names
+	// JSONString const to save on duplicate variable names.
 	JSONString = "json"
-	// IDString const to save on duplicates for Go templates
+	// IDString const to save on duplicates for Go templates.
 	IDString = "{{.ID}}"
 
 	parsingErrorStr = "Template parsing error"
 )
 
-// Writer interface for outputs
+// Writer interface for outputs.
 type Writer interface {
 	Out() error
 }
 
-// JSONStructArray for JSON output
+// JSONStructArray for JSON output.
 type JSONStructArray struct {
 	Output []any
 }
 
-// StdoutTemplateArray for Go template output
+// StdoutTemplateArray for Go template output.
 type StdoutTemplateArray struct {
 	Output   []any
 	Template string
 	Fields   map[string]string
 }
 
-// JSONStruct for JSON output
+// JSONStruct for JSON output.
 type JSONStruct struct {
 	Output any
 }
 
-// StdoutTemplate for Go template output
+// StdoutTemplate for Go template output.
 type StdoutTemplate struct {
 	Output   any
 	Template string
 	Fields   map[string]string
 }
 
-// YAMLStruct for YAML output
+// YAMLStruct for YAML output.
 type YAMLStruct struct {
 	Output any
 }
@@ -66,7 +66,7 @@ func setJSONFormatEncoder(isTerminal bool, w io.Writer) *json.Encoder {
 	return enc
 }
 
-// Out method for JSON Arrays
+// Out method for JSON Arrays.
 func (j JSONStructArray) Out() error {
 	buf := bytes.NewBuffer(nil)
 	enc := setJSONFormatEncoder(terminal.IsTerminal(int(os.Stdout.Fd())), buf)
@@ -89,7 +89,7 @@ func (j JSONStructArray) Out() error {
 	return nil
 }
 
-// Out method for Go templates
+// Out method for Go templates.
 func (t StdoutTemplateArray) Out() error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	if strings.HasPrefix(t.Template, "table") {
@@ -120,7 +120,7 @@ func (t StdoutTemplateArray) Out() error {
 	return w.Flush()
 }
 
-// Out method for JSON struct
+// Out method for JSON struct.
 func (j JSONStruct) Out() error {
 	data, err := json.MarshalIndent(j.Output, "", "    ")
 	if err != nil {
@@ -131,7 +131,7 @@ func (j JSONStruct) Out() error {
 	return nil
 }
 
-// Out method for Go templates
+// Out method for Go templates.
 func (t StdoutTemplate) Out() error {
 	tmpl, err := template.New("image").Parse(t.Template)
 	if err != nil {
@@ -145,7 +145,7 @@ func (t StdoutTemplate) Out() error {
 	return nil
 }
 
-// Out method for YAML
+// Out method for YAML.
 func (y YAMLStruct) Out() error {
 	var buf []byte
 	var err error
@@ -158,7 +158,7 @@ func (y YAMLStruct) Out() error {
 	return nil
 }
 
-// humanNewLine prints a new line at the end of the output only if stdout is the terminal
+// humanNewLine prints a new line at the end of the output only if stdout is the terminal.
 func humanNewLine() {
 	if terminal.IsTerminal(int(os.Stdout.Fd())) {
 		fmt.Println() //nolint:forbidigo

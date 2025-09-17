@@ -61,7 +61,7 @@ func NewParse(tag, format string) (*template.Template, error) {
 	return template.New(tag).Funcs(basicFunctions).Parse(format)
 }
 
-// padWithSpace adds whitespace to the input if the input is non-empty
+// padWithSpace adds whitespace to the input if the input is non-empty.
 func padWithSpace(source string, prefix, suffix int) string {
 	if source == "" {
 		return source
@@ -69,7 +69,7 @@ func padWithSpace(source string, prefix, suffix int) string {
 	return strings.Repeat(" ", prefix) + source + strings.Repeat(" ", suffix)
 }
 
-// truncateWithLength truncates the source string up to the length provided by the input
+// truncateWithLength truncates the source string up to the length provided by the input.
 func truncateWithLength(source string, length int) string {
 	if len(source) < length {
 		return source
