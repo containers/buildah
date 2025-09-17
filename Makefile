@@ -8,7 +8,7 @@ ifeq ($(shell uname -s),FreeBSD)
 # FreeBSD needs CNI until netavark is supported
 TAGS += cni
 endif
-BUILDTAGS += $(TAGS)
+BUILDTAGS += $(TAGS) $(EXTRA_BUILD_TAGS)
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR = $(PREFIX)/share/bash-completion/completions
