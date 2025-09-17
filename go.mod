@@ -34,9 +34,9 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
-	go.podman.io/common v0.0.0-20250826054041-6e4bed3c9118
-	go.podman.io/image/v5 v5.36.1-0.20250820085751-a13b38f45723
-	go.podman.io/storage v1.59.1-0.20250820085751-a13b38f45723
+	go.podman.io/common v0.65.0
+	go.podman.io/image/v5 v5.37.0
+	go.podman.io/storage v1.60.0
 	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
 	golang.org/x/sys v0.36.0
@@ -119,7 +119,6 @@ require (
 	github.com/vbauerster/mpb/v8 v8.10.2 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
@@ -132,7 +131,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	google.golang.org/grpc v1.72.2 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
