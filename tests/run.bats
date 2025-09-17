@@ -981,14 +981,14 @@ _EOF
 
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	for mask in /proc/acpi /proc/kcore /proc/keys /proc/latency_stats /proc/sched_debug /proc/scsi /proc/timer_list /proc/timer_stats /sys/devices/virtual/powercap /sys/firmware /sys/fs/selinux; do
-	        if test -d $mask; then
-		   run_buildah run $cid ls $mask
-		   expect_output "" "Directories should be empty"
+	for mask in /proc/acpi /proc/interrupts /proc/kcore /proc/keys /proc/latency_stats /proc/sched_debug /proc/scsi /proc/timer_list /proc/timer_stats /sys/devices/virtual/powercap /sys/firmware /sys/fs/selinux; do
+		if test -d $mask; then
+			run_buildah run $cid sh -c "echo $mask/*" # globbing will fail whether it's simply unreadable, or readable but empty
+			expect_output "$mask/*" "Directories should be empty"
 		fi
 		if test -f $mask; then
-		   run_buildah run $cid cat $mask
-		   expect_output "" "Directories should be empty"
+			run_buildah run $cid cat $mask
+			expect_output "" "Directories should be empty"
 		fi
 	done
 }
