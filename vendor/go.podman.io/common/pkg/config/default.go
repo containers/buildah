@@ -33,7 +33,7 @@ const (
 	// _defaultImageVolumeMode is a mode to handle built-in image volumes.
 	_defaultImageVolumeMode = "anonymous"
 
-	// defaultInitName is the default name of the init binary
+	// defaultInitName is the default name of the init binary.
 	defaultInitName = "catatonit"
 )
 
@@ -145,16 +145,6 @@ var (
 	// helper binary in a different location.
 	additionalHelperBinariesDir string
 
-	defaultUnixComposeProviders = []string{
-		"$HOME/.docker/cli-plugins/docker-compose",
-		"/usr/local/lib/docker/cli-plugins/docker-compose",
-		"/usr/local/libexec/docker/cli-plugins/docker-compose",
-		"/usr/lib/docker/cli-plugins/docker-compose",
-		"/usr/libexec/docker/cli-plugins/docker-compose",
-		"docker-compose",
-		"podman-compose",
-	}
-
 	defaultContainerEnv = []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
 )
 
@@ -210,7 +200,7 @@ const (
 	SeccompOverridePath = _etcDir + "/containers/seccomp.json"
 	// SeccompDefaultPath defines the default seccomp path.
 	SeccompDefaultPath = _installPrefix + "/share/containers/seccomp.json"
-	// DefaultVolumePluginTimeout is the default volume plugin timeout, in seconds
+	// DefaultVolumePluginTimeout is the default volume plugin timeout, in seconds.
 	DefaultVolumePluginTimeout = 5
 )
 
@@ -470,6 +460,7 @@ func defaultEngineConfig() (*EngineConfig, error) {
 			"/usr/local/bin/ocijail",
 		},
 	}
+	c.OCIRuntimesFlags = map[string][]string{}
 	c.PlatformToOCIRuntime = map[string]string{
 		"wasi/wasm":   "crun-wasm",
 		"wasi/wasm32": "crun-wasm",
@@ -625,7 +616,7 @@ func (c *Config) IPCNS() string {
 	return c.Containers.IPCNS
 }
 
-// PIDNS returns the default PID Namespace configuration to run containers with.
+// PidNS returns the default PID Namespace configuration to run containers with.
 func (c *Config) PidNS() string {
 	return c.Containers.PidNS
 }
@@ -721,7 +712,7 @@ func getDefaultSSHConfig() string {
 
 // getDefaultMachineUser returns the user to use for rootless podman
 // This is only for the apple, hyperv, and qemu implementations.
-// WSL's user will be hardcoded in podman to "user"
+// WSL's user will be hardcoded in podman to "user".
 func getDefaultMachineUser() string {
 	return "core"
 }

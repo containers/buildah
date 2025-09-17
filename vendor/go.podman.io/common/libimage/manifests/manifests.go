@@ -252,10 +252,8 @@ func (l *list) InstanceByFile(file string) (digest.Digest, error) {
 		return "", err
 	}
 	for instanceDigest, files := range l.artifacts.Files {
-		for _, file := range files {
-			if file == abs {
-				return instanceDigest, nil
-			}
+		if slices.Contains(files, abs) {
+			return instanceDigest, nil
 		}
 	}
 	return "", os.ErrNotExist
@@ -675,7 +673,7 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 // AddArtifactOptions contains options which control the contents of the
 // artifact manifest that AddArtifact will create and add to the image index.
 
-// This should provide for all of the ways to construct a manifest outlined in
+// AddArtifactOptions should provide for all of the ways to construct a manifest outlined in
 // https://github.com/opencontainers/image-spec/blob/main/manifest.md#guidelines-for-artifact-usage
 //   - no blobs ￫ set ManifestArtifactType
 //   - blobs, no configuration ￫ set ManifestArtifactType and possibly LayerMediaType, and provide file names
