@@ -16,7 +16,7 @@ then
     in_podman --rm $IN_PODMAN_NAME $0
 else
     echo "Compiling buildah (\$GOSRC=$GOSRC)"
-    showrun make clean all
+    showrun make clean all EXTRA_BUILD_TAGS="$TEST_BUILD_TAGS"
 
     echo "Installing buildah"
     mkdir -p bin
