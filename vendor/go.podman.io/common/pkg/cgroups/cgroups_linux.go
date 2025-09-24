@@ -30,9 +30,9 @@ import (
 )
 
 var (
-	// ErrCgroupDeleted means the cgroup was deleted
+	// ErrCgroupDeleted means the cgroup was deleted.
 	ErrCgroupDeleted = errors.New("cgroup deleted")
-	// ErrCgroupV1Rootless means the cgroup v1 were attempted to be used in rootless environment
+	// ErrCgroupV1Rootless means the cgroup v1 were attempted to be used in rootless environment.
 	ErrCgroupV1Rootless = errors.New("no support for CGroups V1 in rootless environments")
 	ErrStatCgroup       = errors.New("no cgroup available for gathering user statistics")
 
@@ -41,7 +41,7 @@ var (
 	isUnifiedErr  error
 )
 
-// CgroupControl controls a cgroup hierarchy
+// CgroupControl controls a cgroup hierarchy.
 type CgroupControl struct {
 	cgroup2 bool
 	config  *cgroups.Cgroup
@@ -65,17 +65,17 @@ type controllerHandler interface {
 
 const (
 	cgroupRoot = "/sys/fs/cgroup"
-	// CPU is the cpu controller
+	// CPU is the cpu controller.
 	CPU = "cpu"
-	// CPUAcct is the cpuacct controller
+	// CPUAcct is the cpuacct controller.
 	CPUAcct = "cpuacct"
-	// CPUset is the cpuset controller
+	// CPUset is the cpuset controller.
 	CPUset = "cpuset"
-	// Memory is the memory controller
+	// Memory is the memory controller.
 	Memory = "memory"
-	// Pids is the pids controller
+	// Pids is the pids controller.
 	Pids = "pids"
-	// Blkio is the blkio controller
+	// Blkio is the blkio controller.
 	Blkio = "blkio"
 )
 
@@ -91,7 +91,7 @@ func init() {
 	}
 }
 
-// getAvailableControllers get the available controllers
+// getAvailableControllers get the available controllers.
 func getAvailableControllers(exclude map[string]controllerHandler, cgroup2 bool) ([]controller, error) {
 	if cgroup2 {
 		controllers := []controller{}
@@ -111,7 +111,7 @@ func getAvailableControllers(exclude map[string]controllerHandler, cgroup2 bool)
 		if err != nil {
 			return nil, fmt.Errorf("failed while reading controllers for cgroup v2: %w", err)
 		}
-		for _, controllerName := range strings.Fields(string(controllersFileBytes)) {
+		for controllerName := range strings.FieldsSeq(string(controllersFileBytes)) {
 			c := controller{
 				name:    controllerName,
 				symlink: false,
@@ -146,7 +146,7 @@ func getAvailableControllers(exclude map[string]controllerHandler, cgroup2 bool)
 	return controllers, nil
 }
 
-// AvailableControllers get string:bool map of all the available controllers
+// AvailableControllers get string:bool map of all the available controllers.
 func AvailableControllers(exclude map[string]controllerHandler, cgroup2 bool) ([]string, error) {
 	availableControllers, err := getAvailableControllers(exclude, cgroup2)
 	if err != nil {
@@ -197,10 +197,9 @@ func getCgroupPathForCurrentProcess() (string, error) {
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		text := s.Text()
-		procEntries := strings.SplitN(text, "::", 2)
 		// set process cgroupPath only if entry is valid
-		if len(procEntries) > 1 {
-			cgroupPath = procEntries[1]
+		if _, p, ok := strings.Cut(text, "::"); ok {
+			cgroupPath = p
 		}
 	}
 	if err := s.Err(); err != nil {
@@ -209,12 +208,12 @@ func getCgroupPathForCurrentProcess() (string, error) {
 	return cgroupPath, nil
 }
 
-// getCgroupv1Path is a helper function to get the cgroup v1 path
+// getCgroupv1Path is a helper function to get the cgroup v1 path.
 func (c *CgroupControl) getCgroupv1Path(name string) string {
 	return filepath.Join(cgroupRoot, name, c.config.Path)
 }
 
-// initialize initializes the specified hierarchy
+// initialize initializes the specified hierarchy.
 func (c *CgroupControl) initialize() (err error) {
 	createdSoFar := map[string]controllerHandler{}
 	defer func() {
@@ -278,10 +277,10 @@ func readFileByKeyAsUint64(path, key string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	for _, line := range strings.Split(string(content), "\n") {
-		fields := strings.SplitN(line, " ", 2)
-		if fields[0] == key {
-			v := cleanString(fields[1])
+	for line := range strings.SplitSeq(string(content), "\n") {
+		k, v, _ := strings.Cut(line, " ")
+		if k == key {
+			v := cleanString(v)
 			if v == "max" {
 				return math.MaxUint64, nil
 			}
@@ -296,7 +295,7 @@ func readFileByKeyAsUint64(path, key string) (uint64, error) {
 	return 0, fmt.Errorf("no key named %s from %s", key, path)
 }
 
-// New creates a new cgroup control
+// New creates a new cgroup control.
 func New(path string, resources *cgroups.Resources) (*CgroupControl, error) {
 	cgroup2, err := IsCgroup2UnifiedMode()
 	if err != nil {
@@ -325,7 +324,7 @@ func New(path string, resources *cgroups.Resources) (*CgroupControl, error) {
 	return control, nil
 }
 
-// NewSystemd creates a new cgroup control
+// NewSystemd creates a new cgroup control.
 func NewSystemd(path string, resources *cgroups.Resources) (*CgroupControl, error) {
 	cgroup2, err := IsCgroup2UnifiedMode()
 	if err != nil {
@@ -344,7 +343,7 @@ func NewSystemd(path string, resources *cgroups.Resources) (*CgroupControl, erro
 	return control, nil
 }
 
-// Load loads an existing cgroup control
+// Load loads an existing cgroup control.
 func Load(path string) (*CgroupControl, error) {
 	cgroup2, err := IsCgroup2UnifiedMode()
 	if err != nil {
@@ -388,7 +387,7 @@ func Load(path string) (*CgroupControl, error) {
 	return control, nil
 }
 
-// CreateSystemdUnit creates the systemd cgroup
+// CreateSystemdUnit creates the systemd cgroup.
 func (c *CgroupControl) CreateSystemdUnit(path string) error {
 	if !c.systemd {
 		return errors.New("the cgroup controller is not using systemd")
@@ -403,7 +402,7 @@ func (c *CgroupControl) CreateSystemdUnit(path string) error {
 	return systemdCreate(c.config.Resources, path, conn)
 }
 
-// CreateSystemdUserUnit creates the systemd cgroup for the specified user
+// CreateSystemdUserUnit creates the systemd cgroup for the specified user.
 func (c *CgroupControl) CreateSystemdUserUnit(path string, uid int) error {
 	if !c.systemd {
 		return errors.New("the cgroup controller is not using systemd")
@@ -438,7 +437,7 @@ func dbusAuthConnection(uid int, createBus func(opts ...dbus.ConnOption) (*dbus.
 	return conn, nil
 }
 
-// Delete cleans a cgroup
+// Delete cleans a cgroup.
 func (c *CgroupControl) Delete() error {
 	return c.DeleteByPath(c.config.Path)
 }
@@ -471,7 +470,7 @@ func (c *CgroupControl) DeleteByPathConn(path string, conn *systemdDbus.Conn) er
 	return lastError
 }
 
-// DeleteByPath deletes the specified cgroup path
+// DeleteByPath deletes the specified cgroup path.
 func (c *CgroupControl) DeleteByPath(path string) error {
 	if c.systemd {
 		conn, err := systemdDbus.NewWithContext(context.TODO())
@@ -484,7 +483,7 @@ func (c *CgroupControl) DeleteByPath(path string) error {
 	return c.DeleteByPathConn(path, nil)
 }
 
-// Update updates the cgroups
+// Update updates the cgroups.
 func (c *CgroupControl) Update(resources *cgroups.Resources) error {
 	for _, h := range handlers {
 		if err := h.Apply(c, resources); err != nil {
@@ -494,7 +493,7 @@ func (c *CgroupControl) Update(resources *cgroups.Resources) error {
 	return nil
 }
 
-// AddPid moves the specified pid to the cgroup
+// AddPid moves the specified pid to the cgroup.
 func (c *CgroupControl) AddPid(pid int) error {
 	pidString := []byte(fmt.Sprintf("%d\n", pid))
 
@@ -524,7 +523,7 @@ func (c *CgroupControl) AddPid(pid int) error {
 	return nil
 }
 
-// Stat returns usage statistics for the cgroup
+// Stat returns usage statistics for the cgroup.
 func (c *CgroupControl) Stat() (*cgroups.Stats, error) {
 	m := cgroups.Stats{}
 	found := false
@@ -684,7 +683,7 @@ func readAcctList(ctr *CgroupControl, name string) ([]uint64, error) {
 		return nil, err
 	}
 	r := []uint64{}
-	for _, s := range strings.Split(string(data), " ") {
+	for s := range strings.SplitSeq(string(data), " ") {
 		s = cleanString(s)
 		if s == "" {
 			break
@@ -738,7 +737,7 @@ func cpusetCopyFileFromParent(dir, file string, cgroupv2 bool) ([]byte, error) {
 	return data, nil
 }
 
-// SystemCPUUsage returns the system usage for all the cgroups
+// SystemCPUUsage returns the system usage for all the cgroups.
 func SystemCPUUsage() (uint64, error) {
 	cgroupv2, err := IsCgroup2UnifiedMode()
 	if err != nil {
@@ -789,7 +788,7 @@ func IsCgroup2UnifiedMode() (bool, error) {
 	return isUnified, isUnifiedErr
 }
 
-// UserConnection returns an user connection to D-BUS
+// UserConnection returns an user connection to D-BUS.
 func UserConnection(uid int) (*systemdDbus.Conn, error) {
 	return systemdDbus.NewConnection(func() (*dbus.Conn, error) {
 		return dbusAuthConnection(uid, dbus.SessionBusPrivateNoAutoStartup)
@@ -874,7 +873,7 @@ func rmDirRecursively(path string) error {
 		}
 		// kill all the processes that are still part of the cgroup
 		if procs, err := os.ReadFile(filepath.Join(path, "cgroup.procs")); err == nil {
-			for _, pidS := range strings.Split(string(procs), "\n") {
+			for pidS := range strings.SplitSeq(string(procs), "\n") {
 				if pid, err := strconv.Atoi(pidS); err == nil {
 					_ = unix.Kill(pid, signal)
 				}

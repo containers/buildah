@@ -233,8 +233,7 @@ func parseCredentialsKey(arg string, acceptRepositories bool) (key, registry str
 		return "", "", err
 	}
 
-	split := strings.Split(key, "/")
-	registry = split[0]
+	registry, _, _ = strings.Cut(key, "/")
 
 	if !acceptRepositories {
 		return registry, registry, nil
@@ -320,7 +319,7 @@ func getUserAndPass(opts *LoginOptions, password, userFromAuthFile string) (user
 	return strings.TrimSpace(username), password, err
 }
 
-// Logout implements a “log out” command with the provided opts and args
+// Logout implements a “log out” command with the provided opts and args.
 func Logout(systemContext *types.SystemContext, opts *LogoutOptions, args []string) error {
 	if err := CheckAuthFile(opts.AuthFile); err != nil {
 		return err
@@ -390,7 +389,7 @@ func Logout(systemContext *types.SystemContext, opts *LogoutOptions, args []stri
 }
 
 // defaultRegistryWhenUnspecified returns first registry from search list of registry.conf
-// used by login/logout when registry argument is not specified
+// used by login/logout when registry argument is not specified.
 func defaultRegistryWhenUnspecified(systemContext *types.SystemContext) (string, error) {
 	registriesFromFile, err := sysregistriesv2.UnqualifiedSearchRegistries(systemContext)
 	if err != nil {

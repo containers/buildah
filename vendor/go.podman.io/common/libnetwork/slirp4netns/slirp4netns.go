@@ -124,11 +124,10 @@ func parseNetworkOptions(config *config.Config, extraOptions []string) (*network
 		enableIPv6:          true,
 	}
 	for _, o := range options {
-		parts := strings.SplitN(o, "=", 2)
-		if len(parts) < 2 {
+		option, value, ok := strings.Cut(o, "=")
+		if !ok {
 			return nil, fmt.Errorf("unknown option for slirp4netns: %q", o)
 		}
-		option, value := parts[0], parts[1]
 		switch option {
 		case "cidr":
 			ipv4, _, err := net.ParseCIDR(value)
@@ -426,7 +425,7 @@ func Setup(opts *SetupOptions) (*SetupResult, error) {
 	}, nil
 }
 
-// Get expected slirp ipv4 address based on subnet. If subnet is null use default subnet
+// GetIP returns the slirp ipv4 address based on subnet. If subnet is null use default subnet.
 // Reference: https://github.com/rootless-containers/slirp4netns/blob/master/slirp4netns.1.md#description
 func GetIP(subnet *net.IPNet) (*net.IP, error) {
 	_, slirpSubnet, _ := net.ParseCIDR(defaultSubnet)
@@ -440,7 +439,7 @@ func GetIP(subnet *net.IPNet) (*net.IP, error) {
 	return expectedIP, nil
 }
 
-// Get expected slirp Gateway ipv4 address based on subnet
+// GetGateway returns the slirp gateway ipv4 address based on subnet.
 // Reference: https://github.com/rootless-containers/slirp4netns/blob/master/slirp4netns.1.md#description
 func GetGateway(subnet *net.IPNet) (*net.IP, error) {
 	_, slirpSubnet, _ := net.ParseCIDR(defaultSubnet)
@@ -454,7 +453,7 @@ func GetGateway(subnet *net.IPNet) (*net.IP, error) {
 	return expectedGatewayIP, nil
 }
 
-// Get expected slirp DNS ipv4 address based on subnet
+// GetDNS returns slirp DNS ipv4 address based on subnet.
 // Reference: https://github.com/rootless-containers/slirp4netns/blob/master/slirp4netns.1.md#description
 func GetDNS(subnet *net.IPNet) (*net.IP, error) {
 	_, slirpSubnet, _ := net.ParseCIDR(defaultSubnet)
@@ -639,8 +638,7 @@ func setupRootlessPortMappingViaSlirp(ports []types.PortMapping, cmd *exec.Cmd, 
 	// for each port we want to add we need to open a connection to the slirp4netns control socket
 	// and send the add_hostfwd command.
 	for _, port := range ports {
-		protocols := strings.Split(port.Protocol, ",")
-		for _, protocol := range protocols {
+		for protocol := range strings.SplitSeq(port.Protocol, ",") {
 			hostIP := port.HostIP
 			if hostIP == "" {
 				hostIP = "0.0.0.0"
@@ -656,7 +654,7 @@ func setupRootlessPortMappingViaSlirp(ports []types.PortMapping, cmd *exec.Cmd, 
 	return nil
 }
 
-// openSlirp4netnsPort sends the slirp4netns pai quey to the given socket
+// openSlirp4netnsPort sends the slirp4netns pai quey to the given socket.
 func openSlirp4netnsPort(apiSocket, proto, hostip string, hostport, guestport uint16) error {
 	conn, err := net.Dial("unix", apiSocket)
 	if err != nil {
