@@ -16,8 +16,10 @@ import (
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.podman.io/image/v5/internal/imagesource/impl"
 	"go.podman.io/image/v5/internal/imagesource/stubs"
-	"go.podman.io/image/v5/internal/manifest"
+	"go.podman.io/image/v5/internal/iolimits"
 	"go.podman.io/image/v5/internal/private"
+	"go.podman.io/image/v5/internal/signature"
+	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/pkg/tlsclientconfig"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/fileutils"
@@ -37,7 +39,6 @@ func (e ImageNotFoundError) Error() string {
 type ociImageSource struct {
 	impl.Compat
 	impl.PropertyMethodsInitialize
-	impl.NoSignatures
 	impl.DoesNotAffectLayerInfosForCopy
 	stubs.NoGetBlobAtInitialize
 
@@ -158,20 +159,7 @@ func (s *ociImageSource) GetBlob(ctx context.Context, info types.BlobInfo, cache
 		}
 	}
 
-	path, err := s.ref.blobPath(info.Digest, s.sharedBlobDir)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	r, err := os.Open(path)
-	if err != nil {
-		return nil, 0, err
-	}
-	fi, err := r.Stat()
-	if err != nil {
-		return nil, 0, err
-	}
-	return r, fi.Size(), nil
+	return s.ref.getBlob(info.Digest, s.sharedBlobDir)
 }
 
 // getExternalBlob returns the reader of the first available blob URL from urls, which must not be empty.
@@ -245,4 +233,31 @@ func GetLocalBlobPath(ctx context.Context, src types.ImageSource, digest digest.
 	}
 
 	return path, nil
+}
+
+func (s *ociImageSource) GetSignaturesWithFormat(ctx context.Context, instanceDigest *digest.Digest) ([]signature.Signature, error) {
+	if instanceDigest == nil {
+		instanceDigest = &s.descriptor.Digest
+	}
+
+	ociManifest, _, err := s.ref.getSigstoreAttachmentManifest(*instanceDigest, s.index, s.sharedBlobDir)
+	if err != nil {
+		return nil, err
+	}
+	if ociManifest == nil {
+		// No signature found
+		return nil, nil
+	}
+
+	signatures := make([]signature.Signature, 0, len(ociManifest.Layers))
+	for _, layer := range ociManifest.Layers {
+		// Note that this copies all kinds of attachments: attestations, and whatever else is there,
+		// not just signatures. We leave the signature consumers to decide based on the MIME type.
+		payload, err := s.ref.getOCIDescriptorContents(layer.Digest, iolimits.MaxSignatureBodySize, s.sharedBlobDir)
+		if err != nil {
+			return nil, err
+		}
+		signatures = append(signatures, signature.SigstoreFromComponents(layer.MediaType, payload, layer.Annotations))
+	}
+	return signatures, nil
 }
