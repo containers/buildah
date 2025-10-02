@@ -137,3 +137,9 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
+
+replace go.podman.io/common => github.com/DtxdF/container-libs/common v0.0.0-20251002172045-f87ef643019b
+
+replace go.podman.io/storage => github.com/DtxdF/container-libs/storage v0.0.0-20251002172045-f87ef643019b
+
+replace go.podman.io/image/v5 => github.com/DtxdF/container-libs/image/v5 v5.0.0-20251002172045-f87ef643019b
