@@ -250,8 +250,8 @@ github.com/miekg/pkcs11
 # github.com/mistifyio/go-zfs/v3 v3.0.1
 ## explicit; go 1.14
 github.com/mistifyio/go-zfs/v3
-# github.com/moby/buildkit v0.24.0
-## explicit; go 1.23.0
+# github.com/moby/buildkit v0.25.0
+## explicit; go 1.24.0
 github.com/moby/buildkit/frontend/dockerfile/command
 github.com/moby/buildkit/frontend/dockerfile/parser
 github.com/moby/buildkit/frontend/dockerfile/shell
@@ -769,7 +769,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.36.8
+# google.golang.org/protobuf v1.36.9
 ## explicit; go 1.23
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
