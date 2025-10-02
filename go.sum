@@ -51,8 +51,8 @@ github.com/containernetworking/plugins v1.8.0 h1:WjGbV/0UQyo8A4qBsAh6GaDAtu1hevx
 github.com/containernetworking/plugins v1.8.0/go.mod h1:JG3BxoJifxxHBhG3hFyxyhid7JgRVBu/wtooGEvWf1c=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
-github.com/containers/luksy v0.0.0-20250714213221-8fccf784694e h1:nrNp2M6tTNGvLVrJpgqge9GwHgsWBGp2HBKg84BdVd8=
-github.com/containers/luksy v0.0.0-20250714213221-8fccf784694e/go.mod h1:kPe8hxQEh1x1Uojxjr//MKkxK5x11sxDoY6rW905OL0=
+github.com/containers/luksy v0.0.0-20250910190358-2cf5bc928957 h1:WxixhZ0typ8o668V0V7RVCZb3lNs58UF42RbwlQ4vdE=
+github.com/containers/luksy v0.0.0-20250910190358-2cf5bc928957/go.mod h1:fGPsLPRi1etbHfe5o6sdx6ajsW810tI43uyF6ugmP/o=
 github.com/containers/ocicrypt v1.2.1 h1:0qIOTT9DoYwcKmxSt8QJt+VzMY18onl9jUXsxpVhSmM=
 github.com/containers/ocicrypt v1.2.1/go.mod h1:aD0AAqfMp0MtwqWgHM1bUwe1anx0VazI108CRrSKINQ=
 github.com/coreos/go-systemd/v22 v22.6.0 h1:aGVa/v8B7hpb0TKl0MWoAavPDmHvobFe5R5zn0bCJWo=
