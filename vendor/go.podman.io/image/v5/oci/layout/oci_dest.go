@@ -1,25 +1,32 @@
 package layout
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	imgspec "github.com/opencontainers/image-spec/specs-go"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/internal/imagedestination/impl"
 	"go.podman.io/image/v5/internal/imagedestination/stubs"
-	"go.podman.io/image/v5/internal/manifest"
+	"go.podman.io/image/v5/internal/iolimits"
 	"go.podman.io/image/v5/internal/private"
 	"go.podman.io/image/v5/internal/putblobdigest"
+	"go.podman.io/image/v5/internal/set"
+	"go.podman.io/image/v5/internal/signature"
+	"go.podman.io/image/v5/manifest"
+	"go.podman.io/image/v5/pkg/blobinfocache/none"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/fileutils"
 )
@@ -27,13 +34,17 @@ import (
 type ociImageDestination struct {
 	impl.Compat
 	impl.PropertyMethodsInitialize
+	stubs.AlwaysSupportsSignatures
 	stubs.IgnoresOriginalOCIConfig
 	stubs.NoPutBlobPartialInitialize
-	stubs.NoSignaturesInitialize
 
-	ref           ociReference
-	index         imgspecv1.Index
-	sharedBlobDir string
+	ref            ociReference
+	index          imgspecv1.Index
+	sharedBlobDir  string
+	manifestDigest digest.Digest // or "" if not yet known.
+	// blobDeleteCandidates is a set of digests which may be deleted _if_ we find no other references to them;
+	// it’s safe to optimistically include entries which may have other references
+	blobDeleteCandidates *set.Set[digest.Digest]
 }
 
 // newImageDestination returns an ImageDestination for writing to an existing directory.
@@ -75,10 +86,10 @@ func newImageDestination(sys *types.SystemContext, ref ociReference) (private.Im
 			HasThreadSafePutBlob:           true,
 		}),
 		NoPutBlobPartialInitialize: stubs.NoPutBlobPartial(ref),
-		NoSignaturesInitialize:     stubs.NoSignatures("Pushing signatures for OCI images is not supported"),
 
-		ref:   ref,
-		index: *index,
+		ref:                  ref,
+		index:                *index,
+		blobDeleteCandidates: set.New[digest.Digest](),
 	}
 	d.Compat = impl.AddCompat(d)
 	if sys != nil {
@@ -255,6 +266,9 @@ func (d *ociImageDestination) PutManifest(ctx context.Context, m []byte, instanc
 	if instanceDigest != nil {
 		return nil
 	}
+	// d.manifestDigest is used for a single image (not a manifest list).
+	// This should be placed after checking instanceDigest is nil.
+	d.manifestDigest = digest
 
 	// If we had platform information, we'd build an imgspecv1.Platform structure here.
 
@@ -312,6 +326,26 @@ func (d *ociImageDestination) CommitWithOptions(ctx context.Context, options pri
 	if err != nil {
 		return err
 	}
+	// Delete unreferenced blobs (e.g. old signature manifest and its config)
+	if !d.blobDeleteCandidates.Empty() {
+		blobsUsedInRootIndex := make(map[digest.Digest]int)
+		err = d.ref.countBlobsReferencedByIndex(blobsUsedInRootIndex, &d.index, d.sharedBlobDir)
+		if err != nil {
+			return fmt.Errorf("error counting blobs to delete: %w", err)
+		}
+		// Don't delete blobs which are referenced
+		actualBlobsToDelete := set.New[digest.Digest]()
+		for dgst := range d.blobDeleteCandidates.All() {
+			if blobsUsedInRootIndex[dgst] == 0 {
+				actualBlobsToDelete.Add(dgst)
+			}
+		}
+		err := d.ref.deleteBlobs(actualBlobsToDelete)
+		if err != nil {
+			return fmt.Errorf("error deleting blobs: %w", err)
+		}
+		d.blobDeleteCandidates = set.New[digest.Digest]()
+	}
 	if err := os.WriteFile(d.ref.ociLayoutPath(), layoutBytes, 0644); err != nil {
 		return err
 	}
@@ -320,6 +354,164 @@ func (d *ociImageDestination) CommitWithOptions(ctx context.Context, options pri
 		return err
 	}
 	return os.WriteFile(d.ref.indexPath(), indexJSON, 0644)
+}
+
+func (d *ociImageDestination) PutSignaturesWithFormat(ctx context.Context, signatures []signature.Signature, instanceDigest *digest.Digest) error {
+	if instanceDigest == nil {
+		if d.manifestDigest == "" {
+			// This shouldn’t happen, ImageDestination users are required to call PutManifest before PutSignatures
+			return errors.New("unknown manifest digest, can't add signatures")
+		}
+		instanceDigest = &d.manifestDigest
+	}
+
+	var sigstoreSignatures []signature.Sigstore
+	for _, sig := range signatures {
+		if sigstoreSig, ok := sig.(signature.Sigstore); ok {
+			sigstoreSignatures = append(sigstoreSignatures, sigstoreSig)
+		} else {
+			return errors.New("oci: layout only supports sigstore signatures")
+		}
+	}
+
+	if err := d.putSignaturesToSigstoreAttachment(ctx, sigstoreSignatures, *instanceDigest); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *ociImageDestination) putSignaturesToSigstoreAttachment(ctx context.Context, signatures []signature.Sigstore, manifestDigest digest.Digest) error {
+	var signConfig imgspecv1.Image // Most fields empty by default
+
+	signManifest, signDesc, err := d.ref.getSigstoreAttachmentManifest(manifestDigest, &d.index, d.sharedBlobDir)
+	if err != nil {
+		return err
+	}
+	if signManifest == nil {
+		signManifest = manifest.OCI1FromComponents(imgspecv1.Descriptor{
+			MediaType: imgspecv1.MediaTypeImageConfig,
+			Digest:    "", // We will fill this in later.
+			Size:      0,
+		}, nil)
+		signConfig.RootFS.Type = "layers"
+	} else {
+		logrus.Debugf("Fetching sigstore attachment config %s", signManifest.Config.Digest.String())
+		configBlob, err := d.ref.getOCIDescriptorContents(signManifest.Config.Digest, iolimits.MaxConfigBodySize, d.sharedBlobDir)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(configBlob, &signConfig); err != nil {
+			return fmt.Errorf("parsing sigstore attachment config %s in %s: %w", signManifest.Config.Digest.String(),
+				d.ref.StringWithinTransport(), err)
+		}
+		// The signature manifest and its config may be updated and unreferenced when a new config is created.
+		d.blobDeleteCandidates.Add(signDesc.Digest)
+		d.blobDeleteCandidates.Add(signManifest.Config.Digest)
+	}
+
+	desc, err := d.getDescriptor(manifestDigest)
+	if err != nil {
+		return err
+	}
+	signManifest.Subject = desc
+
+	// To make sure we can safely append to the slices of signManifest, without adding a remote dependency on the code that creates it.
+	signManifest.Layers = slices.Clone(signManifest.Layers)
+	for _, sig := range signatures {
+		mimeType := sig.UntrustedMIMEType()
+		payloadBlob := sig.UntrustedPayload()
+		annotations := sig.UntrustedAnnotations()
+
+		// Skip if the signature is already on the registry.
+		if slices.ContainsFunc(signManifest.Layers, func(layer imgspecv1.Descriptor) bool {
+			return layerMatchesSigstoreSignature(layer, mimeType, payloadBlob, annotations)
+		}) {
+			continue
+		}
+
+		signDesc, err := d.putBlobBytesAsOCI(ctx, payloadBlob, mimeType, private.PutBlobOptions{
+			Cache:      none.NoCache,
+			IsConfig:   false,
+			EmptyLayer: false,
+			LayerIndex: nil,
+		})
+		if err != nil {
+			return err
+		}
+		signDesc.Annotations = annotations
+		signManifest.Layers = append(signManifest.Layers, signDesc)
+		signConfig.RootFS.DiffIDs = append(signConfig.RootFS.DiffIDs, signDesc.Digest)
+		logrus.Debugf("Adding new signature, digest %s", signDesc.Digest.String())
+	}
+
+	configBlob, err := json.Marshal(signConfig)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("Creating updated sigstore attachment config")
+	configDesc, err := d.putBlobBytesAsOCI(ctx, configBlob, imgspecv1.MediaTypeImageConfig, private.PutBlobOptions{
+		Cache:      none.NoCache,
+		IsConfig:   true,
+		EmptyLayer: false,
+		LayerIndex: nil,
+	})
+	if err != nil {
+		return err
+	}
+
+	signManifest.Config = configDesc
+	signManifestBlob, err := signManifest.Serialize()
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("Creating sigstore attachment manifest")
+	signDigest := digest.FromBytes(signManifestBlob)
+	if err = d.PutManifest(ctx, signManifestBlob, &signDigest); err != nil {
+		return err
+	}
+	signTag, err := sigstoreAttachmentTag(manifestDigest)
+	if err != nil {
+		return err
+	}
+	d.addManifest(&imgspecv1.Descriptor{
+		MediaType: signManifest.MediaType,
+		Digest:    signDigest,
+		Size:      int64(len(signManifestBlob)),
+		Annotations: map[string]string{
+			imgspecv1.AnnotationRefName: signTag,
+		},
+	})
+	return nil
+}
+
+func (d *ociImageDestination) getDescriptor(digest digest.Digest) (*imgspecv1.Descriptor, error) {
+	for _, desc := range d.index.Manifests {
+		if desc.Digest == digest {
+			return &desc, nil
+		}
+	}
+	return nil, fmt.Errorf("manifest %s not found in index", digest.String())
+}
+
+// putBlobBytesAsOCI uploads a blob with the specified contents, and returns an appropriate
+// OCI descriptor.
+func (d *ociImageDestination) putBlobBytesAsOCI(ctx context.Context, contents []byte, mimeType string, options private.PutBlobOptions) (imgspecv1.Descriptor, error) {
+	blobDigest := digest.FromBytes(contents)
+	info, err := d.PutBlobWithOptions(ctx, bytes.NewReader(contents),
+		types.BlobInfo{
+			Digest:    blobDigest,
+			Size:      int64(len(contents)),
+			MediaType: mimeType,
+		}, options)
+	if err != nil {
+		return imgspecv1.Descriptor{}, fmt.Errorf("writing blob %s: %w", blobDigest.String(), err)
+	}
+	return imgspecv1.Descriptor{
+		MediaType: mimeType,
+		Digest:    info.Digest,
+		Size:      info.Size,
+	}, nil
 }
 
 // PutBlobFromLocalFileOption is unused but may receive functionality in the future.
@@ -408,6 +600,21 @@ func indexExists(ref ociReference) bool {
 		return true
 	}
 	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
+func layerMatchesSigstoreSignature(layer imgspecv1.Descriptor, mimeType string,
+	payloadBlob []byte, annotations map[string]string) bool {
+	if layer.MediaType != mimeType ||
+		layer.Size != int64(len(payloadBlob)) ||
+		// This is not quite correct, we should use the layer’s digest algorithm.
+		// But right now we don’t want to deal with corner cases like bad digest formats
+		// or unavailable algorithms; in the worst case we end up with duplicate signature
+		// entries.
+		layer.Digest.String() != digest.FromBytes(payloadBlob).String() ||
+		!maps.Equal(layer.Annotations, annotations) {
 		return false
 	}
 	return true
