@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/internal/private"
 	"go.podman.io/image/v5/internal/unparsedimage"
+	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
 )
 
@@ -65,6 +66,9 @@ type PolicyRequirement interface {
 	// WARNING: This validates signatures and the manifest, but does not download or validate the
 	// layers. Users must validate that the layers match their expected digests.
 	isRunningImageAllowed(ctx context.Context, image private.UnparsedImage) (bool, error)
+
+	// isInsecure returns true if the requirement allows images without any signatures.
+	isInsecure() bool
 }
 
 // PolicyReferenceMatch specifies a set of image identities accepted in PolicyRequirement.
@@ -79,8 +83,9 @@ type PolicyReferenceMatch interface {
 // PolicyContext encapsulates a policy and possible cached state
 // for speeding up its evaluation.
 type PolicyContext struct {
-	Policy *Policy
-	state  policyContextState // Internal consistency checking
+	Policy         *Policy
+	state          policyContextState // Internal consistency checking
+	rejectInsecure bool
 }
 
 // policyContextState is used internally to verify the users are not misusing a PolicyContext.
@@ -130,6 +135,13 @@ func (pc *PolicyContext) Destroy() error {
 // ONLY use this for log messages, not for any decisions!
 func policyIdentityLogName(ref types.ImageReference) string {
 	return ref.Transport().Name() + ":" + ref.PolicyConfigurationIdentity()
+}
+
+// SetRejectInsecure modifies insecure policy requirement handling. If
+// passed `true`, policy checking by IsRunningImageAllowed will ignore the
+// "insecureAcceptAnything" policy type.
+func (pc *PolicyContext) SetRejectInsecure(val bool) {
+	pc.rejectInsecure = val
 }
 
 // requirementsForImageRef selects the appropriate requirements for ref.
@@ -278,6 +290,7 @@ func (pc *PolicyContext) IsRunningImageAllowed(ctx context.Context, publicImage 
 		return false, PolicyRequirementError("List of verification policy requirements must not be empty")
 	}
 
+	wasSecure := false
 	for reqNumber, req := range reqs {
 		// FIXME: supply state
 		allowed, err := req.isRunningImageAllowed(ctx, image)
@@ -286,7 +299,15 @@ func (pc *PolicyContext) IsRunningImageAllowed(ctx context.Context, publicImage 
 			return false, err
 		}
 		logrus.Debugf(" Requirement %d: allowed", reqNumber)
+		if !req.isInsecure() {
+			wasSecure = true
+		}
 	}
+
+	if pc.rejectInsecure && !wasSecure {
+		return false, PolicyRequirementError(fmt.Sprintf("No secure policy found for image %s.", transports.ImageName(image.Reference())))
+	}
+
 	// We have tested that len(reqs) != 0, so at least one req must have explicitly allowed this image.
 	logrus.Debugf("Overall: allowed")
 	return true, nil
