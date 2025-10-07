@@ -17,7 +17,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.12.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
-	github.com/moby/buildkit v0.25.0
+	github.com/moby/buildkit v0.25.1
 	github.com/moby/sys/capability v0.4.0
 	github.com/moby/sys/userns v0.1.0
 	github.com/opencontainers/cgroups v0.0.5
