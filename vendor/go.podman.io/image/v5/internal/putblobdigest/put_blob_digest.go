@@ -5,6 +5,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"go.podman.io/image/v5/types"
+	supportedDigests "go.podman.io/storage/pkg/supported-digests"
 )
 
 // Digester computes a digest of the provided stream, if not known yet.
@@ -13,7 +14,7 @@ type Digester struct {
 	digester    digest.Digester // Or nil
 }
 
-// newDigester initiates computation of a digest.Canonical digest of stream,
+// newDigester initiates computation of a digest (using the configured algorithm) of stream,
 // if !validDigest; otherwise it just records knownDigest to be returned later.
 // The caller MUST use the returned stream instead of the original value.
 func newDigester(stream io.Reader, knownDigest digest.Digest, validDigest bool) (Digester, io.Reader) {
@@ -21,7 +22,7 @@ func newDigester(stream io.Reader, knownDigest digest.Digest, validDigest bool) 
 		return Digester{knownDigest: knownDigest}, stream
 	} else {
 		res := Digester{
-			digester: digest.Canonical.Digester(),
+			digester: supportedDigests.TmpDigestForNewObjects().Digester(),
 		}
 		stream = io.TeeReader(stream, res.digester.Hash())
 		return res, stream
@@ -37,13 +38,14 @@ func DigestIfUnknown(stream io.Reader, blobInfo types.BlobInfo) (Digester, io.Re
 	return newDigester(stream, d, d != "")
 }
 
-// DigestIfCanonicalUnknown initiates computation of a digest.Canonical digest of stream,
-// if a digest.Canonical digest is not supplied in the provided blobInfo;
+// DigestIfConfiguredUnknown initiates computation of a digest (using the configured algorithm) of stream,
+// if a digest with the configured algorithm is not supplied in the provided blobInfo;
 // otherwise blobInfo.Digest will be used.
 // The caller MUST use the returned stream instead of the original value.
-func DigestIfCanonicalUnknown(stream io.Reader, blobInfo types.BlobInfo) (Digester, io.Reader) {
+func DigestIfConfiguredUnknown(stream io.Reader, blobInfo types.BlobInfo) (Digester, io.Reader) {
 	d := blobInfo.Digest
-	return newDigester(stream, d, d != "" && d.Algorithm() == digest.Canonical)
+	configuredAlgorithm := supportedDigests.TmpDigestForNewObjects()
+	return newDigester(stream, d, d != "" && d.Algorithm() == configuredAlgorithm)
 }
 
 // Digest() returns a digest value possibly computed by Digester.

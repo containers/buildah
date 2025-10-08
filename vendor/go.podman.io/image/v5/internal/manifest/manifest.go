@@ -8,6 +8,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	compressiontypes "go.podman.io/image/v5/pkg/compression/types"
+	supportedDigests "go.podman.io/storage/pkg/supported-digests"
 )
 
 // FIXME: Should we just use docker/distribution and docker/docker implementations directly?
@@ -123,7 +124,7 @@ func Digest(manifest []byte) (digest.Digest, error) {
 		}
 	}
 
-	return digest.FromBytes(manifest), nil
+	return supportedDigests.TmpDigestForNewObjects().FromBytes(manifest), nil
 }
 
 // MatchesDigest returns true iff the manifest matches expectedDigest.

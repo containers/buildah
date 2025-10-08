@@ -134,7 +134,7 @@ func (d *ociImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 		}
 	}()
 
-	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, inputInfo)
+	digester, stream := putblobdigest.DigestIfConfiguredUnknown(stream, inputInfo)
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
 	if err != nil {

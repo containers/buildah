@@ -23,7 +23,7 @@ func ComputeBlobInfo(sys *types.SystemContext, stream io.Reader, inputInfo *type
 		diskBlob.Close()
 		os.Remove(diskBlob.Name())
 	}
-	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, *inputInfo)
+	digester, stream := putblobdigest.DigestIfConfiguredUnknown(stream, *inputInfo)
 	written, err := io.Copy(diskBlob, stream)
 	if err != nil {
 		cleanup()

@@ -136,7 +136,7 @@ github.com/docker/docker/client
 github.com/docker/docker/pkg/homedir
 github.com/docker/docker/pkg/jsonmessage
 github.com/docker/docker/pkg/stdcopy
-# github.com/docker/docker-credential-helpers v0.9.3
+# github.com/docker/docker-credential-helpers v0.9.4
 ## explicit; go 1.21
 github.com/docker/docker-credential-helpers/client
 github.com/docker/docker-credential-helpers/credentials
@@ -247,7 +247,7 @@ github.com/mattn/go-sqlite3
 # github.com/miekg/pkcs11 v1.1.1
 ## explicit; go 1.12
 github.com/miekg/pkcs11
-# github.com/mistifyio/go-zfs/v3 v3.0.1
+# github.com/mistifyio/go-zfs/v3 v3.1.0
 ## explicit; go 1.14
 github.com/mistifyio/go-zfs/v3
 # github.com/moby/buildkit v0.25.0
@@ -464,7 +464,7 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# go.podman.io/common v0.65.1-0.20250916163606-92222dcd3da4
+# go.podman.io/common v0.65.1-0.20250916163606-92222dcd3da4 => github.com/lsm5/container-libs/common v0.0.0-20251008131043-e2b0cc684a8d
 ## explicit; go 1.24.2
 go.podman.io/common/internal
 go.podman.io/common/internal/attributedstring
@@ -518,7 +518,7 @@ go.podman.io/common/pkg/umask
 go.podman.io/common/pkg/util
 go.podman.io/common/pkg/version
 go.podman.io/common/version
-# go.podman.io/image/v5 v5.37.1-0.20250916163606-92222dcd3da4
+# go.podman.io/image/v5 v5.37.1-0.20250916163606-92222dcd3da4 => github.com/lsm5/container-libs/image/v5 v5.0.0-20251008131043-e2b0cc684a8d
 ## explicit; go 1.24.0
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
@@ -567,6 +567,7 @@ go.podman.io/image/v5/pkg/blobinfocache/sqlite
 go.podman.io/image/v5/pkg/compression
 go.podman.io/image/v5/pkg/compression/internal
 go.podman.io/image/v5/pkg/compression/types
+go.podman.io/image/v5/pkg/digestvalidation
 go.podman.io/image/v5/pkg/docker/config
 go.podman.io/image/v5/pkg/shortnames
 go.podman.io/image/v5/pkg/strslice
@@ -586,7 +587,7 @@ go.podman.io/image/v5/transports
 go.podman.io/image/v5/transports/alltransports
 go.podman.io/image/v5/types
 go.podman.io/image/v5/version
-# go.podman.io/storage v1.60.1-0.20250916163606-92222dcd3da4
+# go.podman.io/storage v1.60.1-0.20250916163606-92222dcd3da4 => github.com/lsm5/container-libs/storage v0.0.0-20251008131043-e2b0cc684a8d
 ## explicit; go 1.24.0
 go.podman.io/storage
 go.podman.io/storage/drivers
@@ -630,6 +631,7 @@ go.podman.io/storage/pkg/reexec
 go.podman.io/storage/pkg/regexp
 go.podman.io/storage/pkg/stringid
 go.podman.io/storage/pkg/stringutils
+go.podman.io/storage/pkg/supported-digests
 go.podman.io/storage/pkg/system
 go.podman.io/storage/pkg/tarlog
 go.podman.io/storage/pkg/truncindex
@@ -826,3 +828,6 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.0.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# go.podman.io/common => github.com/lsm5/container-libs/common v0.0.0-20251008131043-e2b0cc684a8d
+# go.podman.io/storage => github.com/lsm5/container-libs/storage v0.0.0-20251008131043-e2b0cc684a8d
+# go.podman.io/image/v5 => github.com/lsm5/container-libs/image/v5 v5.0.0-20251008131043-e2b0cc684a8d

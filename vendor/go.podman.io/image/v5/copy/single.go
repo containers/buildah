@@ -28,6 +28,7 @@ import (
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
 	chunkedToc "go.podman.io/storage/pkg/chunked/toc"
+	supportedDigests "go.podman.io/storage/pkg/supported-digests"
 )
 
 // imageCopier tracks state specific to a single image (possibly an item of a manifest list)
@@ -977,7 +978,15 @@ func diffIDComputationGoroutine(dest chan<- diffIDResult, layerStream io.ReadClo
 }
 
 // computeDiffID reads all input from layerStream, uncompresses it using decompressor if necessary, and returns its digest.
+// This is a wrapper around computeDiffIDWithAlgorithm that uses the globally configured digest algorithm.
 func computeDiffID(stream io.Reader, decompressor compressiontypes.DecompressorFunc) (digest.Digest, error) {
+	algorithm := supportedDigests.TmpDigestForNewObjects()
+	return computeDiffIDWithAlgorithm(stream, decompressor, algorithm)
+}
+
+// computeDiffIDWithAlgorithm reads all input from layerStream, uncompresses it using decompressor if necessary,
+// and returns its digest using the specified algorithm.
+func computeDiffIDWithAlgorithm(stream io.Reader, decompressor compressiontypes.DecompressorFunc, algorithm digest.Algorithm) (digest.Digest, error) {
 	if decompressor != nil {
 		s, err := decompressor(stream)
 		if err != nil {
@@ -987,7 +996,7 @@ func computeDiffID(stream io.Reader, decompressor compressiontypes.DecompressorF
 		stream = s
 	}
 
-	return digest.Canonical.FromReader(stream)
+	return algorithm.FromReader(stream)
 }
 
 // algorithmsByNames returns slice of Algorithms from a sequence of Algorithm Names

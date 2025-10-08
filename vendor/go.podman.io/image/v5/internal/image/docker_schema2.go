@@ -17,6 +17,7 @@ import (
 	"go.podman.io/image/v5/internal/iolimits"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/pkg/blobinfocache/none"
+	"go.podman.io/image/v5/pkg/digestvalidation"
 	"go.podman.io/image/v5/types"
 )
 
@@ -110,9 +111,11 @@ func (m *manifestSchema2) ConfigBlob(ctx context.Context) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		computedDigest := digest.FromBytes(blob)
-		if computedDigest != m.m.ConfigDescriptor.Digest {
-			return nil, fmt.Errorf("Download config.json digest %s does not match expected %s", computedDigest, m.m.ConfigDescriptor.Digest)
+		expectedDigest := m.m.ConfigDescriptor.Digest
+
+		// Validate the blob against the expected digest using centralized validation
+		if err := digestvalidation.ValidateBlobAgainstDigest(blob, expectedDigest); err != nil {
+			return nil, fmt.Errorf("config descriptor validation failed: %w", err)
 		}
 		m.configBlob = blob
 	}
