@@ -21,6 +21,7 @@ import (
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/archive"
 	"go.podman.io/storage/pkg/ioutils"
+	supportedDigests "go.podman.io/storage/pkg/supported-digests"
 )
 
 type blobCacheDestination struct {
@@ -92,7 +93,7 @@ func (d *blobCacheDestination) saveStream(wg *sync.WaitGroup, decompressReader i
 		}
 	}()
 
-	digester := digest.Canonical.Digester()
+	digester := supportedDigests.TmpDigestForNewObjects().Digester()
 	if err := func() error { // A scope for defer
 		defer tempFile.Close()
 

@@ -178,7 +178,7 @@ func (d *dockerImageDestination) PutBlobWithOptions(ctx context.Context, stream 
 		return private.UploadedBlob{}, fmt.Errorf("determining upload URL: %w", err)
 	}
 
-	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, inputInfo)
+	digester, stream := putblobdigest.DigestIfConfiguredUnknown(stream, inputInfo)
 	sizeCounter := &sizeCounter{}
 	stream = io.TeeReader(stream, sizeCounter)
 

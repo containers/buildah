@@ -35,7 +35,7 @@ func newReference(transport storageTransport, named reference.Named, id string) 
 		return nil, fmt.Errorf("reference %s has neither a tag nor a digest: %w", named.String(), ErrInvalidReference)
 	}
 	if id != "" {
-		if err := validateImageID(id); err != nil {
+		if err := ValidateImageID(id); err != nil {
 			return nil, fmt.Errorf("invalid ID value %q: %v: %w", id, err.Error(), ErrInvalidReference)
 		}
 	}

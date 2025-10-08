@@ -9,6 +9,7 @@ import (
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/types"
+	supportedDigests "go.podman.io/storage/pkg/supported-digests"
 )
 
 type manifestSchema1 struct {
@@ -160,6 +161,13 @@ func (m *manifestSchema1) convertToManifestSchema2Generic(ctx context.Context, o
 //
 // Based on github.com/docker/docker/distribution/pull_v2.go
 func (m *manifestSchema1) convertToManifestSchema2(_ context.Context, options *types.ManifestUpdateOptions) (*manifestSchema2, error) {
+	// Explicitly reject SHA512+Schema1 combinations as they are not supported
+	// Schema1 is deprecated and Docker/registry don't support SHA512+Schema1
+	configuredAlgorithm := supportedDigests.TmpDigestForNewObjects()
+	if configuredAlgorithm == digest.SHA512 {
+		return nil, fmt.Errorf("SHA512+Schema1 is not supported: Schema1 is deprecated and Docker/registry do not support SHA512 with Schema1 manifests. Please use SHA256 or convert to Schema2/OCI format")
+	}
+
 	uploadedLayerInfos := options.InformationOnly.LayerInfos
 	layerDiffIDs := options.InformationOnly.LayerDiffIDs
 
@@ -219,7 +227,7 @@ func (m *manifestSchema1) convertToManifestSchema2(_ context.Context, options *t
 	configDescriptor := manifest.Schema2Descriptor{
 		MediaType: manifest.DockerV2Schema2ConfigMediaType,
 		Size:      int64(len(configJSON)),
-		Digest:    digest.FromBytes(configJSON),
+		Digest:    supportedDigests.TmpDigestForNewObjects().FromBytes(configJSON),
 	}
 
 	if options.LayerInfos != nil {

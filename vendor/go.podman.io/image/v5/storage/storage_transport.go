@@ -15,6 +15,7 @@ import (
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
 	"go.podman.io/storage/pkg/idtools"
+	supportedDigests "go.podman.io/storage/pkg/supported-digests"
 )
 
 const (
@@ -156,7 +157,7 @@ func (s storageTransport) ParseStoreReference(store storage.Store, ref string) (
 		// If it looks like a digest, leave it alone for now.
 		if _, err := digest.Parse(possibleID); err != nil {
 			// Otherwise…
-			if err := validateImageID(possibleID); err == nil {
+			if err := ValidateImageID(possibleID); err == nil {
 				id = possibleID // … it is a full ID
 			} else if img, err := store.Image(possibleID); err == nil && img != nil && len(possibleID) >= minimumTruncatedIDLength && strings.HasPrefix(img.ID, possibleID) {
 				// … it is a truncated version of the ID of an image that's present in local storage,
@@ -385,7 +386,7 @@ func (s storageTransport) ValidatePolicyConfigurationScope(scope string) error {
 	switch len(fields) {
 	case 1: // name only
 	case 2: // name:tag@ID or name[:tag]@digest
-		if idErr := validateImageID(fields[1]); idErr != nil {
+		if idErr := ValidateImageID(fields[1]); idErr != nil {
 			if _, digestErr := digest.Parse(fields[1]); digestErr != nil {
 				return fmt.Errorf("%v is neither a valid digest(%s) nor a valid ID(%s)", fields[1], digestErr.Error(), idErr.Error())
 			}
@@ -394,7 +395,7 @@ func (s storageTransport) ValidatePolicyConfigurationScope(scope string) error {
 		if _, err := digest.Parse(fields[1]); err != nil {
 			return err
 		}
-		if err := validateImageID(fields[2]); err != nil {
+		if err := ValidateImageID(fields[2]); err != nil {
 			return err
 		}
 	default: // Coverage: This should never happen
@@ -407,8 +408,34 @@ func (s storageTransport) ValidatePolicyConfigurationScope(scope string) error {
 	return nil
 }
 
-// validateImageID returns nil if id is a valid (full) image ID, or an error
-func validateImageID(id string) error {
-	_, err := digest.Parse("sha256:" + id)
-	return err
+// ValidateImageID returns nil if id is a valid (full) image ID, or an error
+func ValidateImageID(id string) error {
+	// Get all supported algorithms dynamically
+	supportedAlgorithms := supportedDigests.GetSupportedDigestAlgorithms()
+
+	// Try each supported algorithm based on the ID length
+	for _, algorithm := range supportedAlgorithms {
+		expectedLength, supported := supportedDigests.GetDigestAlgorithmExpectedLength(algorithm)
+		if !supported {
+			// Skip algorithms we don't know how to handle yet
+			continue
+		}
+
+		if len(id) == expectedLength {
+			_, err := digest.Parse(algorithm.String() + ":" + id)
+			return err
+		}
+	}
+
+	// Invalid length - build error message with supported lengths
+	var supportedLengths []string
+	for _, algorithm := range supportedAlgorithms {
+		if expectedLength, supported := supportedDigests.GetDigestAlgorithmExpectedLength(algorithm); supported {
+			algorithmName := supportedDigests.GetDigestAlgorithmName(algorithm)
+			supportedLengths = append(supportedLengths, fmt.Sprintf("%d (%s)", expectedLength, algorithmName))
+		}
+	}
+
+	return fmt.Errorf("invalid image ID length: expected %s characters, got %d",
+		strings.Join(supportedLengths, " or "), len(id))
 }
