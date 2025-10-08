@@ -2371,16 +2371,6 @@ func (d *Driver) DifferTarget(id string) (string, error) {
 
 // ApplyDiff applies the new layer into a root
 func (d *Driver) ApplyDiff(id, parent string, options graphdriver.ApplyDiffOpts) (size int64, err error) {
-	if !d.isParent(id, parent) {
-		if d.options.ignoreChownErrors {
-			options.IgnoreChownErrors = d.options.ignoreChownErrors
-		}
-		if d.options.forceMask != nil {
-			options.ForceMask = d.options.forceMask
-		}
-		return d.naiveDiff.ApplyDiff(id, parent, options)
-	}
-
 	idMappings := options.Mappings
 	if idMappings == nil {
 		idMappings = &idtools.IDMappings{}

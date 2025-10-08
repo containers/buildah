@@ -3177,7 +3177,7 @@ func (s *store) ApplyStagedLayer(args ApplyStagedLayerOptions) (*Layer, error) {
 		// This code path exists only for cmd/containers/storage.applyDiffUsingStagingDirectory; we have tests that
 		// assume layer creation and applying a staged layer are separate steps. Production pull code always uses the
 		// other path, where layer creation is atomic.
-		return layer, rlstore.applyDiffFromStagingDirectory(args.ID, args.DiffOutput, args.DiffOptions)
+		return layer, rlstore.applyDiffFromStagingDirectory(layer, args.DiffOutput, args.DiffOptions)
 	}
 
 	// if the layer doesn't exist yet, try to create it.
