@@ -518,6 +518,7 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 		Features, OSFeatures, Annotations    []string
 		Size                                 int64
 		ConfigInfo                           types.BlobInfo
+		MediaType                            string
 		ArtifactType                         string
 		URLs                                 []string
 	}
@@ -550,6 +551,7 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 					Features:       append([]string{}, lists.Docker().Manifests[i].Platform.Features...),
 					OSFeatures:     append([]string{}, platform.OSFeatures...),
 					Size:           instance.Size,
+					MediaType:      instance.MediaType,
 					ArtifactType:   instance.ArtifactType,
 					Annotations:    mapToSlice(instance.Annotations),
 					URLs:           instance.URLs,
@@ -583,10 +585,12 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 					Features:       append([]string{}, lists.Docker().Manifests[i].Platform.Features...),
 					OSFeatures:     append([]string{}, platform.OSFeatures...),
 					Size:           instance.Size,
+					MediaType:      instance.MediaType,
 					ArtifactType:   instance.ArtifactType,
 					Annotations:    mapToSlice(instance.Annotations),
 					URLs:           instance.URLs,
 				}
+				manifestDigest = instanceDigest
 				instanceInfos = append(instanceInfos, instanceInfo)
 				added = true
 			}
@@ -606,22 +610,28 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 				instanceInfo.ArtifactType = m.ArtifactType
 			}
 		}
+		instanceInfo.MediaType = primaryManifestType
+		instanceInfo.Size = int64(len(primaryManifestBytes))
 		instanceInfos = append(instanceInfos, instanceInfo)
 	}
 
 	knownConfigTypes := []string{manifest.DockerV2Schema2ConfigMediaType, v1.MediaTypeImageConfig}
 	for _, instanceInfo := range instanceInfos {
+		var hasPlatformConfig bool
 		unparsedInstance := image.UnparsedInstance(src, instanceInfo.instanceDigest)
-		manifestBytes, manifestType, err := unparsedInstance.Manifest(ctx)
-		if err != nil {
-			return "", fmt.Errorf("reading manifest from %q, instance %q: %w", transports.ImageName(ref), instanceInfo.instanceDigest, err)
+		if mb, mt, err := unparsedInstance.Manifest(ctx); err == nil {
+			if instanceManifest, err := manifest.FromBlob(mb, mt); err == nil {
+				instanceDigest, err := manifest.Digest(mb)
+				if err != nil {
+					return "", fmt.Errorf("computing digest of manifest from %q: %w", transports.ImageName(ref), err)
+				}
+				instanceInfo.instanceDigest = &instanceDigest
+				instanceInfo.MediaType = mt
+				instanceInfo.Size = int64(len(mb))
+				instanceInfo.ConfigInfo = instanceManifest.ConfigInfo()
+				hasPlatformConfig = instanceInfo.ArtifactType == "" && slices.Contains(knownConfigTypes, instanceInfo.ConfigInfo.MediaType)
+			}
 		}
-		instanceManifest, err := manifest.FromBlob(manifestBytes, manifestType)
-		if err != nil {
-			return "", fmt.Errorf("parsing manifest from %q, instance %q: %w", transports.ImageName(ref), instanceInfo.instanceDigest, err)
-		}
-		instanceInfo.ConfigInfo = instanceManifest.ConfigInfo()
-		hasPlatformConfig := instanceInfo.ArtifactType == "" && slices.Contains(knownConfigTypes, instanceInfo.ConfigInfo.MediaType)
 		needToParsePlatformConfig := (instanceInfo.OS == "" || instanceInfo.Architecture == "")
 		if hasPlatformConfig && needToParsePlatformConfig {
 			img, err := image.FromUnparsedImage(ctx, sys, unparsedInstance)
@@ -643,16 +653,15 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 			}
 		}
 		if instanceInfo.instanceDigest == nil {
-			manifestDigest, err = manifest.Digest(manifestBytes)
+			manifestDigest, err = manifest.Digest(primaryManifestBytes)
 			if err != nil {
 				return "", fmt.Errorf("computing digest of manifest from %q: %w", transports.ImageName(ref), err)
 			}
 			instanceInfo.instanceDigest = &manifestDigest
-			instanceInfo.Size = int64(len(manifestBytes))
 		} else if manifestDigest == "" {
 			manifestDigest = *instanceInfo.instanceDigest
 		}
-		err = l.List.AddInstance(*instanceInfo.instanceDigest, instanceInfo.Size, manifestType, instanceInfo.OS, instanceInfo.Architecture, instanceInfo.OSVersion, instanceInfo.OSFeatures, instanceInfo.Variant, instanceInfo.Features, instanceInfo.Annotations)
+		err = l.List.AddInstance(*instanceInfo.instanceDigest, instanceInfo.Size, instanceInfo.MediaType, instanceInfo.OS, instanceInfo.Architecture, instanceInfo.OSVersion, instanceInfo.OSFeatures, instanceInfo.Variant, instanceInfo.Features, instanceInfo.Annotations)
 		if err != nil {
 			return "", fmt.Errorf("adding instance with digest %q: %w", *instanceInfo.instanceDigest, err)
 		}

@@ -508,7 +508,7 @@ func (m *ManifestList) Add(ctx context.Context, name string, options *ManifestLi
 		}
 	}
 
-	ref, err := m.parseNameToExtantReference(ctx, systemContext, name, false, "image to add to manifest list")
+	ref, err := m.parseNameToExtantReference(ctx, systemContext, name, options.All, "image to add to manifest list")
 	if err != nil {
 		return "", err
 	}
