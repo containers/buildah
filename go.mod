@@ -39,8 +39,8 @@ require (
 	go.podman.io/storage v1.60.1-0.20250916163606-92222dcd3da4
 	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
-	golang.org/x/sys v0.36.0
-	golang.org/x/term v0.35.0
+	golang.org/x/sys v0.37.0
+	golang.org/x/term v0.36.0
 	tags.cncf.io/container-device-interface v1.0.1
 )
 
