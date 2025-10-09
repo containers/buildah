@@ -136,6 +136,12 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/jinzhu/copier v0.4.0 h1:w3ciUoD19shMCRargcpm0cm91ytaBhDvuRpz1ODO/U8=
 github.com/jinzhu/copier v0.4.0/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
+github.com/jlebon/container-libs/common v0.0.0-20251005114407-ef7b8731fbc7 h1:m9jtOEPbXekM+DdXXapCyBdwfgksaj97RNRIPediZII=
+github.com/jlebon/container-libs/common v0.0.0-20251005114407-ef7b8731fbc7/go.mod h1:DyOdwtkwzYA8lE0TueJnxRju4Lmsrx6ZAC/ATAkYYck=
+github.com/jlebon/container-libs/image/v5 v5.0.0-20251005114407-ef7b8731fbc7 h1:Zg/Yf1ZGM6hNM82scoE21y1ngKovfPgnj3Kk7bDUBIo=
+github.com/jlebon/container-libs/image/v5 v5.0.0-20251005114407-ef7b8731fbc7/go.mod h1:cGWb3IyBziJGxhFikTOlt9Ap+zo6s3rz9Qd1rbzqs4s=
+github.com/jlebon/container-libs/storage v0.0.0-20251005114407-ef7b8731fbc7 h1:YrGxSpK1mvNKG++6WyKaEpcC57ZyhTI5LADYEP+UIWA=
+github.com/jlebon/container-libs/storage v0.0.0-20251005114407-ef7b8731fbc7/go.mod h1:AeZXAN8Qu1gTlAEHIc6mVhxk+61oMSM3K3iLx5UAQWE=
 github.com/jmhodges/clock v1.2.0 h1:eq4kys+NI0PLngzaHEe7AmPT90XMGIEySD1JfV1PDIs=
 github.com/jmhodges/clock v1.2.0/go.mod h1:qKjhA7x7u/lQpPB1XAqX1b1lCI/w3/fNuYpI/ZjLynI=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
@@ -317,12 +323,6 @@ go.opentelemetry.io/otel/trace v1.36.0 h1:ahxWNuqZjpdiFAyrIoQ4GIiAIhxAunQR6MUoKr
 go.opentelemetry.io/otel/trace v1.36.0/go.mod h1:gQ+OnDZzrybY4k4seLzPAWNwVBBVlF2szhehOBB/tGA=
 go.opentelemetry.io/proto/otlp v1.5.0 h1:xJvq7gMzB31/d406fB8U5CBdyQGw4P399D1aQWU/3i4=
 go.opentelemetry.io/proto/otlp v1.5.0/go.mod h1:keN8WnHxOy8PG0rQZjJJ5A2ebUoafqWp0eVQ4yIXvJ4=
-go.podman.io/common v0.65.1-0.20250916163606-92222dcd3da4 h1:YjBqTOxz4cqfpifcd71VoBl1FTQL2U2La5NgMqmRRqU=
-go.podman.io/common v0.65.1-0.20250916163606-92222dcd3da4/go.mod h1:DyOdwtkwzYA8lE0TueJnxRju4Lmsrx6ZAC/ATAkYYck=
-go.podman.io/image/v5 v5.37.1-0.20250916163606-92222dcd3da4 h1:hfc3lZaxi6KGnWN3IusIaCkcMPR4rTR+vWZzakeD1EA=
-go.podman.io/image/v5 v5.37.1-0.20250916163606-92222dcd3da4/go.mod h1:cGWb3IyBziJGxhFikTOlt9Ap+zo6s3rz9Qd1rbzqs4s=
-go.podman.io/storage v1.60.1-0.20250916163606-92222dcd3da4 h1:jo0PSKh6muU7rmhXXqOV9aK+HrA8koqs47KhBsZf6LY=
-go.podman.io/storage v1.60.1-0.20250916163606-92222dcd3da4/go.mod h1:AeZXAN8Qu1gTlAEHIc6mVhxk+61oMSM3K3iLx5UAQWE=
 go.uber.org/automaxprocs v1.6.0 h1:O3y2/QNTOdbF+e/dpXNNW7Rx2hZ4sTIPyybbxyNqTUs=
 go.uber.org/automaxprocs v1.6.0/go.mod h1:ifeIMSnPZuznNm6jmdzmU3/bfk01Fe2fotchwEFJ8r8=
 go.yaml.in/yaml/v2 v2.4.2 h1:DzmwEr2rDGHl7lsFgAHxmNz/1NlQ7xLIrlN2h5d1eGI=

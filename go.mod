@@ -137,3 +137,9 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
+
+replace go.podman.io/common => github.com/jlebon/container-libs/common v0.0.0-20251005114407-ef7b8731fbc7
+
+replace go.podman.io/storage => github.com/jlebon/container-libs/storage v0.0.0-20251005114407-ef7b8731fbc7
+
+replace go.podman.io/image/v5 => github.com/jlebon/container-libs/image/v5 v5.0.0-20251005114407-ef7b8731fbc7
