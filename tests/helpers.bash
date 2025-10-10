@@ -700,15 +700,6 @@ function skip_if_cgroupsv2() {
     fi
 }
 
-#######################
-#  skip_if_cgroupsv1  #  Some tests don't work with cgroupsv1
-#######################
-function skip_if_cgroupsv1() {
-    if ! is_cgroupsv2; then
-        skip "${1:-test does not work with cgroups v1}"
-    fi
-}
-
 ##########################
 #  skip_if_in_container  #
 ##########################
