@@ -138,4 +138,4 @@ require (
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
 
-replace go.podman.io/common => github.com/lsm5/container-libs/common v0.0.0-20251014193343-b41c3b4c87fd
+replace go.podman.io/common => github.com/lsm5/container-libs/common v0.0.0-20251017145150-d8e5f3a7ff42

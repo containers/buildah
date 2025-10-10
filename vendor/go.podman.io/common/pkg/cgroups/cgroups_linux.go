@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -29,7 +30,13 @@ import (
 var (
 	// ErrCgroupDeleted means the cgroup was deleted.
 	ErrCgroupDeleted = errors.New("cgroup deleted")
-	ErrStatCgroup    = errors.New("no cgroup available for gathering user statistics")
+	// ErrCgroupV1Rootless means the cgroup v1 were attempted to be used in rootless environment.
+	ErrCgroupV1Rootless = errors.New("no support for CGroups V1 in rootless environments")
+	ErrStatCgroup       = errors.New("no cgroup available for gathering user statistics")
+
+	isUnifiedOnce sync.Once
+	isUnified     bool
+	isUnifiedErr  error
 )
 
 // CgroupControl controls a cgroup hierarchy.
@@ -79,63 +86,37 @@ func init() {
 }
 
 // getAvailableControllers get the available controllers.
-func getAvailableControllers(exclude map[string]controllerHandler, cgroup2 bool) ([]controller, error) {
-	if cgroup2 {
-		controllers := []controller{}
-		controllersFile := filepath.Join(cgroupRoot, "cgroup.controllers")
-
-		// rootless cgroupv2: check available controllers for current user, systemd or servicescope will inherit
-		if unshare.IsRootless() {
-			userSlice, err := getCgroupPathForCurrentProcess()
-			if err != nil {
-				return controllers, err
-			}
-			// userSlice already contains '/' so not adding here
-			basePath := cgroupRoot + userSlice
-			controllersFile = filepath.Join(basePath, "cgroup.controllers")
-		}
-		controllersFileBytes, err := os.ReadFile(controllersFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed while reading controllers for cgroup v2: %w", err)
-		}
-		for controllerName := range strings.FieldsSeq(string(controllersFileBytes)) {
-			c := controller{
-				name:    controllerName,
-				symlink: false,
-			}
-			controllers = append(controllers, c)
-		}
-		return controllers, nil
-	}
-
-	subsystems, _ := cgroupV1GetAllSubsystems()
+func getAvailableControllers() ([]controller, error) {
 	controllers := []controller{}
-	// cgroupv1 and rootless: No subsystem is available: delegation is unsafe.
-	if unshare.IsRootless() {
-		return controllers, nil
-	}
+	controllersFile := filepath.Join(cgroupRoot, "cgroup.controllers")
 
-	for _, name := range subsystems {
-		if _, found := exclude[name]; found {
-			continue
-		}
-		fileInfo, err := os.Stat(cgroupRoot + "/" + name)
+	// rootless cgroupv2: check available controllers for current user, systemd or servicescope will inherit
+	if unshare.IsRootless() {
+		userSlice, err := getCgroupPathForCurrentProcess()
 		if err != nil {
-			continue
+			return controllers, err
 		}
+		// userSlice already contains '/' so not adding here
+		basePath := cgroupRoot + userSlice
+		controllersFile = filepath.Join(basePath, "cgroup.controllers")
+	}
+	controllersFileBytes, err := os.ReadFile(controllersFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed while reading controllers for cgroup v2: %w", err)
+	}
+	for controllerName := range strings.FieldsSeq(string(controllersFileBytes)) {
 		c := controller{
-			name:    name,
-			symlink: !fileInfo.IsDir(),
+			name:    controllerName,
+			symlink: false,
 		}
 		controllers = append(controllers, c)
 	}
-
 	return controllers, nil
 }
 
 // AvailableControllers get string:bool map of all the available controllers.
-func AvailableControllers(exclude map[string]controllerHandler, cgroup2 bool) ([]string, error) {
-	availableControllers, err := getAvailableControllers(exclude, cgroup2)
+func AvailableControllers() ([]string, error) {
+	availableControllers, err := getAvailableControllers()
 	if err != nil {
 		return nil, err
 	}
@@ -145,31 +126,6 @@ func AvailableControllers(exclude map[string]controllerHandler, cgroup2 bool) ([
 	}
 
 	return controllerList, nil
-}
-
-func cgroupV1GetAllSubsystems() ([]string, error) {
-	f, err := os.Open("/proc/cgroups")
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	subsystems := []string{}
-
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		text := s.Text()
-		if text[0] != '#' {
-			parts := strings.Fields(text)
-			if len(parts) >= 4 && parts[3] != "0" {
-				subsystems = append(subsystems, parts[0])
-			}
-		}
-	}
-	if err := s.Err(); err != nil {
-		return nil, err
-	}
-	return subsystems, nil
 }
 
 func getCgroupPathForCurrentProcess() (string, error) {
@@ -598,6 +554,19 @@ func SystemCPUUsage() (uint64, error) {
 		}
 	}
 	return total, nil
+}
+
+// IsCgroup2UnifiedMode returns whether we are running in cgroup 2 cgroup2 mode.
+func IsCgroup2UnifiedMode() (bool, error) {
+	isUnifiedOnce.Do(func() {
+		var st syscall.Statfs_t
+		if err := syscall.Statfs("/sys/fs/cgroup", &st); err != nil {
+			isUnified, isUnifiedErr = false, err
+		} else {
+			isUnified, isUnifiedErr = st.Type == unix.CGROUP2_SUPER_MAGIC, nil
+		}
+	})
+	return isUnified, isUnifiedErr
 }
 
 // UserConnection returns an user connection to D-BUS.
