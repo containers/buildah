@@ -32,9 +32,7 @@ import (
 var (
 	// ErrCgroupDeleted means the cgroup was deleted.
 	ErrCgroupDeleted = errors.New("cgroup deleted")
-	// ErrCgroupV1Rootless means the cgroup v1 were attempted to be used in rootless environment.
-	ErrCgroupV1Rootless = errors.New("no support for CGroups V1 in rootless environments")
-	ErrStatCgroup       = errors.New("no cgroup available for gathering user statistics")
+	ErrStatCgroup    = errors.New("no cgroup available for gathering user statistics")
 
 	isUnifiedOnce sync.Once
 	isUnified     bool
@@ -345,44 +343,16 @@ func NewSystemd(path string, resources *cgroups.Resources) (*CgroupControl, erro
 
 // Load loads an existing cgroup control.
 func Load(path string) (*CgroupControl, error) {
-	cgroup2, err := IsCgroup2UnifiedMode()
+	_, err := IsCgroup2UnifiedMode()
 	if err != nil {
 		return nil, err
 	}
 	control := &CgroupControl{
-		cgroup2: cgroup2,
+		cgroup2: true,
 		systemd: false,
 		config: &cgroups.Cgroup{
 			Path: path,
 		},
-	}
-	if !cgroup2 {
-		controllers, err := getAvailableControllers(handlers, false)
-		if err != nil {
-			return nil, err
-		}
-		control.additionalControllers = controllers
-	}
-	if !cgroup2 {
-		oneExists := false
-		// check that the cgroup exists at least under one controller
-		for name := range handlers {
-			p := control.getCgroupv1Path(name)
-			if err := fileutils.Exists(p); err == nil {
-				oneExists = true
-				break
-			}
-		}
-
-		// if there is no controller at all, raise an error
-		if !oneExists {
-			if unshare.IsRootless() {
-				return nil, ErrCgroupV1Rootless
-			}
-			// compatible with the error code
-			// used by containerd/cgroups
-			return nil, ErrCgroupDeleted
-		}
 	}
 	return control, nil
 }
