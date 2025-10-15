@@ -59,16 +59,16 @@ var builtinAllowedBuildArgs = map[string]struct{}{
 	internal.SourceDateEpochName: {},
 }
 
-// Executor is a buildah-based implementation of the imagebuilder.Executor
+// executor is a buildah-based implementation of the imagebuilder.Executor
 // interface.  It coordinates the entire build by using one or more
-// StageExecutors to handle each stage of the build.
-type Executor struct {
+// stageExecutors to handle each stage of the build.
+type executor struct {
 	cacheFrom                      []reference.Named
 	cacheTo                        []reference.Named
 	cacheTTL                       time.Duration
 	containerSuffix                string
 	logger                         *logrus.Logger
-	stages                         map[string]*StageExecutor
+	stages                         map[string]*stageExecutor
 	store                          storage.Store
 	contextDir                     string
 	pullPolicy                     define.PullPolicy
@@ -184,7 +184,7 @@ type imageTypeAndHistoryAndDiffIDs struct {
 }
 
 // newExecutor creates a new instance of the imagebuilder.Executor interface.
-func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, options define.BuildOptions, mainNode *parser.Node, containerFiles []string) (*Executor, error) {
+func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, options define.BuildOptions, mainNode *parser.Node, containerFiles []string) (*executor, error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get container config: %w", err)
@@ -244,14 +244,14 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		buildOutputs = append(buildOutputs, options.BuildOutput) //nolint:staticcheck
 	}
 
-	exec := Executor{
+	exec := executor{
 		args:                                    options.Args,
 		cacheFrom:                               options.CacheFrom,
 		cacheTo:                                 options.CacheTo,
 		cacheTTL:                                options.CacheTTL,
 		containerSuffix:                         options.ContainerSuffix,
 		logger:                                  logger,
-		stages:                                  make(map[string]*StageExecutor),
+		stages:                                  make(map[string]*stageExecutor),
 		store:                                   store,
 		contextDir:                              options.ContextDirectory,
 		excludes:                                excludes,
@@ -399,10 +399,10 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 
 // startStage creates a new stage executor that will be referenced whenever a
 // COPY or ADD statement uses a --from=NAME flag.
-func (b *Executor) startStage(ctx context.Context, stage *imagebuilder.Stage, stages imagebuilder.Stages, output string) *StageExecutor {
+func (b *executor) startStage(ctx context.Context, stage *imagebuilder.Stage, stages imagebuilder.Stages, output string) *stageExecutor {
 	// create a copy of systemContext for each stage executor.
 	systemContext := *b.systemContext
-	stageExec := &StageExecutor{
+	stageExec := &stageExecutor{
 		ctx:             ctx,
 		executor:        b,
 		systemContext:   &systemContext,
@@ -423,7 +423,7 @@ func (b *Executor) startStage(ctx context.Context, stage *imagebuilder.Stage, st
 }
 
 // resolveNameToImageRef creates a types.ImageReference for the output name in local storage
-func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, error) {
+func (b *executor) resolveNameToImageRef(output string) (types.ImageReference, error) {
 	if imageRef, err := alltransports.ParseImageName(output); err == nil {
 		return imageRef, nil
 	}
@@ -443,7 +443,7 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 // that the specified stage has finished.  If there is no stage defined by that
 // name, then it will return (false, nil).  If there is a stage defined by that
 // name, it will return true along with any error it encounters.
-func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, error) {
+func (b *executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, error) {
 	found := false
 	for _, otherStage := range stages {
 		if otherStage.Name == name || strconv.Itoa(otherStage.Position) == name {
@@ -479,7 +479,7 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 }
 
 // getImageTypeAndHistoryAndDiffIDs returns the os, architecture, manifest type, history, and diff IDs list of imageID.
-func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID string) (string, string, string, []v1.History, []digest.Digest, error) {
+func (b *executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID string) (string, string, string, []v1.History, []digest.Digest, error) {
 	b.imageInfoLock.Lock()
 	imageInfo, ok := b.imageInfoCache[imageID]
 	b.imageInfoLock.Unlock()
@@ -519,7 +519,7 @@ func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID
 	return oci.OS, oci.Architecture, manifestFormat, oci.History, oci.RootFS.DiffIDs, nil
 }
 
-func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, onlyBaseImage bool, err error) {
+func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, onlyBaseImage bool, err error) {
 	stage := stages[stageIndex]
 	ib := stage.Builder
 	node := stage.Node
@@ -616,7 +616,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	}
 
 	// Build this stage.
-	if imageID, ref, onlyBaseImage, err = stageExecutor.Execute(ctx, base); err != nil {
+	if imageID, ref, onlyBaseImage, err = stageExecutor.execute(ctx, base); err != nil {
 		return "", nil, onlyBaseImage, err
 	}
 
@@ -652,7 +652,7 @@ func markDependencyStagesForTarget(dependencyMap map[string]*stageDependencyInfo
 	}
 }
 
-func (b *Executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMap map[string]*stageDependencyInfo, args map[string]string) {
+func (b *executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMap map[string]*stageDependencyInfo, args map[string]string) {
 	argFound := make(map[string]struct{})
 	for _, stage := range stages {
 		node := stage.Node // first line
@@ -699,12 +699,12 @@ func (b *Executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMa
 
 // Build takes care of the details of running Prepare/Execute/Commit/Delete
 // over each of the one or more parsed Dockerfiles and stages.
-func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (imageID string, ref reference.Canonical, err error) {
+func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (imageID string, ref reference.Canonical, err error) {
 	if len(stages) == 0 {
 		return "", nil, errors.New("building: no stages to build")
 	}
 	var cleanupImages []string
-	cleanupStages := make(map[int]*StageExecutor)
+	cleanupStages := make(map[int]*stageExecutor)
 
 	stdout := b.out
 	if b.quiet {
@@ -1104,7 +1104,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 // deleteSuccessfulIntermediateCtrs goes through the container IDs in each
 // stage's containerIDs list and deletes the containers associated with those
 // IDs.
-func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
+func (b *executor) deleteSuccessfulIntermediateCtrs() error {
 	var lastErr error
 	for _, s := range b.stages {
 		for _, ctr := range s.containerIDs {
