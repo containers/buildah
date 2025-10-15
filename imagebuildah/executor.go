@@ -1086,7 +1086,11 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	}
 	logrus.Debugf("printing final image id %q", imageID)
 	if b.iidfile != "" {
-		if err = os.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0o644); err != nil {
+		iid := imageID
+		if iid != "" {
+			iid = "sha256:" + iid // only prepend a digest algorithm name if we actually got a value back
+		}
+		if err = os.WriteFile(b.iidfile, []byte(iid), 0o644); err != nil {
 			return imageID, ref, fmt.Errorf("failed to write image ID to file %q: %w", b.iidfile, err)
 		}
 	} else {

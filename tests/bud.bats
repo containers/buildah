@@ -8958,3 +8958,29 @@ EOF
   run_buildah build --layers=false "${contextdir}"
   expect_output --substring /mounted/brand-new-subdir
 }
+
+@test "bud with --iidfile" {
+  target=scratch-image
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Dockerfile <<-EOF
+  FROM scratch
+  COPY . .
+EOF
+  for layers in "--layers=true" "--layers=false" ; do
+    for destination in "dir:${TEST_SCRATCH_DIR}/dir" "oci-archive:${TEST_SCRATCH_DIR}/oci-archive" "docker-archive:${TEST_SCRATCH_DIR}/docker-archive" "oci:${TEST_SCRATCH_DIR}/oci-layout" "local" ; do
+      rm -f "${TEST_SCRATCH_DIR}"/iidfile
+      fsname="${destination#*:}" # assume : is used in a non-containers-storage name rather than a repository name + tag combination
+      if test "${fsname}" != "${destination}" ; then
+        rm -fr "${fsname}"
+      fi
+      run_buildah build --iidfile "${TEST_SCRATCH_DIR}"/iidfile --no-cache "${layers}" -t "${destination}" "${contextdir}"
+      local iid=$(cat "${TEST_SCRATCH_DIR}"/iidfile)
+      assert "${iid}" != ""
+      assert "${iid#sha256:}" != ""
+      if test "${fsname}" != "${destination}" ; then
+        test -e "${fsname}"
+      fi
+    done
+  done
+}
