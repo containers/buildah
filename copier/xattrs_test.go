@@ -10,12 +10,37 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
 	// exercise the ERANGE-handling logic
 	initialXattrListSize = 1
 	initialXattrValueSize = 1
+}
+
+func TestXattrIsRelevant(t *testing.T) {
+	cases := []struct {
+		xattrName string
+		relevant  bool
+	}{
+		{"user.a", true},
+		{"user.b", true},
+		{"security.foo", false},
+		{imaXattr, true},
+		{"security.capability", true},
+		{"user.overlay.base", false},
+	}
+	for _, c := range cases {
+		t.Run(c.xattrName, func(t *testing.T) {
+			relevant := isRelevantXattr(c.xattrName)
+			if c.relevant {
+				require.True(t, relevant, "should be considered relevant and kept")
+			} else {
+				require.False(t, relevant, "should be considered irrelevant and discarded")
+			}
+		})
+	}
 }
 
 func TestXattrs(t *testing.T) {
