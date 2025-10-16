@@ -35,8 +35,8 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
 	go.podman.io/common v0.65.1-0.20250916163606-92222dcd3da4
-	go.podman.io/image/v5 v5.37.1-0.20250916163606-92222dcd3da4
-	go.podman.io/storage v1.60.1-0.20250916163606-92222dcd3da4
+	go.podman.io/image/v5 v5.38.0
+	go.podman.io/storage v1.61.0
 	golang.org/x/crypto v0.43.0
 	golang.org/x/sync v0.17.0
 	golang.org/x/sys v0.37.0
@@ -138,4 +138,4 @@ require (
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
 
-replace go.podman.io/common => github.com/lsm5/container-libs/common v0.0.0-20251017145150-d8e5f3a7ff42
+replace go.podman.io/common => github.com/lsm5/container-libs/common v0.0.0-20251021180701-90bb6920858f
