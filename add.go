@@ -3,7 +3,6 @@ package buildah
 import (
 	"archive/tar"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -21,9 +20,10 @@ import (
 
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal/httpclient"
 	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/pkg/chrootuser"
-	"github.com/docker/go-connections/tlsconfig"
+	tmpdirpkg "github.com/containers/buildah/pkg/tmpdir"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/sys/userns"
 	digest "github.com/opencontainers/go-digest"
@@ -31,7 +31,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/common/pkg/retry"
-	"go.podman.io/image/v5/pkg/tlsclientconfig"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/fileutils"
 	"go.podman.io/storage/pkg/idtools"
@@ -112,6 +111,9 @@ type AddAndCopyOptions struct {
 	// inheritAnnotations, newAnnotations). This field is internally managed and should
 	// not be set by external API users.
 	BuildMetadata string
+	// Callback which controls which, if any, proxy server to use when retrieving HTTP or
+	// HTTPS sources.  Used to construct an http.Client's Transport.
+	Proxy func(*http.Request) (*url.URL, error)
 }
 
 // gitURLFragmentSuffix matches fragments to use as Git reference and build
@@ -138,30 +140,12 @@ func sourceIsRemote(source string) bool {
 }
 
 // getURL writes a tar archive containing the named content
-func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, writer io.Writer, chmod *os.FileMode, srcDigest digest.Digest, certPath string, insecureSkipTLSVerify types.OptionalBool, timestamp *time.Time) error {
+func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, writer io.Writer, chmod *os.FileMode, srcDigest digest.Digest, timestamp *time.Time, client *http.Client) error {
 	url, err := url.Parse(src)
 	if err != nil {
 		return err
 	}
-	tlsClientConfig := &tls.Config{
-		// As of 2025-08, tlsconfig.ClientDefault() differs from Go 1.23 defaults only in CipherSuites;
-		// so, limit us to only using that value. If go-connections/tlsconfig changes its policy, we
-		// will want to consider that and make a decision whether to follow suit.
-		// There is some chance that eventually the Go default will be to require TLS 1.3, and that point
-		// we might want to drop the dependency on go-connections entirely.
-		CipherSuites: tlsconfig.ClientDefault().CipherSuites,
-	}
-	if err := tlsclientconfig.SetupCertificates(certPath, tlsClientConfig); err != nil {
-		return err
-	}
-	tlsClientConfig.InsecureSkipVerify = insecureSkipTLSVerify == types.OptionalBoolTrue
-
-	tr := &http.Transport{
-		TLSClientConfig: tlsClientConfig,
-		Proxy:           http.ProxyFromEnvironment,
-	}
-	httpClient := &http.Client{Transport: tr}
-	response, err := httpClient.Get(src)
+	response, err := client.Get(src)
 	if err != nil {
 		return err
 	}
@@ -584,6 +568,16 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		putDir = extractDirectory
 	}
 
+	urlOptions := tmpdirpkg.URLOptions{
+		CertPath:              options.CertPath,
+		InsecureSkipTLSVerify: options.InsecureSkipTLSVerify,
+		Proxy:                 options.Proxy,
+	}
+	httpClient, err := httpclient.ForURLOptions(urlOptions)
+	if err != nil {
+		return fmt.Errorf("setting up http client options: %w", err)
+	}
+
 	// Copy each source in turn.
 	for _, src := range sources {
 		var multiErr *multierror.Error
@@ -605,7 +599,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					defer wg.Done()
 					defer pipeWriter.Close()
 					var cloneDir, subdir string
-					cloneDir, subdir, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
+					cloneDir, subdir, getErr = tmpdirpkg.ForURL(tmpdir.GetTempDir(), "", src, &urlOptions)
 					if getErr != nil {
 						return
 					}
@@ -630,7 +624,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			} else {
 				go func() {
 					getErr = retry.IfNecessary(context.TODO(), func() error {
-						return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest, options.CertPath, options.InsecureSkipTLSVerify, options.Timestamp)
+						return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest, options.Timestamp, httpClient)
 					}, &retry.Options{
 						MaxRetry: options.MaxRetries,
 						Delay:    options.RetryDelay,
