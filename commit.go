@@ -304,11 +304,35 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 	return imageID, err
 }
 
+// CommitResults is a structure returned when CommitResults() succeeds.
+type CommitResults struct {
+	ImageID       string              // a local image ID, or part of the digest of the image's config blob
+	Canonical     reference.Canonical // set if destination included a DockerReference
+	MediaType     string              // always returned
+	ImageManifest []byte              // always returned
+	Digest        digest.Digest       // always returned
+}
+
 // Commit writes the contents of the container, along with its updated
 // configuration, to a new image in the specified location, and if we know how,
 // add any additional tags that were specified. Returns the ID of the new image
-// if commit was successful and the image destination was local.
+// if commit was successful and the image destination was local, a canonical
+// reference if the destination ImageReference include a DockerReference, and
+// the digest of the written image's manifest.
+// Commit() is implemented as a wrapper around CommitResults().
 func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options CommitOptions) (string, reference.Canonical, digest.Digest, error) {
+	results, err := b.CommitResults(ctx, dest, options)
+	if err != nil {
+		return "", nil, "", err
+	}
+	return results.ImageID, results.Canonical, results.Digest, nil
+}
+
+// CommitResults writes the contents of the container, along with its updated
+// configuration, to a new image in the specified location, and if we know how,
+// add any additional tags that were specified.  Returns a CommitResults
+// structure.
+func (b *Builder) CommitResults(ctx context.Context, dest types.ImageReference, options CommitOptions) (*CommitResults, error) {
 	var (
 		imgID                string
 		src                  types.ImageReference
@@ -325,7 +349,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	// work twice.
 	if options.OmitTimestamp {
 		if options.HistoryTimestamp != nil {
-			return imgID, nil, "", fmt.Errorf("OmitTimestamp and HistoryTimestamp can not be used together")
+			return nil, fmt.Errorf("OmitTimestamp and HistoryTimestamp can not be used together")
 		}
 		timestamp := time.Unix(0, 0).UTC()
 		options.HistoryTimestamp = &timestamp
@@ -339,7 +363,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		nameToRemove = stringid.GenerateRandomID() + "-tmp"
 		dest2, err := is.Transport.ParseStoreReference(b.store, nameToRemove)
 		if err != nil {
-			return imgID, nil, "", fmt.Errorf("creating temporary destination reference for image: %w", err)
+			return nil, fmt.Errorf("creating temporary destination reference for image: %w", err)
 		}
 		dest = dest2
 	}
@@ -348,23 +372,23 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 
 	blocked, err := isReferenceBlocked(dest, systemContext)
 	if err != nil {
-		return "", nil, "", fmt.Errorf("checking if committing to registry for %q is blocked: %w", transports.ImageName(dest), err)
+		return nil, fmt.Errorf("checking if committing to registry for %q is blocked: %w", transports.ImageName(dest), err)
 	}
 	if blocked {
-		return "", nil, "", fmt.Errorf("commit access to registry for %q is blocked by configuration", transports.ImageName(dest))
+		return nil, fmt.Errorf("commit access to registry for %q is blocked by configuration", transports.ImageName(dest))
 	}
 
 	// Load the system signing policy.
 	commitPolicy, err := signature.DefaultPolicy(systemContext)
 	if err != nil {
-		return "", nil, "", fmt.Errorf("obtaining default signature policy: %w", err)
+		return nil, fmt.Errorf("obtaining default signature policy: %w", err)
 	}
 	// Override the settings for local storage to make sure that we can always read the source "image".
 	commitPolicy.Transports[is.Transport.Name()] = storageAllowedPolicyScopes
 
 	policyContext, err := signature.NewPolicyContext(commitPolicy)
 	if err != nil {
-		return imgID, nil, "", fmt.Errorf("creating new signature policy context: %w", err)
+		return nil, fmt.Errorf("creating new signature policy context: %w", err)
 	}
 	defer func() {
 		if err2 := policyContext.Destroy(); err2 != nil {
@@ -375,11 +399,11 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	// Check if the commit is blocked by $BUILDER_REGISTRY_SOURCES.
 	insecure, err := checkRegistrySourcesAllows("commit to", dest)
 	if err != nil {
-		return imgID, nil, "", err
+		return nil, err
 	}
 	if insecure {
 		if systemContext.DockerInsecureSkipTLSVerify == types.OptionalBoolFalse {
-			return imgID, nil, "", fmt.Errorf("can't require tls verification on an insecured registry")
+			return nil, fmt.Errorf("can't require tls verification on an insecured registry")
 		}
 		systemContext.DockerInsecureSkipTLSVerify = types.OptionalBoolTrue
 		systemContext.OCIInsecureSkipTLSVerify = true
@@ -393,7 +417,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if len(options.SBOMScanOptions) != 0 {
 		var scansDirectory string
 		if extraImageContent, extraLocalContent, scansDirectory, err = b.sbomScan(ctx, options); err != nil {
-			return imgID, nil, "", fmt.Errorf("scanning rootfs to generate SBOM for container %q: %w", b.ContainerID, err)
+			return nil, fmt.Errorf("scanning rootfs to generate SBOM for container %q: %w", b.ContainerID, err)
 		}
 		if scansDirectory != "" {
 			defer func() {
@@ -418,7 +442,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	// Build an image reference from which we can copy the finished image.
 	src, err = b.makeContainerImageRef(options)
 	if err != nil {
-		return imgID, nil, "", fmt.Errorf("computing layer digests and building metadata for container %q: %w", b.ContainerID, err)
+		return nil, fmt.Errorf("computing layer digests and building metadata for container %q: %w", b.ContainerID, err)
 	}
 	// In case we're using caching, decide how to handle compression for a cache.
 	// If we're using blob caching, set it up for the source.
@@ -431,12 +455,12 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 		cache, err := blobcache.NewBlobCache(src, options.BlobDirectory, compress)
 		if err != nil {
-			return imgID, nil, "", fmt.Errorf("wrapping image reference %q in blob cache at %q: %w", transports.ImageName(src), options.BlobDirectory, err)
+			return nil, fmt.Errorf("wrapping image reference %q in blob cache at %q: %w", transports.ImageName(src), options.BlobDirectory, err)
 		}
 		maybeCachedSrc = cache
 		cache, err = blobcache.NewBlobCache(dest, options.BlobDirectory, compress)
 		if err != nil {
-			return imgID, nil, "", fmt.Errorf("wrapping image reference %q in blob cache at %q: %w", transports.ImageName(dest), options.BlobDirectory, err)
+			return nil, fmt.Errorf("wrapping image reference %q in blob cache at %q: %w", transports.ImageName(dest), options.BlobDirectory, err)
 		}
 		maybeCachedDest = cache
 	}
@@ -457,7 +481,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 
 	var manifestBytes []byte
 	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy, options.OciEncryptLayers, options.OciEncryptConfig, nil, destinationTimestamp), options.MaxRetries, options.RetryDelay); err != nil {
-		return imgID, nil, "", fmt.Errorf("copying layers and metadata for container %q: %w", b.ContainerID, err)
+		return nil, fmt.Errorf("copying layers and metadata for container %q: %w", b.ContainerID, err)
 	}
 	// If we've got more names to attach, and we know how to do that for
 	// the transport that we're writing the new image to, add them now.
@@ -466,10 +490,10 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		case is.Transport.Name():
 			_, img, err := is.ResolveReference(dest)
 			if err != nil {
-				return imgID, nil, "", fmt.Errorf("locating just-written image %q: %w", transports.ImageName(dest), err)
+				return nil, fmt.Errorf("locating just-written image %q: %w", transports.ImageName(dest), err)
 			}
 			if err = util.AddImageNames(b.store, "", systemContext, img, options.AdditionalTags); err != nil {
-				return imgID, nil, "", fmt.Errorf("setting image names to %v: %w", append(img.Names, options.AdditionalTags...), err)
+				return nil, fmt.Errorf("setting image names to %v: %w", append(img.Names, options.AdditionalTags...), err)
 			}
 			logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
 		default:
@@ -480,7 +504,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if dest.Transport().Name() == is.Transport.Name() {
 		dest2, img, err := is.ResolveReference(dest)
 		if err != nil {
-			return imgID, nil, "", fmt.Errorf("locating image %q in local storage: %w", transports.ImageName(dest), err)
+			return nil, fmt.Errorf("locating image %q in local storage: %w", transports.ImageName(dest), err)
 		}
 		dest = dest2
 		imgID = img.ID
@@ -492,13 +516,13 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 		if len(toPruneNames) > 0 {
 			if err = b.store.RemoveNames(imgID, toPruneNames); err != nil {
-				return imgID, nil, "", fmt.Errorf("failed to remove temporary name from image %q: %w", imgID, err)
+				return nil, fmt.Errorf("failed to remove temporary name from image %q: %w", imgID, err)
 			}
 			logrus.Debugf("removing %v from assigned names to image %q", nameToRemove, img.ID)
 		}
 		if options.IIDFile != "" {
 			if err = os.WriteFile(options.IIDFile, []byte("sha256:"+img.ID), 0o644); err != nil {
-				return imgID, nil, "", err
+				return nil, err
 			}
 		}
 	}
@@ -521,7 +545,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			return nil
 		}()
 		if err != nil {
-			return imgID, nil, "", err
+			return nil, err
 		}
 	}
 
@@ -529,12 +553,12 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	// reference for the image.
 	manifestDigest, err := manifest.Digest(manifestBytes)
 	if err != nil {
-		return imgID, nil, "", fmt.Errorf("computing digest of manifest of new image %q: %w", transports.ImageName(dest), err)
+		return nil, fmt.Errorf("computing digest of manifest of new image %q: %w", transports.ImageName(dest), err)
 	}
 	if imgID == "" {
 		parsedManifest, err := manifest.FromBlob(manifestBytes, manifest.GuessMIMEType(manifestBytes))
 		if err != nil {
-			return imgID, nil, "", fmt.Errorf("parsing written manifest to determine the image's ID: %w", err)
+			return nil, fmt.Errorf("parsing written manifest to determine the image's ID: %w", err)
 		}
 		configInfo := parsedManifest.ConfigInfo()
 		if configInfo.Size > 2 && configInfo.Digest.Validate() == nil { // don't be returning a digest of "" or "{}"
@@ -553,9 +577,17 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if options.Manifest != "" {
 		manifestID, err := b.addManifest(ctx, options.Manifest, imgID)
 		if err != nil {
-			return imgID, nil, "", err
+			return nil, err
 		}
 		logrus.Debugf("added imgID %s to manifestID %s", imgID, manifestID)
 	}
-	return imgID, ref, manifestDigest, nil
+
+	results := CommitResults{
+		ImageID:       imgID,
+		Canonical:     ref,
+		MediaType:     manifest.GuessMIMEType(manifestBytes),
+		ImageManifest: manifestBytes,
+		Digest:        manifestDigest,
+	}
+	return &results, nil
 }

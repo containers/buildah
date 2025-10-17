@@ -127,6 +127,14 @@ load helpers
   expect_output ""
 }
 
+@test "commit iidfile" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah commit --iidfile ${TEST_SCRATCH_DIR}/iidfile.txt $cid
+  test -s ${TEST_SCRATCH_DIR}/iidfile.txt
+}
+
 @test "commit rm test" {
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
