@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/buildah/internal/metadata"
 	"github.com/containers/buildah/pkg/blobcache"
 	"github.com/containers/buildah/util"
 	encconfig "github.com/containers/ocicrypt/config"
@@ -76,7 +77,8 @@ type CommitOptions struct {
 	// github.com/containers/image/types SystemContext to hold credentials
 	// and other authentication/authorization information.
 	SystemContext *types.SystemContext
-	// IIDFile tells the builder to write the image ID to the specified file
+	// IIDFile tells the builder to write the image's ID, preceded by
+	// "sha256:", to the specified file.
 	IIDFile string
 	// Squash tells the builder to produce an image with a single layer
 	// instead of with possibly more than one layer.
@@ -308,9 +310,10 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 type CommitResults struct {
 	ImageID       string              // a local image ID, or part of the digest of the image's config blob
 	Canonical     reference.Canonical // set if destination included a DockerReference
-	MediaType     string              // always returned
-	ImageManifest []byte              // always returned
-	Digest        digest.Digest       // always returned
+	MediaType     string              // image manifest MIME type, always returned
+	ImageManifest []byte              // raw image manifest, always returned
+	Digest        digest.Digest       // digest of the manifest, always returned
+	Metadata      map[string]any      // always returned, format is flexible
 }
 
 // Commit writes the contents of the container, along with its updated
@@ -555,13 +558,13 @@ func (b *Builder) CommitResults(ctx context.Context, dest types.ImageReference, 
 	if err != nil {
 		return nil, fmt.Errorf("computing digest of manifest of new image %q: %w", transports.ImageName(dest), err)
 	}
-	if imgID == "" {
-		parsedManifest, err := manifest.FromBlob(manifestBytes, manifest.GuessMIMEType(manifestBytes))
-		if err != nil {
-			return nil, fmt.Errorf("parsing written manifest to determine the image's ID: %w", err)
-		}
-		configInfo := parsedManifest.ConfigInfo()
-		if configInfo.Size > 2 && configInfo.Digest.Validate() == nil { // don't be returning a digest of "" or "{}"
+	parsedManifest, err := manifest.FromBlob(manifestBytes, manifest.GuessMIMEType(manifestBytes))
+	if err != nil {
+		return nil, fmt.Errorf("parsing written manifest to determine the image's ID: %w", err)
+	}
+	configInfo := parsedManifest.ConfigInfo()
+	if configInfo.Size > 2 && configInfo.Digest.Validate() == nil { // don't be returning a digest of "" or "{}"
+		if imgID == "" {
 			imgID = configInfo.Digest.Encoded()
 		}
 	}
@@ -582,12 +585,23 @@ func (b *Builder) CommitResults(ctx context.Context, dest types.ImageReference, 
 		logrus.Debugf("added imgID %s to manifestID %s", imgID, manifestID)
 	}
 
+	descriptor := v1.Descriptor{
+		MediaType: manifest.GuessMIMEType(manifestBytes),
+		Digest:    manifestDigest,
+		Size:      int64(len(manifestBytes)),
+	}
+	metadata, err := metadata.Build(configInfo.Digest, descriptor)
+	if err != nil {
+		return nil, fmt.Errorf("building metadata map for image: %w", err)
+	}
+
 	results := CommitResults{
 		ImageID:       imgID,
 		Canonical:     ref,
-		MediaType:     manifest.GuessMIMEType(manifestBytes),
+		MediaType:     descriptor.MediaType,
 		ImageManifest: manifestBytes,
 		Digest:        manifestDigest,
+		Metadata:      metadata,
 	}
 	return &results, nil
 }

@@ -2,6 +2,7 @@ package imagebuildah
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
+	"github.com/containers/buildah/internal/metadata"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
@@ -172,6 +174,7 @@ type executor struct {
 	sourceDateEpoch                         *time.Time
 	rewriteTimestamp                        bool
 	createdAnnotation                       types.OptionalBool
+	metadataFile                            string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -346,6 +349,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		sourceDateEpoch:                         options.SourceDateEpoch,
 		rewriteTimestamp:                        options.RewriteTimestamp,
 		createdAnnotation:                       options.CreatedAnnotation,
+		metadataFile:                            options.MetadataFile,
 	}
 	// sort unsetAnnotations because we will later write these
 	// values to the history of the image therefore we want to
@@ -519,7 +523,7 @@ func (b *executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID
 	return oci.OS, oci.Architecture, manifestFormat, oci.History, oci.RootFS.DiffIDs, nil
 }
 
-func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, onlyBaseImage bool, err error) {
+func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, commitResults *buildah.CommitResults, onlyBaseImage bool, err error) {
 	stage := stages[stageIndex]
 	ib := stage.Builder
 	node := stage.Node
@@ -616,7 +620,7 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 	}
 
 	// Build this stage.
-	if imageID, ref, onlyBaseImage, err = stageExecutor.execute(ctx, base); err != nil {
+	if imageID, commitResults, onlyBaseImage, err = stageExecutor.execute(ctx, base); err != nil {
 		return "", nil, onlyBaseImage, err
 	}
 
@@ -630,7 +634,7 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 		b.stagesLock.Unlock()
 	}
 
-	return imageID, ref, onlyBaseImage, nil
+	return imageID, commitResults, onlyBaseImage, nil
 }
 
 type stageDependencyInfo struct {
@@ -922,7 +926,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		Index         int
 		ImageID       string
 		OnlyBaseImage bool
-		Ref           reference.Canonical
+		CommitResults buildah.CommitResults
 		Error         error
 	}
 
@@ -935,6 +939,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	var wg sync.WaitGroup
 	wg.Add(len(stages))
 
+	var commitResults buildah.CommitResults
 	go func() {
 		cancel := false
 		for stageIndex := range stages {
@@ -983,7 +988,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 						return
 					}
 				}
-				stageID, stageRef, stageOnlyBaseImage, stageErr := b.buildStage(ctx, cleanupStages, stages, index)
+				stageID, stageResults, stageOnlyBaseImage, stageErr := b.buildStage(ctx, cleanupStages, stages, index)
 				if stageErr != nil {
 					cancel = true
 					ch <- Result{
@@ -997,7 +1002,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				ch <- Result{
 					Index:         index,
 					ImageID:       stageID,
-					Ref:           stageRef,
+					CommitResults: *stageResults,
 					OnlyBaseImage: stageOnlyBaseImage,
 					Error:         nil,
 				}
@@ -1037,7 +1042,8 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 		if r.Index == len(stages)-1 {
 			imageID = r.ImageID
-			ref = r.Ref
+			commitResults = r.CommitResults
+			ref = commitResults.Canonical
 		}
 		b.stagesLock.Unlock()
 	}
@@ -1088,7 +1094,11 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if b.iidfile != "" {
 		iid := imageID
 		if iid != "" {
-			iid = "sha256:" + iid // only prepend a digest algorithm name if we actually got a value back
+			cdigest, err := digest.Parse("sha256:" + imageID)
+			if err != nil {
+				return imageID, ref, fmt.Errorf("coercing image ID into a digest structure: %w", err)
+			}
+			iid = cdigest.String()
 		}
 		if err = os.WriteFile(b.iidfile, []byte(iid), 0o644); err != nil {
 			return imageID, ref, fmt.Errorf("failed to write image ID to file %q: %w", b.iidfile, err)
@@ -1096,6 +1106,29 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	} else {
 		if _, err := stdout.Write([]byte(imageID + "\n")); err != nil {
 			return imageID, ref, fmt.Errorf("failed to write image ID to stdout: %w", err)
+		}
+	}
+	if b.metadataFile != "" {
+		var cdigest digest.Digest
+		if imageID != "" {
+			if cdigest, err = digest.Parse("sha256:" + imageID); err != nil {
+				return imageID, ref, fmt.Errorf("coercing image ID into a digest structure: %w", err)
+			}
+		}
+		metadata, err := metadata.Build(cdigest, v1.Descriptor{
+			MediaType: commitResults.MediaType,
+			Digest:    commitResults.Digest,
+			Size:      int64(len(commitResults.ImageManifest)),
+		})
+		if err != nil {
+			return imageID, ref, fmt.Errorf("building metadata for metadata file: %w", err)
+		}
+		metadataBytes, err := json.Marshal(metadata)
+		if err != nil {
+			return imageID, ref, fmt.Errorf("encoding metadata for metadata file: %w", err)
+		}
+		if err = os.WriteFile(b.metadataFile, metadataBytes, 0o644); err != nil {
+			return imageID, ref, fmt.Errorf("failed to write image metadata to file %q: %w", b.metadataFile, err)
 		}
 	}
 	return imageID, ref, nil

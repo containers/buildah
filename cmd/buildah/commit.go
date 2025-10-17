@@ -69,6 +69,7 @@ type commitInputOptions struct {
 	unsetAnnotation    []string
 	annotation         []string
 	createdAnnotation  bool
+	metadataFile       string
 }
 
 func init() {
@@ -123,6 +124,9 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	_ = cmd.RegisterFlagCompletionFunc("manifest", completion.AutocompleteNone)
 	flags.StringVar(&opts.iidfile, "iidfile", "", "write the image ID to the file")
 	_ = cmd.RegisterFlagCompletionFunc("iidfile", completion.AutocompleteDefault)
+	flags.StringVar(&opts.metadataFile, "metadata-file", "", "`file` to write metadata about the image to")
+	_ = cmd.RegisterFlagCompletionFunc("metadata-file", completion.AutocompleteDefault)
+
 	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
 	sourceDateEpochUsageDefault := "current time"
 	if v := os.Getenv(internal.SourceDateEpochName); v != "" {
@@ -401,10 +405,12 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
 	}
-	id, ref, _, err := builder.Commit(ctx, dest, options)
+	results, err := builder.CommitResults(ctx, dest, options)
 	if err != nil {
 		return util.GetFailureCause(err, fmt.Errorf("committing container %q to %q: %w", builder.Container, image, err))
 	}
+	ref := results.Canonical
+	id := results.ImageID
 	if ref != nil && id != "" {
 		logrus.Debugf("wrote image %s with ID %s", ref, id)
 	} else if ref != nil {
@@ -416,6 +422,15 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 	if options.IIDFile == "" && id != "" {
 		fmt.Printf("%s\n", id)
+	}
+	if iopts.metadataFile != "" {
+		metadataBytes, err := json.Marshal(results.Metadata)
+		if err != nil {
+			return fmt.Errorf("encoding contents for %q: %w", iopts.metadataFile, err)
+		}
+		if err := os.WriteFile(iopts.metadataFile, metadataBytes, 0o644); err != nil {
+			return err
+		}
 	}
 
 	if iopts.rm {

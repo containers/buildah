@@ -135,6 +135,16 @@ load helpers
   test -s ${TEST_SCRATCH_DIR}/iidfile.txt
 }
 
+@test "commit metadata-file" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah commit --metadata-file ${TEST_SCRATCH_DIR}/metadata.txt $cid
+  jq . ${TEST_SCRATCH_DIR}/metadata.txt
+  test -s ${TEST_SCRATCH_DIR}/metadata.txt
+  assert $(wc -c < ${TEST_SCRATCH_DIR}/metadata.txt) -gt 2
+}
+
 @test "commit rm test" {
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
