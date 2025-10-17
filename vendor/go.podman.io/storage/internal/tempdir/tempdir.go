@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"go.podman.io/storage/internal/staging_lockfile"
+	"go.podman.io/storage/pkg/system"
 )
 
 /*
@@ -148,7 +149,7 @@ func RecoverStaleDirs(rootDir string) error {
 			continue
 		}
 
-		if rmErr := os.RemoveAll(tempDirPath); rmErr != nil {
+		if rmErr := system.EnsureRemoveAll(tempDirPath); rmErr != nil {
 			recoveryErrors = append(recoveryErrors, fmt.Errorf("error removing stale temp dir: %w", rmErr))
 		}
 		if unlockErr := instanceLock.UnlockAndDelete(); unlockErr != nil {
@@ -218,7 +219,7 @@ func (td *TempDir) Cleanup() error {
 		return nil
 	}
 
-	if err := os.RemoveAll(td.tempDirPath); err != nil {
+	if err := system.EnsureRemoveAll(td.tempDirPath); err != nil {
 		return fmt.Errorf("removing temp dir failed: %w", err)
 	}
 
