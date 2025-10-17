@@ -162,6 +162,6 @@ type SBOMScanOptions struct {
 // Removal of the temporary directory is the responsibility of the caller.
 // If the string doesn't look like a URL or "-", TempDirForURL returns empty
 // strings and a nil error code.
-func TempDirForURL(dir, prefix, url string) (name string, subdir string, err error) {
-	return tmpdir.ForURL(dir, prefix, url)
+func TempDirForURL(dir, prefix, url string) (name, subdir string, err error) {
+	return tmpdir.ForURL(dir, prefix, url, nil)
 }
