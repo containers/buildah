@@ -19,6 +19,7 @@ import (
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/pkg/tmpdir"
 	"github.com/containers/buildah/pkg/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -148,7 +149,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		}
 	} else {
 		// The context directory could be a URL.  Try to handle that.
-		tempDir, subDir, err := define.TempDirForURL("", "buildah", cliArgs[0])
+		tempDir, subDir, err := tmpdir.ForURL("", "buildah", cliArgs[0])
 		if err != nil {
 			return options, nil, nil, fmt.Errorf("prepping temporary context directory: %w", err)
 		}
