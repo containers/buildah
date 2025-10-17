@@ -28,6 +28,7 @@ import (
 	"go.podman.io/buildah/define"
 	buildahdocker "go.podman.io/buildah/docker"
 	"go.podman.io/buildah/internal"
+	"go.podman.io/buildah/internal/httpclient"
 	"go.podman.io/buildah/internal/metadata"
 	"go.podman.io/buildah/internal/output"
 	"go.podman.io/buildah/internal/sanitize"
@@ -402,6 +403,13 @@ func (s *stageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 }
 
 func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Copy) error {
+	urlOptions := &httpclient.URLOptions{
+		// These next two fields are set based on command line flags
+		// with more generic-sounding names.
+		CertPath:              s.systemContext.DockerCertPath,
+		InsecureSkipTLSVerify: s.systemContext.DockerInsecureSkipTLSVerify,
+		Proxy:                 s.executor.proxy,
+	}
 	copiesExtend := []imagebuilder.Copy{}
 	for _, copy := range copies {
 		if err := s.volumeCacheInvalidate(copy.Dest); err != nil {
@@ -512,7 +520,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 							// additional context contains a tar file
 							// so download and explode tar to buildah
 							// temp and point context to that.
-							path, subdir, err := tmpdirpkg.ForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+							path, subdir, err := tmpdirpkg.ForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value, urlOptions)
 							if err != nil {
 								return fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 							}
@@ -618,6 +626,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			Parents:               copy.Parents,
 			Link:                  s.hasLink,
 			BuildMetadata:         labelsAndAnnotations,
+			Proxy:                 s.executor.proxy,
 		}
 		if len(copy.Files) > 0 {
 			// If we are copying heredoc files, we need to temporary place
@@ -646,6 +655,13 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 // items in the passed-in mounts list which include a "from=" value.  The ""
 // key in the returned map corresponds to the default build context.
 func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]internal.StageMountDetails, error) {
+	urlOptions := &httpclient.URLOptions{
+		// These next two fields are set based on command line flags
+		// with more generic-sounding names.
+		CertPath:              s.systemContext.DockerCertPath,
+		InsecureSkipTLSVerify: s.systemContext.DockerInsecureSkipTLSVerify,
+		Proxy:                 s.executor.proxy,
+	}
 	stageMountPoints := make(map[string]internal.StageMountDetails)
 	stageMountPoints[""] = internal.StageMountDetails{
 		MountPoint:               s.executor.contextDir,
@@ -711,7 +727,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 								// additional context contains a tar file
 								// so download and explode tar to buildah
 								// temp and point context to that.
-								path, subdir, err := tmpdirpkg.ForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+								path, subdir, err := tmpdirpkg.ForURL(tmpdir.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value, urlOptions)
 								if err != nil {
 									return nil, fmt.Errorf("unable to download context from external source %q: %w", additionalBuildContext.Value, err)
 								}
