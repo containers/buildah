@@ -23,6 +23,7 @@ import (
 	"go.podman.io/buildah/define"
 	"go.podman.io/buildah/internal/output"
 	"go.podman.io/buildah/pkg/parse"
+	"go.podman.io/buildah/pkg/tmpdir"
 	"go.podman.io/buildah/pkg/util"
 	"go.podman.io/common/pkg/auth"
 	"go.podman.io/image/v5/docker/reference"
@@ -149,7 +150,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		}
 	} else {
 		// The context directory could be a URL.  Try to handle that.
-		tempDir, subDir, err := define.TempDirForURL("", "buildah", cliArgs[0])
+		tempDir, subDir, err := tmpdir.ForURL("", "buildah", cliArgs[0])
 		if err != nil {
 			return options, nil, nil, fmt.Errorf("prepping temporary context directory: %w", err)
 		}
