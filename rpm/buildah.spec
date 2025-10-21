@@ -11,6 +11,9 @@
 
 %if %{defined fedora}
 %define build_with_btrfs 1
+%if 0%{?fedora} >= 43
+%define sequoia 1
+%endif
 %endif
 
 %if %{defined rhel}
@@ -69,6 +72,9 @@ BuildRequires: libseccomp-devel
 %endif
 Requires: libseccomp >= 2.4.1-0
 Suggests: cpp
+%if %{defined sequoia}
+Requires: podman-sequoia
+%endif
 
 %description
 The %{name} package provides a command line tool which can be used to
@@ -130,6 +136,10 @@ export BUILDTAGS+=" exclude_graphdriver_btrfs"
 
 %if %{defined fips}
 export BUILDTAGS+=" libtrust_openssl"
+%endif
+
+%if %{defined sequoia}
+export BUILDTAGS+=" containers_image_sequoia"
 %endif
 
 %gobuild -o bin/%{name} ./cmd/%{name}
