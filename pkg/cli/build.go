@@ -418,6 +418,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		LogRusage:               iopts.LogRusage,
 		LogSplitByPlatform:      iopts.LogSplitByPlatform,
 		Manifest:                iopts.Manifest,
+		MetadataFile:            iopts.MetadataFile,
 		MaxPullPushRetries:      iopts.Retry,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,

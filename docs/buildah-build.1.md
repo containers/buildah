@@ -625,6 +625,12 @@ The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
 `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
 unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
+**--metadata-file** *MetadataFile*
+
+Write information about the built image to the named file.  When `--platform`
+is specified more than once, attempting to use this option will trigger an
+error.
+
 **--network**, **--net**=*mode*
 
 Sets the configuration for network namespaces when handling `RUN` instructions.

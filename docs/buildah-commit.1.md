@@ -176,6 +176,10 @@ Write the image ID to the file.
 Name of the manifest list to which the built image will be added. Creates the manifest list
 if it does not exist. This option is useful for building multi architecture images.
 
+**--metadata-file** *MetadataFile*
+
+Write information about the committed image to the named file.
+
 **--omit-history** *bool-value*
 
 Omit build history information in the built image. (default false).

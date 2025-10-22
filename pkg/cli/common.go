@@ -80,6 +80,7 @@ type BudResults struct {
 	Logfile             string
 	LogSplitByPlatform  bool
 	Manifest            string
+	MetadataFile        string
 	NoHostname          bool
 	NoHosts             bool
 	NoCache             bool
@@ -270,6 +271,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 		panic(fmt.Sprintf("error marking the rusage-logfile flag as hidden: %v", err))
 	}
 	fs.StringVar(&flags.Manifest, "manifest", "", "add the image to the specified manifest list. Creates manifest list if it does not exist")
+	fs.StringVar(&flags.MetadataFile, "metadata-file", "", "`file` to write metadata about the image to")
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.BoolVar(&flags.NoHostname, "no-hostname", false, "do not create new /etc/hostname file for RUN instructions, use the one from the base image.")
 	fs.BoolVar(&flags.NoHosts, "no-hosts", false, "do not create new /etc/hosts file for RUN instructions, use the one from the base image.")
@@ -360,6 +362,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["layer-label"] = commonComp.AutocompleteNone
 	flagCompletion["logfile"] = commonComp.AutocompleteDefault
 	flagCompletion["manifest"] = commonComp.AutocompleteDefault
+	flagCompletion["metadata-file"] = commonComp.AutocompleteDefault
 	flagCompletion["os"] = commonComp.AutocompleteNone
 	flagCompletion["os-feature"] = commonComp.AutocompleteNone
 	flagCompletion["os-version"] = commonComp.AutocompleteNone

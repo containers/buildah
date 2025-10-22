@@ -418,4 +418,7 @@ type BuildOptions struct {
 	// CreatedAnnotation controls whether or not an "org.opencontainers.image.created"
 	// annotation is present in the output image.
 	CreatedAnnotation types.OptionalBool
+	// MetadataFile is the name of a file to which the builder should write a JSON map
+	// containing metadata about the built image.
+	MetadataFile string
 }

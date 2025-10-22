@@ -5629,16 +5629,16 @@ EOF
   _prefetch alpine
 
   # Build first in Docker format.  Whether we do OCI or Docker first shouldn't matter, so we picked one.
-  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-docker  --format docker --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
+  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-docker  --metadata-file ${TEST_SCRATCH_DIR}/first-docker.meta  --format docker --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
   # Build in OCI format.  Cache should not reuse the same images, so we should get a different image ID.
-  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-oci     --format oci    --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
+  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/first-oci     --metadata-file ${TEST_SCRATCH_DIR}/first-oci.meta     --format oci    --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
   # Build in Docker format again.  Cache traversal should 100% hit the Docker image, so we should get its image ID.
-  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/second-docker --format docker --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
+  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/second-docker --metadata-file ${TEST_SCRATCH_DIR}/second-docker.meta --format docker --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
   # Build in OCI format again.  Cache traversal should 100% hit the OCI image, so we should get its image ID.
-  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/second-oci    --format oci    --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
+  run_buildah build --iidfile ${TEST_SCRATCH_DIR}/second-oci    --metadata-file ${TEST_SCRATCH_DIR}/second-oci.meta    --format oci    --layers --quiet $WITH_POLICY_JSON $BUDFILES/cache-format
 
   # Compare them.  The two images we built in Docker format should be the same, the two we built in OCI format
   # should be the same, but the OCI and Docker format images should be different.
@@ -5649,6 +5649,19 @@ EOF
 
   assert "$(< ${TEST_SCRATCH_DIR}/first-docker)" != "$(< ${TEST_SCRATCH_DIR}/first-oci)" \
          "iidfile(first docker) != iidfile(first oci)"
+
+  assert "$(< ${TEST_SCRATCH_DIR}/first-docker.meta)" = "$(< ${TEST_SCRATCH_DIR}/second-docker.meta)" \
+         "metadata(first docker) == metadata(second docker)"
+  assert "$(< ${TEST_SCRATCH_DIR}/first-oci.meta)" = "$(< ${TEST_SCRATCH_DIR}/second-oci.meta)" \
+         "metadata(first oci) == metadata(second oci)"
+
+  assert "$(< ${TEST_SCRATCH_DIR}/first-docker.meta)" != "$(< ${TEST_SCRATCH_DIR}/first-oci.meta)" \
+         "metadata(first docker) != metadata(first oci)"
+
+  jq . ${TEST_SCRATCH_DIR}/first-docker.meta
+  jq . ${TEST_SCRATCH_DIR}/first-oci.meta
+  assert "$(wc -c < ${TEST_SCRATCH_DIR}/first-docker.meta)" -gt 2
+  assert "$(wc -c < ${TEST_SCRATCH_DIR}/first-oci.meta)" -gt 2
 }
 
 @test "bud cache add-copy-chown" {

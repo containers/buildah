@@ -86,6 +86,9 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	if len(options.Platforms) > 1 && options.IIDFile != "" {
 		return "", nil, fmt.Errorf("building multiple images, but iidfile %q can only be used to store one image ID", options.IIDFile)
 	}
+	if len(options.Platforms) > 1 && options.MetadataFile != "" {
+		return "", nil, fmt.Errorf("building multiple images, but metadata file %q can only be used to store information about one image", options.MetadataFile)
+	}
 
 	logger := logrus.New()
 	if options.Err != nil {
