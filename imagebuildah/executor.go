@@ -97,9 +97,7 @@ type executor struct {
 	isolation                      define.Isolation
 	namespaceOptions               []define.NamespaceOption
 	configureNetwork               define.NetworkConfigurationPolicy
-	cniPluginPath                  string
-	cniConfigDir                   string
-	// NetworkInterface is the libnetwork network interface used to setup CNI or netavark networks.
+	// NetworkInterface is the libnetwork network interface used to setup netavark networks.
 	networkInterface                        nettypes.ContainerNetwork
 	idmappingOptions                        *define.IDMappingOptions
 	commonBuildOptions                      *define.CommonBuildOptions
@@ -284,8 +282,6 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		inheritAnnotations:                      options.InheritAnnotations,
 		namespaceOptions:                        options.NamespaceOptions,
 		configureNetwork:                        options.ConfigureNetwork,
-		cniPluginPath:                           options.CNIPluginPath,
-		cniConfigDir:                            options.CNIConfigDir,
 		networkInterface:                        options.NetworkInterface,
 		idmappingOptions:                        options.IDMappingOptions,
 		commonBuildOptions:                      options.CommonBuildOpts,
