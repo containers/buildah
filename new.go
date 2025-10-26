@@ -132,7 +132,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		// Note: It is important to do this before we pull any images/create containers.
 		// The default backend detection logic needs an empty store to correctly detect
 		// that we can use netavark, if the store was not empty it will use CNI to not break existing installs.
-		options.NetworkInterface, err = getNetworkInterface(store, options.CNIConfigDir, options.CNIPluginPath)
+		options.NetworkInterface, err = getNetworkInterface(store)
 		if err != nil {
 			return nil, err
 		}

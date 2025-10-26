@@ -462,7 +462,7 @@ func OpenBuilder(store storage.Store, container string) (*Builder, error) {
 		return nil, fmt.Errorf("container %q is not a %s container (is a %q container)", container, define.Package, b.Type)
 	}
 
-	netInt, err := getNetworkInterface(store, b.CNIConfigDir, b.CNIPluginPath)
+	netInt, err := getNetworkInterface(store)
 	if err != nil {
 		return nil, err
 	}
