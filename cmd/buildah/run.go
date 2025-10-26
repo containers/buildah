@@ -168,8 +168,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		NamespaceOptions: namespaceOptions,
 		ConfigureNetwork: networkPolicy,
 		ContextDir:       iopts.contextDir,
-		CNIPluginPath:    iopts.CNIPlugInPath,
-		CNIConfigDir:     iopts.CNIConfigDir,
 		AddCapabilities:  iopts.capAdd,
 		DropCapabilities: iopts.capDrop,
 		WorkingDir:       iopts.workingDir,
