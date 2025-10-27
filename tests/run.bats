@@ -947,7 +947,6 @@ _EOF
 
 @test "rootless on cgroupv2 and systemd runs under user.slice" {
 	skip_if_no_runtime
-	skip_if_cgroupsv1
 	skip_if_in_container
 	skip_if_root_environment
 	if test "$DBUS_SESSION_BUS_ADDRESS" = ""; then
