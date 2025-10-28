@@ -6,12 +6,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	digest "github.com/opencontainers/go-digest"
 	"go.podman.io/image/v5/internal/multierr"
 	"go.podman.io/image/v5/internal/private"
 	"go.podman.io/image/v5/manifest"
 )
+
+const importKeyTimeOut = 60 * time.Second
 
 func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image private.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error) {
 	switch pr.KeyType {
@@ -40,7 +43,8 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 	}
 
 	// FIXME: move this to per-context initialization
-	mech, trustedIdentities, err := newEphemeralGPGSigningMechanism(data)
+	// Import the keys with a 60s timeout to avoid hanging indefinitely. see issues.redhat.com/browse/OCPBUGS-57893
+	mech, trustedIdentities, err := newEphemeralGPGSigningMechanismWithTimeout(data, importKeyTimeOut)
 	if err != nil {
 		return sarRejected, nil, err
 	}
@@ -113,4 +117,25 @@ func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image private.U
 		summary = PolicyRequirementError(multierr.Format("None of the signatures were accepted, reasons: ", "; ", "", rejections).Error())
 	}
 	return false, summary
+}
+
+func newEphemeralGPGSigningMechanismWithTimeout(blobs [][]byte, timeout time.Duration) (signingMechanismWithPassphrase, []string, error) {
+	type result struct {
+		mech signingMechanismWithPassphrase
+		keys []string
+		err  error
+	}
+	done := make(chan result, 1)
+
+	go func() {
+		mech, keys, err := newEphemeralGPGSigningMechanism(blobs)
+		done <- result{mech, keys, err}
+	}()
+
+	select {
+	case <-time.After(timeout):
+		return nil, nil, fmt.Errorf("GPG/OpenPGP key import timed out after %s", timeout)
+	case r := <-done:
+		return r.mech, r.keys, r.err
+	}
 }
