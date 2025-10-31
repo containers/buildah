@@ -8,14 +8,17 @@ import (
 )
 
 // PlatformPolicy controls the behavior of image-platform matching.
+//
 // Deprecated: new code should use define.PlatformPolicy directly.
 type PlatformPolicy = define.PlatformPolicy
 
 const (
 	// Only debug log if an image does not match the expected platform.
+	//
 	// Deprecated: new code should reference define.PlatformPolicyDefault directly.
 	PlatformPolicyDefault = define.PlatformPolicyDefault
 	// Warn if an image does not match the expected platform.
+	//
 	// Deprecated: new code should reference define.PlatformPolicyWarn directly.
 	PlatformPolicyWarn = define.PlatformPolicyWarn
 )
