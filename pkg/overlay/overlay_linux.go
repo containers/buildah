@@ -50,18 +50,18 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 			if !filepath.IsAbs(upperDir) {
 				upperDir = filepath.Join(contentDir, upperDir)
 			}
-		}
-
-		st, err := os.Stat(source)
-		if err != nil {
-			return mount, err
-		}
-		if err := os.Chmod(upperDir, st.Mode()); err != nil {
-			return mount, err
-		}
-		if stat, ok := st.Sys().(*syscall.Stat_t); ok {
-			if err := os.Chown(upperDir, int(stat.Uid), int(stat.Gid)); err != nil {
+		} else {
+			st, err := os.Stat(source)
+			if err != nil {
 				return mount, err
+			}
+			if err := os.Chmod(upperDir, st.Mode()); err != nil {
+				return mount, err
+			}
+			if stat, ok := st.Sys().(*syscall.Stat_t); ok {
+				if err := os.Chown(upperDir, int(stat.Uid), int(stat.Gid)); err != nil {
+					return mount, err
+				}
 			}
 		}
 		overlayOptions = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,private", escapeColon(source), upperDir, workDir)
