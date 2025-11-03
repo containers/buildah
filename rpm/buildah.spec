@@ -122,6 +122,8 @@ CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-flto=auto//g')
 CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-Wp,D_GLIBCXX_ASSERTIONS//g')
 CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-specs=\/usr\/lib\/rpm\/redhat\/redhat-annobin-cc1//g')
 
+%{__make} internal/mkcw/embed/entrypoint_amd64.gz
+
 %ifarch x86_64
 export CGO_CFLAGS+=" -m64 -mtune=generic -fcf-protection=full"
 %endif
