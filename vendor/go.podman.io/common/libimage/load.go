@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"syscall"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -110,6 +112,14 @@ func (r *Runtime) Load(ctx context.Context, path string, options *LoadOptions) (
 			return loadedImages, err
 		}
 		logrus.Debugf("Error loading %s (%s): %v", path, transportName, err)
+
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) {
+            if pathErr.Err == syscall.ENOSPC {
+                return nil, pathErr
+            }
+        }
+
 		loadErrors = append(loadErrors, fmt.Errorf("%s: %v", transportName, err))
 	}
 
