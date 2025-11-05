@@ -20,6 +20,7 @@ import (
 	buildahdocker "github.com/containers/buildah/docker"
 	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/internal/metadata"
+	"github.com/containers/buildah/internal/sanitize"
 	"github.com/containers/buildah/internal/tmpdir"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
@@ -453,7 +454,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			copy.Src = copySources
 		}
 
-		if len(copy.From) > 0 && len(copy.Files) == 0 {
+		if copy.From != "" && len(copy.Files) == 0 {
 			// If from has an argument within it, resolve it to its
 			// value.  Otherwise just return the value found.
 			from, fromErr := imagebuilder.ProcessWord(copy.From, s.stage.Builder.Arguments())
@@ -535,7 +536,8 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				}
 				contextDir = mountPoint
 			}
-			// Original behaviour of buildah still stays true for COPY irrespective of additional context.
+			// With --from set, the content being copied isn't coming from the default
+			// build context directory, so we're not expected to force everything to 0:0
 			preserveOwnership = true
 			copyExcludes = excludes
 		} else {
@@ -618,9 +620,14 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 }
 
 // Returns a map of StageName/ImageName:internal.StageMountDetails for the
-// items in the passed-in mounts list which include a "from=" value.
+// items in the passed-in mounts list which include a "from=" value.  The ""
+// key in the returned map corresponds to the default build context.
 func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]internal.StageMountDetails, error) {
 	stageMountPoints := make(map[string]internal.StageMountDetails)
+	stageMountPoints[""] = internal.StageMountDetails{
+		MountPoint:               s.executor.contextDir,
+		IsWritesDiscardedOverlay: s.executor.contextDirWritesAreDiscarded,
+	}
 	for _, flag := range mountList {
 		if strings.Contains(flag, "from") {
 			tokens := strings.Split(flag, ",")
@@ -650,7 +657,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 						if additionalBuildContext.IsImage {
 							mountPoint, err := s.getImageRootfs(s.ctx, additionalBuildContext.Value)
 							if err != nil {
-								return nil, fmt.Errorf("%s from=%s: image found with that name", flag, from)
+								return nil, fmt.Errorf("%s from=%s: image not found with that name", flag, from)
 							}
 							// The `from` in stageMountPoints should point
 							// to `mountPoint` replaced from additional
@@ -932,6 +939,29 @@ func (s *stageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 	return errors.New(err)
 }
 
+// sanitizeFrom limits which image names (with or without transport prefixes)
+// we'll accept.  For those it accepts which refer to filesystem objects, where
+// relative path names are evaluated relative to "contextDir", it will create a
+// copy of the original image, under "tmpdir", which contains no symbolic
+// links, and return either the original image reference or a reference to a
+// sanitized copy which should be used instead.
+func (s *stageExecutor) sanitizeFrom(from, tmpdir string) (newFrom string, err error) {
+	transportName, restOfImageName, maybeHasTransportName := strings.Cut(from, ":")
+	if !maybeHasTransportName || transports.Get(transportName) == nil {
+		if _, err = reference.ParseNormalizedNamed(from); err == nil {
+			// this is a normal-looking image-in-a-registry-or-named-in-storage name
+			return from, nil
+		}
+		if img, err := s.executor.store.Image(from); img != nil && err == nil {
+			// this is an image ID
+			return from, nil
+		}
+		return "", fmt.Errorf("parsing image name %q: %w", from, err)
+	}
+	// TODO: drop this part and just return an error... someday
+	return sanitize.ImageName(transportName, restOfImageName, s.executor.contextDir, tmpdir)
+}
+
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
@@ -947,6 +977,10 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			return nil, fmt.Errorf("determining starting point for build: %w", err)
 		}
 		from = base
+	}
+	sanitizedFrom, err := s.sanitizeFrom(from, tmpdir.GetTempDir())
+	if err != nil {
+		return nil, fmt.Errorf("invalid base image specification %q: %w", from, err)
 	}
 	displayFrom := from
 	if ib.Platform != "" {
@@ -987,7 +1021,7 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 
 	builderOptions := buildah.BuilderOptions{
 		Args:                  ib.Args,
-		FromImage:             from,
+		FromImage:             sanitizedFrom,
 		GroupAdd:              s.executor.groupAdd,
 		PullPolicy:            pullPolicy,
 		ContainerSuffix:       s.executor.containerSuffix,
@@ -1023,16 +1057,6 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
 	if err != nil {
 		return nil, fmt.Errorf("creating build container: %w", err)
-	}
-
-	// If executor's ProcessLabel and MountLabel is empty means this is the first stage
-	// Make sure we share first stage's ProcessLabel and MountLabel with all other subsequent stages
-	// Doing this will ensure and one stage in same build can mount another stage even if `selinux`
-	// is enabled.
-
-	if s.executor.mountLabel == "" && s.executor.processLabel == "" {
-		s.executor.mountLabel = builder.MountLabel
-		s.executor.processLabel = builder.ProcessLabel
 	}
 
 	if initializeIBConfig {

@@ -73,6 +73,7 @@ type executor struct {
 	stages                         map[string]*stageExecutor
 	store                          storage.Store
 	contextDir                     string
+	contextDirWritesAreDiscarded   bool
 	pullPolicy                     define.PullPolicy
 	registry                       string
 	ignoreUnrecognizedInstructions bool
@@ -187,7 +188,7 @@ type imageTypeAndHistoryAndDiffIDs struct {
 }
 
 // newExecutor creates a new instance of the imagebuilder.Executor interface.
-func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, options define.BuildOptions, mainNode *parser.Node, containerFiles []string) (*executor, error) {
+func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, options define.BuildOptions, mainNode *parser.Node, containerFiles []string, processLabel, mountLabel string, contextWritesDiscarded bool) (*executor, error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get container config: %w", err)
@@ -257,6 +258,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		stages:                                  make(map[string]*stageExecutor),
 		store:                                   store,
 		contextDir:                              options.ContextDirectory,
+		contextDirWritesAreDiscarded:            contextWritesDiscarded,
 		excludes:                                excludes,
 		groupAdd:                                options.GroupAdd,
 		ignoreFile:                              options.IgnoreFile,
@@ -294,6 +296,8 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		squash:                                  options.Squash,
 		labels:                                  slices.Clone(options.Labels),
 		layerLabels:                             slices.Clone(options.LayerLabels),
+		processLabel:                            processLabel,
+		mountLabel:                              mountLabel,
 		annotations:                             slices.Clone(options.Annotations),
 		layers:                                  options.Layers,
 		noHostname:                              options.CommonBuildOpts.NoHostname,
