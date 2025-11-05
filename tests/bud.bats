@@ -2755,6 +2755,13 @@ _EOF
   mkdir $mytmpdir/rootfs
   tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
   ls $mytmpdir/rootfs/hello
+
+  # test with long syntax as well
+  buildah build $WITH_POLICY_JSON --output type=tar,dest=- -t test-bud -f $mytmpdir/Containerfile . > $mytmpdir/rootfs2.tar
+  # explode tar
+  mkdir $mytmpdir/rootfs2
+  tar -C $mytmpdir/rootfs2 -xvf $mytmpdir/rootfs2.tar
+  ls $mytmpdir/rootfs2/hello
 }
 
 @test "build with custom build output and output rootfs to tar with no additional step" {
@@ -2785,6 +2792,8 @@ _EOF
 FROM alpine
 RUN echo 'hello'> hello
 _EOF
+  run_buildah 125 build --output type=tar $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  expect_output --substring 'missing required key "dest"'
   run_buildah 125 build --output type=tar, $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   expect_output --substring 'invalid'
   run_buildah 125 build --output type=wrong,dest=hello $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
