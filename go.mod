@@ -5,7 +5,7 @@ module github.com/containers/buildah
 go 1.24.2
 
 require (
-	github.com/containerd/platforms v1.0.0-rc.1
+	github.com/containerd/platforms v1.0.0-rc.2
 	github.com/containernetworking/cni v1.3.0
 	github.com/containers/luksy v0.0.0-20251013183210-adfea1d56c77
 	github.com/containers/ocicrypt v1.2.1
