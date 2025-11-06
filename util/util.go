@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal/util"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -140,16 +141,7 @@ func ExpandNames(names []string, systemContext *types.SystemContext, store stora
 // name.  Please note that the second argument has been deprecated and has no
 // effect anymore.
 func FindImage(store storage.Store, _ string, systemContext *types.SystemContext, image string) (types.ImageReference, *storage.Image, error) {
-	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	localImage, _, err := runtime.LookupImage(image, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	ref, err := localImage.StorageReference()
+	localImage, ref, err := util.LookupImage(systemContext, store, image, false)
 	if err != nil {
 		return nil, nil, err
 	}
