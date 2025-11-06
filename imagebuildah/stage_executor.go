@@ -830,6 +830,7 @@ func (s *stageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Args:                 s.executor.runtimeArgs,
 		Cmd:                  config.Cmd,
 		ContextDir:           s.executor.contextDir,
+		ContextDirExcludes:   s.executor.excludes,
 		ConfigureNetwork:     s.executor.configureNetwork,
 		Entrypoint:           config.Entrypoint,
 		Env:                  config.Env,

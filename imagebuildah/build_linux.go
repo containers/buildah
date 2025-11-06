@@ -14,6 +14,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/pkg/overlay"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/storage"
@@ -96,9 +97,14 @@ func platformSetupContextDirectoryOverlay(store storage.Store, options *define.B
 			return "", "", "", false, nil, fmt.Errorf("creating a temporary directory under %s: %w", tmpDir, err)
 		}
 		// copy the contents of the default build context to the new location so that it can be written to more or less safely
+		excludes, _, err := parse.ContainerIgnoreFile(contextDirectoryAbsolute, options.IgnoreFile, nil)
+		if err != nil {
+			return "", "", "", false, nil, fmt.Errorf("parsing ignore file under context directory %s: %w", contextDirectoryAbsolute, err)
+		}
 		getOptions := copier.GetOptions{
 			ChownDirs:  &idtools.IDPair{UID: 0, GID: 0},
 			ChownFiles: &idtools.IDPair{UID: 0, GID: 0},
+			Excludes:   excludes,
 		}
 		var wg sync.WaitGroup
 		var putErr, getErr, labelErr error
