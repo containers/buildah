@@ -142,6 +142,8 @@ export BUILDTAGS+=" libtrust_openssl"
 export BUILDTAGS+=" containers_image_sequoia"
 %endif
 
+%{__rm} -f internal/mkcw/embed/entrypoint_amd64.gz
+%{__make} internal/mkcw/embed/entrypoint_amd64.gz
 %gobuild -o bin/%{name} ./cmd/%{name}
 %gobuild -o bin/imgtype ./tests/imgtype
 %gobuild -o bin/copy ./tests/copy
