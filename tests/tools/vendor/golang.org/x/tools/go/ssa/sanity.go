@@ -407,14 +407,87 @@ func (s *sanity) checkReferrerList(v Value) {
 	}
 }
 
+func (s *sanity) checkFunctionParams() {
+	signature := s.fn.Signature
+	params := s.fn.Params
+
+	// startSigParams is the start of signature.Params() within params.
+	startSigParams := 0
+	if signature.Recv() != nil {
+		startSigParams = 1
+	}
+
+	if startSigParams+signature.Params().Len() != len(params) {
+		s.errorf("function has %d parameters in signature but has %d after building",
+			startSigParams+signature.Params().Len(), len(params))
+		return
+	}
+
+	for i, param := range params {
+		var sigType types.Type
+		si := i - startSigParams
+		if si < 0 {
+			sigType = signature.Recv().Type()
+		} else {
+			sigType = signature.Params().At(si).Type()
+		}
+
+		if !types.Identical(sigType, param.Type()) {
+			s.errorf("expect type %s in signature but got type %s in param %d", param.Type(), sigType, i)
+		}
+	}
+}
+
+// checkTransientFields checks whether all transient fields of Function are cleared.
+func (s *sanity) checkTransientFields() {
+	fn := s.fn
+	if fn.build != nil {
+		s.errorf("function transient field 'build' is not nil")
+	}
+	if fn.currentBlock != nil {
+		s.errorf("function transient field 'currentBlock' is not nil")
+	}
+	if fn.vars != nil {
+		s.errorf("function transient field 'vars' is not nil")
+	}
+	if fn.results != nil {
+		s.errorf("function transient field 'results' is not nil")
+	}
+	if fn.returnVars != nil {
+		s.errorf("function transient field 'returnVars' is not nil")
+	}
+	if fn.targets != nil {
+		s.errorf("function transient field 'targets' is not nil")
+	}
+	if fn.lblocks != nil {
+		s.errorf("function transient field 'lblocks' is not nil")
+	}
+	if fn.subst != nil {
+		s.errorf("function transient field 'subst' is not nil")
+	}
+	if fn.jump != nil {
+		s.errorf("function transient field 'jump' is not nil")
+	}
+	if fn.deferstack != nil {
+		s.errorf("function transient field 'deferstack' is not nil")
+	}
+	if fn.source != nil {
+		s.errorf("function transient field 'source' is not nil")
+	}
+	if fn.exits != nil {
+		s.errorf("function transient field 'exits' is not nil")
+	}
+	if fn.uniq != 0 {
+		s.errorf("function transient field 'uniq' is not zero")
+	}
+}
+
 func (s *sanity) checkFunction(fn *Function) bool {
-	// TODO(adonovan): check Function invariants:
-	// - check params match signature
-	// - check transient fields are nil
-	// - warn if any fn.Locals do not appear among block instructions.
+	s.fn = fn
+	s.checkFunctionParams()
+	s.checkTransientFields()
 
 	// TODO(taking): Sanity check origin, typeparams, and typeargs.
-	s.fn = fn
 	if fn.Prog == nil {
 		s.errorf("nil Prog")
 	}
@@ -452,19 +525,28 @@ func (s *sanity) checkFunction(fn *Function) bool {
 			s.errorf("got fromSource=%t, hasSyntax=%t; want same values", src, syn)
 		}
 	}
+
+	// Build the set of valid referrers.
+	s.instrs = make(map[Instruction]unit)
+
+	// TODO: switch to range-over-func when x/tools updates to 1.23.
+	// instrs are the instructions that are present in the function.
+	fn.instrs()(func(instr Instruction) bool {
+		s.instrs[instr] = unit{}
+		return true
+	})
+
+	// Check all Locals allocations appear in the function instruction.
 	for i, l := range fn.Locals {
+		if _, present := s.instrs[l]; !present {
+			s.warnf("function doesn't contain Local alloc %s", l.Name())
+		}
+
 		if l.Parent() != fn {
 			s.errorf("Local %s at index %d has wrong parent", l.Name(), i)
 		}
 		if l.Heap {
 			s.errorf("Local %s at index %d has Heap flag set", l.Name(), i)
-		}
-	}
-	// Build the set of valid referrers.
-	s.instrs = make(map[Instruction]unit)
-	for _, b := range fn.Blocks {
-		for _, instr := range b.Instrs {
-			s.instrs[instr] = unit{}
 		}
 	}
 	for i, p := range fn.Params {
@@ -527,6 +609,19 @@ func sanityCheckPackage(pkg *Package) {
 	if pkg.Pkg == nil {
 		panic(fmt.Sprintf("Package %s has no Object", pkg))
 	}
+	if pkg.info != nil {
+		panic(fmt.Sprintf("package %s field 'info' is not cleared", pkg))
+	}
+	if pkg.files != nil {
+		panic(fmt.Sprintf("package %s field 'files' is not cleared", pkg))
+	}
+	if pkg.created != nil {
+		panic(fmt.Sprintf("package %s field 'created' is not cleared", pkg))
+	}
+	if pkg.initVersion != nil {
+		panic(fmt.Sprintf("package %s field 'initVersion' is not cleared", pkg))
+	}
+
 	_ = pkg.String() // must not crash
 
 	for name, mem := range pkg.Members {

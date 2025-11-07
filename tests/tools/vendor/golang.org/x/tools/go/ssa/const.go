@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -114,7 +113,7 @@ func zeroString(t types.Type, from *types.Package) string {
 		}
 	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
 		return "nil"
-	case *types.Named, *aliases.Alias:
+	case *types.Named, *types.Alias:
 		return zeroString(t.Underlying(), from)
 	case *types.Array, *types.Struct:
 		return relType(t, from) + "{}"

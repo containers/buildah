@@ -249,7 +249,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		// non-parameterized, as they are the set of runtime types.
 		t := val.Type()
 		if f.typeparams.Len() == 0 || !f.Prog.isParameterized(t) {
-			addRuntimeType(f.Prog, t)
+			addMakeInterfaceType(f.Prog, t)
 		}
 
 		mi := &MakeInterface{X: val}

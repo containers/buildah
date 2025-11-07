@@ -37,8 +37,9 @@ type Program struct {
 	hasParamsMu sync.Mutex
 	hasParams   typeparams.Free
 
-	runtimeTypesMu sync.Mutex
-	runtimeTypes   typeutil.Map // set of runtime types (from MakeInterface)
+	// set of concrete types used as MakeInterface operands
+	makeInterfaceTypesMu sync.Mutex
+	makeInterfaceTypes   map[types.Type]unit // (may contain redundant identical types)
 
 	// objectMethods is a memoization of objectMethod
 	// to avoid creation of duplicate methods from type information.
@@ -341,7 +342,7 @@ type Function struct {
 	// source information
 	Synthetic string      // provenance of synthetic function; "" for true source functions
 	syntax    ast.Node    // *ast.Func{Decl,Lit}, if from syntax (incl. generic instances) or (*ast.RangeStmt if a yield function)
-	info      *types.Info // type annotations (iff syntax != nil)
+	info      *types.Info // type annotations (if syntax != nil)
 	goversion string      // Go version of syntax (NB: init is special)
 
 	parent *Function // enclosing function if anon; nil if global

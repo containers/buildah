@@ -11,7 +11,7 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/aliases"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // MethodValue returns the Function implementing method sel, building
@@ -158,124 +158,23 @@ type methodSet struct {
 //
 // Thread-safe.
 //
-// Acquires prog.runtimeTypesMu.
+// Acquires prog.makeInterfaceTypesMu.
 func (prog *Program) RuntimeTypes() []types.Type {
-	prog.runtimeTypesMu.Lock()
-	defer prog.runtimeTypesMu.Unlock()
-	return prog.runtimeTypes.Keys()
-}
+	prog.makeInterfaceTypesMu.Lock()
+	defer prog.makeInterfaceTypesMu.Unlock()
 
-// forEachReachable calls f for type T and each type reachable from
-// its type through reflection.
-//
-// The function f must use memoization to break cycles and
-// return false when the type has already been visited.
-//
-// TODO(adonovan): publish in typeutil and share with go/callgraph/rta.
-func forEachReachable(msets *typeutil.MethodSetCache, T types.Type, f func(types.Type) bool) {
-	var visit func(T types.Type, skip bool)
-	visit = func(T types.Type, skip bool) {
-		if !skip {
-			if !f(T) {
-				return
-			}
-		}
-
-		// Recursion over signatures of each method.
-		tmset := msets.MethodSet(T)
-		for i := 0; i < tmset.Len(); i++ {
-			sig := tmset.At(i).Type().(*types.Signature)
-			// It is tempting to call visit(sig, false)
-			// but, as noted in golang.org/cl/65450043,
-			// the Signature.Recv field is ignored by
-			// types.Identical and typeutil.Map, which
-			// is confusing at best.
-			//
-			// More importantly, the true signature rtype
-			// reachable from a method using reflection
-			// has no receiver but an extra ordinary parameter.
-			// For the Read method of io.Reader we want:
-			//   func(Reader, []byte) (int, error)
-			// but here sig is:
-			//   func([]byte) (int, error)
-			// with .Recv = Reader (though it is hard to
-			// notice because it doesn't affect Signature.String
-			// or types.Identical).
-			//
-			// TODO(adonovan): construct and visit the correct
-			// non-method signature with an extra parameter
-			// (though since unnamed func types have no methods
-			// there is essentially no actual demand for this).
-			//
-			// TODO(adonovan): document whether or not it is
-			// safe to skip non-exported methods (as RTA does).
-			visit(sig.Params(), true)  // skip the Tuple
-			visit(sig.Results(), true) // skip the Tuple
-		}
-
-		switch T := T.(type) {
-		case *aliases.Alias:
-			visit(aliases.Unalias(T), skip) // emulates the pre-Alias behavior
-
-		case *types.Basic:
-			// nop
-
-		case *types.Interface:
-			// nop---handled by recursion over method set.
-
-		case *types.Pointer:
-			visit(T.Elem(), false)
-
-		case *types.Slice:
-			visit(T.Elem(), false)
-
-		case *types.Chan:
-			visit(T.Elem(), false)
-
-		case *types.Map:
-			visit(T.Key(), false)
-			visit(T.Elem(), false)
-
-		case *types.Signature:
-			if T.Recv() != nil {
-				panic(fmt.Sprintf("Signature %s has Recv %s", T, T.Recv()))
-			}
-			visit(T.Params(), true)  // skip the Tuple
-			visit(T.Results(), true) // skip the Tuple
-
-		case *types.Named:
-			// A pointer-to-named type can be derived from a named
-			// type via reflection.  It may have methods too.
-			visit(types.NewPointer(T), false)
-
-			// Consider 'type T struct{S}' where S has methods.
-			// Reflection provides no way to get from T to struct{S},
-			// only to S, so the method set of struct{S} is unwanted,
-			// so set 'skip' flag during recursion.
-			visit(T.Underlying(), true) // skip the unnamed type
-
-		case *types.Array:
-			visit(T.Elem(), false)
-
-		case *types.Struct:
-			for i, n := 0, T.NumFields(); i < n; i++ {
-				// TODO(adonovan): document whether or not
-				// it is safe to skip non-exported fields.
-				visit(T.Field(i).Type(), false)
-			}
-
-		case *types.Tuple:
-			for i, n := 0, T.Len(); i < n; i++ {
-				visit(T.At(i).Type(), false)
-			}
-
-		case *types.TypeParam, *types.Union:
-			// forEachReachable must not be called on parameterized types.
-			panic(T)
-
-		default:
-			panic(T)
-		}
+	// Compute the derived types on demand, since many SSA clients
+	// never call RuntimeTypes, and those that do typically call
+	// it once (often within ssautil.AllFunctions, which will
+	// eventually not use it; see Go issue #69291.) This
+	// eliminates the need to eagerly compute all the element
+	// types during SSA building.
+	var runtimeTypes []types.Type
+	add := func(t types.Type) { runtimeTypes = append(runtimeTypes, t) }
+	var set typeutil.Map // for de-duping identical types
+	for t := range prog.makeInterfaceTypes {
+		typesinternal.ForEachElement(&set, &prog.MethodSets, t, add)
 	}
-	visit(T, false)
+
+	return runtimeTypes
 }
