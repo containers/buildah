@@ -331,20 +331,13 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 }
 
 // getNetworkInterface creates the network interface
-func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) (netTypes.ContainerNetwork, error) {
+func getNetworkInterface(store storage.Store) (netTypes.ContainerNetwork, error) {
 	conf, err := config.Default()
 	if err != nil {
 		return nil, err
 	}
 	// copy the config to not modify the default by accident
 	newconf := *conf
-	if len(cniConfDir) > 0 {
-		newconf.Network.NetworkConfigDir = cniConfDir
-	}
-	if len(cniPluginPath) > 0 {
-		plugins := strings.Split(cniPluginPath, string(os.PathListSeparator))
-		newconf.Network.CNIPluginDirs.Set(plugins)
-	}
 
 	_, netInt, err := network.NetworkBackend(store, &newconf, false)
 	if err != nil {
