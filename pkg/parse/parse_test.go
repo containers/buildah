@@ -271,23 +271,23 @@ func TestGetBuildOutput(t *testing.T) {
 			description: "hyphen",
 			input:       "-",
 			output: define.BuildOutputOption{
-				IsStdout: true,
+				Type: define.BuildOutputStdout,
 			},
 		},
 		{
 			description: "just-a-path",
 			input:       "/tmp",
 			output: define.BuildOutputOption{
-				IsDir: true,
-				Path:  "/tmp",
+				Type: define.BuildOutputLocalDir,
+				Path: "/tmp",
 			},
 		},
 		{
 			description: "normal-path",
 			input:       "type=local,dest=/tmp",
 			output: define.BuildOutputOption{
-				IsDir: true,
-				Path:  "/tmp",
+				Type: define.BuildOutputLocalDir,
+				Path: "/tmp",
 			},
 		},
 	}
