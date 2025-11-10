@@ -1,3 +1,6 @@
+- Changelog for v1.41.6 (2025-11-06)
+  * [release-1.41] Bump runc to v1.3.3 - CVE-2025-52881
+
 - Changelog for v1.41.5 (2025-09-29)
 
     [release-1.41] Run: create parent directories of mount targets with mode 0755
