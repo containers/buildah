@@ -38,10 +38,7 @@ func newImageDestination(ctx context.Context, sys *types.SystemContext, ref daem
 		return nil, fmt.Errorf("Invalid destination docker-daemon:%s: a destination must be a name:tag", ref.StringWithinTransport())
 	}
 
-	var mustMatchRuntimeOS = true
-	if sys != nil && sys.DockerDaemonHost != client.DefaultDockerHost {
-		mustMatchRuntimeOS = false
-	}
+	mustMatchRuntimeOS := sys == nil || sys.DockerDaemonHost == client.DefaultDockerHost
 
 	c, err := newDockerClient(sys)
 	if err != nil {
