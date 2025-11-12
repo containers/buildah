@@ -4,8 +4,6 @@ module github.com/containers/buildah
 
 go 1.24.3
 
-toolchain go1.24.10
-
 require (
 	github.com/containerd/platforms v1.0.0-rc.2
 	github.com/containernetworking/cni v1.3.0
