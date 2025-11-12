@@ -1,0 +1,72 @@
+prepare:
+    - name: dependencies
+      how: install
+      package:
+        - bzip2
+        - git-daemon
+        - glibc-static
+        - go-md2man
+        - golang
+        - gpgme-devel
+        - httpd-tools
+        - jq
+        - libseccomp-devel
+        - podman-docker
+        - nmap-ncat
+        - slirp4netns
+        - wget
+      order: 5
+    - how: shell
+      script: |
+        # Install bats
+        # https://bats-core.readthedocs.io/en/stable/installation.html
+        BATS_VERSION=1.12.0
+        curl --fail -L https://github.com/bats-core/bats-core/archive/refs/tags/v"$BATS_VERSION".tar.gz | tar -xz
+        pushd bats-core-"$BATS_VERSION"
+        ./install.sh /usr
+        popd
+        # Install parallel
+        # https://cgit.git.savannah.gnu.org/cgit/parallel.git/tree/README
+        wget https://ftpmirror.gnu.org/parallel/parallel-20250522.tar.bz2
+        bzip2 -dc parallel-20250522.tar.bz2 | tar xvf -
+        pushd parallel-20250522
+        ./configure && make && make install
+        popd
+      order: 10  
+
+discover:
+    how: fmf
+
+execute:
+    how: tmt
+
+/integration:
+    summary: integration test
+    discover+:
+        filter: 'tag:integration'
+
+/lint:
+    summary: lint test
+    discover+:
+        filter: 'tag:lint'
+    enabled: false
+
+/unit:
+    summary: unit test
+    discover+:
+        filter: 'tag:unit'
+
+/vendor:
+    summary: vendor test
+    discover+:
+        filter: 'tag:vendor'
+
+provision:
+    how: artemis
+    hardware:
+        memory: ">= 16 GB"
+        cpu:
+            cores: ">= 4"
+            threads: ">=8"
+        disk:
+            - size: ">= 512 GB"
