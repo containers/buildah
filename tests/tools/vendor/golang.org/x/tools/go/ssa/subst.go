@@ -144,7 +144,7 @@ func (subst *subster) typ(t types.Type) (res types.Type) {
 	case *types.Interface:
 		return subst.interface_(t)
 
-	case *aliases.Alias:
+	case *types.Alias:
 		return subst.alias(t)
 
 	case *types.Named:
@@ -317,7 +317,7 @@ func (subst *subster) interface_(iface *types.Interface) *types.Interface {
 	return types.NewInterfaceType(methods, embeds).Complete()
 }
 
-func (subst *subster) alias(t *aliases.Alias) types.Type {
+func (subst *subster) alias(t *types.Alias) types.Type {
 	// See subster.named. This follows the same strategy.
 	tparams := aliases.TypeParams(t)
 	targs := aliases.TypeArgs(t)
@@ -365,19 +365,19 @@ func (subst *subster) alias(t *aliases.Alias) types.Type {
 		rhs := subst.typ(aliases.Rhs(t))
 
 		// Create the fresh alias.
-		obj := aliases.NewAlias(true, tname.Pos(), tname.Pkg(), tname.Name(), rhs)
-		fresh := obj.Type()
-		if fresh, ok := fresh.(*aliases.Alias); ok {
-			// TODO: assume ok when aliases are always materialized (go1.27).
-			aliases.SetTypeParams(fresh, newTParams)
-		}
+		//
+		// Until 1.27, the result of aliases.NewAlias(...).Type() cannot guarantee it is a *types.Alias.
+		// However, as t is an *alias.Alias and t is well-typed, then aliases must have been enabled.
+		// Follow this decision, and always enable aliases here.
+		const enabled = true
+		obj := aliases.NewAlias(enabled, tname.Pos(), tname.Pkg(), tname.Name(), rhs, newTParams)
 
 		// Substitute into all of the constraints after they are created.
 		for i, ntp := range newTParams {
 			bound := tparams.At(i).Constraint()
 			ntp.SetConstraint(subst.typ(bound))
 		}
-		return fresh
+		return obj.Type()
 	}
 
 	// t is declared within the function origin and has type arguments.
@@ -633,7 +633,7 @@ func reaches(t types.Type, c map[types.Type]bool) (res bool) {
 				return true
 			}
 		}
-	case *types.Named, *aliases.Alias:
+	case *types.Named, *types.Alias:
 		return reaches(t.Underlying(), c)
 	default:
 		panic("unreachable")

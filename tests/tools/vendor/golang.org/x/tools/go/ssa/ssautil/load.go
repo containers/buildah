@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"go/types"
 
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/internal/versions"
@@ -109,29 +108,6 @@ func doPackages(initial []*packages.Package, mode ssa.BuilderMode, deps bool) (*
 		ssapkgs = append(ssapkgs, ssamap[p]) // may be nil
 	}
 	return prog, ssapkgs
-}
-
-// CreateProgram returns a new program in SSA form, given a program
-// loaded from source.  An SSA package is created for each transitively
-// error-free package of lprog.
-//
-// Code for bodies of functions is not built until Build is called
-// on the result.
-//
-// The mode parameter controls diagnostics and checking during SSA construction.
-//
-// Deprecated: Use [golang.org/x/tools/go/packages] and the [Packages]
-// function instead; see ssa.Example_loadPackages.
-func CreateProgram(lprog *loader.Program, mode ssa.BuilderMode) *ssa.Program {
-	prog := ssa.NewProgram(lprog.Fset, mode)
-
-	for _, info := range lprog.AllPackages {
-		if info.TransitivelyErrorFree {
-			prog.CreatePackage(info.Pkg, info.Files, &info.Info, info.Importable)
-		}
-	}
-
-	return prog
 }
 
 // BuildPackage builds an SSA program with SSA intermediate
