@@ -11,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containers/buildah/tests/testreport/types"
+	types "github.com/containers/buildah/tests/testreport/types"
 	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
