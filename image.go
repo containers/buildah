@@ -1068,7 +1068,6 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 				}
 			}
 		}
-		srcHasher := digest.Canonical.Digester()
 		// Set up to write the possibly-recompressed blob.
 		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
@@ -1076,53 +1075,20 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 			return nil, fmt.Errorf("opening file for %s: %w", what, err)
 		}
 
-		counter := ioutils.NewWriteCounter(layerFile)
-		var destHasher digest.Digester
-		var multiWriter io.Writer
-		// Avoid rehashing when we compress or mess with the layer contents somehow.
-		// At this point, there are multiple ways that can happen.
-		diffBeingAltered := i.compression != archive.Uncompressed
-		diffBeingAltered = diffBeingAltered || i.layerModTime != nil || i.layerLatestModTime != nil
-		diffBeingAltered = diffBeingAltered || len(layerExclusions) != 0
-		if diffBeingAltered {
-			destHasher = digest.Canonical.Digester()
-			multiWriter = io.MultiWriter(counter, destHasher.Hash())
-		} else {
-			destHasher = srcHasher
-			multiWriter = counter
-		}
-		// Compress the layer, if we're recompressing it.
-		writeCloser, err := archive.CompressStream(multiWriter, i.compression)
+		layerFileWriter, err := newLayerWriter(layerFile, i.compression, i.layerModTime, i.layerLatestModTime, layerExclusions)
 		if err != nil {
 			layerFile.Close()
 			rc.Close()
-			return nil, fmt.Errorf("compressing %s: %w", what, err)
+			return nil, fmt.Errorf("creating layer writer for %s: %w", what, err)
 		}
-		writer := io.MultiWriter(writeCloser, srcHasher.Hash())
-
-		// Use specified timestamps in the layer, if we're doing that for history
-		// entries.
-		nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
-		writeCloser = makeFilteredLayerWriteCloser(nestedWriteCloser, i.layerModTime, i.layerLatestModTime, layerExclusions)
-		writer = writeCloser
-		// Okay, copy from the raw diff through the filter, compressor, and counter and
-		// digesters.
-		size, err := io.Copy(writer, rc)
+		size, err := io.Copy(layerFileWriter, rc)
 		if err != nil {
-			writeCloser.Close()
-			layerFile.Close()
+			layerFileWriter.Close()
 			rc.Close()
 			return nil, fmt.Errorf("storing %s to file: on copy: %w", what, err)
 		}
-		if err := writeCloser.Close(); err != nil {
-			layerFile.Close()
-			rc.Close()
-			return nil, fmt.Errorf("storing %s to file: on pipe close: %w", what, err)
-		}
-		if err := layerFile.Close(); err != nil {
-			rc.Close()
-			return nil, fmt.Errorf("storing %s to file: on file close: %w", what, err)
-		}
+		layerFileWriter.Close()
+		layerFile.Close()
 		rc.Close()
 
 		if errChan != nil {
@@ -1131,24 +1097,20 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 				return nil, fmt.Errorf("extracting container rootfs: %w", err)
 			}
 		}
-
-		if err != nil {
-			return nil, fmt.Errorf("storing %s to file: %w", what, err)
-		}
-		if diffBeingAltered {
-			size = counter.Count
+		if layerFileWriter.SourceDigest() != layerFileWriter.DestDigest() {
+			size = layerFileWriter.TotalWritten()
 		} else {
-			if size != counter.Count {
-				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, counter.Count)
+			if size != layerFileWriter.TotalWritten() {
+				return nil, fmt.Errorf("storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, layerFileWriter.TotalWritten())
 			}
 		}
-		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, size, srcHasher.Digest().String(), destHasher.Digest().String())
+		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, size, layerFileWriter.SourceDigest().String(), layerFileWriter.DestDigest().String())
 		// Rename the layer so that we can more easily find it by digest later.
-		finalBlobName := filepath.Join(path, destHasher.Digest().String())
+		finalBlobName := filepath.Join(path, layerFileWriter.DestDigest().String())
 		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
 			return nil, fmt.Errorf("storing %s to file while renaming %q to %q: %w", what, filepath.Join(path, "layer"), finalBlobName, err)
 		}
-		mb.addLayer(destHasher.Digest(), size, srcHasher.Digest())
+		mb.addLayer(layerFileWriter.DestDigest(), size, layerFileWriter.SourceDigest())
 	}
 
 	// Only attempt to append history if history was not disabled explicitly.
@@ -1179,6 +1141,87 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 		blobLayers:    blobLayers,
 	}
 	return src, nil
+}
+
+// layerWriter represents a pipeline of writers
+type layerWriter struct {
+	outputCounter  *int64
+	inputDigester  digest.Digester
+	outputDigester digest.Digester
+	input          io.Writer
+	closerStack    []func() error
+}
+
+// SourceDigest returns the digest of the input stream so far. The digest is calculated after filtering the stream,
+// but before compressing.
+func (l *layerWriter) SourceDigest() digest.Digest {
+	return l.inputDigester.Digest()
+}
+
+// DestDigest returns the digest of the output stream so far
+func (l *layerWriter) DestDigest() digest.Digest {
+	if l.outputDigester == nil {
+		return l.inputDigester.Digest()
+	}
+	return l.outputDigester.Digest()
+}
+
+func (l *layerWriter) Write(in []byte) (int, error) {
+	return l.input.Write(in)
+}
+
+func (l *layerWriter) Close() error {
+	for i := len(l.closerStack) - 1; i >= 0; i-- {
+		err := (l.closerStack[i])()
+		if err != nil {
+			logrus.Warnf("error closing layerWriter %d: %v", i, err)
+		}
+		l.closerStack = l.closerStack[:i]
+	}
+	return nil
+}
+
+// TotalWritten returns the byte count written to the output destination
+func (l *layerWriter) TotalWritten() int64 {
+	return *l.outputCounter
+}
+
+// newLayerWriter creates a writer pipeline which processes an input stream and ultimately writes to the given destination.
+// The write stream pipeline is as follows:
+// input -> filter ->  compressor ->  destination
+func newLayerWriter(destination io.Writer, compression archive.Compression, layerModTime, layerLatestModTime *time.Time, layerExclusions []copier.ConditionalRemovePath) (*layerWriter, error) {
+	layerWriteCounter := ioutils.NewWriteCounter(destination)
+	var multiWriter io.Writer
+	var destHasher digest.Digester
+	srcHasher := digest.Canonical.Digester()
+	var closers []func() error
+
+	// If the input stream will not be different from the output stream, avoid rehashing
+	if compression != archive.Uncompressed || layerModTime != nil || layerLatestModTime != nil || len(layerExclusions) != 0 {
+		destHasher = digest.Canonical.Digester()
+		multiWriter = io.MultiWriter(layerWriteCounter, destHasher.Hash())
+	} else {
+		multiWriter = layerWriteCounter
+	}
+
+	// Compress the layer, if we're recompressing it.
+	compressor, err := archive.CompressStream(multiWriter, compression)
+	if err != nil {
+		return nil, fmt.Errorf("creating compression stream: %w", err)
+	}
+	closers = append(closers, compressor.Close)
+	compressorHasher := io.MultiWriter(compressor, srcHasher.Hash())
+
+	// Use specified timestamps in the layer, if we're doing that for history entries.
+	filter := makeFilteredLayerWriteCloser(ioutils.NopWriteCloser(compressorHasher), layerModTime, layerLatestModTime, layerExclusions)
+	closers = append(closers, filter.Close)
+	return &layerWriter{
+		outputCounter:  &layerWriteCounter.Count,
+		inputDigester:  srcHasher,
+		outputDigester: destHasher,
+		input:          filter,
+		closerStack:    closers,
+	}, nil
 }
 
 func (i *containerImageRef) NewImageDestination(_ context.Context, _ *types.SystemContext) (types.ImageDestination, error) {
