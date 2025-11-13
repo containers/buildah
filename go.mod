@@ -9,7 +9,7 @@ require (
 	github.com/containernetworking/cni v1.3.0
 	github.com/containers/luksy v0.0.0-20251013183210-adfea1d56c77
 	github.com/containers/ocicrypt v1.2.1
-	github.com/cyphar/filepath-securejoin v0.5.1
+	github.com/cyphar/filepath-securejoin v0.6.0
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
@@ -36,7 +36,7 @@ require (
 	go.etcd.io/bbolt v1.4.3
 	go.podman.io/common v0.66.0
 	go.podman.io/image/v5 v5.38.0
-	go.podman.io/storage v1.61.0
+	go.podman.io/storage v1.61.1-0.20251107183324-2b18be94b74c
 	golang.org/x/crypto v0.44.0
 	golang.org/x/sync v0.18.0
 	golang.org/x/sys v0.38.0
@@ -45,6 +45,7 @@ require (
 )
 
 require (
+	cyphar.com/go-pathrs v0.2.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
@@ -56,7 +57,7 @@ require (
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.17.0 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.18.1 // indirect
 	github.com/containerd/typeurl/v2 v2.2.3 // indirect
 	github.com/containernetworking/plugins v1.8.0 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
@@ -89,7 +90,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
-	github.com/mistifyio/go-zfs/v3 v3.1.0 // indirect
+	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
