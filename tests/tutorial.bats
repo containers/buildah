@@ -5,7 +5,6 @@ load helpers
 @test "tutorial-cgroups" {
 	# confidence check for the sake of packages that consume our library
 	skip_if_no_runtime
-	skip_if_cgroupsv1
 	skip_if_rootless_environment
 	skip_if_chroot
 
