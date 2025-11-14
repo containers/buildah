@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containers/buildah/tests/testreport/types"
+	types "github.com/containers/buildah/tests/testreport/types"
 	"github.com/containers/buildah/util"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"

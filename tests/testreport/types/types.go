@@ -1,4 +1,4 @@
-package types
+package testreporttypes
 
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"

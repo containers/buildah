@@ -54,7 +54,7 @@ ifeq ($(BUILDDEBUG), 1)
 endif
 
 # Managed by renovate.
-export GOLANGCI_LINT_VERSION := 2.1.0
+export GOLANGCI_LINT_VERSION := 2.6.1
 
 #   make all BUILDDEBUG=1
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
@@ -211,6 +211,10 @@ vendor:
 lint: install.tools
 	./tests/tools/build/golangci-lint run $(LINTFLAGS)
 	./tests/tools/build/golangci-lint run --tests=false $(LINTFLAGS)
+
+.PHONY: fmt
+fmt: install.tools
+	./tests/tools/build/golangci-lint fmt $(LINTFLAGS)
 
 # CAUTION: This is not a replacement for RPMs provided by your distro.
 # Only intended to build and test the latest unreleased changes.
