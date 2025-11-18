@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal/parse"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.podman.io/common/libimage"
 	lplatform "go.podman.io/common/libimage/platform"
@@ -51,14 +51,14 @@ func NormalizePlatform(platform v1.Platform) v1.Platform {
 }
 
 // ExportFromReader reads bytes from given reader and exports to external tar, directory or stdout.
-func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
+func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 	var err error
 	if !filepath.IsAbs(opts.Path) {
 		if opts.Path, err = filepath.Abs(opts.Path); err != nil {
 			return err
 		}
 	}
-	if opts.IsDir {
+	if opts.Type == parse.BuildOutputLocalDir {
 		// In order to keep this feature as close as possible to
 		// buildkit it was decided to preserve ownership when
 		// invoked as root since caller already has access to artifacts
@@ -80,7 +80,7 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 		}
 	} else {
 		outFile := os.Stdout
-		if !opts.IsStdout {
+		if opts.Type != parse.BuildOutputStdout {
 			if outFile, err = os.Create(opts.Path); err != nil {
 				return fmt.Errorf("failed while creating destination tar at %q: %w", opts.Path, err)
 			}

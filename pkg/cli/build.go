@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/define"
+	internalParse "github.com/containers/buildah/internal/parse"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -278,11 +279,11 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		for _, buildOutput := range iopts.BuildOutputs {
 			// if any of these go to stdout, we need to avoid
 			// interspersing our random output in with it
-			buildOption, err := parse.GetBuildOutput(buildOutput)
+			buildOption, err := internalParse.GetBuildOutput(buildOutput)
 			if err != nil {
 				return options, nil, nil, err
 			}
-			if buildOption.IsStdout {
+			if buildOption.Type == internalParse.BuildOutputStdout {
 				iopts.Quiet = true
 			}
 		}
