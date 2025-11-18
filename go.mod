@@ -14,7 +14,7 @@ require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/docker/go-units v0.5.0
-	github.com/fsouza/go-dockerclient v1.12.2
+	github.com/fsouza/go-dockerclient v1.12.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.26.0
