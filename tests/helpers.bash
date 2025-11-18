@@ -12,6 +12,7 @@ DUMPSPEC_BINARY=${DUMPSPEC_BINARY:-$TEST_SOURCES/../bin/dumpspec}
 CRASH_BINARY=${CRASH_BINARY:-$TEST_SOURCES/../bin/crash}
 WAIT_BINARY=${WAIT_BINARY:-$TEST_SOURCES/../bin/wait}
 PASSWD_BINARY=${PASSWD_BINARY:-$TEST_SOURCES/../bin/passwd}
+GRPCNOOP_BINARY=${GRPCNOOP_BINARY:-$TEST_SOURCES/../bin/grpcnoop}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=${BUILDAH_RUNTIME:-$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)}

@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package io.buildah.v1;
+
+option go_package = "github.com/containers/buildah/internal/rpc/noop/pb";
+
+service Noop {
+  rpc Noop(NoopRequest) returns (NoopResponse);
+}
+
+message NoopRequest {
+  string ignored = 1;
+}
+
+message NoopResponse {
+  string ignored = 1;
+}
