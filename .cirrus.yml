@@ -27,12 +27,12 @@ env:
     ####
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
-    FEDORA_NAME: "fedora-39β"
-    PRIOR_FEDORA_NAME: "fedora-38"
+    FEDORA_NAME: "fedora-41"
+    PRIOR_FEDORA_NAME: "fedora-40"
     DEBIAN_NAME: "debian-13"
 
     # Image identifiers
-    IMAGE_SUFFIX: "c20231004t194547z-f39f38d13"
+    IMAGE_SUFFIX: "c20250107t132430z-f41f40d13"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     DEBIAN_CACHE_IMAGE_NAME: "debian-${IMAGE_SUFFIX}"
