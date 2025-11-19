@@ -417,10 +417,12 @@ func (l *LockFile) tryLock(lType rawfilelock.LockType) error {
 		success = l.rwMutex.TryLock()
 		rwMutexUnlocker = l.rwMutex.Unlock
 	}
-	if !success {
+	if !success || !l.stateMutex.TryLock() {
+		if success {
+			rwMutexUnlocker()
+		}
 		return fmt.Errorf("resource temporarily unavailable")
 	}
-	l.stateMutex.Lock()
 	defer l.stateMutex.Unlock()
 	if l.counter == 0 {
 		// If we're the first reference on the lock, we need to open the file again.
