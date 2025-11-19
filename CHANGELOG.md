@@ -2,6 +2,12 @@
 
 # Changelog
 
+## v1.29.6 (2025-11-19)
+
+    [release-1.29]Bump runc to v1.2.8 - CVE-2025-52881
+    [release-1.29] Add conditional release-checking system test
+    [release-1.29] tests/conformance/testdata/Dockerfile.add:...
+
 ## v1.29.5 (2025-02-06)
 
     Backport testing of CVE-2024-9407 fix
