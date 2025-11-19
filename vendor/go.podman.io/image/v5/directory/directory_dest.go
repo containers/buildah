@@ -90,12 +90,12 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 		}
 	} else {
 		// create directory if it doesn't exist
-		if err := os.MkdirAll(ref.resolvedPath, 0755); err != nil {
+		if err := os.MkdirAll(ref.resolvedPath, 0o755); err != nil {
 			return nil, fmt.Errorf("unable to create directory %q: %w", ref.resolvedPath, err)
 		}
 	}
 	// create version file
-	err = os.WriteFile(ref.versionPath(), []byte(version), 0644)
+	err = os.WriteFile(ref.versionPath(), []byte(version), 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("creating version file %q: %w", ref.versionPath(), err)
 	}
@@ -151,7 +151,15 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 		}
 	}()
 
-	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, inputInfo)
+	digester, stream := putblobdigest.DigestIfUnknown(stream, inputInfo)
+
+	var canonicalDigester digest.Digester
+	computeCanonical := inputInfo.Digest != "" && inputInfo.Digest.Algorithm() != digest.Canonical
+	if computeCanonical {
+		canonicalDigester = digest.Canonical.Digester()
+		stream = io.TeeReader(stream, canonicalDigester.Hash())
+	}
+
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
 	if err != nil {
@@ -170,7 +178,7 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 	// ignored and the file is already readable; besides, blobFile.Chmod, i.e. syscall.Fchmod,
 	// always fails on Windows.
 	if runtime.GOOS != "windows" {
-		if err := blobFile.Chmod(0644); err != nil {
+		if err := blobFile.Chmod(0o644); err != nil {
 			return private.UploadedBlob{}, err
 		}
 	}
@@ -185,6 +193,18 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 	if err := os.Rename(blobFile.Name(), blobPath); err != nil {
 		return private.UploadedBlob{}, err
 	}
+
+	if computeCanonical {
+		canonicalDigest := canonicalDigester.Digest()
+		canonicalPath, err := d.ref.layerPath(canonicalDigest)
+		if err != nil {
+			return private.UploadedBlob{}, err
+		}
+		if err := os.Link(blobPath, canonicalPath); err != nil && !os.IsExist(err) {
+			return private.UploadedBlob{}, fmt.Errorf("creating canonical digest link: %w", err)
+		}
+	}
+
 	succeeded = true
 	return private.UploadedBlob{Digest: blobDigest, Size: size}, nil
 }
@@ -228,7 +248,7 @@ func (d *dirImageDestination) PutManifest(ctx context.Context, manifest []byte, 
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, manifest, 0644)
+	return os.WriteFile(path, manifest, 0o644)
 }
 
 // PutSignaturesWithFormat writes a set of signatures to the destination.
@@ -245,7 +265,7 @@ func (d *dirImageDestination) PutSignaturesWithFormat(ctx context.Context, signa
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(path, blob, 0644); err != nil {
+		if err := os.WriteFile(path, blob, 0o644); err != nil {
 			return err
 		}
 	}
