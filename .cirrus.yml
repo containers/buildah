@@ -27,12 +27,12 @@ env:
     ####
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
-    FEDORA_NAME: "fedora-39β"
-    PRIOR_FEDORA_NAME: "fedora-38"
+    FEDORA_NAME: "fedora-41"
+    PRIOR_FEDORA_NAME: "fedora-40"
     DEBIAN_NAME: "debian-13"
 
     # Image identifiers
-    IMAGE_SUFFIX: "c20231004t194547z-f39f38d13"
+    IMAGE_SUFFIX: "c20250107t132430z-f41f40d13"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     DEBIAN_CACHE_IMAGE_NAME: "debian-${IMAGE_SUFFIX}"
@@ -94,6 +94,7 @@ smoke_task:
 
     gce_instance:
         memory: "12Gb"
+        cpu: 8
 
     # Don't bother running on branches (including cron), or for tags.
     only_if: $CIRRUS_PR != ''
@@ -134,6 +135,9 @@ vendor_task:
 # Confirm cross-compile ALL architectures on a Mac OS-X VM.
 cross_build_task:
     name: "Cross Compile"
+    gce_instance:
+        cpu: 8
+        memory: "24G"
     alias: cross_build
     only_if: >-
         $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
@@ -149,6 +153,8 @@ cross_build_task:
 
 unit_task:
     name: 'Unit tests w/ $STORAGE_DRIVER'
+    gce_instance:
+      cpu: 4
     alias: unit
     only_if: &not_build_docs >-
         $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*' &&
@@ -181,6 +187,7 @@ conformance_task:
     depends_on: *smoke_vendor_cross
 
     gce_instance:
+        cpu: 4
         image_name: "${DEBIAN_CACHE_IMAGE_NAME}"
 
     timeout_in: 65m
@@ -277,6 +284,8 @@ integration_rootless_task:
 
     gce_instance:
         image_name: "$IMAGE_NAME"
+        cpu: 8
+        memory: "8G"
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
@@ -294,6 +303,9 @@ in_podman_task:
     alias: in_podman
     only_if: *not_build_docs
     depends_on: *smoke_vendor_cross
+    gce_instance:
+        cpu: 8
+        memory: "8G"
 
     env:
         # This is key, cause the scripts to re-execute themselves inside a container.
