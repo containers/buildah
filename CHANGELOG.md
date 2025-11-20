@@ -1,6 +1,18 @@
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Changelog
+
+## v1.21.6 (2025-11-20)
+
+    Bump CI environment
+    Switch to moby/sys/userns for RunningInUserNS
+    Update go-selinux uses to handle API changes
+    Bump runc to v1.2.8 - CVE-2025-52881
+    tests/conformance/testdata/Dockerfile.add:...
+    conformance tests: don't break on trailing zeroes in layer blobs
+    conformance test: ignore file type bits when comparing layers
+    [release-1.21] Replace registry.centos.org
+
 ## v1.21.5 (2022-09-20)
     run: add container gid to additional groups
     run: do not set the inheritable capabilities
