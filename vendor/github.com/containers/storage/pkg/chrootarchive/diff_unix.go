@@ -1,4 +1,5 @@
-//+build !windows
+//go:build !windows && !darwin
+// +build !windows,!darwin
 
 package chrootarchive
 
@@ -7,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,7 +15,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/system"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/containers/storage/pkg/unshare"
 )
 
 type applyLayerResponse struct {
@@ -35,7 +35,7 @@ func applyLayer() {
 	runtime.LockOSThread()
 	flag.Parse()
 
-	inUserns := rsystem.RunningInUserNS()
+	inUserns := unshare.IsRootless()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
@@ -55,7 +55,7 @@ func applyLayer() {
 		options.InUserNS = true
 	}
 
-	if tmpDir, err = ioutil.TempDir("/", "temp-storage-extract"); err != nil {
+	if tmpDir, err = os.MkdirTemp("/", "temp-storage-extract"); err != nil {
 		fatal(err)
 	}
 
@@ -68,7 +68,7 @@ func applyLayer() {
 
 	encoder := json.NewEncoder(os.Stdout)
 	if err := encoder.Encode(applyLayerResponse{size}); err != nil {
-		fatal(fmt.Errorf("unable to encode layerSize JSON: %s", err))
+		fatal(fmt.Errorf("unable to encode layerSize JSON: %w", err))
 	}
 
 	if _, err := flush(os.Stdin); err != nil {
@@ -94,7 +94,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		if rsystem.RunningInUserNS() {
+		if unshare.IsRootless() {
 			options.InUserNS = true
 		}
 	}
@@ -104,25 +104,25 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 
 	data, err := json.Marshal(options)
 	if err != nil {
-		return 0, fmt.Errorf("ApplyLayer json encode: %v", err)
+		return 0, fmt.Errorf("ApplyLayer json encode: %w", err)
 	}
 
 	cmd := reexec.Command("storage-applyLayer", dest)
 	cmd.Stdin = layer
-	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("OPT=%s", data))
 
 	outBuf, errBuf := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = outBuf, errBuf
 
 	if err = cmd.Run(); err != nil {
-		return 0, fmt.Errorf("ApplyLayer %s stdout: %s stderr: %s", err, outBuf, errBuf)
+		return 0, fmt.Errorf("ApplyLayer stdout: %s stderr: %s %w", outBuf, errBuf, err)
 	}
 
 	// Stdout should be a valid JSON struct representing an applyLayerResponse.
 	response := applyLayerResponse{}
 	decoder := json.NewDecoder(outBuf)
 	if err = decoder.Decode(&response); err != nil {
-		return 0, fmt.Errorf("unable to decode ApplyLayer JSON response: %s", err)
+		return 0, fmt.Errorf("unable to decode ApplyLayer JSON response: %w", err)
 	}
 
 	return response.LayerSize, nil

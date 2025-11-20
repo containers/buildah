@@ -8,6 +8,12 @@ By default, it utilizes 2\*runtime.NumCPU() goroutines for callbacks.
 This can be changed by using WalkN function which has the additional
 parameter, specifying the number of goroutines (concurrency).
 
+### pwalk vs pwalkdir
+
+This package is deprecated in favor of
+[pwalkdir](https://pkg.go.dev/github.com/opencontainers/selinux/pkg/pwalkdir),
+which is faster, but requires at least Go 1.16.
+
 ### Caveats
 
 Please note the following limitations of this code:
@@ -17,6 +23,10 @@ Please note the following limitations of this code:
 * Only primitive error handling is supported:
 
   * filepath.SkipDir is not supported;
+
+  * ErrNotExist errors from filepath.Walk are silently ignored for any path
+    except the top directory (Walk argument); any other error is returned to
+    the caller of Walk;
 
   * no errors are ever passed to WalkFunc;
 
