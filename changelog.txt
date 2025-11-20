@@ -1,3 +1,24 @@
+- Changelog for v1.21.6 (2025-12-10)
+  * [release-1.21] runUsingRuntime: use named constants for runtime states
+  * [release-1.21] Add a dummy "runtime" that just dumps its
+  * [release-1.21] chroot: Factor out /dev/ptmx pty implementation
+  * [release-1.21] Add pty_posix.go
+  * [release-1.21] run: handle relabeling bind mounts ourselves
+  * [release-1.21] Make buildah match podman for handling of ulimits
+  * [release-1.21] Partially work around containers/common
+  * [release-1.21] Don't set ambient capabilities
+  * [release-1.21] Bump onsi/ginkgo to v2 and x/tools
+  * [release-1.21] Bump CI environment to match release-1.39
+  * [release-1.21] Finish updating to go 1.22
+  * Switch to moby/sys/userns for RunningInUserNS
+  * Update go-selinux uses to handle API changes
+  * Use go1.22 for vendor-in-container
+  * Bump runc to v1.2.9 - CVE-2025-52881
+  * tests/conformance/testdata/Dockerfile.add:...
+  * conformance tests: don't break on trailing zeroes in layer blobs
+  * conformance test: ignore file type bits when comparing layers
+  * [release-1.21] Replace registry.centos.org
+
 - Changelog for v1.21.5 (2022-09-20)
   * run: add container gid to additional groups
   * run: do not set the inheritable capabilities
