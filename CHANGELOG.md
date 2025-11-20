@@ -1,6 +1,42 @@
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Changelog
+
+## v1.21.6 (2025-12-12)
+    Bump runc to v1.2.9 - CVE-2025-52881
+    Makefile: drop non-Linux cross-compile targets
+    Update golang.org/x/tools to v0.26.0
+    tests/tools: update ginkgo and golangci-lint
+    Update other dependencies
+    Update go-selinux uses to handle API changes
+    Switch to moby/sys/userns for RunningInUserNS
+    Bump CI environment
+    CI: switch to debian for testing there
+    Handle errors.Cause() returning not-completely-unwrapped errors
+    Update to compensate for containers/common API changes
+    Update linter configuration and address some warnings
+    use c/image/pkg/blobcache
+    Stop setting "parent" in docker format
+    commit: set "parent" for docker format only when requested
+    Builder.SetWorkDir(): trim off a path separator suffix, if there is one
+    Update man pages
+    Make "buildah build" an alias for "buildah bud"
+    Update expected error messages
+    Remove -cover flag from test-unit target
+    vendor c/common
+    chroot tests: use the same default seccomp profile
+    util.SortMounts(): make the returned order more stable
+    Backport permissions fixup for test git server from #5550
+    run: handle relabeling bind mounts ourselves
+    Add a dummy "runtime" that just dumps its config file
+    runUsingRuntime: use named constants for runtime states
+    Update the selinux spc test
+    bud --pull=false --arch test: accept either RPM or Go arch names
+    Add /usr/lib/cni to define.DefaultCNIPluginPath
+    from add-host test: accept either tabs or spaces in /etc/hosts
+    tests/serve/serve.go: use a kernel-assigned port
+    run: fix nil deref using the option's logger (from #3431)
+
 ## v1.21.5 (2022-09-20)
     run: add container gid to additional groups
     run: do not set the inheritable capabilities
