@@ -62,8 +62,8 @@ func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServe
 		return "", fmt.Errorf("failed to get config: %w", err)
 	}
 
-	nameservers := make([]string, 0, len(defaultConfig.Containers.DNSServers)+len(dnsServers))
-	nameservers = append(nameservers, defaultConfig.Containers.DNSServers...)
+	nameservers := make([]string, 0, len(defaultConfig.Containers.DNSServers.Get())+len(dnsServers))
+	nameservers = append(nameservers, defaultConfig.Containers.DNSServers.Get()...)
 	nameservers = append(nameservers, dnsServers...)
 
 	keepHostServers := false
@@ -79,12 +79,12 @@ func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServe
 		}
 	}
 
-	searches := make([]string, 0, len(defaultConfig.Containers.DNSSearches)+len(dnsSearch))
-	searches = append(searches, defaultConfig.Containers.DNSSearches...)
+	searches := make([]string, 0, len(defaultConfig.Containers.DNSSearches.Get())+len(dnsSearch))
+	searches = append(searches, defaultConfig.Containers.DNSSearches.Get()...)
 	searches = append(searches, dnsSearch...)
 
-	options := make([]string, 0, len(defaultConfig.Containers.DNSOptions)+len(dnsOptions))
-	options = append(options, defaultConfig.Containers.DNSOptions...)
+	options := make([]string, 0, len(defaultConfig.Containers.DNSOptions.Get())+len(dnsOptions))
+	options = append(options, defaultConfig.Containers.DNSOptions.Get()...)
 	options = append(options, dnsOptions...)
 
 	cfile := filepath.Join(rdir, "resolv.conf")
@@ -308,7 +308,7 @@ func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) 
 	}
 	if len(cniPluginPath) > 0 {
 		plugins := strings.Split(cniPluginPath, string(os.PathListSeparator))
-		newconf.Network.CNIPluginDirs = plugins
+		newconf.Network.CNIPluginDirs.Set(plugins)
 	}
 
 	_, netInt, err := network.NetworkBackend(store, &newconf, false)
@@ -1945,12 +1945,16 @@ func (b *Builder) cleanupRunMounts(mountpoint string, artifacts *runMountArtifac
 			logrus.Warn(err)
 			continue
 		}
-		if lockfile.Locked() {
+		// Unlock the lockfile, using defer/recover to handle the case
+		// where it might not be locked (which would cause Unlock to panic)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
+				}
+			}()
 			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
-			continue
-		}
+		}()
 	}
 	return prevErr
 }
