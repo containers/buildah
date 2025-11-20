@@ -73,6 +73,7 @@ type BudResults struct {
 	Format              string
 	From                string
 	Iidfile             string
+	IidfileRaw          string
 	InheritLabels       bool
 	InheritAnnotations  bool
 	Label               []string
@@ -253,6 +254,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringSliceVarP(&flags.File, "file", "f", []string{}, "`pathname or URL` of a Dockerfile")
 	fs.StringVar(&flags.Format, "format", DefaultFormat(), "`format` of the built image's manifest and metadata. Use BUILDAH_FORMAT environment variable to override.")
 	fs.StringVar(&flags.Iidfile, "iidfile", "", "`file` to write the image ID to")
+	fs.StringVar(&flags.IidfileRaw, "iidfile-raw", "", "`file` to write the image ID to (without algorithm prefix)")
 	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
 	fs.StringArrayVar(&flags.Label, "label", []string{}, "set metadata for an image (default [])")
 	fs.StringArrayVar(&flags.LayerLabel, "layer-label", []string{}, "set metadata for an intermediate image (default [])")
@@ -357,6 +359,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["hooks-dir"] = commonComp.AutocompleteNone
 	flagCompletion["ignorefile"] = commonComp.AutocompleteDefault
 	flagCompletion["iidfile"] = commonComp.AutocompleteDefault
+	flagCompletion["iidfile-raw"] = commonComp.AutocompleteDefault
 	flagCompletion["jobs"] = commonComp.AutocompleteNone
 	flagCompletion["label"] = commonComp.AutocompleteNone
 	flagCompletion["layer-label"] = commonComp.AutocompleteNone
@@ -545,6 +548,8 @@ func AliasFlags(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 		name = "os"
 	case "purge":
 		name = "rm"
+	case "raw-iidfile":
+		name = "iidfile-raw"
 	case "tty":
 		name = "terminal"
 	}
