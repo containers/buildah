@@ -42,6 +42,11 @@ EOF
         then
             showrun setsebool -P container_manage_cgroup true
         fi
+
+        # Use the newest runc runtime to match 1.2.9 runc go module update
+        if [[ "$BUILDAH_RUNTIME" == "runc" ]]; then
+            showrun dnf update -y runc
+        fi
         ;;
     ubuntu)
         if [[ "$1" == "conformance" ]]; then

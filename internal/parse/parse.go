@@ -848,11 +848,15 @@ func UnlockLockArray(lockedTargets []string) {
 			logrus.Warn(err)
 			continue
 		}
-		if lockfile.Locked() {
+		// Unlock the lockfile, using defer/recover to handle the case
+		// where it might not be locked (which would cause Unlock to panic)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
+				}
+			}()
 			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
-			continue
-		}
+		}()
 	}
 }
