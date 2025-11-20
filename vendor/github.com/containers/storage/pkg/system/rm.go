@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"syscall"
@@ -40,6 +41,19 @@ func EnsureRemoveAll(dir string) error {
 			return nil
 		}
 
+		// If the RemoveAll fails with a permission error, we
+		// may have immutable files so try to remove the
+		// immutable flag and redo the RemoveAll.
+		if errors.Is(err, syscall.EPERM) {
+			if err = resetFileFlags(dir); err != nil {
+				return fmt.Errorf("resetting file flags: %w", err)
+			}
+			err = os.RemoveAll(dir)
+			if err == nil {
+				return nil
+			}
+		}
+
 		pe, ok := err.(*os.PathError)
 		if !ok {
 			return err
@@ -62,7 +76,7 @@ func EnsureRemoveAll(dir string) error {
 			continue
 		}
 
-		if pe.Err != syscall.EBUSY {
+		if !IsEBUSY(pe.Err) {
 			return err
 		}
 

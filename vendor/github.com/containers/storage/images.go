@@ -1,9 +1,7 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,21 +93,23 @@ type Image struct {
 	Flags map[string]interface{} `json:"flags,omitempty"`
 }
 
-// ROImageStore provides bookkeeping for information about Images.
-type ROImageStore interface {
-	ROFileBasedStore
-	ROMetadataStore
-	ROBigDataStore
+// roImageStore provides bookkeeping for information about Images.
+type roImageStore interface {
+	roMetadataStore
+	roBigDataStore
+
+	// startReading makes sure the store is fresh, and locks it for reading.
+	// If this succeeds, the caller MUST call stopReading().
+	startReading() error
+
+	// stopReading releases locks obtained by startReading.
+	stopReading()
 
 	// Exists checks if there is an image with the given ID or name.
 	Exists(id string) bool
 
 	// Get retrieves information about an image given an ID or name.
 	Get(id string) (*Image, error)
-
-	// Lookup attempts to translate a name to an ID.  Most methods do this
-	// implicitly.
-	Lookup(name string) (string, error)
 
 	// Images returns a slice enumerating the known images.
 	Images() ([]Image, error)
@@ -121,34 +121,29 @@ type ROImageStore interface {
 	ByDigest(d digest.Digest) ([]*Image, error)
 }
 
-// ImageStore provides bookkeeping for information about Images.
-type ImageStore interface {
-	ROImageStore
-	RWFileBasedStore
-	RWMetadataStore
-	RWImageBigDataStore
-	FlaggableStore
+// rwImageStore provides bookkeeping for information about Images.
+type rwImageStore interface {
+	roImageStore
+	rwMetadataStore
+	rwImageBigDataStore
+	flaggableStore
+
+	// startWriting makes sure the store is fresh, and locks it for writing.
+	// If this succeeds, the caller MUST call stopWriting().
+	startWriting() error
+
+	// stopWriting releases locks obtained by startWriting.
+	stopWriting()
 
 	// Create creates an image that has a specified ID (or a random one) and
 	// optional names, using the specified layer as its topmost (hopefully
 	// read-only) layer.  That layer can be referenced by multiple images.
 	Create(id string, names []string, layer, metadata string, created time.Time, searchableDigest digest.Digest) (*Image, error)
 
-	// SetNames replaces the list of names associated with an image with the
-	// supplied values.  The values are expected to be valid normalized
+	// updateNames modifies names associated with an image based on (op, names).
+	// The values are expected to be valid normalized
 	// named image references.
-	// Deprecated: Prone to race conditions, suggested alternatives are `AddNames` and `RemoveNames`.
-	SetNames(id string, names []string) error
-
-	// AddNames adds the supplied values to the list of names associated with the image with
-	// the specified id. The values are expected to be valid normalized
-	// named image references.
-	AddNames(id string, names []string) error
-
-	// RemoveNames removes the supplied values from the list of names associated with the image with
-	// the specified id.  The values are expected to be valid normalized
-	// named image references.
-	RemoveNames(id string, names []string) error
+	updateNames(id string, names []string, op updateNameOperation) error
 
 	// Delete removes the record of the image.
 	Delete(id string) error
@@ -158,7 +153,7 @@ type ImageStore interface {
 }
 
 type imageStore struct {
-	lockfile Locker
+	lockfile Locker // lockfile.IsReadWrite can be used to distinguish between read-write and read-only image stores.
 	dir      string
 	images   []*Image
 	idindex  *truncindex.TruncIndex
@@ -196,6 +191,91 @@ func copyImageSlice(slice []*Image) []*Image {
 		return cp
 	}
 	return nil
+}
+
+// startWritingWithReload makes sure the store is fresh if canReload, and locks it for writing.
+// If this succeeds, the caller MUST call stopWriting().
+//
+// This is an internal implementation detail of imageStore construction, every other caller
+// should use startReading() instead.
+func (r *imageStore) startWritingWithReload(canReload bool) error {
+	r.lockfile.Lock()
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			r.lockfile.Unlock()
+		}
+	}()
+
+	if canReload {
+		if err := r.reloadIfChanged(true); err != nil {
+			return err
+		}
+	}
+
+	succeeded = true
+	return nil
+}
+
+// startWriting makes sure the store is fresh, and locks it for writing.
+// If this succeeds, the caller MUST call stopWriting().
+func (r *imageStore) startWriting() error {
+	return r.startWritingWithReload(true)
+}
+
+// stopWriting releases locks obtained by startWriting.
+func (r *imageStore) stopWriting() {
+	r.lockfile.Unlock()
+}
+
+// startReadingWithReload makes sure the store is fresh if canReload, and locks it for reading.
+// If this succeeds, the caller MUST call stopReading().
+//
+// This is an internal implementation detail of imageStore construction, every other caller
+// should use startReading() instead.
+func (r *imageStore) startReadingWithReload(canReload bool) error {
+	r.lockfile.RLock()
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			r.lockfile.Unlock()
+		}
+	}()
+
+	if canReload {
+		if err := r.reloadIfChanged(false); err != nil {
+			return err
+		}
+	}
+
+	succeeded = true
+	return nil
+}
+
+// startReading makes sure the store is fresh, and locks it for reading.
+// If this succeeds, the caller MUST call stopReading().
+func (r *imageStore) startReading() error {
+	return r.startReadingWithReload(true)
+}
+
+// stopReading releases locks obtained by startReading.
+func (r *imageStore) stopReading() {
+	r.lockfile.Unlock()
+}
+
+// reloadIfChanged reloads the contents of the store from disk if it is changed.
+//
+// The caller must hold r.lockfile for reading _or_ writing; lockedForWriting is true
+// if it is held for writing.
+func (r *imageStore) reloadIfChanged(lockedForWriting bool) error {
+	r.loadMut.Lock()
+	defer r.loadMut.Unlock()
+
+	modified, err := r.lockfile.Modified()
+	if err == nil && modified {
+		return r.load(lockedForWriting)
+	}
+	return err
 }
 
 func (r *imageStore) Images() ([]Image, error) {
@@ -242,8 +322,8 @@ func (i *Image) recomputeDigests() error {
 		if !bigDataNameIsManifest(name) {
 			continue
 		}
-		if digest.Validate() != nil {
-			return fmt.Errorf("validating digest %q for big data item %q: %w", string(digest), name, digest.Validate())
+		if err := digest.Validate(); err != nil {
+			return fmt.Errorf("validating digest %q for big data item %q: %w", string(digest), name, err)
 		}
 		// Deduplicate the digest values.
 		if _, known := digests[digest]; !known {
@@ -258,49 +338,57 @@ func (i *Image) recomputeDigests() error {
 	return nil
 }
 
-func (r *imageStore) Load() error {
+// load reloads the contents of the store from disk.
+//
+// The caller must hold r.lockfile for reading _or_ writing; lockedForWriting is true
+// if it is held for writing.
+func (r *imageStore) load(lockedForWriting bool) error {
 	shouldSave := false
 	rpath := r.imagespath()
-	data, err := ioutil.ReadFile(rpath)
+	data, err := os.ReadFile(rpath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
 	images := []*Image{}
-	idlist := []string{}
+	if len(data) != 0 {
+		if err := json.Unmarshal(data, &images); err != nil {
+			return fmt.Errorf("loading %q: %w", rpath, err)
+		}
+	}
+	idlist := make([]string, 0, len(images))
 	ids := make(map[string]*Image)
 	names := make(map[string]*Image)
 	digests := make(map[digest.Digest][]*Image)
-	if err = json.Unmarshal(data, &images); len(data) == 0 || err == nil {
-		idlist = make([]string, 0, len(images))
-		for n, image := range images {
-			ids[image.ID] = images[n]
-			idlist = append(idlist, image.ID)
-			for _, name := range image.Names {
-				if conflict, ok := names[name]; ok {
-					r.removeName(conflict, name)
-					shouldSave = true
-				}
+	for n, image := range images {
+		ids[image.ID] = images[n]
+		idlist = append(idlist, image.ID)
+		for _, name := range image.Names {
+			if conflict, ok := names[name]; ok {
+				r.removeName(conflict, name)
+				shouldSave = true
 			}
-			// Compute the digest list.
-			err = image.recomputeDigests()
-			if err != nil {
-				return fmt.Errorf("computing digests for image with ID %q (%v): %w", image.ID, image.Names, err)
-			}
-			for _, name := range image.Names {
-				names[name] = image
-			}
-			for _, digest := range image.Digests {
-				list := digests[digest]
-				digests[digest] = append(list, image)
-			}
-			image.ReadOnly = !r.IsReadWrite()
 		}
+		// Compute the digest list.
+		if err := image.recomputeDigests(); err != nil {
+			return fmt.Errorf("computing digests for image with ID %q (%v): %w", image.ID, image.Names, err)
+		}
+		for _, name := range image.Names {
+			names[name] = image
+		}
+		for _, digest := range image.Digests {
+			list := digests[digest]
+			digests[digest] = append(list, image)
+		}
+		image.ReadOnly = !r.lockfile.IsReadWrite()
 	}
-	if shouldSave && (!r.IsReadWrite() || !r.Locked()) {
+
+	if shouldSave && (!r.lockfile.IsReadWrite() || !lockedForWriting) {
+		// Eventually, the callers should be modified to retry with a write lock if IsReadWrite && !lockedForWriting, instead.
 		return ErrDuplicateImageNames
 	}
 	r.images = images
-	r.idindex = truncindex.NewTruncIndex(idlist)
+	r.idindex = truncindex.NewTruncIndex(idlist) // Invalid values in idlist are ignored: they are not a reason to refuse processing the whole store.
 	r.byid = ids
 	r.byname = names
 	r.bydigest = digests
@@ -310,13 +398,13 @@ func (r *imageStore) Load() error {
 	return nil
 }
 
+// Save saves the contents of the store to disk.  It should be called with
+// the lock held, locked for writing.
 func (r *imageStore) Save() error {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to modify the image store at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
-	if !r.Locked() {
-		return errors.New("image store is not locked for writing")
-	}
+	r.lockfile.AssertLockedForWriting()
 	rpath := r.imagespath()
 	if err := os.MkdirAll(filepath.Dir(rpath), 0700); err != nil {
 		return err
@@ -325,11 +413,13 @@ func (r *imageStore) Save() error {
 	if err != nil {
 		return err
 	}
-	defer r.Touch()
-	return ioutils.AtomicWriteFile(rpath, jdata, 0600)
+	if err := ioutils.AtomicWriteFile(rpath, jdata, 0600); err != nil {
+		return err
+	}
+	return r.lockfile.Touch()
 }
 
-func newImageStore(dir string) (ImageStore, error) {
+func newImageStore(dir string) (rwImageStore, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
@@ -337,8 +427,6 @@ func newImageStore(dir string) (ImageStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	lockfile.Lock()
-	defer lockfile.Unlock()
 	istore := imageStore{
 		lockfile: lockfile,
 		dir:      dir,
@@ -347,19 +435,21 @@ func newImageStore(dir string) (ImageStore, error) {
 		byname:   make(map[string]*Image),
 		bydigest: make(map[digest.Digest][]*Image),
 	}
-	if err := istore.Load(); err != nil {
+	if err := istore.startWritingWithReload(false); err != nil {
+		return nil, err
+	}
+	defer istore.stopWriting()
+	if err := istore.load(true); err != nil {
 		return nil, err
 	}
 	return &istore, nil
 }
 
-func newROImageStore(dir string) (ROImageStore, error) {
+func newROImageStore(dir string) (roImageStore, error) {
 	lockfile, err := GetROLockfile(filepath.Join(dir, "images.lock"))
 	if err != nil {
 		return nil, err
 	}
-	lockfile.RLock()
-	defer lockfile.Unlock()
 	istore := imageStore{
 		lockfile: lockfile,
 		dir:      dir,
@@ -368,7 +458,11 @@ func newROImageStore(dir string) (ROImageStore, error) {
 		byname:   make(map[string]*Image),
 		bydigest: make(map[digest.Digest][]*Image),
 	}
-	if err := istore.Load(); err != nil {
+	if err := istore.startReadingWithReload(false); err != nil {
+		return nil, err
+	}
+	defer istore.stopReading()
+	if err := istore.load(false); err != nil {
 		return nil, err
 	}
 	return &istore, nil
@@ -387,7 +481,7 @@ func (r *imageStore) lookup(id string) (*Image, bool) {
 }
 
 func (r *imageStore) ClearFlag(id string, flag string) error {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to clear flags on images at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	image, ok := r.lookup(id)
@@ -399,7 +493,7 @@ func (r *imageStore) ClearFlag(id string, flag string) error {
 }
 
 func (r *imageStore) SetFlag(id string, flag string, value interface{}) error {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to set flags on images at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	image, ok := r.lookup(id)
@@ -414,7 +508,7 @@ func (r *imageStore) SetFlag(id string, flag string, value interface{}) error {
 }
 
 func (r *imageStore) Create(id string, names []string, layer, metadata string, created time.Time, searchableDigest digest.Digest) (image *Image, err error) {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return nil, fmt.Errorf("not allowed to create new images at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	if id == "" {
@@ -456,7 +550,9 @@ func (r *imageStore) Create(id string, names []string, layer, metadata string, c
 		return nil, fmt.Errorf("validating digests for new image: %w", err)
 	}
 	r.images = append(r.images, image)
-	r.idindex.Add(id)
+	// This can only fail on duplicate IDs, which shouldn’t happen — and in that case the index is already in the desired state anyway.
+	// Implementing recovery from an unlikely and unimportant failure here would be too risky.
+	_ = r.idindex.Add(id)
 	r.byid[id] = image
 	for _, name := range names {
 		r.byname[name] = image
@@ -499,7 +595,7 @@ func (r *imageStore) Metadata(id string) (string, error) {
 }
 
 func (r *imageStore) SetMetadata(id, metadata string) error {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to modify image metadata at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	if image, ok := r.lookup(id); ok {
@@ -517,21 +613,8 @@ func (i *Image) addNameToHistory(name string) {
 	i.NamesHistory = dedupeNames(append([]string{name}, i.NamesHistory...))
 }
 
-// Deprecated: Prone to race conditions, suggested alternatives are `AddNames` and `RemoveNames`.
-func (r *imageStore) SetNames(id string, names []string) error {
-	return r.updateNames(id, names, setNames)
-}
-
-func (r *imageStore) AddNames(id string, names []string) error {
-	return r.updateNames(id, names, addNames)
-}
-
-func (r *imageStore) RemoveNames(id string, names []string) error {
-	return r.updateNames(id, names, removeNames)
-}
-
 func (r *imageStore) updateNames(id string, names []string, op updateNameOperation) error {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to change image name assignments at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	image, ok := r.lookup(id)
@@ -558,7 +641,7 @@ func (r *imageStore) updateNames(id string, names []string, op updateNameOperati
 }
 
 func (r *imageStore) Delete(id string) error {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to delete images at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	image, ok := r.lookup(id)
@@ -573,7 +656,9 @@ func (r *imageStore) Delete(id string) error {
 		}
 	}
 	delete(r.byid, id)
-	r.idindex.Delete(id)
+	// This can only fail if the ID is already missing, which shouldn’t happen — and in that case the index is already in the desired state anyway.
+	// The store’s Delete method is used on various paths to recover from failures, so this should be robust against partially missing data.
+	_ = r.idindex.Delete(id)
 	for _, name := range image.Names {
 		delete(r.byname, name)
 	}
@@ -609,13 +694,6 @@ func (r *imageStore) Get(id string) (*Image, error) {
 	return nil, fmt.Errorf("locating image with ID %q: %w", id, ErrImageUnknown)
 }
 
-func (r *imageStore) Lookup(name string) (id string, err error) {
-	if image, ok := r.lookup(name); ok {
-		return image.ID, nil
-	}
-	return "", fmt.Errorf("locating image with ID %q: %w", id, ErrImageUnknown)
-}
-
 func (r *imageStore) Exists(id string) bool {
 	_, ok := r.lookup(id)
 	return ok
@@ -636,7 +714,7 @@ func (r *imageStore) BigData(id, key string) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("locating image with ID %q: %w", id, ErrImageUnknown)
 	}
-	return ioutil.ReadFile(r.datapath(image.ID, key))
+	return os.ReadFile(r.datapath(image.ID, key))
 }
 
 func (r *imageStore) BigDataSize(id, key string) (int64, error) {
@@ -699,7 +777,7 @@ func (r *imageStore) SetBigData(id, key string, data []byte, digestManifest func
 	if key == "" {
 		return fmt.Errorf("can't set empty name for image big data item: %w", ErrInvalidBigDataName)
 	}
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to save data items associated with images at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	image, ok := r.lookup(id)
@@ -780,7 +858,7 @@ func (r *imageStore) SetBigData(id, key string, data []byte, digestManifest func
 }
 
 func (r *imageStore) Wipe() error {
-	if !r.IsReadWrite() {
+	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to delete images at %q: %w", r.imagespath(), ErrStoreIsReadOnly)
 	}
 	ids := make([]string, 0, len(r.byid))
@@ -793,51 +871,4 @@ func (r *imageStore) Wipe() error {
 		}
 	}
 	return nil
-}
-
-func (r *imageStore) Lock() {
-	r.lockfile.Lock()
-}
-
-func (r *imageStore) RecursiveLock() {
-	r.lockfile.RecursiveLock()
-}
-
-func (r *imageStore) RLock() {
-	r.lockfile.RLock()
-}
-
-func (r *imageStore) Unlock() {
-	r.lockfile.Unlock()
-}
-
-func (r *imageStore) Touch() error {
-	return r.lockfile.Touch()
-}
-
-func (r *imageStore) Modified() (bool, error) {
-	return r.lockfile.Modified()
-}
-
-func (r *imageStore) IsReadWrite() bool {
-	return r.lockfile.IsReadWrite()
-}
-
-func (r *imageStore) TouchedSince(when time.Time) bool {
-	return r.lockfile.TouchedSince(when)
-}
-
-func (r *imageStore) Locked() bool {
-	return r.lockfile.Locked()
-}
-
-func (r *imageStore) ReloadIfChanged() error {
-	r.loadMut.Lock()
-	defer r.loadMut.Unlock()
-
-	modified, err := r.Modified()
-	if err == nil && modified {
-		return r.Load()
-	}
-	return err
 }

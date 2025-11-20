@@ -35,12 +35,29 @@ const (
 var (
 	defaultStoreOptionsOnce    sync.Once
 	loadDefaultStoreOptionsErr error
+	once                       sync.Once
+	storeOptions               StoreOptions
+	storeError                 error
+	defaultConfigFileSet       bool
+	// defaultConfigFile path to the system wide storage.conf file
+	defaultConfigFile = SystemConfigFile
+	// DefaultStoreOptions is a reasonable default set of options.
+	defaultStoreOptions StoreOptions
 )
 
 func loadDefaultStoreOptions() {
-	defaultStoreOptions.RunRoot = defaultRunRoot
-	defaultStoreOptions.GraphRoot = defaultGraphRoot
 	defaultStoreOptions.GraphDriverName = ""
+
+	setDefaults := func() {
+		// reload could set values to empty for run and graph root if config does not contains anything
+		if defaultStoreOptions.RunRoot == "" {
+			defaultStoreOptions.RunRoot = defaultRunRoot
+		}
+		if defaultStoreOptions.GraphRoot == "" {
+			defaultStoreOptions.GraphRoot = defaultGraphRoot
+		}
+	}
+	setDefaults()
 
 	if path, ok := os.LookupEnv(storageConfEnv); ok {
 		defaultOverrideConfigFile = path
@@ -48,7 +65,25 @@ func loadDefaultStoreOptions() {
 			loadDefaultStoreOptionsErr = err
 			return
 		}
-	} else if _, err := os.Stat(defaultOverrideConfigFile); err == nil {
+		setDefaults()
+		return
+	}
+
+	if path, ok := os.LookupEnv("XDG_CONFIG_HOME"); ok {
+		homeConfigFile := filepath.Join(path, "containers", "storage.conf")
+		if _, err := os.Stat(homeConfigFile); err == nil {
+			// user storage.conf in XDG_CONFIG_HOME if it exists
+			defaultOverrideConfigFile = homeConfigFile
+		} else {
+			if !os.IsNotExist(err) {
+				loadDefaultStoreOptionsErr = err
+				return
+			}
+		}
+	}
+
+	_, err := os.Stat(defaultOverrideConfigFile)
+	if err == nil {
 		// The DefaultConfigFile(rootless) function returns the path
 		// of the used storage.conf file, by returning defaultConfigFile
 		// If override exists containers/storage uses it by default.
@@ -57,22 +92,18 @@ func loadDefaultStoreOptions() {
 			loadDefaultStoreOptionsErr = err
 			return
 		}
-	} else {
-		if !os.IsNotExist(err) {
-			logrus.Warningf("Attempting to use %s, %v", defaultConfigFile, err)
-		}
-		if err := ReloadConfigurationFileIfNeeded(defaultConfigFile, &defaultStoreOptions); err != nil && !errors.Is(err, os.ErrNotExist) {
-			loadDefaultStoreOptionsErr = err
-			return
-		}
+		setDefaults()
+		return
 	}
-	// reload could set values to empty for run and graph root if config does not contains anything
-	if defaultStoreOptions.RunRoot == "" {
-		defaultStoreOptions.RunRoot = defaultRunRoot
+
+	if !os.IsNotExist(err) {
+		logrus.Warningf("Attempting to use %s, %v", defaultConfigFile, err)
 	}
-	if defaultStoreOptions.GraphRoot == "" {
-		defaultStoreOptions.GraphRoot = defaultGraphRoot
+	if err := ReloadConfigurationFileIfNeeded(defaultConfigFile, &defaultStoreOptions); err != nil && !errors.Is(err, os.ErrNotExist) {
+		loadDefaultStoreOptionsErr = err
+		return
 	}
+	setDefaults()
 }
 
 // defaultStoreOptionsIsolated is an internal implementation detail of DefaultStoreOptions to allow testing.
@@ -144,13 +175,28 @@ func defaultStoreOptionsIsolated(rootless bool, rootlessUID int, storageConf str
 	return storageOpts, nil
 }
 
-// DefaultStoreOptions returns the default storage ops for containers
-func DefaultStoreOptions(rootless bool, rootlessUID int) (StoreOptions, error) {
+// loadStoreOptions returns the default storage ops for containers
+func loadStoreOptions(rootless bool, rootlessUID int) (StoreOptions, error) {
 	storageConf, err := DefaultConfigFile(rootless && rootlessUID != 0)
 	if err != nil {
 		return defaultStoreOptions, err
 	}
 	return defaultStoreOptionsIsolated(rootless, rootlessUID, storageConf)
+}
+
+// UpdateOptions should be called iff container engine recieved a SIGHUP,
+// otherwise use DefaultStoreOptions
+func UpdateStoreOptions(rootless bool, rootlessUID int) (StoreOptions, error) {
+	storeOptions, storeError = loadStoreOptions(rootless, rootlessUID)
+	return storeOptions, storeError
+}
+
+// DefaultStoreOptions returns the default storage ops for containers
+func DefaultStoreOptions(rootless bool, rootlessUID int) (StoreOptions, error) {
+	once.Do(func() {
+		storeOptions, storeError = loadStoreOptions(rootless, rootlessUID)
+	})
+	return storeOptions, storeError
 }
 
 // StoreOptions is used for passing initialization options to GetStore(), for
@@ -313,7 +359,7 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) erro
 		}
 	} else {
 		if !os.IsNotExist(err) {
-			fmt.Printf("Failed to read %s %v\n", configFile, err.Error())
+			logrus.Warningf("Failed to read %s %v\n", configFile, err.Error())
 			return err
 		}
 	}
@@ -376,7 +422,7 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) erro
 	if config.Storage.Options.RemapUser != "" && config.Storage.Options.RemapGroup != "" {
 		mappings, err := idtools.NewIDMappings(config.Storage.Options.RemapUser, config.Storage.Options.RemapGroup)
 		if err != nil {
-			fmt.Printf("Error initializing ID mappings for %s:%s %v\n", config.Storage.Options.RemapUser, config.Storage.Options.RemapGroup, err)
+			logrus.Warningf("Error initializing ID mappings for %s:%s %v\n", config.Storage.Options.RemapUser, config.Storage.Options.RemapGroup, err)
 			return err
 		}
 		storeOptions.UIDMap = mappings.UIDs()

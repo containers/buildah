@@ -92,7 +92,7 @@ local-test-integration: local-binary ## run the integration tests on the host (r
 test-integration: local-binary ## run the integration tests using VMs
 	$(RUNINVM) $(MAKE) local-$@
 
-local-validate: ## validate DCO and gofmt on the host
+local-validate: install.tools ## validate DCO and gofmt on the host
 	@./hack/git-validation.sh
 	@./hack/gofmt.sh
 
@@ -120,6 +120,6 @@ vendor-in-container:
 	podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src golang make vendor
 
 vendor:
-	$(GO) mod tidy
+	$(GO) mod tidy -compat=1.17
 	$(GO) mod vendor
 	$(GO) mod verify

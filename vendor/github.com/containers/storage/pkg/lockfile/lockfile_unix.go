@@ -30,7 +30,6 @@ type lockfile struct {
 	locktype   int16
 	locked     bool
 	ro         bool
-	recursive  bool
 }
 
 const lastWriterIDSize = 64    // This must be the same as len(stringid.GenerateRandomID)
@@ -65,21 +64,21 @@ func newLastWriterID() []byte {
 }
 
 // openLock opens the file at path and returns the corresponding file
-// descriptor.  Note that the path is opened read-only when ro is set.  If ro
-// is unset, openLock will open the path read-write and create the file if
-// necessary.
+// descriptor. The path is opened either read-only or read-write,
+// depending on the value of ro argument.
+//
+// openLock will create the file and its parent directories,
+// if necessary.
 func openLock(path string, ro bool) (fd int, err error) {
+	flags := unix.O_CLOEXEC | os.O_CREATE
 	if ro {
-		fd, err = unix.Open(path, os.O_RDONLY|unix.O_CLOEXEC|os.O_CREATE, 0)
+		flags |= os.O_RDONLY
 	} else {
-		fd, err = unix.Open(path,
-			os.O_RDWR|unix.O_CLOEXEC|os.O_CREATE,
-			unix.S_IRUSR|unix.S_IWUSR|unix.S_IRGRP|unix.S_IROTH,
-		)
+		flags |= os.O_RDWR
 	}
-
+	fd, err = unix.Open(path, flags, 0o644)
 	if err == nil {
-		return
+		return fd, nil
 	}
 
 	// the directory of the lockfile seems to be removed, try to create it
@@ -91,7 +90,7 @@ func openLock(path string, ro bool) (fd int, err error) {
 		return openLock(path, ro)
 	}
 
-	return
+	return fd, &os.PathError{Op: "open", Path: path, Err: err}
 }
 
 // createLockerForPath returns a Locker object, possibly (depending on the platform)
@@ -131,10 +130,10 @@ func createLockerForPath(path string, ro bool) (Locker, error) {
 
 // lock locks the lockfile via FCTNL(2) based on the specified type and
 // command.
-func (l *lockfile) lock(lType int16, recursive bool) {
+func (l *lockfile) lock(lType int16) {
 	lk := unix.Flock_t{
 		Type:   lType,
-		Whence: int16(os.SEEK_SET),
+		Whence: int16(unix.SEEK_SET),
 		Start:  0,
 		Len:    0,
 	}
@@ -142,13 +141,7 @@ func (l *lockfile) lock(lType int16, recursive bool) {
 	case unix.F_RDLCK:
 		l.rwMutex.RLock()
 	case unix.F_WRLCK:
-		if recursive {
-			// NOTE: that's okay as recursive is only set in RecursiveLock(), so
-			// there's no need to protect against hypothetical RDLCK cases.
-			l.rwMutex.RLock()
-		} else {
-			l.rwMutex.Lock()
-		}
+		l.rwMutex.Lock()
 	default:
 		panic(fmt.Sprintf("attempted to acquire a file lock of unrecognized type %d", lType))
 	}
@@ -158,7 +151,7 @@ func (l *lockfile) lock(lType int16, recursive bool) {
 		// If we're the first reference on the lock, we need to open the file again.
 		fd, err := openLock(l.file, l.ro)
 		if err != nil {
-			panic(fmt.Sprintf("error opening %q: %v", l.file, err))
+			panic(err)
 		}
 		l.fd = uintptr(fd)
 
@@ -171,7 +164,6 @@ func (l *lockfile) lock(lType int16, recursive bool) {
 	}
 	l.locktype = lType
 	l.locked = true
-	l.recursive = recursive
 	l.counter++
 }
 
@@ -180,30 +172,19 @@ func (l *lockfile) Lock() {
 	if l.ro {
 		panic("can't take write lock on read-only lock file")
 	} else {
-		l.lock(unix.F_WRLCK, false)
-	}
-}
-
-// RecursiveLock locks the lockfile as a writer but allows for recursive
-// acquisitions within the same process space.  Note that RLock() will be called
-// if it's a lockTypReader lock.
-func (l *lockfile) RecursiveLock() {
-	if l.ro {
-		l.RLock()
-	} else {
-		l.lock(unix.F_WRLCK, true)
+		l.lock(unix.F_WRLCK)
 	}
 }
 
 // LockRead locks the lockfile as a reader.
 func (l *lockfile) RLock() {
-	l.lock(unix.F_RDLCK, false)
+	l.lock(unix.F_RDLCK)
 }
 
 // Unlock unlocks the lockfile.
 func (l *lockfile) Unlock() {
 	l.stateMutex.Lock()
-	if l.locked == false {
+	if !l.locked {
 		// Panic when unlocking an unlocked lock.  That's a violation
 		// of the lock semantics and will reveal such.
 		panic("calling Unlock on unlocked lock")
@@ -224,7 +205,7 @@ func (l *lockfile) Unlock() {
 		// file lock.
 		unix.Close(int(l.fd))
 	}
-	if l.locktype == unix.F_RDLCK || l.recursive {
+	if l.locktype == unix.F_RDLCK {
 		l.rwMutex.RUnlock()
 	} else {
 		l.rwMutex.Unlock()
@@ -232,11 +213,33 @@ func (l *lockfile) Unlock() {
 	l.stateMutex.Unlock()
 }
 
-// Locked checks if lockfile is locked for writing by a thread in this process.
-func (l *lockfile) Locked() bool {
-	l.stateMutex.Lock()
-	defer l.stateMutex.Unlock()
-	return l.locked && (l.locktype == unix.F_WRLCK)
+func (l *lockfile) AssertLocked() {
+	// DO NOT provide a variant that returns the value of l.locked.
+	//
+	// If the caller does not hold the lock, l.locked might nevertheless be true because another goroutine does hold it, and
+	// we can’t tell the difference.
+	//
+	// Hence, this “AssertLocked” method, which exists only for sanity checks.
+
+	// Don’t even bother with l.stateMutex: The caller is expected to hold the lock, and in that case l.locked is constant true
+	// with no possible writers.
+	// If the caller does not hold the lock, we are violating the locking/memory model anyway, and accessing the data
+	// without the lock is more efficient for callers, and potentially more visible to lock analysers for incorrect callers.
+	if !l.locked {
+		panic("internal error: lock is not held by the expected owner")
+	}
+}
+
+func (l *lockfile) AssertLockedForWriting() {
+	// DO NOT provide a variant that returns the current lock state.
+	//
+	// The same caveats as for AssertLocked apply equally.
+
+	l.AssertLocked()
+	// Like AssertLocked, don’t even bother with l.stateMutex.
+	if l.locktype != unix.F_WRLCK {
+		panic("internal error: lock is not held for writing")
+	}
 }
 
 // Touch updates the lock file with the UID of the user.
@@ -265,14 +268,15 @@ func (l *lockfile) Modified() (bool, error) {
 		panic("attempted to check last-writer in lockfile without locking it first")
 	}
 	defer l.stateMutex.Unlock()
-	currentLW := make([]byte, len(l.lw))
+	currentLW := make([]byte, lastWriterIDSize)
 	n, err := unix.Pread(int(l.fd), currentLW, 0)
 	if err != nil {
 		return true, err
 	}
-	if n != len(l.lw) {
-		return true, nil
-	}
+	// It is important to handle the partial read case, because
+	// the initial size of the lock file is zero, which is a valid
+	// state (no writes yet)
+	currentLW = currentLW[:n]
 	oldLW := l.lw
 	l.lw = currentLW
 	return !bytes.Equal(currentLW, oldLW), nil
