@@ -2,13 +2,15 @@ package graphdriver
 
 import (
 	"io"
+	"os"
+	"runtime"
 	"time"
 
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,10 +33,11 @@ type NaiveDiffDriver struct {
 // NewNaiveDiffDriver returns a fully functional driver that wraps the
 // given ProtoDriver and adds the capability of the following methods which
 // it may or may not support on its own:
-//     Diff(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) (io.ReadCloser, error)
-//     Changes(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) ([]archive.Change, error)
-//     ApplyDiff(id, parent string, options ApplyDiffOpts) (size int64, err error)
-//     DiffSize(id string, idMappings *idtools.IDMappings, parent, parentMappings *idtools.IDMappings, mountLabel string) (size int64, err error)
+//
+//	Diff(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) (io.ReadCloser, error)
+//	Changes(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) ([]archive.Change, error)
+//	ApplyDiff(id, parent string, options ApplyDiffOpts) (size int64, err error)
+//	DiffSize(id string, idMappings *idtools.IDMappings, parent, parentMappings *idtools.IDMappings, mountLabel string) (size int64, err error)
 func NewNaiveDiffDriver(driver ProtoDriver, updater LayerIDMapUpdater) Driver {
 	return &NaiveDiffDriver{ProtoDriver: driver, LayerIDMapUpdater: updater}
 }
@@ -62,7 +65,7 @@ func (gdw *NaiveDiffDriver) Diff(id string, idMappings *idtools.IDMappings, pare
 
 	defer func() {
 		if err != nil {
-			driver.Put(id)
+			driverPut(driver, id, &err)
 		}
 	}()
 
@@ -77,7 +80,7 @@ func (gdw *NaiveDiffDriver) Diff(id string, idMappings *idtools.IDMappings, pare
 		}
 		return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			driver.Put(id)
+			driverPut(driver, id, &err)
 			return err
 		}), nil
 	}
@@ -87,7 +90,7 @@ func (gdw *NaiveDiffDriver) Diff(id string, idMappings *idtools.IDMappings, pare
 	if err != nil {
 		return nil, err
 	}
-	defer driver.Put(parent)
+	defer driverPut(driver, parent, &err)
 
 	changes, err := archive.ChangesDirs(layerFs, idMappings, parentFs, parentMappings)
 	if err != nil {
@@ -101,20 +104,20 @@ func (gdw *NaiveDiffDriver) Diff(id string, idMappings *idtools.IDMappings, pare
 
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		driver.Put(id)
+		driverPut(driver, id, &err)
 
 		// NaiveDiffDriver compares file metadata with parent layers. Parent layers
 		// are extracted from tar's with full second precision on modified time.
 		// We need this hack here to make sure calls within same second receive
 		// correct result.
-		time.Sleep(startTime.Truncate(time.Second).Add(time.Second).Sub(time.Now()))
+		time.Sleep(time.Until(startTime.Truncate(time.Second).Add(time.Second)))
 		return err
 	}), nil
 }
 
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
-func (gdw *NaiveDiffDriver) Changes(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) ([]archive.Change, error) {
+func (gdw *NaiveDiffDriver) Changes(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) (_ []archive.Change, retErr error) {
 	driver := gdw.ProtoDriver
 
 	if idMappings == nil {
@@ -131,19 +134,20 @@ func (gdw *NaiveDiffDriver) Changes(id string, idMappings *idtools.IDMappings, p
 	if err != nil {
 		return nil, err
 	}
-	defer driver.Put(id)
+	defer driverPut(driver, id, &retErr)
 
 	parentFs := ""
 
 	if parent != "" {
 		options := MountOpts{
 			MountLabel: mountLabel,
+			Options:    []string{"ro"},
 		}
 		parentFs, err = driver.Get(parent, options)
 		if err != nil {
 			return nil, err
 		}
-		defer driver.Put(parent)
+		defer driverPut(driver, parent, &retErr)
 	}
 
 	return archive.ChangesDirs(layerFs, idMappings, parentFs, parentMappings)
@@ -167,11 +171,18 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, options ApplyDiffOpts) 
 	if err != nil {
 		return
 	}
-	defer driver.Put(id)
+	defer driverPut(driver, id, &err)
+
+	defaultForceMask := os.FileMode(0700)
+	var forceMask *os.FileMode // = nil
+	if runtime.GOOS == "darwin" {
+		forceMask = &defaultForceMask
+	}
 
 	tarOptions := &archive.TarOptions{
-		InUserNS:          rsystem.RunningInUserNS(),
+		InUserNS:          unshare.IsRootless(),
 		IgnoreChownErrors: options.IgnoreChownErrors,
+		ForceMask:         forceMask,
 	}
 	if options.Mappings != nil {
 		tarOptions.UIDMaps = options.Mappings.UIDs()
@@ -180,7 +191,7 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, options ApplyDiffOpts) 
 	start := time.Now().UTC()
 	logrus.Debug("Start untar layer")
 	if size, err = ApplyUncompressedLayer(layerFs, options.Diff, tarOptions); err != nil {
-		logrus.Errorf("Error while applying layer: %s", err)
+		logrus.Errorf("While applying layer: %s", err)
 		return
 	}
 	logrus.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
@@ -213,7 +224,7 @@ func (gdw *NaiveDiffDriver) DiffSize(id string, idMappings *idtools.IDMappings, 
 	if err != nil {
 		return
 	}
-	defer driver.Put(id)
+	defer driverPut(driver, id, &err)
 
 	return archive.ChangesSize(layerFs, changes), nil
 }
