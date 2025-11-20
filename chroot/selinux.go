@@ -3,10 +3,10 @@
 package chroot
 
 import (
+	"fmt"
+
 	"github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -14,8 +14,8 @@ import (
 func setSelinuxLabel(spec *specs.Spec) error {
 	logrus.Debugf("setting selinux label")
 	if spec.Process.SelinuxLabel != "" && selinux.GetEnabled() {
-		if err := label.SetProcessLabel(spec.Process.SelinuxLabel); err != nil {
-			return errors.Wrapf(err, "error setting process label to %q", spec.Process.SelinuxLabel)
+		if err := selinux.SetExecLabel(spec.Process.SelinuxLabel); err != nil {
+			return fmt.Errorf("setting process label to %q: %w", spec.Process.SelinuxLabel, err)
 		}
 	}
 	return nil
