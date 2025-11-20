@@ -4,25 +4,14 @@ import (
 	stdtar "archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net"
 	"os"
-	"os/user"
 	"path/filepath"
 	"sync"
 
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/idtools"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
-	"github.com/pkg/errors"
+	"github.com/containers/storage/pkg/unshare"
 )
-
-func init() {
-	// initialize nss libraries in Glibc so that the dynamic libraries are loaded in the host
-	// environment not in the chroot from untrusted files.
-	_, _ = user.Lookup("storage")
-	_, _ = net.LookupHost("localhost")
-}
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar
 func NewArchiver(idMappings *idtools.IDMappings) *archive.Archiver {
@@ -41,7 +30,8 @@ func NewArchiverWithChown(tarIDMappings *idtools.IDMappings, chownOpts *idtools.
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `dest`.
 // The archive may be compressed with one of the following algorithms:
-//  identity (uncompressed), gzip, bzip2, xz.
+//
+//	identity (uncompressed), gzip, bzip2, xz.
 func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
 	return untarHandler(tarArchive, dest, options, true, dest)
 }
@@ -72,11 +62,11 @@ func UntarUncompressed(tarArchive io.Reader, dest string, options *archive.TarOp
 // Handler for teasing out the automatic decompression
 func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions, decompress bool, root string) error {
 	if tarArchive == nil {
-		return fmt.Errorf("Empty archive")
+		return fmt.Errorf("empty archive")
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		options.InUserNS = rsystem.RunningInUserNS()
+		options.InUserNS = unshare.IsRootless()
 	}
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
@@ -92,7 +82,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 		}
 	}
 
-	r := ioutil.NopCloser(tarArchive)
+	r := tarArchive
 	if decompress {
 		decompressedArchive, err := archive.DecompressStream(tarArchive)
 		if err != nil {
@@ -124,7 +114,7 @@ func CopyFileWithTarAndChown(chownOpts *idtools.IDPair, hasher io.Writer, uidmap
 		archiver.Untar = func(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
 			contentReader, contentWriter, err := os.Pipe()
 			if err != nil {
-				return errors.Wrapf(err, "error creating pipe extract data to %q", dest)
+				return fmt.Errorf("creating pipe extract data to %q: %w", dest, err)
 			}
 			defer contentReader.Close()
 			defer contentWriter.Close()
@@ -143,11 +133,11 @@ func CopyFileWithTarAndChown(chownOpts *idtools.IDPair, hasher io.Writer, uidmap
 				hashWorker.Done()
 			}()
 			if err = originalUntar(io.TeeReader(tarArchive, contentWriter), dest, options); err != nil {
-				err = errors.Wrapf(err, "error extracting data to %q while copying", dest)
+				err = fmt.Errorf("extracting data to %q while copying: %w", dest, err)
 			}
 			hashWorker.Wait()
-			if err == nil {
-				err = errors.Wrapf(hashError, "error calculating digest of data for %q while copying", dest)
+			if err == nil && hashError != nil {
+				err = fmt.Errorf("calculating digest of data for %q while copying: %w", dest, hashError)
 			}
 			return err
 		}

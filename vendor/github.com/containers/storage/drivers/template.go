@@ -1,9 +1,8 @@
 package graphdriver
 
 import (
-	"github.com/sirupsen/logrus"
-
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/sirupsen/logrus"
 )
 
 // TemplateDriver is just barely enough of a driver that we can implement a
@@ -31,7 +30,7 @@ func NaiveCreateFromTemplate(d TemplateDriver, id, template string, templateIDMa
 	diff, err := d.Diff(template, templateIDMappings, parent, parentIDMappings, opts.MountLabel)
 	if err != nil {
 		if err2 := d.Remove(id); err2 != nil {
-			logrus.Errorf("error removing layer %q: %v", id, err2)
+			logrus.Errorf("Removing layer %q: %v", id, err2)
 		}
 		return err
 	}
@@ -44,7 +43,7 @@ func NaiveCreateFromTemplate(d TemplateDriver, id, template string, templateIDMa
 	}
 	if _, err = d.ApplyDiff(id, parent, applyOptions); err != nil {
 		if err2 := d.Remove(id); err2 != nil {
-			logrus.Errorf("error removing layer %q: %v", id, err2)
+			logrus.Errorf("Removing layer %q: %v", id, err2)
 		}
 		return err
 	}

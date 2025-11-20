@@ -131,6 +131,16 @@ func (se StreamError) writeFrame(ctx writeContext) error {
 
 func (se StreamError) staysWithinBuffer(max int) bool { return frameHeaderLen+4 <= max }
 
+type writePing struct {
+	data [8]byte
+}
+
+func (w writePing) writeFrame(ctx writeContext) error {
+	return ctx.Framer().WritePing(false, w.data)
+}
+
+func (w writePing) staysWithinBuffer(max int) bool { return frameHeaderLen+len(w.data) <= max }
+
 type writePingAck struct{ pf *PingFrame }
 
 func (w writePingAck) writeFrame(ctx writeContext) error {
@@ -341,7 +351,12 @@ func encodeHeaders(enc *hpack.Encoder, h http.Header, keys []string) {
 	}
 	for _, k := range keys {
 		vv := h[k]
-		k = lowerHeader(k)
+		k, ascii := lowerHeader(k)
+		if !ascii {
+			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
+			// field names have to be ASCII characters (just as in HTTP/1.x).
+			continue
+		}
 		if !validWireHeaderFieldName(k) {
 			// Skip it as backup paranoia. Per
 			// golang.org/issue/14048, these should

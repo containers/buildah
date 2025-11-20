@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package archive
@@ -34,7 +35,7 @@ func CanonicalTarNameForPath(p string) (string, error) {
 	// in file names, it is mostly safe to replace however we must
 	// check just in case
 	if strings.Contains(p, "/") {
-		return "", fmt.Errorf("Windows path contains forward slash: %s", p)
+		return "", fmt.Errorf("windows path contains forward slash: %s", p)
 	}
 	return strings.Replace(p, string(os.PathSeparator), "/", -1), nil
 
@@ -76,4 +77,9 @@ func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo, forceMask *
 func getFileUIDGID(stat interface{}) (idtools.IDPair, error) {
 	// no notion of file ownership mapping yet on Windows
 	return idtools.IDPair{0, 0}, nil
+}
+
+// Hardlink without following symlinks
+func handleLLink(targetPath string, path string) error {
+	return os.Link(targetPath, path)
 }

@@ -1,4 +1,5 @@
-// +build !linux,!windows,!freebsd,!solaris
+//go:build !linux && !windows && !freebsd && !solaris && !darwin
+// +build !linux,!windows,!freebsd,!solaris,!darwin
 
 package graphdriver
 

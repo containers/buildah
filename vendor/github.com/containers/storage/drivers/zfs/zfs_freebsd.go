@@ -2,10 +2,8 @@ package zfs
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/containers/storage/drivers"
-	"github.com/pkg/errors"
+	graphdriver "github.com/containers/storage/drivers"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -13,27 +11,23 @@ import (
 func checkRootdirFs(rootdir string) error {
 	var buf unix.Statfs_t
 	if err := unix.Statfs(rootdir, &buf); err != nil {
-		return fmt.Errorf("Failed to access '%s': %s", rootdir, err)
+		return fmt.Errorf("failed to access '%s': %s", rootdir, err)
 	}
 
 	// on FreeBSD buf.Fstypename contains ['z', 'f', 's', 0 ... ]
 	if (buf.Fstypename[0] != 122) || (buf.Fstypename[1] != 102) || (buf.Fstypename[2] != 115) || (buf.Fstypename[3] != 0) {
 		logrus.WithField("storage-driver", "zfs").Debugf("no zfs dataset found for rootdir '%s'", rootdir)
-		return errors.Wrapf(graphdriver.ErrPrerequisites, "no zfs dataset found for rootdir '%s'", rootdir)
+		return fmt.Errorf("no zfs dataset found for rootdir '%s': %w", rootdir, graphdriver.ErrPrerequisites)
 	}
 
 	return nil
 }
 
 func getMountpoint(id string) string {
-	maxlen := 12
+	return id
+}
 
-	// we need to preserve filesystem suffix
-	suffix := strings.SplitN(id, "-", 2)
-
-	if len(suffix) > 1 {
-		return id[:maxlen] + "-" + suffix[1]
-	}
-
-	return id[:maxlen]
+func detachUnmount(mountpoint string) error {
+	// FreeBSD's MNT_FORCE is roughly equivalent to MNT_DETACH
+	return unix.Unmount(mountpoint, unix.MNT_FORCE)
 }

@@ -1,20 +1,19 @@
 package graphdriver
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/vbatts/tar-split/tar/storage"
-
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/directory"
 	"github.com/containers/storage/pkg/idtools"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
+	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // FsMagic unsigned id of the filesystem in use.
@@ -39,7 +38,7 @@ var (
 	ErrLayerUnknown = errors.New("unknown layer")
 )
 
-//CreateOpts contains optional arguments for Create() and CreateReadWrite()
+// CreateOpts contains optional arguments for Create() and CreateReadWrite()
 // methods.
 type CreateOpts struct {
 	MountLabel string
@@ -48,13 +47,13 @@ type CreateOpts struct {
 	ignoreChownErrors bool
 }
 
-// MountOpts contains optional arguments for LayerStope.Mount() methods.
+// MountOpts contains optional arguments for Driver.Get() methods.
 type MountOpts struct {
 	// Mount label is the MAC Labels to assign to mount point (SELINUX)
 	MountLabel string
 	// UidMaps & GidMaps are the User Namespace mappings to be assigned to content in the mount point
-	UidMaps []idtools.IDMap // nolint: golint
-	GidMaps []idtools.IDMap // nolint: golint
+	UidMaps []idtools.IDMap //nolint: golint,revive
+	GidMaps []idtools.IDMap //nolint: golint
 	Options []string
 
 	// Volatile specifies whether the container storage can be optimized
@@ -230,6 +229,9 @@ type AdditionalLayer interface {
 	// Info returns arbitrary information stored along with this layer (i.e. `info` file)
 	Info() (io.ReadCloser, error)
 
+	// Blob returns a reader of the raw contents of this layer.
+	Blob() (io.ReadCloser, error)
+
 	// Release tells the additional layer store that we don't use this handler.
 	Release()
 }
@@ -243,6 +245,10 @@ type AdditionalLayerStoreDriver interface {
 	// LookupAdditionalLayer looks up additional layer store by the specified
 	// digest and ref and returns an object representing that layer.
 	LookupAdditionalLayer(d digest.Digest, ref string) (AdditionalLayer, error)
+
+	// LookupAdditionalLayer looks up additional layer store by the specified
+	// ID and returns an object representing that layer.
+	LookupAdditionalLayerByID(id string) (AdditionalLayer, error)
 }
 
 // DiffGetterDriver is the interface for layered file system drivers that
@@ -272,10 +278,18 @@ func init() {
 	drivers = make(map[string]InitFunc)
 }
 
+// MustRegister registers an InitFunc for the driver, or panics.
+// It is suitable for package’s init() sections.
+func MustRegister(name string, initFunc InitFunc) {
+	if err := Register(name, initFunc); err != nil {
+		panic(fmt.Sprintf("failed to register containers/storage graph driver %q: %v", name, err))
+	}
+}
+
 // Register registers an InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
-		return fmt.Errorf("Name already registered %s", name)
+		return fmt.Errorf("name already registered %s", name)
 	}
 	drivers[name] = initFunc
 
@@ -289,7 +303,7 @@ func GetDriver(name string, config Options) (Driver, error) {
 	}
 
 	logrus.Errorf("Failed to GetDriver graph %s %s", name, config.Root)
-	return nil, errors.Wrapf(ErrNotSupported, "failed to GetDriver graph %s %s", name, config.Root)
+	return nil, fmt.Errorf("failed to GetDriver graph %s %s: %w", name, config.Root, ErrNotSupported)
 }
 
 // getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
@@ -298,7 +312,7 @@ func getBuiltinDriver(name, home string, options Options) (Driver, error) {
 		return initFunc(filepath.Join(home, name), options)
 	}
 	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
-	return nil, errors.Wrapf(ErrNotSupported, "failed to built-in GetDriver graph %s %s", name, home)
+	return nil, fmt.Errorf("failed to built-in GetDriver graph %s %s: %w", name, home, ErrNotSupported)
 }
 
 // Options is used to initialize a graphdriver
@@ -377,14 +391,13 @@ func New(name string, config Options) (Driver, error) {
 		}
 		return driver, nil
 	}
-	return nil, fmt.Errorf("No supported storage backend found")
+	return nil, fmt.Errorf("no supported storage backend found")
 }
 
 // isDriverNotSupported returns true if the error initializing
 // the graph driver is a non-supported error.
 func isDriverNotSupported(err error) bool {
-	cause := errors.Cause(err)
-	return cause == ErrNotSupported || cause == ErrPrerequisites || cause == ErrIncompatibleFS
+	return errors.Is(err, ErrNotSupported) || errors.Is(err, ErrPrerequisites) || errors.Is(err, ErrIncompatibleFS)
 }
 
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
@@ -398,4 +411,22 @@ func scanPriorDrivers(root string) map[string]bool {
 		}
 	}
 	return driversMap
+}
+
+// driverPut is driver.Put, but errors are handled either by updating mainErr or just logging.
+// Typical usage:
+//
+//	func …(…) (err error) {
+//		…
+//		defer driverPut(driver, id, &err)
+//	}
+func driverPut(driver ProtoDriver, id string, mainErr *error) {
+	if err := driver.Put(id); err != nil {
+		err = fmt.Errorf("unmounting layer %s: %w", id, err)
+		if *mainErr == nil {
+			*mainErr = err
+		} else {
+			logrus.Errorf(err.Error())
+		}
+	}
 }
