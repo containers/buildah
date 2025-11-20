@@ -2,6 +2,13 @@
 
 # Changelog
 
+## v1.27.7 (2025-11-20)
+
+    Remove calls to Lockfile.Locked
+    Update for go-selinux API changes
+    Bump runc to 1.2.8 - CVE-2025-52881
+    [release-1.27] tests/conformance/testdata/Dockerfile.add:...
+
 ## v1.27.6 (2025-01-30)
 
     Fix cache locks with multiple mounts
