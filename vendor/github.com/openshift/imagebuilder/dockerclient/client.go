@@ -348,7 +348,7 @@ func (e *ClientExecutor) Prepare(b *imagebuilder.Builder, node *parser.Node, fro
 				opts.Config.Entrypoint = nil
 			} else {
 				// TODO; replace me with a better default command
-				opts.Config.Cmd = []string{fmt.Sprintf("%s\nsleep 86400", "#(imagebuilder)")}
+				opts.Config.Cmd = []string{"# (imagebuilder)\n/bin/sleep 86400"}
 				opts.Config.Entrypoint = append([]string{}, defaultShell...)
 			}
 		}
@@ -745,8 +745,19 @@ func (e *ClientExecutor) createOrReplaceContainerPathWithOwner(path string, uid,
 		})
 		return err
 	}
-	if err := readPath(path); err != nil {
-		if err = createPath(path); err != nil {
+	var pathsToCreate []string
+	pathToCheck := path
+	for {
+		if err := readPath(pathToCheck); err != nil {
+			pathsToCreate = append([]string{pathToCheck}, pathsToCreate...)
+		}
+		if filepath.Dir(pathToCheck) == pathToCheck {
+			break
+		}
+		pathToCheck = filepath.Dir(pathToCheck)
+	}
+	for _, path := range pathsToCreate {
+		if err := createPath(path); err != nil {
 			return fmt.Errorf("error creating container directory %s: %v", path, err)
 		}
 	}
@@ -766,6 +777,16 @@ func (e *ClientExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error 
 // the user command into a shell and perform those operations before. Since RUN
 // requires /bin/sh, we can use both 'cd' and 'export'.
 func (e *ClientExecutor) Run(run imagebuilder.Run, config docker.Config) error {
+	if len(run.Files) > 0 {
+		return fmt.Errorf("Heredoc syntax is not supported")
+	}
+	if len(run.Mounts) > 0 {
+		return fmt.Errorf("RUN --mount not supported")
+	}
+	if run.Network != "" {
+		return fmt.Errorf("RUN --network not supported")
+	}
+
 	args := make([]string, len(run.Args))
 	copy(args, run.Args)
 
@@ -858,6 +879,12 @@ func (e *ClientExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 func (e *ClientExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 	// copying content into a volume invalidates the archived state of any given directory
 	for _, copy := range copies {
+		if copy.Checksum != "" {
+			return fmt.Errorf("ADD --checksum not supported")
+		}
+		if len(copy.Files) > 0 {
+			return fmt.Errorf("Heredoc syntax is not supported")
+		}
 		e.Volumes.Invalidate(copy.Dest)
 	}
 
@@ -1023,6 +1050,19 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 		return nil, false, false, nil
 	}
 	for _, c := range copies {
+		var chmod func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error)
+		if c.Chmod != "" {
+			parsed, err := strconv.ParseInt(c.Chmod, 8, 16)
+			if err != nil {
+				return err
+			}
+			chmod = func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
+				mode := h.Mode &^ 0o777
+				mode |= parsed & 0o777
+				h.Mode = mode
+				return nil, false, false, nil
+			}
+		}
 		chownUid, chownGid = -1, -1
 		if c.Chown != "" {
 			var err error
@@ -1077,6 +1117,13 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 					}
 				}
 				filtered, err := transformArchive(r, false, chown)
+				if err != nil {
+					return err
+				}
+				r = filtered
+			}
+			if c.Chmod != "" {
+				filtered, err := transformArchive(r, false, chmod)
 				if err != nil {
 					return err
 				}
