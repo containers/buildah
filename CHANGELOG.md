@@ -2,6 +2,12 @@
 
 # Changelog
 
+## v1.33.13 (2025-11-19)
+
+    [release-1.33]Bump runc to v1.2.8 - CVE-2025-52881
+    [release-1.33] Add conditional release-checking system test
+    [release-1.33] tests/conformance/testdata/Dockerfile.add:...
+
 ## v1.33.12 (2025-01-20)
 
     Fix TOCTOU error when bind and cache mounts use "src" values
