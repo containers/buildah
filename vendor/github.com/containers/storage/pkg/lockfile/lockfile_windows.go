@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package lockfile
@@ -36,12 +37,6 @@ func (l *lockfile) Lock() {
 	l.locked = true
 }
 
-func (l *lockfile) RecursiveLock() {
-	// We don't support Windows but a recursive writer-lock in one process-space
-	// is really a writer lock, so just panic.
-	panic("not supported")
-}
-
 func (l *lockfile) RLock() {
 	l.mu.Lock()
 	l.locked = true
@@ -52,8 +47,23 @@ func (l *lockfile) Unlock() {
 	l.mu.Unlock()
 }
 
-func (l *lockfile) Locked() bool {
-	return l.locked
+func (l *lockfile) AssertLocked() {
+	// DO NOT provide a variant that returns the value of l.locked.
+	//
+	// If the caller does not hold the lock, l.locked might nevertheless be true because another goroutine does hold it, and
+	// we can’t tell the difference.
+	//
+	// Hence, this “AssertLocked” method, which exists only for sanity checks.
+	if !l.locked {
+		panic("internal error: lock is not held by the expected owner")
+	}
+}
+
+func (l *lockfile) AssertLockedForWriting() {
+	// DO NOT provide a variant that returns the current lock state.
+	//
+	// The same caveats as for AssertLocked apply equally.
+	l.AssertLocked() // The current implementation does not distinguish between read and write locks.
 }
 
 func (l *lockfile) Modified() (bool, error) {

@@ -2,7 +2,6 @@ package ioutils
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -16,7 +15,7 @@ type AtomicFileWriterOptions struct {
 	NoSync bool
 }
 
-var defaultWriterOptions AtomicFileWriterOptions = AtomicFileWriterOptions{}
+var defaultWriterOptions = AtomicFileWriterOptions{}
 
 // SetDefaultOptions overrides the default options used when creating an
 // atomic file writer.
@@ -28,7 +27,14 @@ func SetDefaultOptions(opts AtomicFileWriterOptions) {
 // temporary file and closing it atomically changes the temporary file to
 // destination path. Writing and closing concurrently is not allowed.
 func NewAtomicFileWriterWithOpts(filename string, perm os.FileMode, opts *AtomicFileWriterOptions) (io.WriteCloser, error) {
-	f, err := ioutil.TempFile(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
+	return newAtomicFileWriter(filename, perm, opts)
+}
+
+// newAtomicFileWriter returns WriteCloser so that writing to it writes to a
+// temporary file and closing it atomically changes the temporary file to
+// destination path. Writing and closing concurrently is not allowed.
+func newAtomicFileWriter(filename string, perm os.FileMode, opts *AtomicFileWriterOptions) (*atomicFileWriter, error) {
+	f, err := os.CreateTemp(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
 	if err != nil {
 		return nil, err
 	}
@@ -56,14 +62,14 @@ func NewAtomicFileWriter(filename string, perm os.FileMode) (io.WriteCloser, err
 
 // AtomicWriteFile atomically writes data to a file named by filename.
 func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
-	f, err := NewAtomicFileWriter(filename, perm)
+	f, err := newAtomicFileWriter(filename, perm, nil)
 	if err != nil {
 		return err
 	}
 	n, err := f.Write(data)
 	if err == nil && n < len(data) {
 		err = io.ErrShortWrite
-		f.(*atomicFileWriter).writeErr = err
+		f.writeErr = err
 	}
 	if err1 := f.Close(); err == nil {
 		err = err1
@@ -124,7 +130,7 @@ type AtomicWriteSet struct {
 // commit. If no temporary directory is given the system
 // default is used.
 func NewAtomicWriteSet(tmpDir string) (*AtomicWriteSet, error) {
-	td, err := ioutil.TempDir(tmpDir, "write-set-")
+	td, err := os.MkdirTemp(tmpDir, "write-set-")
 	if err != nil {
 		return nil, err
 	}

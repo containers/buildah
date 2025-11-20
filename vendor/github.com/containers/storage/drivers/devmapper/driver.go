@@ -1,10 +1,10 @@
+//go:build linux && cgo
 // +build linux,cgo
 
 package devmapper
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -23,7 +23,7 @@ import (
 const defaultPerms = os.FileMode(0555)
 
 func init() {
-	graphdriver.Register("devicemapper", Init)
+	graphdriver.MustRegister("devicemapper", Init)
 }
 
 // Driver contains the device set mounted and the home directory
@@ -227,7 +227,7 @@ func (d *Driver) Get(id string, options graphdriver.MountOpts) (string, error) {
 	if _, err := os.Stat(idFile); err != nil && os.IsNotExist(err) {
 		// Create an "id" file with the container/image id in it to help reconstruct this in case
 		// of later problems
-		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
+		if err := os.WriteFile(idFile, []byte(id), 0600); err != nil {
 			d.ctr.Decrement(mp)
 			d.DeviceSet.UnmountDevice(id, mp)
 			return "", err

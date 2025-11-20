@@ -5,8 +5,8 @@ package overlay
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
+	"runtime"
 	"syscall"
 	"unsafe"
 
@@ -20,17 +20,6 @@ type attr struct {
 	propagation uint64
 	userNs      uint64
 }
-
-const (
-	// _MOUNT_ATTR_IDMAP - Idmap mount to @userns_fd in struct mount_attr
-	_MOUNT_ATTR_IDMAP = 0x00100000 //nolint:golint
-
-	// _OPEN_TREE_CLONE - Clone the source path mount
-	_OPEN_TREE_CLONE = 0x00000001 //nolint:golint
-
-	// _MOVE_MOUNT_F_EMPTY_PATH - Move the path referenced by the fd
-	_MOVE_MOUNT_F_EMPTY_PATH = 0x00000004 //nolint:golint
-)
 
 // openTree is a wrapper for the open_tree syscall
 func openTree(path string, flags int) (fd int, err error) {
@@ -61,7 +50,7 @@ func moveMount(fdTree int, target string) (err error) {
 		return err
 	}
 
-	flags := _MOVE_MOUNT_F_EMPTY_PATH
+	flags := unix.MOVE_MOUNT_F_EMPTY_PATH
 
 	_, _, e1 := syscall.Syscall6(uintptr(unix.SYS_MOVE_MOUNT),
 		uintptr(fdTree), uintptr(unsafe.Pointer(_p1)),
@@ -98,14 +87,14 @@ func createIDMappedMount(source, target string, pid int) error {
 	}
 
 	var attr attr
-	attr.attrSet = _MOUNT_ATTR_IDMAP
+	attr.attrSet = unix.MOUNT_ATTR_IDMAP
 	attr.attrClr = 0
 	attr.propagation = 0
 	attr.userNs = uint64(userNsFile.Fd())
 
 	defer userNsFile.Close()
 
-	targetDirFd, err := openTree(source, _OPEN_TREE_CLONE|unix.AT_RECURSIVE)
+	targetDirFd, err := openTree(source, unix.OPEN_TREE_CLONE)
 	if err != nil {
 		return err
 	}
@@ -124,7 +113,14 @@ func createIDMappedMount(source, target string, pid int) error {
 // createUsernsProcess forks the current process and creates a user namespace using the specified
 // mappings.  It returns the pid of the new process.
 func createUsernsProcess(uidMaps []idtools.IDMap, gidMaps []idtools.IDMap) (int, func(), error) {
-	pid, _, err := syscall.Syscall6(uintptr(unix.SYS_CLONE), unix.CLONE_NEWUSER|uintptr(unix.SIGCHLD), 0, 0, 0, 0, 0)
+	var pid uintptr
+	var err syscall.Errno
+
+	if runtime.GOARCH == "s390x" {
+		pid, _, err = syscall.Syscall6(uintptr(unix.SYS_CLONE), 0, unix.CLONE_NEWUSER|uintptr(unix.SIGCHLD), 0, 0, 0, 0)
+	} else {
+		pid, _, err = syscall.Syscall6(uintptr(unix.SYS_CLONE), unix.CLONE_NEWUSER|uintptr(unix.SIGCHLD), 0, 0, 0, 0, 0)
+	}
 	if err != 0 {
 		return -1, nil, err
 	}
@@ -144,7 +140,7 @@ func createUsernsProcess(uidMaps []idtools.IDMap, gidMaps []idtools.IDMap) (int,
 		for _, m := range idmap {
 			mappings = mappings + fmt.Sprintf("%d %d %d\n", m.ContainerID, m.HostID, m.Size)
 		}
-		return ioutil.WriteFile(fmt.Sprintf("/proc/%d/%s", pid, fname), []byte(mappings), 0600)
+		return os.WriteFile(fmt.Sprintf("/proc/%d/%s", pid, fname), []byte(mappings), 0600)
 	}
 	if err := writeMappings("uid_map", uidMaps); err != nil {
 		cleanupFunc()
