@@ -2,6 +2,15 @@
 
 # Changelog
 
+## v1.26.10 (2025-11-20)
+
+    Bump CI environment
+    Remove calls to Lockfile.Locked
+    Update for go-selinux API changes
+    Bump runc to v1.2.8 - CVE-2025-52881
+    [release-1.26] Add conditional release-checking system test
+    [release-1.26] tests/conformance/testdata/Dockerfile.add:...
+
 ## v1.26.9 (2025-01-24)
 
     Add build-tag comments
