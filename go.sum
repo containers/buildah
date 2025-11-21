@@ -156,6 +156,8 @@ github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/letsencrypt/boulder v0.0.0-20240620165639-de9c06129bec h1:2tTW6cDth2TSgRbAhD7yjZzTQmcN25sDRPEeinR51yQ=
 github.com/letsencrypt/boulder v0.0.0-20240620165639-de9c06129bec/go.mod h1:TmwEoGCwIti7BCeJ9hescZgRtatxRE+A72pCoPfmcfk=
+github.com/lsm5/container-libs/common v0.0.0-20251121154210-570673aac356 h1:/KewkTGaJsJG1PL5f4ELiKeEViQR0euTkkHizkKDo+4=
+github.com/lsm5/container-libs/common v0.0.0-20251121154210-570673aac356/go.mod h1:8qbjUhjwp4i5u1O19vzwYW2qwIuPdFXIuv4nl3Z8px8=
 github.com/manifoldco/promptui v0.9.0 h1:3V4HzJk1TtXW1MTZMP7mdlwbBpIinw3HztaIlYthEiA=
 github.com/manifoldco/promptui v0.9.0/go.mod h1:ka04sppxSGFAtxX0qhlYQjISsg9mR4GWtQEhdbn6Pgg=
 github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byFGLdw=
@@ -322,8 +324,6 @@ go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJr
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
 go.opentelemetry.io/proto/otlp v1.7.1 h1:gTOMpGDb0WTBOP8JaO72iL3auEZhVmAQg4ipjOVAtj4=
 go.opentelemetry.io/proto/otlp v1.7.1/go.mod h1:b2rVh6rfI/s2pHWNlB7ILJcRALpcNDzKhACevjI+ZnE=
-go.podman.io/common v0.66.1-0.20251120131032-23712697ddda h1:Ib1vIEYB5eCSz3G09sROyY/j09jztFlWRm4G52vWj3k=
-go.podman.io/common v0.66.1-0.20251120131032-23712697ddda/go.mod h1:8qbjUhjwp4i5u1O19vzwYW2qwIuPdFXIuv4nl3Z8px8=
 go.podman.io/image/v5 v5.38.1-0.20251120131032-23712697ddda h1:YySc/E4bpD5b5y4kFN/7ZDo5JcXnOpPfwU78kH9D+EU=
 go.podman.io/image/v5 v5.38.1-0.20251120131032-23712697ddda/go.mod h1:9DniP9NaGH03kzwNKYEtOXgRJwO+cQHENH+G4sOwLNc=
 go.podman.io/storage v1.61.1-0.20251120131032-23712697ddda h1:bC4fEguil4pwVp2U2zKWUC5ouqIwRDdtyJxtX1bPY+0=
