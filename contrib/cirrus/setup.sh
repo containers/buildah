@@ -14,14 +14,8 @@ echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
 cd $GOSRC
 case "$OS_RELEASE_ID" in
     fedora)
-        # Not executing IN_PODMAN container
-        if [[ -z "$CONTAINER" ]]; then
-            warn "Adding secondary testing partition & growing root filesystem"
-            bash $SCRIPT_BASE/add_second_partition.sh
-        fi
-
         warn "Hard-coding podman to use crun"
-	cat > /etc/containers/containers.conf <<EOF
+        cat > /etc/containers/containers.conf <<EOF
 [engine]
 runtime="crun"
 EOF
@@ -31,12 +25,49 @@ EOF
         then
             showrun setsebool -P container_manage_cgroup true
         fi
+
+        # Use the newest runc runtime to match 1.2.8 runc go module update
+        if [[ "$BUILDAH_RUNTIME" == "runc" ]]; then
+            showrun dnf update -y runc
+        fi
         ;;
-    ubuntu)
+    ubuntu|debian)
+        if [[ "$1" == "conformance" ]]; then
+            msg "Installing previously downloaded/cached packages"
+            ooe.sh dpkg -i \
+                $PACKAGE_DOWNLOAD_DIR/containerd.io*.deb \
+                $PACKAGE_DOWNLOAD_DIR/docker-ce*.deb
+
+            # At the time of this comment, Ubuntu is using systemd-resolved
+            # which interfears badly with conformance testing.  Some tests
+            # need to run dnsmasq on port 53.
+            if [[ -r "/run/systemd/resolve/resolv.conf" ]]; then
+                msg "Disabling systemd-resolved service"
+                systemctl stop systemd-resolved.service
+                cp /run/systemd/resolve/resolv.conf /etc/
+            fi
+        fi
         ;;
     *)
         bad_os_id_ver
         ;;
+esac
+
+# Required to be defined by caller: Are we testing as root or a regular user
+case "$PRIV_NAME" in
+    root)
+        if [[ "$TEST_FLAVOR" = "sys" ]]; then
+            # Used in local image-scp testing
+            setup_rootless
+        fi
+        ;;
+    rootless)
+        # load kernel modules since the rootless user has no permission to do so
+        modprobe ip6_tables || :
+        modprobe ip6table_nat || :
+        setup_rootless
+        ;;
+    *) die_unknown PRIV_NAME
 esac
 
 # Previously, golang was not installed
