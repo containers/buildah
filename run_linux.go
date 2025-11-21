@@ -3035,12 +3035,7 @@ func (b *Builder) cleanupRunMounts(mountpoint string, artifacts *runMountArtifac
 			logrus.Warn(err)
 			continue
 		}
-		if lockfile.Locked() {
-			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
-			continue
-		}
+		lockfile.Unlock()
 	}
 	return prevErr
 }
