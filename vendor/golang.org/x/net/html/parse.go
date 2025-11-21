@@ -184,7 +184,7 @@ func (p *parser) clearStackToContext(s scope) {
 	}
 }
 
-// parseGenericRawTextElements implements the generic raw text element parsing
+// parseGenericRawTextElement implements the generic raw text element parsing
 // algorithm defined in 12.2.6.2.
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-elements-that-contain-only-text
 // TODO: Since both RAWTEXT and RCDATA states are treated as tokenizer's part
@@ -734,7 +734,7 @@ func inHeadIM(p *parser) bool {
 	return false
 }
 
-// 12.2.6.4.5.
+// Section 12.2.6.4.5.
 func inHeadNoscriptIM(p *parser) bool {
 	switch p.tok.Type {
 	case DoctypeToken:
@@ -840,6 +840,10 @@ func afterHeadIM(p *parser) bool {
 
 	p.parseImpliedToken(StartTagToken, a.Body, a.Body.String())
 	p.framesetOK = true
+	if p.tok.Type == ErrorToken {
+		// Stop parsing.
+		return true
+	}
 	return false
 }
 
@@ -1031,7 +1035,7 @@ func inBodyIM(p *parser) bool {
 			if p.tok.DataAtom == a.Input {
 				for _, t := range p.tok.Attr {
 					if t.Key == "type" {
-						if strings.ToLower(t.Val) == "hidden" {
+						if strings.EqualFold(t.Val, "hidden") {
 							// Skip setting framesetOK = false
 							return true
 						}
@@ -1459,7 +1463,7 @@ func inTableIM(p *parser) bool {
 			return inHeadIM(p)
 		case a.Input:
 			for _, t := range p.tok.Attr {
-				if t.Key == "type" && strings.ToLower(t.Val) == "hidden" {
+				if t.Key == "type" && strings.EqualFold(t.Val, "hidden") {
 					p.addElement()
 					p.oe.pop()
 					return true

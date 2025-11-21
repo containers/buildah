@@ -88,8 +88,8 @@ func GetType(t byte) (string, error) {
 }
 
 const (
-	ManifestChecksumKey = "io.containers.zstd-chunked.manifest-checksum"
-	ManifestInfoKey     = "io.containers.zstd-chunked.manifest-position"
+	ManifestChecksumKey = "io.github.containers.zstd-chunked.manifest-checksum"
+	ManifestInfoKey     = "io.github.containers.zstd-chunked.manifest-position"
 
 	// ManifestTypeCRFS is a manifest file compatible with the CRFS TOC file.
 	ManifestTypeCRFS = 1
@@ -114,7 +114,7 @@ func appendZstdSkippableFrame(dest io.Writer, data []byte) error {
 		return err
 	}
 
-	var size []byte = make([]byte, 4)
+	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
 	if _, err := dest.Write(size); err != nil {
 		return err
@@ -168,7 +168,7 @@ func WriteZstdChunkedManifest(dest io.Writer, outMetadata map[string]string, off
 	}
 
 	// Store the offset to the manifest and its size in LE order
-	var manifestDataLE []byte = make([]byte, FooterSizeSupported)
+	manifestDataLE := make([]byte, FooterSizeSupported)
 	binary.LittleEndian.PutUint64(manifestDataLE, manifestOffset)
 	binary.LittleEndian.PutUint64(manifestDataLE[8:], uint64(len(compressedManifest)))
 	binary.LittleEndian.PutUint64(manifestDataLE[16:], uint64(len(manifest)))

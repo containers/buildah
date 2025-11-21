@@ -17,10 +17,6 @@ type Locker interface {
 	// - tried to lock a read-only lock-file
 	Lock()
 
-	// Acquire a writer lock recursively, allowing for recursive acquisitions
-	// within the same process space.
-	RecursiveLock()
-
 	// Unlock the lock.
 	// The default unix implementation panics if:
 	// - unlocking an unlocked lock
@@ -44,8 +40,13 @@ type Locker interface {
 	// IsReadWrite() checks if the lock file is read-write
 	IsReadWrite() bool
 
-	// Locked() checks if lock is locked for writing by a thread in this process
-	Locked() bool
+	// AssertLocked() can be used by callers that _know_ that they hold the lock (for reading or writing), for sanity checking.
+	// It might do nothing at all, or it may panic if the caller is not the owner of this lock.
+	AssertLocked()
+
+	// AssertLocked() can be used by callers that _know_ that they hold the lock locked for writing, for sanity checking.
+	// It might do nothing at all, or it may panic if the caller is not the owner of this lock for writing.
+	AssertLockedForWriting()
 }
 
 var (

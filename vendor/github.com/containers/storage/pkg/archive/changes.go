@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -57,7 +56,7 @@ func (change *Change) String() string {
 	return fmt.Sprintf("%s %s", change.Kind, change.Path)
 }
 
-// for sort.Sort
+// changesByPath implements sort.Interface.
 type changesByPath []Change
 
 func (c changesByPath) Less(i, j int) bool { return c[i].Path < c[j].Path }
@@ -403,7 +402,7 @@ func ChangesDirs(newDir string, newMappings *idtools.IDMappings, oldDir string, 
 		oldRoot, newRoot *FileInfo
 	)
 	if oldDir == "" {
-		emptyDir, err := ioutil.TempDir("", "empty")
+		emptyDir, err := os.MkdirTemp("", "empty")
 		if err != nil {
 			return nil, err
 		}
