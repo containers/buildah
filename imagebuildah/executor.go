@@ -106,6 +106,7 @@ type executor struct {
 	commonBuildOptions                      *define.CommonBuildOptions
 	defaultMountsFilePath                   string
 	iidfile                                 string
+	iidfileRaw                              string
 	squash                                  bool
 	labels                                  []string
 	layerLabels                             []string
@@ -293,6 +294,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		commonBuildOptions:                      options.CommonBuildOpts,
 		defaultMountsFilePath:                   options.DefaultMountsFilePath,
 		iidfile:                                 options.IIDFile,
+		iidfileRaw:                              options.IIDFileRaw,
 		squash:                                  options.Squash,
 		labels:                                  slices.Clone(options.Labels),
 		layerLabels:                             slices.Clone(options.LayerLabels),
@@ -1107,7 +1109,13 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		if err = os.WriteFile(b.iidfile, []byte(iid), 0o644); err != nil {
 			return imageID, ref, fmt.Errorf("failed to write image ID to file %q: %w", b.iidfile, err)
 		}
-	} else {
+	}
+	if b.iidfileRaw != "" {
+		if err = os.WriteFile(b.iidfileRaw, []byte(imageID), 0o644); err != nil {
+			return imageID, ref, fmt.Errorf("failed to write image ID to file %q: %w", b.iidfileRaw, err)
+		}
+	}
+	if b.iidfile == "" && b.iidfileRaw == "" {
 		if _, err := stdout.Write([]byte(imageID + "\n")); err != nil {
 			return imageID, ref, fmt.Errorf("failed to write image ID to stdout: %w", err)
 		}

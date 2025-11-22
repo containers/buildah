@@ -515,6 +515,14 @@ Path to an alternative .containerignore (.dockerignore) file.
 Write the built image's ID to the file.  When `--platform` is specified more
 than once, attempting to use this option will trigger an error.
 
+**--iidfile-raw** *ImageIDfile*
+
+Write the built image's ID to the file without the algorithm prefix
+(e.g., `sha256:`). When `--platform` is specified more than once, attempting to
+use this option will trigger an error.
+
+An alias `--raw-iidfile` is also available.
+
 **--inherit-annotations** *bool-value*
 
 Inherit the annotations from the base image or base stages. (default true).
