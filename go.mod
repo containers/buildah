@@ -141,3 +141,5 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.1-0.20251120202831-139ffec09210 // indirect
 )
+
+replace go.podman.io/common => github.com/lsm5/container-libs/common v0.0.0-20251121154210-570673aac356
