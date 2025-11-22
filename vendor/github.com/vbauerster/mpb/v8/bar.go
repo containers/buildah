@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/acarl005/stripansi"
@@ -26,7 +25,7 @@ type Bar struct {
 	cancel       func()
 }
 
-type syncTable [2][]chan int
+type decorSyncTable [2][]*decor.Sync
 type extenderFunc func(decor.Statistics, ...io.Reader) ([]io.Reader, error)
 
 // bState is actual bar's state.
@@ -266,21 +265,14 @@ func (b *Bar) EwmaIncrBy(n int, iterDur time.Duration) {
 func (b *Bar) EwmaIncrInt64(n int64, iterDur time.Duration) {
 	select {
 	case b.operateState <- func(s *bState) {
-		var wg sync.WaitGroup
-		wg.Add(len(s.ewmaDecorators))
 		for _, d := range s.ewmaDecorators {
-			// d := d // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
-			go func() {
-				defer wg.Done()
-				d.EwmaUpdate(n, iterDur)
-			}()
+			d.EwmaUpdate(n, iterDur)
 		}
 		s.current += n
 		if s.triggerComplete && s.current >= s.total {
 			s.current = s.total
 			s.triggerCompletion(b)
 		}
-		wg.Wait()
 	}:
 	case <-b.ctx.Done():
 	}
@@ -295,21 +287,14 @@ func (b *Bar) EwmaSetCurrent(current int64, iterDur time.Duration) {
 	select {
 	case b.operateState <- func(s *bState) {
 		n := current - s.current
-		var wg sync.WaitGroup
-		wg.Add(len(s.ewmaDecorators))
 		for _, d := range s.ewmaDecorators {
-			// d := d // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
-			go func() {
-				defer wg.Done()
-				d.EwmaUpdate(n, iterDur)
-			}()
+			d.EwmaUpdate(n, iterDur)
 		}
 		s.current = current
 		if s.triggerComplete && s.current >= s.total {
 			s.current = s.total
 			s.triggerCompletion(b)
 		}
-		wg.Wait()
 	}:
 	case <-b.ctx.Done():
 	}
@@ -466,8 +451,8 @@ func (b *Bar) tryEarlyRefresh(renderReq chan<- time.Time) {
 	}
 }
 
-func (b *Bar) wSyncTable() syncTable {
-	result := make(chan syncTable)
+func (b *Bar) wSyncTable() decorSyncTable {
+	result := make(chan decorSyncTable)
 	select {
 	case b.operateState <- func(s *bState) { result <- s.wSyncTable() }:
 		return <-result
@@ -530,14 +515,14 @@ func (s *bState) draw(stat decor.Statistics) (_ io.Reader, err error) {
 	), nil
 }
 
-func (s *bState) wSyncTable() (table syncTable) {
+func (s *bState) wSyncTable() (table decorSyncTable) {
 	var start int
-	var row []chan int
+	var row []*decor.Sync
 
 	for i, group := range s.decorGroups {
 		for _, d := range group {
-			if ch, ok := d.Sync(); ok {
-				row = append(row, ch)
+			if s, ok := d.Sync(); ok {
+				row = append(row, s)
 			}
 		}
 		table[i], start = row[start:], len(row)
