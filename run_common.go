@@ -1952,3 +1952,13 @@ func (b *Builder) cleanupRunMounts(mountpoint string, artifacts *runMountArtifac
 	internalParse.UnlockLockArray(artifacts.TargetLocks)
 	return prevErr
 }
+
+func relabel(path, mountLabel string, shared bool) error {
+	if err := label.Relabel(path, mountLabel, shared); err != nil {
+		if !errors.Is(err, syscall.ENOTSUP) {
+			return err
+		}
+		logrus.Debugf("Labeling not supported on %q", path)
+	}
+	return nil
+}
