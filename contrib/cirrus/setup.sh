@@ -32,7 +32,7 @@ EOF
             showrun setsebool -P container_manage_cgroup true
         fi
         ;;
-    ubuntu)
+    ubuntu|debian)
         if [[ "$1" == "conformance" ]]; then
             msg "Installing previously downloaded/cached packages"
             ooe.sh dpkg -i \
