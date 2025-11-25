@@ -2948,7 +2948,7 @@ _EOF
 }
 
 @test "bud with --cgroup-parent" {
-  skip_if_no_runtime
+  skip_if_rootless_environment
   skip_if_chroot
 
   _prefetch alpine
@@ -2956,25 +2956,20 @@ _EOF
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
   cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run cat /proc/self/cgroup
+FROM alpine
+RUN .linux.cgroupsPath
 _EOF
 
   # with cgroup-parent
   run_buildah bud --cgroup-parent test-cgroup -t with-flag \
-                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  if is_cgroupsv2; then
-    expect_output --from="${lines[2]}" "0::/test-cgroup"
-  else
-    expect_output --substring "/test-cgroup"
-  fi
+                  --runtime ${DUMPSPEC_BINARY} --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --substring "test-cgroup"
 
   # without cgroup-parent
   run_buildah bud -t without-flag \
-                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
-    die "Unexpected cgroup."
-  fi
+                  --runtime ${DUMPSPEC_BINARY} --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  run grep "test-cgroup" <<< "$output"
+  [ "$status" -ne 0 ]
 }
 
 @test "bud with --cpu-period and --cpu-quota" {
