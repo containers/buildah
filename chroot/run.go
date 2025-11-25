@@ -944,7 +944,7 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 		capability.EFFECTIVE:   spec.Process.Capabilities.Effective,
 		capability.INHERITABLE: []string{},
 		capability.PERMITTED:   spec.Process.Capabilities.Permitted,
-		capability.AMBIENT:     spec.Process.Capabilities.Ambient,
+		capability.AMBIENT:     {},
 	}
 	knownCaps := capability.ListKnown()
 	noCap := capability.Cap(-1)
