@@ -1,21 +1,8 @@
 module github.com/containers/buildah
 
-// Minimum required golang version
-go 1.22 // *****  ATTENTION  WARNING  CAUTION  DANGER  ******
+// Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
 
-//         Go versions 1.21 and later will AUTO-UPDATE based
-//         on currently running tools and the (new) `toolchain`
-//         value (when also increasing the `go` value above).
-//         ref: https://go.dev/doc/toolchain  Because several
-//         different distros and distro-versions build from
-//         this code, golang version consistency is
-//         desireable.  After manually updating to 1.21, a
-//         `toolchain` specification should be added to pin
-//         the version and block auto-updates.  This does not
-//         block any future changes to the `go` value.
-//         Ref: Upstream discussion:
-//         https://github.com/golang/go/issues/65847
-//         *****  ATTENTION  WARNING  CAUTION  DANGER  ******
+go 1.22.0 
 
 require (
 	github.com/containerd/containerd v1.7.18
@@ -160,10 +147,10 @@ require (
 	go.opentelemetry.io/otel v1.24.0 // indirect
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
-	golang.org/x/mod v0.20.0 // indirect
+	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.24.0 // indirect
+	golang.org/x/tools v0.26.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/grpc v1.64.1 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
