@@ -6,7 +6,7 @@ env:
     #### Global variables used for all tasks
     ####
     # Name of the ultimate destination branch for this CI run, PR or post-merge.
-    DEST_BRANCH: "release-1.29"
+    DEST_BRANCH: "release-1.26"
     GOPATH: "/var/tmp/go"
     GOSRC: "${GOPATH}/src/github.com/containers/buildah"
     GOCACHE: "/tmp/go-build"
@@ -157,6 +157,28 @@ unit_task:
     unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP}'
 
 
+conformance_task:
+    name: 'Debian Conformance w/ $STORAGE_DRIVER'
+    alias: conformance
+    skip: *not_build_docs
+    depends_on: *smoke_vendor
+
+    gce_instance:
+        image_name: "${DEBIAN_CACHE_IMAGE_NAME}"
+
+    timeout_in: 65m
+
+    matrix:
+        - env:
+            STORAGE_DRIVER: 'vfs'
+            TMPDIR: '/var/tmp'
+        - env:
+            STORAGE_DRIVER: 'overlay'
+
+    setup_script: '${SCRIPT_BASE}/setup.sh conformance |& ${_TIMESTAMP}'
+    conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
+
+
 integration_task:
     name: "Integration $DISTRO_NV$RUNTIME_N w/ $STORAGE_DRIVER"
     alias: integration
@@ -166,8 +188,8 @@ integration_task:
     matrix:
         # VFS
         - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
             BUILDAH_RUNTIME: crun
             RUNTIME_N: " using crun"
@@ -177,26 +199,10 @@ integration_task:
             STORAGE_DRIVER: 'vfs'
             BUILDAH_RUNTIME: runc
             RUNTIME_N: " using runc"
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'vfs'
-            BUILDAH_RUNTIME: crun
-            RUNTIME_N: " using crun"
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'vfs'
-            BUILDAH_RUNTIME: runc
-            RUNTIME_N: " using runc"
-        - env:
-            DISTRO_NV: "${DEBIAN_NAME}"
-            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'vfs'
         # OVERLAY
         - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
             BUILDAH_RUNTIME: crun
             RUNTIME_N: " using crun"
@@ -206,22 +212,6 @@ integration_task:
             STORAGE_DRIVER: 'overlay'
             BUILDAH_RUNTIME: runc
             RUNTIME_N: " using runc"
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'overlay'
-            BUILDAH_RUNTIME: crun
-            RUNTIME_N: " using crun"
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'overlay'
-            BUILDAH_RUNTIME: runc
-            RUNTIME_N: " using runc"
-        - env:
-            DISTRO_NV: "${DEBIAN_NAME}"
-            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'overlay'
 
     gce_instance:
         image_name: "$IMAGE_NAME"
@@ -255,8 +245,8 @@ integration_rootless_task:
         # Running rootless tests on overlay
         # OVERLAY
         - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
             PRIV_NAME: rootless
             BUILDAH_RUNTIME: runc
@@ -268,25 +258,6 @@ integration_rootless_task:
             PRIV_NAME: rootless
             BUILDAH_RUNTIME: crun
             RUNTIME_N: " using crun"
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'overlay'
-            PRIV_NAME: rootless
-            BUILDAH_RUNTIME: runc
-            RUNTIME_N: " using runc"
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'overlay'
-            PRIV_NAME: rootless
-            BUILDAH_RUNTIME: crun
-            RUNTIME_N: " using crun"
-        - env:
-            DISTRO_NV: "${DEBIAN_NAME}"
-            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
-            STORAGE_DRIVER: 'overlay'
-            PRIV_NAME: rootless
 
     gce_instance:
         image_name: "$IMAGE_NAME"
@@ -343,6 +314,7 @@ success_task:
       - meta
       - smoke
       - unit
+      - conformance
       - vendor
       - integration
       - integration_rootless
