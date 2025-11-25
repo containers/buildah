@@ -252,3 +252,8 @@ func (d *openshiftImageDestination) PutSignaturesWithFormat(ctx context.Context,
 func (d *openshiftImageDestination) CommitWithOptions(ctx context.Context, options private.CommitOptions) error {
 	return d.docker.CommitWithOptions(ctx, options)
 }
+
+// GetLayerDeltaData provides access to local layer data by DiffID for delta application
+func (d *openshiftImageDestination) GetLayerDeltaData(ctx context.Context, diffID digest.Digest) (types.DeltaDataSource, error) {
+	return types.ImageDestinationGetLayerDeltaData(d.docker, ctx, diffID)
+}

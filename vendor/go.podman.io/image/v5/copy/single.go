@@ -10,9 +10,11 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 
+	tarpatch "github.com/containers/tar-diff/pkg/tar-patch"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -29,6 +31,20 @@ import (
 	"go.podman.io/image/v5/types"
 	chunkedToc "go.podman.io/storage/pkg/chunked/toc"
 )
+
+// formatSize formats a size in bytes with dynamic units (B, KB, MB, GB)
+func formatSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGT"[exp])
+}
 
 // imageCopier tracks state specific to a single image (possibly an item of a manifest list)
 type imageCopier struct {
@@ -448,6 +464,11 @@ func (ic *imageCopier) copyLayers(ctx context.Context) ([]compressiontypes.Algor
 		srcInfosUpdated = true
 	}
 
+	deltaLayers, err := types.ImageDeltaLayers(ic.src, ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	type copyLayerData struct {
 		destInfo types.BlobInfo
 		diffID   digest.Digest
@@ -466,7 +487,7 @@ func (ic *imageCopier) copyLayers(ctx context.Context) ([]compressiontypes.Algor
 	copyGroup := sync.WaitGroup{}
 
 	data := make([]copyLayerData, len(srcInfos))
-	copyLayerHelper := func(index int, srcLayer types.BlobInfo, toEncrypt bool, pool *mpb.Progress, srcRef reference.Named) {
+	copyLayerHelper := func(index int, srcLayer types.BlobInfo, toEncrypt bool, pool *mpb.Progress, srcRef reference.Named, deltaLayers []types.BlobInfo) {
 		defer ic.c.concurrentBlobCopiesSemaphore.Release(1)
 		defer copyGroup.Done()
 		cld := copyLayerData{}
@@ -481,7 +502,7 @@ func (ic *imageCopier) copyLayers(ctx context.Context) ([]compressiontypes.Algor
 				logrus.Debugf("Skipping foreign layer %q copy to %s", cld.destInfo.Digest, ic.c.dest.Reference().Transport().Name())
 			}
 		} else {
-			cld.destInfo, cld.diffID, cld.err = ic.copyLayer(ctx, srcLayer, toEncrypt, pool, index, srcRef, manifestLayerInfos[index].EmptyLayer)
+			cld.destInfo, cld.diffID, cld.err = ic.copyLayer(ctx, index, srcLayer, toEncrypt, pool, srcRef, manifestLayerInfos[index].EmptyLayer, deltaLayers)
 		}
 		data[index] = cld
 	}
@@ -521,7 +542,7 @@ func (ic *imageCopier) copyLayers(ctx context.Context) ([]compressiontypes.Algor
 				return fmt.Errorf("copying layer: %w", err)
 			}
 			copyGroup.Add(1)
-			go copyLayerHelper(i, srcLayer, layersToEncrypt.Contains(i), progressPool, ic.c.rawSource.Reference().DockerReference())
+			go copyLayerHelper(i, srcLayer, layersToEncrypt.Contains(i), progressPool, ic.c.rawSource.Reference().DockerReference(), deltaLayers)
 		}
 
 		// A call to copyGroup.Wait() is done at this point by the defer above.
@@ -690,10 +711,85 @@ func compressionEditsFromBlobInfo(srcInfo types.BlobInfo) (types.LayerCompressio
 	}
 }
 
+// getMatchingDeltaLayers gets all the deltas that apply to this layer
+func (ic *imageCopier) getMatchingDeltaLayers(ctx context.Context, srcIndex int, deltaLayers []types.BlobInfo) (digest.Digest, []*types.BlobInfo) {
+	if deltaLayers == nil {
+		return "", nil
+	}
+	config, _ := ic.src.OCIConfig(ctx)
+	if config == nil || config.RootFS.DiffIDs == nil || len(config.RootFS.DiffIDs) <= srcIndex {
+		return "", nil
+	}
+
+	layerDiffID := config.RootFS.DiffIDs[srcIndex]
+
+	var matchingLayers []*types.BlobInfo
+	for i := range deltaLayers {
+		deltaLayer := &deltaLayers[i]
+		to := deltaLayer.Annotations["io.github.containers.delta.to"]
+		if to == layerDiffID.String() {
+			matchingLayers = append(matchingLayers, deltaLayer)
+		}
+	}
+
+	return layerDiffID, matchingLayers
+}
+
+// resolveDeltaLayer looks at which of the matching delta froms have locally available data and picks the best one
+func (ic *imageCopier) resolveDeltaLayer(ctx context.Context, matchingDeltas []*types.BlobInfo) (io.ReadCloser, tarpatch.DataSource, types.BlobInfo, error) {
+	// Sort smallest deltas so we favour the smallest useable one
+	sort.Slice(matchingDeltas, func(i, j int) bool {
+		return matchingDeltas[i].Size < matchingDeltas[j].Size
+	})
+
+	for i := range matchingDeltas {
+		matchingDelta := matchingDeltas[i]
+		from := matchingDelta.Annotations["io.github.containers.delta.from"]
+		fromDigest, err := digest.Parse(from)
+		if err != nil {
+			continue // Silently ignore if server specified a weird format
+		}
+
+		dataSource, err := types.ImageDestinationGetLayerDeltaData(ic.c.dest, ctx, fromDigest)
+		if err != nil {
+			return nil, nil, types.BlobInfo{}, err // Internal error
+		}
+		if dataSource == nil {
+			continue // from layer doesn't exist
+		}
+
+		logrus.Debugf("Using delta %v for DiffID %v", matchingDelta.Digest, fromDigest)
+
+		deltaStream, _, err := ic.c.rawSource.GetBlob(ctx, *matchingDelta, ic.c.blobInfoCache)
+		if err != nil {
+			return nil, nil, types.BlobInfo{}, fmt.Errorf("reading delta blob %s: %w", matchingDelta.Digest, err)
+		}
+		return deltaStream, dataSource, *matchingDelta, nil
+	}
+	return nil, nil, types.BlobInfo{}, nil
+}
+
+// canUseDeltas checks if deltas can be used for this layer
+func (ic *imageCopier) canUseDeltas(srcInfo types.BlobInfo) (bool, string) {
+	// Deltas rewrite the manifest to refer to the uncompressed digest, so we must be able to substitute blobs
+	if !ic.canSubstituteBlobs {
+		return false, ""
+	}
+
+	switch srcInfo.MediaType {
+	case manifest.DockerV2Schema2LayerMediaType, manifest.DockerV2SchemaLayerMediaTypeUncompressed:
+		return true, manifest.DockerV2SchemaLayerMediaTypeUncompressed
+	case imgspecv1.MediaTypeImageLayer, imgspecv1.MediaTypeImageLayerGzip, imgspecv1.MediaTypeImageLayerZstd:
+		return true, imgspecv1.MediaTypeImageLayer
+	}
+
+	return false, ""
+}
+
 // copyLayer copies a layer with srcInfo (with known Digest and Annotations and possibly known Size) in src to dest, perhaps (de/re/)compressing it,
 // and returns a complete blobInfo of the copied layer, and a value for LayerDiffIDs if diffIDIsNeeded
 // srcRef can be used as an additional hint to the destination during checking whether a layer can be reused but srcRef can be nil.
-func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, toEncrypt bool, pool *mpb.Progress, layerIndex int, srcRef reference.Named, emptyLayer bool) (types.BlobInfo, digest.Digest, error) {
+func (ic *imageCopier) copyLayer(ctx context.Context, srcIndex int, srcInfo types.BlobInfo, toEncrypt bool, pool *mpb.Progress, srcRef reference.Named, emptyLayer bool, deltaLayers []types.BlobInfo) (types.BlobInfo, digest.Digest, error) {
 	// If the srcInfo doesn't contain compression information, try to compute it from the
 	// MediaType, which was either read from a manifest by way of LayerInfos() or constructed
 	// by LayerInfosForCopy(), if it was supplied at all.  If we succeed in copying the blob,
@@ -711,6 +807,59 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 	}
 
 	ic.c.printCopyInfo("blob", srcInfo)
+
+	// First look for a delta that matches this layer and substitute the result of that
+	if ok, deltaResultMediaType := ic.canUseDeltas(srcInfo); ok {
+		// Get deltas going TO this layer
+		deltaDiffID, matchingDeltas := ic.getMatchingDeltaLayers(ctx, srcIndex, deltaLayers)
+		// Get best possible FROM delta
+		deltaStream, deltaDataSource, matchingDelta, err := ic.resolveDeltaLayer(ctx, matchingDeltas)
+		if err != nil {
+			return types.BlobInfo{}, "", err
+		}
+		if deltaStream != nil {
+			logrus.Debugf("Applying delta for layer %s (delta size: %.1f MB)", deltaDiffID, float64(matchingDelta.Size)/(1024.0*1024.0))
+			bar, err := ic.c.createProgressBar(pool, false, matchingDelta, "delta", "done")
+			if err != nil {
+				return types.BlobInfo{}, "", err
+			}
+
+			wrappedDeltaStream := bar.ProxyReader(deltaStream)
+
+			// Convert deltaStream to uncompressed tar layer stream
+			pr, pw := io.Pipe()
+			go func() {
+				if err := tarpatch.Apply(wrappedDeltaStream, deltaDataSource, pw); err != nil {
+					// We will notice this error when failing to verify the digest, so leave it be
+					logrus.Infof("Failed to apply layer delta: %v", err)
+				}
+				deltaDataSource.Close()
+				deltaStream.Close()
+				wrappedDeltaStream.Close()
+				pw.Close()
+			}()
+			defer pr.Close()
+
+			// Copy uncompressed tar layer to destination, verifying the diffID
+			blobInfo, diffIDChan, err := ic.copyLayerFromStream(ctx, pr, types.BlobInfo{Digest: deltaDiffID, Size: -1, MediaType: deltaResultMediaType, Annotations: srcInfo.Annotations}, true, toEncrypt, bar, srcIndex, emptyLayer)
+			if err != nil {
+				return types.BlobInfo{}, "", err
+			}
+
+			// Wait for diffID verification
+			diffIDResult := <-diffIDChan
+			if diffIDResult.err != nil {
+				return types.BlobInfo{}, "", diffIDResult.err
+			}
+
+			bar.SetTotal(matchingDelta.Size, true)
+
+			// Record the fact that this blob is uncompressed
+			ic.c.blobInfoCache.RecordDigestUncompressedPair(diffIDResult.digest, diffIDResult.digest)
+
+			return blobInfo, diffIDResult.digest, nil
+		}
+	}
 
 	diffIDIsNeeded := false
 	var cachedDiffID digest.Digest = ""
@@ -751,7 +900,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			Cache:                   ic.c.blobInfoCache,
 			CanSubstitute:           canSubstitute,
 			EmptyLayer:              emptyLayer,
-			LayerIndex:              &layerIndex,
+			LayerIndex:              &srcIndex,
 			SrcRef:                  srcRef,
 			PossibleManifestFormats: append([]string{ic.manifestConversionPlan.preferredMIMEType}, ic.manifestConversionPlan.otherMIMETypeCandidates...),
 			RequiredCompression:     requiredCompression,
@@ -813,7 +962,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			uploadedBlob, err := ic.c.dest.PutBlobPartial(ctx, &proxy, srcInfo, private.PutBlobPartialOptions{
 				Cache:      ic.c.blobInfoCache,
 				EmptyLayer: emptyLayer,
-				LayerIndex: layerIndex,
+				LayerIndex: srcIndex,
 			})
 			if err == nil {
 				if srcInfo.Size != -1 {
@@ -856,7 +1005,9 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 		}
 		defer srcStream.Close()
 
-		blobInfo, diffIDChan, err := ic.copyLayerFromStream(ctx, srcStream, types.BlobInfo{Digest: srcInfo.Digest, Size: srcBlobSize, MediaType: srcInfo.MediaType, Annotations: srcInfo.Annotations}, diffIDIsNeeded, toEncrypt, bar, layerIndex, emptyLayer)
+		logrus.Debugf("Downloading layer %s (blob size: %s)", srcInfo.Digest, formatSize(srcBlobSize))
+
+		blobInfo, diffIDChan, err := ic.copyLayerFromStream(ctx, srcStream, types.BlobInfo{Digest: srcInfo.Digest, Size: srcBlobSize, MediaType: srcInfo.MediaType, Annotations: srcInfo.Annotations}, diffIDIsNeeded, toEncrypt, bar, srcIndex, emptyLayer)
 		if err != nil {
 			return types.BlobInfo{}, "", err
 		}

@@ -175,3 +175,19 @@ func (s *openshiftImageSource) ensureImageIsResolved(ctx context.Context) error 
 	s.imageStreamImageName = te.Image
 	return nil
 }
+
+// GetDeltaManifest returns the delta manifest for the current image, as well as its type, if it exists.
+func (s *openshiftImageSource) GetDeltaManifest(ctx context.Context, instanceDigest *digest.Digest) ([]byte, string, error) {
+	if err := s.ensureImageIsResolved(ctx); err != nil {
+		return nil, "", err
+	}
+	return types.ImageSourceGetDeltaManifest(s.docker, ctx, instanceDigest)
+}
+
+// GetDeltaIndex returns an ImageReference that can be used to update the delta index for deltas for Image.
+func (s *openshiftImageSource) GetDeltaIndex(ctx context.Context) (types.ImageReference, error) {
+	if err := s.ensureImageIsResolved(ctx); err != nil {
+		return nil, err
+	}
+	return types.ImageSourceGetDeltaIndex(s.docker, ctx)
+}
