@@ -5454,6 +5454,11 @@ _EOF
   skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
+  if grep -Fq 'runc' <<< "${OCI}"; then
+    # Ref: https://github.com/opencontainers/runc/issues/4772
+    skip "runc miscalculates cpu shares on cgroupv2"
+  fi
+
   _prefetch alpine
 
   local shares=12345
