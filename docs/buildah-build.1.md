@@ -125,7 +125,7 @@ The default certificates directory is _/etc/containers/certs.d_.
 
 **--cgroup-parent**=""
 
-Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
+Path to cgroups under which the cgroup for RUN instructions will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
 **--cgroupns** *how*
 
