@@ -8,6 +8,7 @@ IMGTYPE_BINARY=${IMGTYPE_BINARY:-$TEST_SOURCES/../bin/imgtype}
 COPY_BINARY=${COPY_BINARY:-$TEST_SOURCES/../bin/copy}
 TUTORIAL_BINARY=${TUTORIAL_BINARY:-$TEST_SOURCES/../bin/tutorial}
 INET_BINARY=${INET_BINARY:-$TEST_SOURCES/../bin/inet}
+DUMPSPEC_BINARY=${DUMPSPEC_BINARY:-$TEST_SOURCES/../bin/dumpspec}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)
