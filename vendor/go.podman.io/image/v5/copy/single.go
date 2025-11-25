@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -29,6 +30,8 @@ import (
 	"go.podman.io/image/v5/types"
 	chunkedToc "go.podman.io/storage/pkg/chunked/toc"
 )
+
+const policyEvaluationTimeout = 60 * time.Second
 
 // imageCopier tracks state specific to a single image (possibly an item of a manifest list)
 type imageCopier struct {
@@ -75,7 +78,11 @@ func (c *copier) copySingleImage(ctx context.Context, unparsedImage *image.Unpar
 	// Please keep this policy check BEFORE reading any other information about the image.
 	// (The multiImage check above only matches the MIME type, which we have received anyway.
 	// Actual parsing of anything should be deferred.)
-	if allowed, err := c.policyContext.IsRunningImageAllowed(ctx, unparsedImage); !allowed || err != nil { // Be paranoid and fail if either return value indicates so.
+	// Apply a timeout to avoid hanging indefinitely on GPG key import operations. see issues.redhat.com/browse/OCPBUGS-57893
+	// The timeout context will be used by the cancelable reader to potentially abort GPGME operations.
+	policyCtx, cancel := context.WithTimeout(ctx, policyEvaluationTimeout)
+	defer cancel()
+	if allowed, err := c.policyContext.IsRunningImageAllowed(policyCtx, unparsedImage); !allowed || err != nil { // Be paranoid and fail if either return value indicates so.
 		return copySingleImageResult{}, fmt.Errorf("Source image rejected: %w", err)
 	}
 	src, err := image.FromUnparsedImage(ctx, c.options.SourceCtx, unparsedImage)

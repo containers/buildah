@@ -40,7 +40,7 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 	}
 
 	// FIXME: move this to per-context initialization
-	mech, trustedIdentities, err := newEphemeralGPGSigningMechanism(data)
+	mech, trustedIdentities, err := newEphemeralGPGSigningMechanism(ctx, data)
 	if err != nil {
 		return sarRejected, nil, err
 	}
