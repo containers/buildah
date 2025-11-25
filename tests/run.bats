@@ -395,21 +395,21 @@ function configure_and_check_user() {
 	# As a baseline, this should succeed.
 	run_buildah run --mount type=tmpfs,dst=/var/tmpfs-not-empty                                           $cid touch /var/tmpfs-not-empty/testfile
 	# This should succeed, but the writes should effectively be discarded
-	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,rw${zflag:+,${zflag}}      $cid touch /var/not-empty/testfile
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,rw${zflag}                $cid touch /var/not-empty/testfile
 	if test -r ${TEST_SCRATCH_DIR}/was:empty/testfile ; then
 		die write to mounted type=bind was not discarded, ${TEST_SCRATCH_DIR}/was:empty/testfile exists
 	fi
 	# If we're parsing the options at all, this should be read-only, so it should fail.
-	run_buildah 1 run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
+	run_buildah 1 run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,ro${zflag}              $cid touch /var/not-empty/testfile
 	# Even if the parent directory doesn't exist yet, this should succeed, but again the write should be discarded.
-	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/multi-level/subdirectory,rw${zflag:+,${zflag}}       $cid touch /var/multi-level/subdirectory/testfile
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/multi-level/subdirectory,rw${zflag} $cid touch /var/multi-level/subdirectory/testfile
 	if test -r ${TEST_SCRATCH_DIR}/was:empty/testfile ; then
 		die write to mounted type=bind was not discarded, ${TEST_SCRATCH_DIR}/was:empty/testfile exists
 	fi
 	# And check the same for file volumes, which make life harder because the kernel's overlay
 	# filesystem really only wants to be dealing with directories.
 	: > ${TEST_SCRATCH_DIR}/was:empty/testfile
-	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile,rw${zflag:+,${zflag}}        $cid sh -c 'echo wrote > /var/different-multi-level/subdirectory/testfile'
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile,rw${zflag} $cid sh -c 'echo wrote > /var/different-multi-level/subdirectory/testfile'
 	if test -s ${TEST_SCRATCH_DIR}/was:empty/testfile ; then
 		die write to mounted type=bind was not discarded, ${TEST_SCRATCH_DIR}/was:empty/testfile was written to
 	fi
