@@ -2,6 +2,32 @@
 
 # Changelog
 
+## vv1.29.6 (2025-12-05)
+
+    tests/tools: update ginkgo and golangci-lint
+    Remove -cover flag from test-unit target
+    Temporarily hard-skip bud-multiple-platform-values test
+    Adjust tests for new CI environment
+    Skip bud with --cpu-shares test on runc/cgroupsv2
+    Prune CI tests for RHEL release branch
+    CI: run integration tests on Fedora with both crun and runc
+    buildah-build(1): clarify that --cgroup-parent affects RUN instructions
+    runUsingRuntime: use named constants for runtime states
+    Add a dummy "runtime" that just dumps its config file
+    run: handle relabeling bind mounts ourselves
+    Integration tests: run git daemon on a random-but-bind()able port
+    Don't set ambient capabilities
+    finish switching to moby/sys/capability
+    vendor: switch to moby/sys/capability
+    Handle Cobra v1.5 -> v1.8 behavior changes
+    Bump runc to v1.2.9
+    Proxy module access
+    Bump x/tools to v0.26.0
+    Bump CI environment to match release-1.39
+    Bump minimum to golang 1.22.6
+    [release-1.29] Add conditional release-checking system test
+    [release-1.29] tests/conformance/testdata/Dockerfile.add:...
+
 ## v1.29.5 (2025-02-06)
 
     Backport testing of CVE-2024-9407 fix
