@@ -1,6 +1,8 @@
 module github.com/containers/buildah
 
-go 1.22
+go 1.22.0
+
+toolchain go1.22.8
 
 require (
 	github.com/containerd/containerd v1.6.15
@@ -130,10 +132,10 @@ require (
 	go.mongodb.org/mongo-driver v1.11.1 // indirect
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	golang.org/x/tools v0.26.0 // indirect
 	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef // indirect
 	google.golang.org/grpc v1.51.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
