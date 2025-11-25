@@ -4,6 +4,7 @@ package signature
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -63,7 +64,9 @@ func newGPGSigningMechanismInDirectory(optionalDir string) (signingMechanismWith
 // recognizes _only_ public keys from the supplied blob, and returns the identities
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
-func newEphemeralGPGSigningMechanism(blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
+// The context parameter is accepted for API consistency but is not used by this implementation.
+func newEphemeralGPGSigningMechanism(ctx context.Context, blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
+	_ = ctx // Context not used in this implementation
 	m := &openpgpSigningMechanism{
 		keyring: openpgp.EntityList{},
 	}

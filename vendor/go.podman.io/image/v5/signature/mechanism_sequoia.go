@@ -3,6 +3,8 @@
 package signature
 
 import (
+	"context"
+
 	"go.podman.io/image/v5/signature/internal/sequoia"
 )
 
@@ -18,7 +20,9 @@ type sequoiaEphemeralSigningMechanism struct {
 // recognizes _only_ public keys from the supplied blobs, and returns the identities
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
-func newEphemeralGPGSigningMechanism(blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
+// The context parameter is accepted for API consistency but is not used by this implementation.
+func newEphemeralGPGSigningMechanism(ctx context.Context, blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
+	_ = ctx // Context not used in this implementation
 	if err := sequoia.Init(); err != nil {
 		return nil, nil, err // Coverage: This is impractical to test in-process, with the static go_sequoia_dlhandle.
 	}
