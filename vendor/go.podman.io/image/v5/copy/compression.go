@@ -120,6 +120,7 @@ func (ic *imageCopier) blobPipelineCompressionStep(stream *sourceStream, canModi
 	if canModifyBlob && layerCompressionChangeSupported {
 		for _, fn := range []func(*sourceStream, bpDetectCompressionStepData) (*bpCompressionStepData, error){
 			ic.bpcPreserveEncrypted,
+			ic.bpcPreserveNoCompress,
 			ic.bpcCompressUncompressed,
 			ic.bpcRecompressCompressed,
 			ic.bpcDecompressCompressed,
@@ -141,6 +142,22 @@ func (ic *imageCopier) bpcPreserveEncrypted(stream *sourceStream, _ bpDetectComp
 	if isOciEncrypted(stream.info.MediaType) {
 		// We can’t do anything with an encrypted blob unless decrypted.
 		logrus.Debugf("Using original blob without modification for encrypted blob")
+		return &bpCompressionStepData{
+			operation:                             bpcOpPreserveOpaque,
+			uploadedOperation:                     types.PreserveOriginal,
+			uploadedAlgorithm:                     nil,
+			srcCompressorBaseVariantName:          internalblobinfocache.UnknownCompression,
+			uploadedCompressorBaseVariantName:     internalblobinfocache.UnknownCompression,
+			uploadedCompressorSpecificVariantName: internalblobinfocache.UnknownCompression,
+		}, nil
+	}
+	return nil, nil
+}
+
+// bpcPreserveNoCompress checks if the input is a no-compress type (like tar-diff), and returns a *bpCompressionStepData if so.
+func (ic *imageCopier) bpcPreserveNoCompress(stream *sourceStream, _ bpDetectCompressionStepData) (*bpCompressionStepData, error) {
+	if manifest.IsNoCompressType(stream.info.MediaType) {
+		logrus.Debugf("Using original blob without modification for no-compress type")
 		return &bpCompressionStepData{
 			operation:                             bpcOpPreserveOpaque,
 			uploadedOperation:                     types.PreserveOriginal,

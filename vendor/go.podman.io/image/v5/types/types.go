@@ -729,3 +729,76 @@ type ProgressProperties struct {
 	// interval. Will be reset after each ProgressEventRead event.
 	OffsetUpdate uint64
 }
+
+// DeltaImageSource is an optional extension of ImageSource for sources that support layer deltas
+type DeltaImageSource interface {
+	ImageSource
+	// GetDeltaManifest returns the delta manifest for the current image, as well as its type, if it exists.
+	// No error is returned if no delta manifest exists, just a nil slice
+	// It may use a remote (= slow) service.
+	// If instanceDigest is not nil, it contains a digest of the specific manifest instance to retrieve deltas for (when the primary manifest is a manifest list);
+	// this never happens if the primary manifest is not a manifest list (e.g. if the source never returns manifest lists).
+	GetDeltaManifest(ctx context.Context, instanceDigest *digest.Digest) ([]byte, string, error)
+	// GetDeltaIndex returns an ImageReference that can be used to update the delta index for deltas for Image.
+	// If deltas are not supported it will return nil
+	GetDeltaIndex(ctx context.Context) (ImageReference, error)
+}
+
+// ImageSourceGetDeltaManifest is a wrapper for the optional DeltaImageSource.GetDeltaManifest method
+func ImageSourceGetDeltaManifest(src ImageSource, ctx context.Context, instanceDigest *digest.Digest) ([]byte, string, error) {
+	if d, ok := src.(DeltaImageSource); ok {
+		return d.GetDeltaManifest(ctx, instanceDigest)
+	}
+	return nil, "", nil
+}
+
+// ImageSourceGetDeltaIndex is a wrapper for the optional DeltaImageSource.GetDeltaIndex method
+func ImageSourceGetDeltaIndex(src ImageSource, ctx context.Context) (ImageReference, error) {
+	if d, ok := src.(DeltaImageSource); ok {
+		return d.GetDeltaIndex(ctx)
+	}
+	return nil, nil
+}
+
+// DeltaImageDestination is an optional extension of ImageDestination for destinations that support layer deltas
+type DeltaImageDestination interface {
+	ImageDestination
+	// GetLayerDeltaData tries to get access to the uncompressed data of a given DiffID that is locally available
+	// This data is used to apply a delta from this layer
+	// If deltas are not supported or the layer is not available, nil is returned (and no error)
+	GetLayerDeltaData(ctx context.Context, diffID digest.Digest) (DeltaDataSource, error)
+}
+
+// ImageDestinationGetLayerDeltaData is a wrapper for the optional DeltaImageDestination.GetLayerDeltaData method
+func ImageDestinationGetLayerDeltaData(dst ImageDestination, ctx context.Context, diffID digest.Digest) (DeltaDataSource, error) {
+	if d, ok := dst.(DeltaImageDestination); ok {
+		return d.GetLayerDeltaData(ctx, diffID)
+	}
+	return nil, nil
+}
+
+// DeltaImage is an optional extension of Image for images that support layer deltas
+type DeltaImage interface {
+	Image
+	// DeltaLayers downloads and parses the delta manifest for the image, returning the available delta layers
+	// If no deltas available, returns nil without an error
+	DeltaLayers(ctx context.Context) ([]BlobInfo, error)
+}
+
+// ImageDeltaLayers is a wrapper for the optional DeltaImage.DeltaLayers method
+func ImageDeltaLayers(img Image, ctx context.Context) ([]BlobInfo, error) {
+	if d, ok := img.(DeltaImage); ok {
+		return d.DeltaLayers(ctx)
+	}
+	return nil, nil
+}
+
+// DeltaDataSource is an interface that allows you to access existing local data to
+// use as existing content when applying a delta file
+// It is identical to the DataSource interface in tar_diff but re-exported
+// here to avoid unnecessary dependencies
+type DeltaDataSource interface {
+	io.ReadSeeker
+	io.Closer
+	SetCurrentFile(file string) error
+}

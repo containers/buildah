@@ -26,6 +26,11 @@ func BlobInfoFromOCI1Descriptor(desc imgspecv1.Descriptor) types.BlobInfo {
 	}
 }
 
+const (
+	// MediaTypeTarDiff specifies the media type for a tar-diff delta layer.
+	MediaTypeTarDiff = "application/vnd.tar-diff"
+)
+
 // OCI1 is a manifest.Manifest implementation for OCI images.
 // The underlying data from imgspecv1.Manifest is also available.
 type OCI1 struct {
@@ -47,7 +52,8 @@ func SupportedOCI1MediaType(m string) error {
 		imgspecv1.MediaTypeImageLayerNonDistributable, imgspecv1.MediaTypeImageLayerNonDistributableGzip, imgspecv1.MediaTypeImageLayerNonDistributableZstd, //nolint:staticcheck // NonDistributable layers are deprecated, but we want to continue to support manipulating pre-existing images.
 		imgspecv1.MediaTypeImageManifest,
 		imgspecv1.MediaTypeLayoutHeader,
-		ociencspec.MediaTypeLayerEnc, ociencspec.MediaTypeLayerGzipEnc:
+		ociencspec.MediaTypeLayerEnc, ociencspec.MediaTypeLayerGzipEnc,
+		MediaTypeTarDiff:
 		return nil
 	default:
 		return fmt.Errorf("unsupported OCIv1 media type: %q", m)
@@ -273,4 +279,9 @@ func (m *OCI1) CanChangeLayerCompression(mimeType string) bool {
 		return false
 	}
 	return compressionVariantsRecognizeMIMEType(oci1CompressionMIMETypeSets, mimeType)
+}
+
+// IsNoCompressType returns true if the media type should not be recompressed
+func IsNoCompressType(mediatype string) bool {
+	return mediatype == MediaTypeTarDiff
 }

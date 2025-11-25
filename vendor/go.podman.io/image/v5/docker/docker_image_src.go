@@ -657,6 +657,47 @@ func (s *dockerImageSource) appendSignaturesFromSigstoreAttachments(ctx context.
 	return nil
 }
 
+// GetDeltaManifest returns the delta manifest for the current image, as well as its type, if it exists.
+// No error is returned if no delta manifest exists, just a nil slice
+func (s *dockerImageSource) GetDeltaManifest(ctx context.Context, instanceDigest *digest.Digest) ([]byte, string, error) {
+	// Get the real manifest digest
+	srcManifestDigest, err := s.manifestDigest(ctx, instanceDigest)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Load the delta manifest index
+	ib, _, err := s.fetchManifest(ctx, "_deltaindex")
+	// Don't return error if the manifest doesn't exist, only for internal errors
+	// Deltas are an optional optimization anyway
+	if err == nil {
+		index, err := manifest.OCI1IndexFromManifest(ib)
+		if err != nil {
+			return nil, "", err
+		}
+
+		// Look up the delta manifest in the index by the real manifest digest
+		for _, m := range index.Manifests {
+			if m.Annotations["io.github.containers.delta.target"] == srcManifestDigest.String() {
+				return s.fetchManifest(ctx, m.Digest.String())
+			}
+		}
+	}
+
+	// No delta
+	return nil, "", nil
+}
+
+// GetDeltaIndex returns an ImageReference that can be used to update the delta index for deltas for Image.
+func (s *dockerImageSource) GetDeltaIndex(ctx context.Context) (types.ImageReference, error) {
+	deltaRef, err := reference.WithTag(s.logicalRef.ref, "_deltaindex")
+	if err != nil {
+		return nil, err
+	}
+
+	return newReference(deltaRef, false)
+}
+
 // deleteImage deletes the named image from the registry, if supported.
 func deleteImage(ctx context.Context, sys *types.SystemContext, ref dockerReference) error {
 	if ref.isUnknownDigest {

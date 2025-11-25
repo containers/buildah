@@ -31,6 +31,7 @@ import (
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/pkg/blobinfocache/none"
 	"go.podman.io/image/v5/types"
+	tarpatch "github.com/containers/tar-diff/pkg/tar-patch"
 	"go.podman.io/storage"
 	graphdriver "go.podman.io/storage/drivers"
 	"go.podman.io/storage/pkg/archive"
@@ -1684,4 +1685,58 @@ func (s *storageImageDestination) PutSignaturesWithFormat(ctx context.Context, s
 		s.metadata.SignaturesSizes[*instanceDigest] = sizes
 	}
 	return nil
+}
+
+// LayerDeltaDataSource provides access to local layer data for delta application
+type LayerDeltaDataSource struct {
+	fs    *tarpatch.FilesystemDataSource
+	store storage.Store
+	id    string
+}
+
+// Close closes the data source and unmounts the layer
+func (s *LayerDeltaDataSource) Close() error {
+	err := s.fs.Close()
+	if _, unmountErr := s.store.Unmount(s.id, false); unmountErr != nil {
+		logrus.Infof("Failed to unmount layer %v: %v", s.id, unmountErr)
+	}
+	return err
+}
+
+// Read reads data from the current file
+func (s *LayerDeltaDataSource) Read(data []byte) (n int, err error) {
+	return s.fs.Read(data)
+}
+
+// SetCurrentFile sets the current file path for reading
+func (s *LayerDeltaDataSource) SetCurrentFile(file string) error {
+	return s.fs.SetCurrentFile(file)
+}
+
+// Seek seeks within the current file
+func (s *LayerDeltaDataSource) Seek(offset int64, whence int) (int64, error) {
+	return s.fs.Seek(offset, whence)
+}
+
+// GetLayerDeltaData provides access to local layer data by DiffID for delta application
+func (s *storageImageDestination) GetLayerDeltaData(ctx context.Context, diffID digest.Digest) (types.DeltaDataSource, error) {
+	layers, err := s.imageRef.transport.store.LayersByUncompressedDigest(diffID)
+	if err != nil && err != storage.ErrLayerUnknown {
+		return nil, err // Internal error
+	}
+	if len(layers) == 0 {
+		return nil, nil // Unknown layer
+	}
+
+	layerID := layers[len(layers)-1].ID
+	mountPoint, err := s.imageRef.transport.store.Mount(layerID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return &LayerDeltaDataSource{
+		fs:    tarpatch.NewFilesystemDataSource(mountPoint),
+		store: s.imageRef.transport.store,
+		id:    layerID,
+	}, nil
 }

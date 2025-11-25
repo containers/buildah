@@ -123,3 +123,23 @@ func (i *UnparsedImage) UntrustedSignatures(ctx context.Context) ([]signature.Si
 	}
 	return i.cachedSignatures, nil
 }
+
+// DeltaLayers downloads and parses the delta manifest for the image, returning the available delta layers
+func (i *UnparsedImage) DeltaLayers(ctx context.Context) ([]types.BlobInfo, error) {
+	// Note that GetDeltaManifest can return nil with a nil error. This is ok if no deltas exist
+	mb, mt, err := types.ImageSourceGetDeltaManifest(i.src, ctx, i.instanceDigest)
+	if mb == nil {
+		return nil, err
+	}
+
+	m, err := manifest.FromBlob(mb, mt)
+	if err != nil {
+		return nil, err
+	}
+	layerInfos := m.LayerInfos()
+	blobInfos := make([]types.BlobInfo, len(layerInfos))
+	for i, li := range layerInfos {
+		blobInfos[i] = li.BlobInfo
+	}
+	return blobInfos, nil
+}
