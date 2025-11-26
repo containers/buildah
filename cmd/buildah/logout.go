@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/containers/buildah/pkg/parse"
@@ -31,6 +32,9 @@ func init() {
 	flags := auth.GetLogoutFlags(&opts)
 	flags.SetInterspersed(false)
 	logoutCommand.Flags().AddFlagSet(flags)
+	if err := logoutCommand.Flags().MarkHidden("compat-auth-file"); err != nil {
+		panic(fmt.Sprintf("error marking the compat-auth-file flag as hidden: %v", err))
+	}
 	rootCmd.AddCommand(logoutCommand)
 }
 
