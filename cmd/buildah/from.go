@@ -103,6 +103,13 @@ func init() {
 	flags.AddFlagSet(&fromAndBudFlags)
 	flags.SetNormalizeFunc(buildahcli.AliasFlags)
 
+	if err := flags.MarkHidden("userns-uid-map"); err != nil {
+		logrus.Errorf("unable to mark userns-uid-map flag as hidden: %v", err)
+	}
+	if err := flags.MarkHidden("userns-gid-map"); err != nil {
+		logrus.Errorf("unable to mark userns-gid-map flag as hidden: %v", err)
+	}
+
 	rootCmd.AddCommand(fromCommand)
 }
 
