@@ -107,23 +107,43 @@ func GuessMIMEType(manifest []byte) string {
 	return ""
 }
 
-// Digest returns the a digest of a docker manifest, with any necessary implied transformations like stripping v1s1 signatures.
-// This is publicly visible as c/image/manifest.Digest.
-func Digest(manifest []byte) (digest.Digest, error) {
+// stripManifestSignature strips v1s1 signatures from a manifest if present.
+// Returns the manifest bytes (either the original or the unsigned payload).
+func stripManifestSignature(manifest []byte) ([]byte, error) {
 	if GuessMIMEType(manifest) == DockerV2Schema1SignedMediaType {
 		sig, err := libtrust.ParsePrettySignature(manifest, "signatures")
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		manifest, err = sig.Payload()
 		if err != nil {
 			// Coverage: This should never happen, libtrust's Payload() can fail only if joseBase64UrlDecode() fails, on a string
 			// that libtrust itself has josebase64UrlEncode()d
-			return "", err
+			return nil, err
 		}
 	}
+	return manifest, nil
+}
 
+// Digest returns the a digest of a docker manifest, with any necessary implied transformations like stripping v1s1 signatures.
+// This is publicly visible as c/image/manifest.Digest.
+func Digest(manifest []byte) (digest.Digest, error) {
+	manifest, err := stripManifestSignature(manifest)
+	if err != nil {
+		return "", err
+	}
 	return digest.FromBytes(manifest), nil
+}
+
+// DigestWithAlgorithm returns the digest of a docker manifest using the specified algorithm,
+// with any necessary implied transformations like stripping v1s1 signatures.
+// This is publicly visible as c/image/manifest.DigestWithAlgorithm.
+func DigestWithAlgorithm(manifest []byte, algo digest.Algorithm) (digest.Digest, error) {
+	manifest, err := stripManifestSignature(manifest)
+	if err != nil {
+		return "", err
+	}
+	return algo.FromBytes(manifest), nil
 }
 
 // MatchesDigest returns true iff the manifest matches expectedDigest.
