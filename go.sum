@@ -78,8 +78,8 @@ github.com/disiqueira/gotree/v3 v3.0.2 h1:ik5iuLQQoufZBNPY518dXhiO5056hyNBIK9lWh
 github.com/disiqueira/gotree/v3 v3.0.2/go.mod h1:ZuyjE4+mUQZlbpkI24AmruZKhg3VHEgPLDY8Qk+uUu8=
 github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
 github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
-github.com/docker/cli v29.0.2+incompatible h1:iLuKy2GWOSLXGp8feLYBJQVDv7m/8xoofz6lPq41x6A=
-github.com/docker/cli v29.0.2+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
+github.com/docker/cli v29.0.0+incompatible h1:KgsN2RUFMNM8wChxryicn4p46BdQWpXOA1XLGBGPGAw=
+github.com/docker/cli v29.0.0+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/distribution v2.8.3+incompatible h1:AtKxIZ36LoNK51+Z6RpzLpddBirtxJnzDrHLEKxTAYk=
 github.com/docker/distribution v2.8.3+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v28.5.2+incompatible h1:DBX0Y0zAjZbSrm1uzOkdr1onVghKaftjlSWt4AFexzM=
@@ -150,6 +150,12 @@ github.com/klauspost/compress v1.18.1 h1:bcSGx7UbpBqMChDtsF28Lw6v/G94LPrrbMbdC3J
 github.com/klauspost/compress v1.18.1/go.mod h1:ZQFFVG+MdnR0P+l6wpXgIL4NTtwiKIdBnrBd8Nrxr+0=
 github.com/klauspost/pgzip v1.2.6 h1:8RXeL5crjEUFnR2/Sn6GJNWtSQ3Dk8pq4CL3jvdDyjU=
 github.com/klauspost/pgzip v1.2.6/go.mod h1:Ch1tH69qFZu15pkjo5kYi6mth2Zzwzt50oCQKQE9RUs=
+github.com/koct9i/container-libs/common v0.66.1-0.20251126091335-0b25f83aee52 h1:SsyHtJQKd/yAn2H2/9wchs/oOeF9wtheDs5Y/qlBoOY=
+github.com/koct9i/container-libs/common v0.66.1-0.20251126091335-0b25f83aee52/go.mod h1:e1XDmApXOtVzUMC+MulHDvdXPwT7JeZmxFxT3bJeuQA=
+github.com/koct9i/container-libs/image/v5 v5.38.1-0.20251126091335-0b25f83aee52 h1:JEv6+KAeh1dQfNmIXcKxpnjUSucj9SLJ7srq4LsMKYQ=
+github.com/koct9i/container-libs/image/v5 v5.38.1-0.20251126091335-0b25f83aee52/go.mod h1:vdn/NnhRs2kluEOuvyVK22YlVlbULAyMZp7Yx5YUbIk=
+github.com/koct9i/container-libs/storage v1.61.1-0.20251126091335-0b25f83aee52 h1:Fr5l5yPuPFHvwSMYiMPP4pOCE63a1bcFZIpsHQfzjTM=
+github.com/koct9i/container-libs/storage v1.61.1-0.20251126091335-0b25f83aee52/go.mod h1:NjT4Bxl8lWG6yHzyRAeIsOXgVaXmx1i/8Pp9LQkeOt8=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
@@ -322,12 +328,6 @@ go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJr
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
 go.opentelemetry.io/proto/otlp v1.7.1 h1:gTOMpGDb0WTBOP8JaO72iL3auEZhVmAQg4ipjOVAtj4=
 go.opentelemetry.io/proto/otlp v1.7.1/go.mod h1:b2rVh6rfI/s2pHWNlB7ILJcRALpcNDzKhACevjI+ZnE=
-go.podman.io/common v0.66.1-0.20251120131032-23712697ddda h1:Ib1vIEYB5eCSz3G09sROyY/j09jztFlWRm4G52vWj3k=
-go.podman.io/common v0.66.1-0.20251120131032-23712697ddda/go.mod h1:8qbjUhjwp4i5u1O19vzwYW2qwIuPdFXIuv4nl3Z8px8=
-go.podman.io/image/v5 v5.38.1-0.20251120131032-23712697ddda h1:YySc/E4bpD5b5y4kFN/7ZDo5JcXnOpPfwU78kH9D+EU=
-go.podman.io/image/v5 v5.38.1-0.20251120131032-23712697ddda/go.mod h1:9DniP9NaGH03kzwNKYEtOXgRJwO+cQHENH+G4sOwLNc=
-go.podman.io/storage v1.61.1-0.20251120131032-23712697ddda h1:bC4fEguil4pwVp2U2zKWUC5ouqIwRDdtyJxtX1bPY+0=
-go.podman.io/storage v1.61.1-0.20251120131032-23712697ddda/go.mod h1:4p18A5ymiiJTllTu2Eo7CX88SO+V110TMzi31pXsb1s=
 go.yaml.in/yaml/v2 v2.4.2 h1:DzmwEr2rDGHl7lsFgAHxmNz/1NlQ7xLIrlN2h5d1eGI=
 go.yaml.in/yaml/v2 v2.4.2/go.mod h1:081UH+NErpNdqlCXm3TtEran0rJZGxAYx9hb/ELlsPU=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=
