@@ -38,6 +38,9 @@ func init() {
 
 	flags := infoCommand.Flags()
 	flags.BoolVarP(&opts.debug, "debug", "d", false, "display additional debug information")
+	if err := flags.MarkHidden("debug"); err != nil {
+		panic(fmt.Sprintf("error marking the debug flag as hidden: %v", err))
+	}
 	flags.StringVar(&opts.format, "format", "", "use `format` as a Go template to format the output")
 	rootCmd.AddCommand(infoCommand)
 }
