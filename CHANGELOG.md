@@ -2,6 +2,25 @@
 
 # Changelog
 
+## v1.29.6 (2025-11-25)
+
+    Skip bud with --cpu-shares test on runc/cgroupsv2
+    Prune CI tests for RHEL release branch
+    CI: run integration tests on Fedora with both crun and runc
+    buildah-build(1): clarify that --cgroup-parent affects RUN instructions
+    runUsingRuntime: use named constants for runtime states
+    Add a dummy "runtime" that just dumps its config file
+    run: handle relabeling bind mounts ourselves
+    Integration tests: run git daemon on a random-but-bind()able port
+    Don't set ambient capabilities
+    vendor: switch to moby/sys/capability
+    Bump runc to v1.2.8 - CVE-2025-52881
+    Proxy module access
+    Bump CI environment to match release-1.39
+    Bump minimum to golang 1.22.6
+    [release-1.29] Add conditional release-checking system test
+    [release-1.29] tests/conformance/testdata/Dockerfile.add:...
+
 ## v1.29.5 (2025-02-06)
 
     Backport testing of CVE-2024-9407 fix
