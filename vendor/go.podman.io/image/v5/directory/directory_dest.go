@@ -20,11 +20,20 @@ import (
 	"go.podman.io/storage/pkg/fileutils"
 )
 
-const version = "Directory Transport Version: 1.1\n"
+// Write version file based on digest algorithm used
+// 1.1 for sha256-only images, 1.2 otherwise.
+const (
+	versionPrefix = "Directory Transport Version: "
+	version       = versionPrefix + "1.2\n"
+	version1_1    = versionPrefix + "1.1\n"
+)
 
 // ErrNotContainerImageDir indicates that the directory doesn't match the expected contents of a directory created
 // using the 'dir' transport
 var ErrNotContainerImageDir = errors.New("not a containers image directory, don't want to overwrite important data")
+
+// ErrUnsupportedVersion indicates that the directory uses a version newer than we support
+var ErrUnsupportedVersion = errors.New("unsupported directory transport version")
 
 type dirImageDestination struct {
 	impl.Compat
@@ -33,7 +42,8 @@ type dirImageDestination struct {
 	stubs.NoPutBlobPartialInitialize
 	stubs.AlwaysSupportsSignatures
 
-	ref dirReference
+	ref                 dirReference
+	usesNonSHA256Digest bool
 }
 
 // newImageDestination returns an ImageDestination for writing to a directory.
@@ -76,7 +86,11 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 					return nil, err
 				}
 				// check if contents of version file is what we expect it to be
-				if string(contents) != version {
+				versionStr := string(contents)
+				if versionStr != version && versionStr != version1_1 {
+					if versionStr > version {
+						return nil, fmt.Errorf("%w: %q", ErrUnsupportedVersion, versionStr)
+					}
 					return nil, ErrNotContainerImageDir
 				}
 			} else {
@@ -93,11 +107,6 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 		if err := os.MkdirAll(ref.resolvedPath, 0o755); err != nil {
 			return nil, fmt.Errorf("unable to create directory %q: %w", ref.resolvedPath, err)
 		}
-	}
-	// create version file
-	err = os.WriteFile(ref.versionPath(), []byte(version), 0o644)
-	if err != nil {
-		return nil, fmt.Errorf("creating version file %q: %w", ref.versionPath(), err)
 	}
 
 	d := &dirImageDestination{
@@ -151,7 +160,8 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 		}
 	}()
 
-	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, inputInfo)
+	digester, stream := putblobdigest.DigestIfUnknown(stream, inputInfo)
+
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
 	if err != nil {
@@ -163,6 +173,10 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 	}
 	if err := blobFile.Sync(); err != nil {
 		return private.UploadedBlob{}, err
+	}
+
+	if blobDigest.Algorithm() != digest.Canonical {
+		d.usesNonSHA256Digest = true
 	}
 
 	// On POSIX systems, blobFile was created with mode 0600, so we need to make it readable.
@@ -257,6 +271,14 @@ func (d *dirImageDestination) PutSignaturesWithFormat(ctx context.Context, signa
 // - Uploaded data MAY be visible to others before CommitWithOptions() is called
 // - Uploaded data MAY be removed or MAY remain around if Close() is called without CommitWithOptions() (i.e. rollback is allowed but not guaranteed)
 func (d *dirImageDestination) CommitWithOptions(ctx context.Context, options private.CommitOptions) error {
+	versionToWrite := version1_1
+	if d.usesNonSHA256Digest {
+		versionToWrite = version
+	}
+	err := os.WriteFile(d.ref.versionPath(), []byte(versionToWrite), 0o644)
+	if err != nil {
+		return fmt.Errorf("writing version file %q: %w", d.ref.versionPath(), err)
+	}
 	return nil
 }
 
