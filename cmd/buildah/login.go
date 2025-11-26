@@ -43,6 +43,9 @@ func init() {
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVar(&opts.getLogin, "get-login", true, "return the current login user for the registry")
 	flags.AddFlagSet(auth.GetLoginFlags(&opts.loginOpts))
+	if err := flags.MarkHidden("compat-auth-file"); err != nil {
+		panic(fmt.Sprintf("error marking the compat-auth-file flag as hidden: %v", err))
+	}
 	rootCmd.AddCommand(loginCommand)
 }
 
