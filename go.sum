@@ -51,6 +51,12 @@ github.com/containernetworking/cni v1.3.0 h1:v6EpN8RznAZj9765HhXQrtXgX+ECGebEYEm
 github.com/containernetworking/cni v1.3.0/go.mod h1:Bs8glZjjFfGPHMw6hQu82RUgEPNGEaBb9KS5KtNMnJ4=
 github.com/containernetworking/plugins v1.8.0 h1:WjGbV/0UQyo8A4qBsAh6GaDAtu1hevxVxsEuqtBqUFk=
 github.com/containernetworking/plugins v1.8.0/go.mod h1:JG3BxoJifxxHBhG3hFyxyhid7JgRVBu/wtooGEvWf1c=
+github.com/containers/container-libs/common v0.66.1-0.20251127194916-1d3a1e4180ed h1:3H3xNs344nH5MDWM28hkM1xfMW+UiKO08JQS7xIb36Y=
+github.com/containers/container-libs/common v0.66.1-0.20251127194916-1d3a1e4180ed/go.mod h1:Hkrtv0G+eJBvJxXlDBB5O10fIhHuq7Jq4MGJYDkHApw=
+github.com/containers/container-libs/image/v5 v5.38.1-0.20251127194916-1d3a1e4180ed h1:mnENjdX8O0g6tQcoYFxOQxkflW3lrCzyWilIGu/LdQ4=
+github.com/containers/container-libs/image/v5 v5.38.1-0.20251127194916-1d3a1e4180ed/go.mod h1:r+xmI6hC/u7kYKPRMqNSxOGgh9Dah9jHMEUfbKs1cv0=
+github.com/containers/container-libs/storage v1.61.1-0.20251127194916-1d3a1e4180ed h1:sVQgtlSof+dyXHdhqcB4HWMZHwqHYHfFnjPfjBYz0AY=
+github.com/containers/container-libs/storage v1.61.1-0.20251127194916-1d3a1e4180ed/go.mod h1:izI0U2FxSpqivwmkVbTO7ECcoER6FnM6ZL7CFPu0Tfs=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 h1:Qzk5C6cYglewc+UyGf6lc8Mj2UaPTHy/iF2De0/77CA=
 github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/luksy v0.0.0-20251013183210-adfea1d56c77 h1:U6ulu0d7WcjzvdUKuP/2ex8NRAopdly15aSePkd4jZc=
@@ -166,8 +172,8 @@ github.com/moby/go-archive v0.1.0 h1:Kk/5rdW/g+H8NHdJW2gsXyZ7UnzvJNOy6VKJqueWdcQ
 github.com/moby/go-archive v0.1.0/go.mod h1:G9B+YoujNohJmrIYFBpSd54GTUB4lt9S+xVQvsJyFuo=
 github.com/moby/moby/api v1.52.0 h1:00BtlJY4MXkkt84WhUZPRqt5TvPbgig2FZvTbe3igYg=
 github.com/moby/moby/api v1.52.0/go.mod h1:8mb+ReTlisw4pS6BRzCMts5M49W5M7bKt1cJy/YbAqc=
-github.com/moby/moby/client v0.1.0 h1:nt+hn6O9cyJQqq5UWnFGqsZRTS/JirUqzPjEl0Bdc/8=
-github.com/moby/moby/client v0.1.0/go.mod h1:O+/tw5d4a1Ha/ZA/tPxIZJapJRUS6LNZ1wiVRxYHyUE=
+github.com/moby/moby/client v0.2.1 h1:1Grh1552mvv6i+sYOdY+xKKVTvzJegcVMhuXocyDz/k=
+github.com/moby/moby/client v0.2.1/go.mod h1:O+/tw5d4a1Ha/ZA/tPxIZJapJRUS6LNZ1wiVRxYHyUE=
 github.com/moby/patternmatcher v0.6.0 h1:GmP9lR19aU5GqSSFko+5pRqHi+Ohk1O69aFiKkVGiPk=
 github.com/moby/patternmatcher v0.6.0/go.mod h1:hDPoyOpDY7OrrMDLaYoY3hf52gNCR/YOUYxkhApJIxc=
 github.com/moby/sys/atomicwriter v0.1.0 h1:kw5D/EqkBwsBFi0ss9v1VG3wIkVhzGvLklJ+w3A14Sw=
@@ -301,12 +307,6 @@ go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJr
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
 go.opentelemetry.io/proto/otlp v1.7.1 h1:gTOMpGDb0WTBOP8JaO72iL3auEZhVmAQg4ipjOVAtj4=
 go.opentelemetry.io/proto/otlp v1.7.1/go.mod h1:b2rVh6rfI/s2pHWNlB7ILJcRALpcNDzKhACevjI+ZnE=
-go.podman.io/common v0.66.1-0.20251126153106-c7808184e6f4 h1:+xIEfK9qKL9KWWHvDbNrH4+G0OxAz8ghje0D2eZvi5I=
-go.podman.io/common v0.66.1-0.20251126153106-c7808184e6f4/go.mod h1:Hkrtv0G+eJBvJxXlDBB5O10fIhHuq7Jq4MGJYDkHApw=
-go.podman.io/image/v5 v5.38.1-0.20251126153106-c7808184e6f4 h1:yPkv8MiZ5/RTGTT2V0eBXjplmgB4Hov5JZeTvnb1vhg=
-go.podman.io/image/v5 v5.38.1-0.20251126153106-c7808184e6f4/go.mod h1:5YJtk/ShzEmtIxrJTjiF/0Q4SfuDfWDt9c/kKpwu7MQ=
-go.podman.io/storage v1.61.1-0.20251126153106-c7808184e6f4 h1:YOEwzCviBJPkCjpEqtDXveTWrI9150/UyVvfz2mzwOE=
-go.podman.io/storage v1.61.1-0.20251126153106-c7808184e6f4/go.mod h1:izI0U2FxSpqivwmkVbTO7ECcoER6FnM6ZL7CFPu0Tfs=
 go.yaml.in/yaml/v2 v2.4.3 h1:6gvOSjQoTB3vt1l+CU+tSyi/HOjfOjRLJ4YwYZGwRO0=
 go.yaml.in/yaml/v2 v2.4.3/go.mod h1:zSxWcmIDjOzPXpjlTTbAsKokqkDNAVtZO0WOMiT90s8=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=

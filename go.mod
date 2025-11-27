@@ -95,7 +95,7 @@ require (
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/moby/api v1.52.0 // indirect
-	github.com/moby/moby/client v0.1.0 // indirect
+	github.com/moby/moby/client v0.2.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
@@ -139,3 +139,9 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.1-0.20251120202831-139ffec09210 // indirect
 )
+
+replace go.podman.io/common => github.com/containers/container-libs/common v0.66.1-0.20251127194916-1d3a1e4180ed
+
+replace go.podman.io/storage => github.com/containers/container-libs/storage v1.61.1-0.20251127194916-1d3a1e4180ed
+
+replace go.podman.io/image/v5 => github.com/containers/container-libs/image/v5 v5.38.1-0.20251127194916-1d3a1e4180ed
