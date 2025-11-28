@@ -2,6 +2,17 @@
 
 # Changelog
 
+## v1.29.6 (2025-11-28)
+
+    [release-1.29] Bump x/tools to v0.26.0
+    [release-1.29] Bump to Go 1.22
+    [release-1.29] switch to moby/sys/capability
+    [release-1.29] Proxy module access
+    [release-1.29] Bump CI environment to match release-1.39
+    [release-1.29]Bump runc to v1.2.9 - CVE-2025-52881
+    [release-1.29] Add conditional release-checking system test
+    [release-1.29] tests/conformance/testdata/Dockerfile.add:...
+
 ## v1.29.5 (2025-02-06)
 
     Backport testing of CVE-2024-9407 fix
