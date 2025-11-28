@@ -2755,11 +2755,8 @@ FROM alpine
 RUN echo 'hello'> hello
 _EOF
   run_buildah build --output type=tar,dest=$mytmpdir/rootfs.tar $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
-  # explode tar
-  mkdir $mytmpdir/rootfs
-  tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
-  ls $mytmpdir/rootfs
-  # exported rootfs must contain `hello` file which we created inside the image
+  # verify tar content
+  run tar -tf $mytmpdir/rootfs.tar
   expect_output --substring 'hello'
 }
 
@@ -2773,10 +2770,9 @@ RUN echo 'hello'> hello
 _EOF
   # Using buildah() defined in helpers.bash since run_buildah adds unwanted chars to tar created by pipe.
   buildah build $WITH_POLICY_JSON -o - -t test-bud -f $mytmpdir/Containerfile . > $mytmpdir/rootfs.tar
-  # explode tar
-  mkdir $mytmpdir/rootfs
-  tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
-  ls $mytmpdir/rootfs/hello
+  # verify tar content
+  run tar -tf $mytmpdir/rootfs.tar
+  expect_output --substring 'hello'
 }
 
 @test "build with custom build output and output rootfs to tar with no additional step" {
@@ -2789,10 +2785,8 @@ _EOF
 FROM alpine
 _EOF
   run_buildah build --output type=tar,dest=$mytmpdir/rootfs.tar $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
-  # explode tar
-  mkdir $mytmpdir/rootfs
-  tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
-  run ls $mytmpdir/rootfs
+  # verify tar content
+  run tar -tf $mytmpdir/rootfs.tar
   # exported rootfs must contain `var`,`bin` directory which exists in alpine
   # so output of `ls $mytmpdir/rootfs` must contain following strings
   expect_output --substring 'var'
