@@ -352,7 +352,7 @@ integration_rootless_task:
         <<: *standardlogs
 
 in_podman_task:
-    name: "Containerized Integration"
+    name: "Containerized Integration w/ $NESTED_STORAGE_DRIVER over $STORAGE_DRIVER"
     alias: in_podman
     skip: *not_build_docs
     depends_on: *smoke_vendor
@@ -365,7 +365,19 @@ in_podman_task:
         # This is key, cause the scripts to re-execute themselves inside a container.
         IN_PODMAN: 'true'
         BUILDAH_ISOLATION: 'chroot'
-        STORAGE_DRIVER: 'vfs'
+    matrix:
+        - env:
+              STORAGE_DRIVER: 'overlay'
+              NESTED_STORAGE_DRIVER: 'overlay'
+        - env:
+              STORAGE_DRIVER: 'overlay'
+              NESTED_STORAGE_DRIVER: 'vfs'
+        - env:
+              STORAGE_DRIVER: 'vfs'
+              NESTED_STORAGE_DRIVER: 'overlay'
+        - env:
+              STORAGE_DRIVER: 'vfs'
+              NESTED_STORAGE_DRIVER: 'vfs'
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
