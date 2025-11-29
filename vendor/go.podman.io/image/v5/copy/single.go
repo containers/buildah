@@ -397,15 +397,15 @@ func (ic *imageCopier) compareImageDestinationManifestEqual(ctx context.Context,
 		return nil, nil
 	}
 
-	destManifestDigest, err := manifest.Digest(destManifest)
-	if err != nil {
-		return nil, fmt.Errorf("calculating manifest digest: %w", err)
-	}
-
-	logrus.Debugf("Comparing source and destination manifest digests: %v vs. %v", srcManifestDigest, destManifestDigest)
-	if srcManifestDigest != destManifestDigest {
+	if !bytes.Equal(ic.src.ManifestBlob, destManifest) {
+		destManifestDigest, err := manifest.Digest(destManifest)
+		if err != nil {
+			return nil, fmt.Errorf("calculating destination manifest digest: %w", err)
+		}
+		logrus.Debugf("Source and destination manifest digests differ: %v vs. %v", srcManifestDigest, destManifestDigest)
 		return nil, nil
 	}
+	logrus.Debugf("Destination already matches the source manifest")
 
 	compressionAlgos := set.New[string]()
 	for _, srcInfo := range ic.src.LayerInfos() {
