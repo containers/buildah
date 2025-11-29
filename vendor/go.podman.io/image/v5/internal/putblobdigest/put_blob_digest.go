@@ -46,6 +46,15 @@ func DigestIfCanonicalUnknown(stream io.Reader, blobInfo types.BlobInfo) (Digest
 	return newDigester(stream, d, d != "" && d.Algorithm() == digest.Canonical)
 }
 
+// DigestIfAlgorithmUnknown initiates computation of a digest of stream,
+// if a digest of the specified algorithm is not supplied in the provided blobInfo;
+// otherwise blobInfo.Digest will be used.
+// The caller MUST use the returned stream instead of the original value.
+func DigestIfAlgorithmUnknown(stream io.Reader, blobInfo types.BlobInfo, algorithm digest.Algorithm) (Digester, io.Reader) {
+	d := blobInfo.Digest
+	return newDigester(stream, d, d != "" && d.Algorithm() == algorithm)
+}
+
 // Digest() returns a digest value possibly computed by Digester.
 // This must be called only after all of the stream returned by a Digester constructor
 // has been successfully read.

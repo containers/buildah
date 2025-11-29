@@ -98,9 +98,11 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 
 	// === Finally, send the layer stream to dest.
 	options := private.PutBlobOptions{
-		Cache:      ic.c.blobInfoCache,
-		IsConfig:   isConfig,
-		EmptyLayer: emptyLayer,
+		Cache:              ic.c.blobInfoCache,
+		IsConfig:           isConfig,
+		EmptyLayer:         emptyLayer,
+		Digests:            ic.c.options.DigestOptions,
+		CannotChangeDigest: ic.cannotModifyManifestReason != "", // FIXME: does this structurally guarantee that stream.info.Digest is known?
 	}
 	if !isConfig {
 		options.LayerIndex = &layerIndex

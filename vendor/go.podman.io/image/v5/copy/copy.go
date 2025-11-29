@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/docker/reference"
 	internalblobinfocache "go.podman.io/image/v5/internal/blobinfocache"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/image"
 	"go.podman.io/image/v5/internal/imagedestination"
 	"go.podman.io/image/v5/internal/imagesource"
@@ -155,6 +156,8 @@ type Options struct {
 	// In oci-archive: destinations, this will set the create/mod/access timestamps in each tar entry
 	// (but not a timestamp of the created archive file).
 	DestinationTimestamp *time.Time
+
+	DigestOptions digests.Options // FIXME: this reference to an internal type is unusable, a public API should have error checking, and anywa do we want to expose all of this, and… more thinking TBD.
 }
 
 // OptionCompressionVariant allows to supply information about

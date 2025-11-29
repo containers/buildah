@@ -11,6 +11,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/imagedestination/impl"
 	"go.podman.io/image/v5/internal/imagedestination/stubs"
 	"go.podman.io/image/v5/internal/private"
@@ -19,8 +20,6 @@ import (
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/fileutils"
 )
-
-const version = "Directory Transport Version: 1.1\n"
 
 // ErrNotContainerImageDir indicates that the directory doesn't match the expected contents of a directory created
 // using the 'dir' transport
@@ -33,7 +32,8 @@ type dirImageDestination struct {
 	stubs.NoPutBlobPartialInitialize
 	stubs.AlwaysSupportsSignatures
 
-	ref dirReference
+	ref                 dirReference
+	usesNonSHA256Digest bool
 }
 
 // newImageDestination returns an ImageDestination for writing to a directory.
@@ -76,8 +76,13 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 					return nil, err
 				}
 				// check if contents of version file is what we expect it to be
-				if string(contents) != version {
+				versionStr := string(contents)
+				parsedVersion, err := parseVersion(versionStr)
+				if err != nil {
 					return nil, ErrNotContainerImageDir
+				}
+				if parsedVersion.isGreaterThan(maxSupportedVersion) {
+					return nil, UnsupportedVersionError{Version: versionStr, Path: ref.resolvedPath}
 				}
 			} else {
 				return nil, ErrNotContainerImageDir
@@ -93,11 +98,6 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 		if err := os.MkdirAll(ref.resolvedPath, 0o755); err != nil {
 			return nil, fmt.Errorf("unable to create directory %q: %w", ref.resolvedPath, err)
 		}
-	}
-	// create version file
-	err = os.WriteFile(ref.versionPath(), []byte(version), 0o644)
-	if err != nil {
-		return nil, fmt.Errorf("creating version file %q: %w", ref.versionPath(), err)
 	}
 
 	d := &dirImageDestination{
@@ -151,13 +151,21 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 		}
 	}()
 
-	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, inputInfo)
+	algorithm, err := options.Digests.Choose(digests.Situation{Preexisting: inputInfo.Digest, CannotChangeAlgorithm: options.CannotChangeDigest})
+	if err != nil {
+		return private.UploadedBlob{}, err
+	}
+	digester, stream := putblobdigest.DigestIfAlgorithmUnknown(stream, inputInfo, algorithm)
+
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
 	if err != nil {
 		return private.UploadedBlob{}, err
 	}
 	blobDigest := digester.Digest()
+	if blobDigest.Algorithm() != digest.Canonical { // compare the special case in layerPath
+		d.usesNonSHA256Digest = true
+	}
 	if inputInfo.Size != -1 && size != inputInfo.Size {
 		return private.UploadedBlob{}, fmt.Errorf("Size mismatch when copying %s, expected %d, got %d", blobDigest, inputInfo.Size, size)
 	}
@@ -257,6 +265,14 @@ func (d *dirImageDestination) PutSignaturesWithFormat(ctx context.Context, signa
 // - Uploaded data MAY be visible to others before CommitWithOptions() is called
 // - Uploaded data MAY be removed or MAY remain around if Close() is called without CommitWithOptions() (i.e. rollback is allowed but not guaranteed)
 func (d *dirImageDestination) CommitWithOptions(ctx context.Context, options private.CommitOptions) error {
+	versionToWrite := version1_1
+	if d.usesNonSHA256Digest {
+		versionToWrite = version1_2
+	}
+	err := os.WriteFile(d.ref.versionPath(), []byte(versionToWrite.String()), 0o644)
+	if err != nil {
+		return fmt.Errorf("writing version file %q: %w", d.ref.versionPath(), err)
+	}
 	return nil
 }
 
