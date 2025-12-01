@@ -82,6 +82,23 @@ type MetricFamilyWithPos struct {
 	Pos          token.Position
 }
 
+func (m *MetricFamilyWithPos) Labels() []string {
+	var arr []string
+	if len(m.MetricFamily.Metric) > 0 {
+		for _, label := range m.MetricFamily.Metric[0].Label {
+			if label.Value != nil {
+				arr = append(arr,
+					fmt.Sprintf("%s=%s",
+						strings.Trim(*label.Name, `"`),
+						strings.Trim(*label.Value, `"`)))
+			} else {
+				arr = append(arr, strings.Trim(*label.Name, `"`))
+			}
+		}
+	}
+	return arr
+}
+
 type visitor struct {
 	fs      *token.FileSet
 	metrics []MetricFamilyWithPos
@@ -93,6 +110,12 @@ type opt struct {
 	namespace string
 	subsystem string
 	name      string
+
+	help    string
+	helpSet bool
+
+	labels      []string
+	constLabels map[string]string
 }
 
 func RunList(fs *token.FileSet, files []*ast.File, strict bool) []MetricFamilyWithPos {
@@ -151,9 +174,6 @@ func RunLint(fs *token.FileSet, files []*ast.File, s Setting) []Issue {
 		}
 	}
 
-	sort.Slice(v.issues, func(i, j int) bool {
-		return v.issues[i].Pos.String() < v.issues[j].Pos.String()
-	})
 	return v.issues
 }
 
@@ -168,9 +188,21 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 
 	case *ast.SendStmt:
 		return v.parseSendMetricChanExpr(t)
+
+	default:
 	}
 
 	return v
+}
+
+func (v *visitor) addMetric(mfp *MetricFamilyWithPos) {
+	for _, m := range v.metrics {
+		if mfp.MetricFamily.String() == m.MetricFamily.String() {
+			return
+		}
+	}
+
+	v.metrics = append(v.metrics, *mfp)
 }
 
 func (v *visitor) parseCallerExpr(call *ast.CallExpr) ast.Visitor {
@@ -190,16 +222,17 @@ func (v *visitor) parseCallerExpr(call *ast.CallExpr) ast.Visitor {
 	*/
 	case *ast.Ident:
 		if stmt.Name == "NewCounterFunc" {
-			return v.parseOpts(call.Args[0], dto.MetricType_COUNTER)
+			return v.parseOpts(call.Args, dto.MetricType_COUNTER)
 		}
 
 		if stmt.Name == "NewGaugeFunc" {
-			return v.parseOpts(call.Args[0], dto.MetricType_GAUGE)
+			return v.parseOpts(call.Args, dto.MetricType_GAUGE)
 		}
 
 		if metricType, ok = metricsType[stmt.Name]; !ok {
 			return v
 		}
+
 		methodName = stmt.Name
 
 	/*
@@ -216,11 +249,11 @@ func (v *visitor) parseCallerExpr(call *ast.CallExpr) ast.Visitor {
 	*/
 	case *ast.SelectorExpr:
 		if stmt.Sel.Name == "NewCounterFunc" {
-			return v.parseOpts(call.Args[0], dto.MetricType_COUNTER)
+			return v.parseOpts(call.Args, dto.MetricType_COUNTER)
 		}
 
 		if stmt.Sel.Name == "NewGaugeFunc" {
-			return v.parseOpts(call.Args[0], dto.MetricType_GAUGE)
+			return v.parseOpts(call.Args, dto.MetricType_GAUGE)
 		}
 
 		if stmt.Sel.Name == "NewFamilyGenerator" && len(call.Args) == 5 {
@@ -230,6 +263,7 @@ func (v *visitor) parseCallerExpr(call *ast.CallExpr) ast.Visitor {
 		if metricType, ok = metricsType[stmt.Sel.Name]; !ok {
 			return v
 		}
+
 		methodName = stmt.Sel.Name
 
 	default:
@@ -254,19 +288,44 @@ func (v *visitor) parseCallerExpr(call *ast.CallExpr) ast.Visitor {
 		return v
 	}
 
-	return v.parseOpts(call.Args[0], metricType)
+	return v.parseOpts(call.Args, metricType)
 }
 
-func (v *visitor) parseOpts(optArg ast.Node, metricType dto.MetricType) ast.Visitor {
+func (v *visitor) parseOpts(optArgs []ast.Expr, metricType dto.MetricType) ast.Visitor {
 	// position for the first arg of the CallExpr
-	optsPosition := v.fs.Position(optArg.Pos())
-	opts, help := v.parseOptsExpr(optArg)
+	optsPosition := v.fs.Position(optArgs[0].Pos())
+	opts := v.parseOptsExpr(optArgs[0])
+
+	var metric *dto.Metric
+	if len(optArgs) > 1 {
+		// parse labels
+		if labelOpts := v.parseOptsExpr(optArgs[1]); labelOpts != nil && len(labelOpts.labels) > 0 {
+			metric = &dto.Metric{}
+			for idx, _ := range labelOpts.labels {
+				metric.Label = append(metric.Label,
+					&dto.LabelPair{
+						Name: &labelOpts.labels[idx],
+					})
+			}
+		}
+	}
+
 	if opts == nil {
 		return v
 	}
+
 	currentMetric := dto.MetricFamily{
 		Type: &metricType,
-		Help: help,
+	}
+
+	if !opts.helpSet {
+		currentMetric.Help = nil
+	} else {
+		currentMetric.Help = &opts.help
+	}
+
+	if metric != nil {
+		currentMetric.Metric = append(currentMetric.Metric, metric)
 	}
 
 	metricName := prometheus.BuildFQName(opts.namespace, opts.subsystem, opts.name)
@@ -278,7 +337,7 @@ func (v *visitor) parseOpts(optArg ast.Node, metricType dto.MetricType) ast.Visi
 	}
 	currentMetric.Name = &metricName
 
-	v.metrics = append(v.metrics, MetricFamilyWithPos{MetricFamily: &currentMetric, Pos: optsPosition})
+	v.addMetric(&MetricFamilyWithPos{MetricFamily: &currentMetric, Pos: optsPosition})
 	return v
 }
 
@@ -307,7 +366,8 @@ func (v *visitor) parseKSMMetrics(nameArg ast.Node, helpArg ast.Node, metricType
 		}
 	}
 
-	v.metrics = append(v.metrics, MetricFamilyWithPos{MetricFamily: &currentMetric, Pos: optsPosition})
+	v.addMetric(&MetricFamilyWithPos{MetricFamily: &currentMetric, Pos: optsPosition})
+
 	return v
 }
 
@@ -347,15 +407,40 @@ func (v *visitor) parseSendMetricChanExpr(chExpr *ast.SendStmt) ast.Visitor {
 		return v
 	}
 
-	name, help := v.parseConstMetricOptsExpr(call.Args[0])
-	if name == nil {
+	if len(call.Args) == 0 {
+		return v
+	}
+
+	descCall := v.parseConstMetricOptsExpr(call.Args[0])
+	if descCall == nil {
 		return v
 	}
 
 	metric := &dto.MetricFamily{
-		Name: name,
-		Help: help,
+		Name: descCall.name,
+		Help: descCall.help,
 	}
+
+	if len(descCall.labels) > 0 {
+		m := &dto.Metric{}
+		for idx, _ := range descCall.labels {
+			m.Label = append(m.Label,
+				&dto.LabelPair{
+					Name: &descCall.labels[idx],
+				})
+		}
+
+		for idx, _ := range descCall.constLabels {
+			m.Label = append(m.Label,
+				&dto.LabelPair{
+					Name:  &descCall.constLabels[idx][0],
+					Value: &descCall.constLabels[idx][1],
+				})
+		}
+
+		metric.Metric = append(metric.Metric, m)
+	}
+
 	switch methodName {
 	case "MustNewConstMetric", "NewLazyConstMetric":
 		switch t := call.Args[1].(type) {
@@ -373,11 +458,11 @@ func (v *visitor) parseSendMetricChanExpr(chExpr *ast.SendStmt) ast.Visitor {
 		metric.Type = &metricType
 	}
 
-	v.metrics = append(v.metrics, MetricFamilyWithPos{MetricFamily: metric, Pos: v.fs.Position(call.Pos())})
+	v.addMetric(&MetricFamilyWithPos{MetricFamily: metric, Pos: v.fs.Position(call.Pos())})
 	return v
 }
 
-func (v *visitor) parseOptsExpr(n ast.Node) (*opt, *string) {
+func (v *visitor) parseOptsExpr(n ast.Node) *opt {
 	switch stmt := n.(type) {
 	case *ast.CompositeLit:
 		return v.parseCompositeOpts(stmt)
@@ -395,17 +480,49 @@ func (v *visitor) parseOptsExpr(n ast.Node) (*opt, *string) {
 		return v.parseOptsExpr(stmt.X)
 	}
 
-	return nil, nil
+	return nil
 }
 
-func (v *visitor) parseCompositeOpts(stmt *ast.CompositeLit) (*opt, *string) {
+func (v *visitor) parseCompositeOpts(stmt *ast.CompositeLit) *opt {
 	metricOption := &opt{}
-	var help *string
+
 	for _, elt := range stmt.Elts {
+
+		// labels
+		label, ok := elt.(*ast.BasicLit)
+		if ok {
+			metricOption.labels = append(metricOption.labels, strings.Trim(label.Value, `"`))
+			continue
+		}
+
 		kvExpr, ok := elt.(*ast.KeyValueExpr)
 		if !ok {
 			continue
 		}
+
+		// const labels
+		if key, ok := kvExpr.Key.(*ast.BasicLit); ok {
+
+			if metricOption.constLabels == nil {
+				metricOption.constLabels = map[string]string{}
+			}
+
+			// only accept literal string value
+			//
+			//  {
+			//  	"key": "some-string-literal",
+			//  }
+			switch val := kvExpr.Value.(type) {
+			case *ast.BasicLit:
+				metricOption.constLabels[key.Value] = val.Value
+
+			default:
+				metricOption.constLabels[key.Value] = "?" // use a placeholder for the const label
+			}
+
+			continue
+		}
+
 		object, ok := kvExpr.Key.(*ast.Ident)
 		if !ok {
 			continue
@@ -418,7 +535,7 @@ func (v *visitor) parseCompositeOpts(stmt *ast.CompositeLit) (*opt, *string) {
 		// If failed to parse field value, stop parsing.
 		stringLiteral, ok := v.parseValue(object.Name, kvExpr.Value)
 		if !ok {
-			return nil, nil
+			return nil
 		}
 
 		switch object.Name {
@@ -429,14 +546,16 @@ func (v *visitor) parseCompositeOpts(stmt *ast.CompositeLit) (*opt, *string) {
 		case "Name":
 			metricOption.name = stringLiteral
 		case "Help":
-			help = &stringLiteral
+			metricOption.help = stringLiteral
+			metricOption.helpSet = true
 		}
 	}
 
-	return metricOption, help
+	return metricOption
 }
 
 func (v *visitor) parseValue(object string, n ast.Node) (string, bool) {
+
 	switch t := n.(type) {
 
 	// make sure it is string literal value
@@ -452,14 +571,26 @@ func (v *visitor) parseValue(object string, n ast.Node) (string, bool) {
 			return "", false
 		}
 
-		if vs, ok := t.Obj.Decl.(*ast.ValueSpec); ok {
+		switch vs := t.Obj.Decl.(type) {
+
+		case *ast.ValueSpec:
+			// var some string = "some string"
 			return v.parseValue(object, vs)
+
+		case *ast.AssignStmt:
+			// TODO:
+			// some := "some string"
+			return "", false
+
+		default:
+			return "", false
 		}
 
 	case *ast.ValueSpec:
 		if len(t.Values) == 0 {
 			return "", false
 		}
+
 		return v.parseValue(object, t.Values[0])
 
 	// For binary expr, we only support adding two strings like `foo` + `bar`.
@@ -539,7 +670,7 @@ func (v *visitor) parseValueCallExpr(object string, call *ast.CallExpr) (string,
 	return "", false
 }
 
-func (v *visitor) parseConstMetricOptsExpr(n ast.Node) (*string, *string) {
+func (v *visitor) parseConstMetricOptsExpr(n ast.Node) *descCallExpr {
 	switch stmt := n.(type) {
 	case *ast.CallExpr:
 		return v.parseNewDescCallExpr(stmt)
@@ -580,10 +711,16 @@ func (v *visitor) parseConstMetricOptsExpr(n ast.Node) (*string, *string) {
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
-func (v *visitor) parseNewDescCallExpr(call *ast.CallExpr) (*string, *string) {
+type descCallExpr struct {
+	name, help  *string
+	labels      []string
+	constLabels [][2]string
+}
+
+func (v *visitor) parseNewDescCallExpr(call *ast.CallExpr) *descCallExpr {
 	var (
 		help string
 		name string
@@ -600,7 +737,7 @@ func (v *visitor) parseNewDescCallExpr(call *ast.CallExpr) (*string, *string) {
 					Text:   fmt.Sprintf("parsing desc with function %s is not supported", expr.Name),
 				})
 			}
-			return nil, nil
+			return nil
 		}
 	case *ast.SelectorExpr:
 		if expr.Sel.Name != "NewDesc" {
@@ -611,7 +748,7 @@ func (v *visitor) parseNewDescCallExpr(call *ast.CallExpr) (*string, *string) {
 					Text:   fmt.Sprintf("parsing desc with function %s is not supported", expr.Sel.Name),
 				})
 			}
-			return nil, nil
+			return nil
 		}
 	default:
 		if v.strict {
@@ -621,7 +758,7 @@ func (v *visitor) parseNewDescCallExpr(call *ast.CallExpr) (*string, *string) {
 				Text:   fmt.Sprintf("parsing desc of %T is not supported", expr),
 			})
 		}
-		return nil, nil
+		return nil
 	}
 
 	// k8s.io/component-base/metrics.NewDesc has 6 args
@@ -632,19 +769,45 @@ func (v *visitor) parseNewDescCallExpr(call *ast.CallExpr) (*string, *string) {
 			Pos:    v.fs.Position(call.Pos()),
 			Text:   "NewDesc should have at least 4 args",
 		})
-		return nil, nil
+		return nil
 	}
 
 	name, ok = v.parseValue("fqName", call.Args[0])
 	if !ok {
-		return nil, nil
-	}
-	help, ok = v.parseValue("help", call.Args[1])
-	if !ok {
-		return nil, nil
+		return nil
 	}
 
-	return &name, &help
+	help, ok = v.parseValue("help", call.Args[1])
+	if !ok {
+		return nil
+	}
+
+	res := &descCallExpr{
+		name: &name,
+		help: &help,
+	}
+
+	if x, ok := call.Args[2].(*ast.CompositeLit); ok {
+		opt := v.parseCompositeOpts(x)
+		if opt == nil {
+			return nil
+		}
+
+		res.labels = opt.labels
+	}
+
+	if x, ok := call.Args[3].(*ast.CompositeLit); ok {
+		opt := v.parseCompositeOpts(x)
+		if opt == nil {
+			return nil
+		}
+
+		for k, v := range opt.constLabels {
+			res.constLabels = append(res.constLabels, [2]string{k, v})
+		}
+	}
+
+	return res
 }
 
 func mustUnquote(str string) string {

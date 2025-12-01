@@ -115,12 +115,12 @@ func writeBackup(path string, data []byte) (string, error) {
 	t, err := ioutil.TempFile(filepath.Dir(path), filepath.Base(path))
 
 	if err != nil {
-		return "", fmt.Errorf("creating temporary file: %w", err)
+		return "", fmt.Errorf("error creating temporary file: %w", err)
 	}
 	defer t.Close()
 
 	if _, err := io.Copy(t, bytes.NewReader(data)); err != nil {
-		return "", fmt.Errorf("writing to temporary file: %w", err)
+		return "", fmt.Errorf("error writing to temporary file: %w", err)
 	}
 
 	return t.Name(), nil
@@ -129,7 +129,7 @@ func writeBackup(path string, data []byte) (string, error) {
 func updateFile(path string, data []byte, eliminations []int64) error {
 	to, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("opening file for writing '%s': %w\n", path, err)
+		return fmt.Errorf("error opening file for writing '%s': %w\n", path, err)
 	}
 	defer to.Close()
 
@@ -137,18 +137,18 @@ func updateFile(path string, data []byte, eliminations []int64) error {
 	var cursor int64
 	for _, byteToEliminate := range eliminations {
 		if _, err := io.CopyN(to, from, byteToEliminate-cursor); err != nil {
-			return fmt.Errorf("copying data: %w", err)
+			return fmt.Errorf("error copying data: %w", err)
 		}
 
 		cursor = byteToEliminate + 1
 
 		if _, err := from.Seek(1, io.SeekCurrent); err != nil {
-			return fmt.Errorf("seeking to position in buffer: %w", err)
+			return fmt.Errorf("error seeking to position in buffer: %w", err)
 		}
 	}
 
 	if _, err := io.Copy(to, from); err != nil {
-		return fmt.Errorf("copying end data: %w", err)
+		return fmt.Errorf("error copying end data: %w", err)
 	}
 
 	return nil

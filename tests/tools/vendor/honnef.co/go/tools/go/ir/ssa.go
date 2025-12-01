@@ -13,10 +13,16 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"math/big"
 	"sync"
 
-	"golang.org/x/exp/typeparams"
 	"honnef.co/go/tools/go/types/typeutil"
+)
+
+const (
+	// Replace CompositeValue with only constant values with AggregateConst. Currently disabled because it breaks field
+	// tracking in U1000.
+	doSimplifyConstantCompositeValues = false
 )
 
 type ID int
@@ -30,12 +36,10 @@ type Program struct {
 	mode       BuilderMode                 // set of mode bits for IR construction
 	MethodSets typeutil.MethodSetCache     // cache of type-checker's method-sets
 
-	methodsMu    sync.Mutex                 // guards the following maps:
-	methodSets   typeutil.Map               // maps type to its concrete methodSet
-	runtimeTypes typeutil.Map               // types for which rtypes are needed
-	canon        typeutil.Map               // type canonicalization map
-	bounds       map[*types.Func]*Function  // bounds for curried x.Method closures
-	thunks       map[selectionKey]*Function // thunks for T.Method expressions
+	methodsMu    sync.Mutex               // guards the following maps:
+	methodSets   typeutil.Map[*methodSet] // maps type to its concrete methodSet
+	runtimeTypes typeutil.Map[bool]       // types for which rtypes are needed
+	canon        typeutil.Map[types.Type] // type canonicalization map
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -46,7 +50,6 @@ type Program struct {
 // Members also contains entries for "init" (the synthetic package
 // initializer) and "init#%d", the nth declared init function,
 // and unspecified other things too.
-//
 type Package struct {
 	Prog      *Program               // the owning program
 	Pkg       *types.Package         // the corresponding go/types.Package
@@ -59,16 +62,16 @@ type Package struct {
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	buildOnce sync.Once   // ensures package building occurs once
-	ninit     int32       // number of init functions
-	info      *types.Info // package type information
-	files     []*ast.File // package ASTs
+	buildOnce   sync.Once           // ensures package building occurs once
+	ninit       int32               // number of init functions
+	info        *types.Info         // package type information
+	files       []*ast.File         // package ASTs
+	initVersion map[ast.Expr]string // goversion to use for each global var init expr
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,
 // *Global, *Function, or *Type; they are created by package-level
 // const, var, func and type declarations respectively.
-//
 type Member interface {
 	Name() string                    // declared name of the package member
 	String() string                  // package-qualified name of the package member
@@ -93,7 +96,6 @@ type Type struct {
 //
 // NB: a NamedConst is not a Value; it contains a constant Value, which
 // it augments with the name and position of its 'const' declaration.
-//
 type NamedConst struct {
 	object *types.Const
 	Value  *Const
@@ -180,10 +182,11 @@ type Value interface {
 // An Instruction that defines a value (e.g. BinOp) also implements
 // the Value interface; an Instruction that only has an effect (e.g. Store)
 // does not.
-//
 type Instruction interface {
 	setSource(ast.Node)
 	setID(ID)
+
+	Comment() string
 
 	// String returns the disassembled form of this value.
 	//
@@ -264,7 +267,6 @@ type Instruction interface {
 // Node is provided to simplify IR graph algorithms.  Clients should
 // use the more specific and informative Value or Instruction
 // interfaces where appropriate.
-//
 type Node interface {
 	setID(ID)
 
@@ -289,6 +291,7 @@ const (
 	SyntheticWrapper
 	SyntheticBound
 	SyntheticGeneric
+	SyntheticRangeOverFuncYield
 )
 
 func (syn Synthetic) String() string {
@@ -305,6 +308,8 @@ func (syn Synthetic) String() string {
 		return "bound"
 	case SyntheticGeneric:
 		return "generic"
+	case SyntheticRangeOverFuncYield:
+		return "range-over-func yield"
 	default:
 		return fmt.Sprintf("Synthetic(%d)", syn)
 	}
@@ -314,8 +319,8 @@ func (syn Synthetic) String() string {
 // or method.
 //
 // If Blocks is nil, this indicates an external function for which no
-// Go source code is available.  In this case, FreeVars and Locals
-// are nil too.  Clients performing whole-program analysis must
+// Go source code is available.  In this case, FreeVars, Locals, and
+// Params are nil too.  Clients performing whole-program analysis must
 // handle external functions specially.
 //
 // Blocks contains the function's control-flow graph (CFG).
@@ -343,29 +348,50 @@ func (syn Synthetic) String() string {
 // the same position as the function they wrap.
 // Syntax.Pos() always returns the position of the declaring "func" token.
 //
-// Type() returns the function's Signature.
+// When the operand of a range statement is an iterator function,
+// the loop body is transformed into a synthetic anonymous function
+// that is passed as the yield argument in a call to the iterator.
+// In that case, Function.Source() is the ast.RangeStmt.
 //
+// Synthetic functions, for which Synthetic != "", are functions
+// that do not appear in the source AST. These include:
+//   - method wrappers,
+//   - thunks,
+//   - bound functions,
+//   - empty functions built from loaded type information,
+//   - yield functions created from range-over-func loops, and
+//   - package init functions.
+//
+// Type() returns the function's Signature.
 type Function struct {
 	node
 
 	name      string
-	object    types.Object     // a declared *types.Func or one of its wrappers
+	object    *types.Func      // symbol for declared function (nil for FuncLit or synthetic init)
 	method    *types.Selection // info about provenance of synthetic methods
 	Signature *types.Signature
 	generics  instanceWrapperMap
 
-	Synthetic Synthetic
-	parent    *Function     // enclosing function if anon; nil if global
-	Pkg       *Package      // enclosing package; nil for shared funcs (wrappers and error.Error)
-	Prog      *Program      // enclosing program
+	Synthetic Synthetic // provenance of synthetic function; 0 for true source functions
+	parent    *Function // enclosing function if anon; nil if global
+	Pkg       *Package  // enclosing package; nil for shared funcs (wrappers and error.Error)
+	Prog      *Program  // enclosing program
+
+	// These fields are populated only when the function body is built:
+
 	Params    []*Parameter  // function parameters; for methods, includes receiver
 	FreeVars  []*FreeVar    // free variables whose values must be supplied by closure
-	Locals    []*Alloc      // local variables of this function
+	Locals    []*Alloc      // frame-allocated variables of this function
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	Exit      *BasicBlock   // The function's exit block
-	AnonFuncs []*Function   // anonymous functions directly beneath this one
+	AnonFuncs []*Function   // anonymous functions (from FuncLit, RangeStmt) directly beneath this one
 	referrers []Instruction // referring instructions (iff Parent() != nil)
 	NoReturn  NoReturn      // Calling this function will always terminate control flow.
+
+	goversion string // Go version of syntax (NB: init is special)
+
+	// uniq is not stored in functionBody because we need it after function building finishes
+	uniq int64 // source of unique ints within the source tree while building
 
 	*functionBody
 }
@@ -373,13 +399,13 @@ type Function struct {
 type instanceWrapperMap struct {
 	h       typeutil.Hasher
 	entries map[uint32][]struct {
-		key *typeparams.TypeList
+		key *types.TypeList
 		val *Function
 	}
 	len int
 }
 
-func typeListIdentical(l1, l2 *typeparams.TypeList) bool {
+func typeListIdentical(l1, l2 *types.TypeList) bool {
 	if l1.Len() != l2.Len() {
 		return false
 	}
@@ -393,10 +419,10 @@ func typeListIdentical(l1, l2 *typeparams.TypeList) bool {
 	return true
 }
 
-func (m *instanceWrapperMap) At(key *typeparams.TypeList) *Function {
+func (m *instanceWrapperMap) At(key *types.TypeList) *Function {
 	if m.entries == nil {
 		m.entries = make(map[uint32][]struct {
-			key *typeparams.TypeList
+			key *types.TypeList
 			val *Function
 		})
 		m.h = typeutil.MakeHasher()
@@ -416,10 +442,10 @@ func (m *instanceWrapperMap) At(key *typeparams.TypeList) *Function {
 	return nil
 }
 
-func (m *instanceWrapperMap) Set(key *typeparams.TypeList, val *Function) {
+func (m *instanceWrapperMap) Set(key *types.TypeList, val *Function) {
 	if m.entries == nil {
 		m.entries = make(map[uint32][]struct {
-			key *typeparams.TypeList
+			key *types.TypeList
 			val *Function
 		})
 		m.h = typeutil.MakeHasher()
@@ -437,7 +463,7 @@ func (m *instanceWrapperMap) Set(key *typeparams.TypeList, val *Function) {
 		}
 	}
 	m.entries[hash] = append(m.entries[hash], struct {
-		key *typeparams.TypeList
+		key *types.TypeList
 		val *Function
 	}{key, val})
 	m.len++
@@ -456,31 +482,36 @@ const (
 	NeverReturns
 )
 
+type constValue struct {
+	c   Constant
+	idx int
+}
+
 type functionBody struct {
 	// The following fields are set transiently during building,
 	// then cleared.
-	currentBlock    *BasicBlock              // where to emit code
-	objects         map[types.Object]Value   // addresses of local variables
-	namedResults    []*Alloc                 // tuple of named results
-	implicitResults []*Alloc                 // tuple of results
-	targets         *targets                 // linked stack of branch targets
-	lblocks         map[types.Object]*lblock // labelled blocks
-	consts          []Constant
-	wr              *HTMLWriter
-	fakeExits       BlockSet
-	blocksets       [5]BlockSet
-	hasDefer        bool
+	currentBlock *BasicBlock              // where to emit code
+	vars         map[*types.Var]Value     // addresses of local variables
+	results      []*Alloc                 // result allocations of the current function
+	returnVars   []*types.Var             // variables for a return statement. Either results or for range-over-func a parent's results
+	targets      *targets                 // linked stack of branch targets
+	lblocks      map[*types.Label]*lblock // labelled blocks
+	jump         *types.Var               // synthetic variable for the yield state (non-nil => range-over-func)
+	deferstack   *types.Var               // synthetic variable holding enclosing ssa:deferstack()
+	sourceFn     *Function                // nearest enclosing source function
+	exits        []*exit                  // exits of the function that need to be resolved
+
+	consts          map[constKey]constValue
+	aggregateConsts typeutil.Map[[]*AggregateConst]
+
+	wr        *HTMLWriter
+	fakeExits BlockSet
+	blocksets [5]BlockSet
+	hasDefer  bool
 
 	// a contiguous block of instructions that will be used by blocks,
 	// to avoid making multiple allocations.
 	scratchInstructions []Instruction
-}
-
-func (fn *Function) results() []*Alloc {
-	if len(fn.namedResults) > 0 {
-		return fn.namedResults
-	}
-	return fn.implicitResults
 }
 
 // BasicBlock represents an IR basic block.
@@ -502,7 +533,6 @@ func (fn *Function) results() []*Alloc {
 //
 // The order of Preds and Succs is significant (to Phi and If
 // instructions, respectively).
-//
 type BasicBlock struct {
 	Index        int            // index of this block within Parent().Blocks
 	Comment      string         // optional label; no semantic significance
@@ -534,7 +564,6 @@ type BasicBlock struct {
 //
 // Pos() returns the position of the value that was captured, which
 // belongs to an enclosing function.
-//
 type FreeVar struct {
 	node
 
@@ -548,12 +577,11 @@ type FreeVar struct {
 }
 
 // A Parameter represents an input parameter of a function.
-//
 type Parameter struct {
 	register
 
 	name   string
-	object types.Object // a *types.Var; nil for non-source locals
+	object *types.Var // non-nil
 }
 
 // A Const represents the value of a constant expression.
@@ -573,10 +601,10 @@ type Parameter struct {
 // Pos() returns token.NoPos.
 //
 // Example printed form:
-// 	Const <int> {42}
-// 	Const <untyped string> {"test"}
-// 	Const <MyComplex> {(3 + 4i)}
 //
+//	Const <int> {42}
+//	Const <untyped string> {"test"}
+//	Const <MyComplex> {(3 + 4i)}
 type Const struct {
 	register
 
@@ -586,7 +614,18 @@ type Const struct {
 type AggregateConst struct {
 	register
 
-	Values []Constant
+	Values []Value
+}
+
+type CompositeValue struct {
+	register
+
+	// Bitmap records which elements were explicitly provided. For example, [4]byte{2: x} would have a bitmap of 0010.
+	Bitmap big.Int
+	// The number of bits set in Bitmap
+	NumSet int
+	// Dense list of values in the composite literal. Omitted elements are filled in with zero values.
+	Values []Value
 }
 
 // TODO add the element's zero constant to ArrayConst
@@ -617,7 +656,6 @@ func (*GenericConst) aConstant()   {}
 //
 // Pos() returns the position of the ast.ValueSpec.Names[*]
 // identifier.
-//
 type Global struct {
 	node
 
@@ -637,20 +675,19 @@ type Global struct {
 // Go spec (excluding "make" and "new") or one of these ir-defined
 // intrinsics:
 //
-//   // wrapnilchk returns ptr if non-nil, panics otherwise.
-//   // (For use in indirection wrappers.)
-//   func ir:wrapnilchk(ptr *T, recvType, methodName string) *T
+//	// wrapnilchk returns ptr if non-nil, panics otherwise.
+//	// (For use in indirection wrappers.)
+//	func ir:wrapnilchk(ptr *T, recvType, methodName string) *T
 //
-//   // noreturnWasPanic returns true if the previously called
-//   // function panicked, false if it exited the process.
-//   func ir:noreturnWasPanic() bool
+//	// noreturnWasPanic returns true if the previously called
+//	// function panicked, false if it exited the process.
+//	func ir:noreturnWasPanic() bool
 //
 // Object() returns a *types.Builtin for built-ins defined by the spec,
 // nil for others.
 //
 // Type() returns a *types.Signature representing the effective
 // signature of the built-in for this call.
-//
 type Builtin struct {
 	node
 
@@ -667,15 +704,12 @@ type Builtin struct {
 // type of the allocated variable is actually
 // Type().Underlying().(*types.Pointer).Elem().
 //
-// If Heap is false, Alloc allocates space in the function's
-// activation record (frame); we refer to an Alloc(Heap=false) as a
-// "stack" alloc.  Each stack Alloc returns the same address each time
-// it is executed within the same activation; the space is
-// re-initialized to zero.
+// If Heap is false, Alloc zero-initializes the same local variable in
+// the call frame and returns its address; in this case the Alloc must
+// be present in Function.Locals. We call this a "local" alloc.
 //
-// If Heap is true, Alloc allocates space in the heap; we
-// refer to an Alloc(Heap=true) as a "heap" alloc.  Each heap Alloc
-// returns a different address each time it is executed.
+// If Heap is true, Alloc allocates a new zero-initialized variable
+// each time the instruction is executed. We call this a "new" alloc.
 //
 // When Alloc is applied to a channel, map or slice type, it returns
 // the address of an uninitialized (nil) reference of that kind; store
@@ -687,9 +721,9 @@ type Builtin struct {
 // allocates a varargs slice.
 //
 // Example printed form:
-// 	t1 = StackAlloc <*int>
-// 	t2 = HeapAlloc <*int> (new)
 //
+//	t1 = StackAlloc <*int>
+//	t2 = HeapAlloc <*int> (new)
 type Alloc struct {
 	register
 	Heap  bool
@@ -711,8 +745,8 @@ var _ Value = (*Sigma)(nil)
 // Within a block, all σ-nodes must appear before all non-σ nodes.
 //
 // Example printed form:
-// 	t2 = Sigma <int> [#0] t1 (x)
 //
+//	t2 = Sigma <int> [#0] t1 (x)
 type Sigma struct {
 	register
 	From *BasicBlock
@@ -749,8 +783,8 @@ type Copy struct {
 // during SSA renaming.
 //
 // Example printed form:
-// 	t3 = Phi <int> 2:t1 4:t2 (x)
 //
+//	t3 = Phi <int> 2:t1 4:t2 (x)
 type Phi struct {
 	register
 	Edges []Value // Edges[i] is value for Block().Preds[i]
@@ -769,10 +803,10 @@ type Phi struct {
 // Pos() returns the ast.CallExpr.Lparen, if explicit in the source.
 //
 // Example printed form:
-// 	t3 = Call <()> println t1 t2
-// 	t4 = Call <()> foo$1
-// 	t6 = Invoke <string> t5.String
 //
+//	t3 = Call <()> println t1 t2
+//	t4 = Call <()> foo$1
+//	t6 = Invoke <string> t5.String
 type Call struct {
 	register
 	Call CallCommon
@@ -783,8 +817,8 @@ type Call struct {
 // Pos() returns the ast.BinaryExpr.OpPos, if explicit in the source.
 //
 // Example printed form:
-// 	t3 = BinOp <int> {+} t2 t1
 //
+//	t3 = BinOp <int> {+} t2 t1
 type BinOp struct {
 	register
 	// One of:
@@ -800,10 +834,9 @@ type BinOp struct {
 // SUB is negation.
 // NOT is logical negation.
 //
-//
 // Example printed form:
-// 	t2 = UnOp <int> {^} t1
 //
+//	t2 = UnOp <int> {^} t1
 type UnOp struct {
 	register
 	Op token.Token // One of: NOT SUB XOR ! - ^
@@ -817,8 +850,8 @@ type UnOp struct {
 // specified.
 //
 // Example printed form:
-// 	t2 = Load <int> t1
 //
+//	t2 = Load <int> t1
 type Load struct {
 	register
 	X Value
@@ -828,11 +861,11 @@ type Load struct {
 // change to Type().
 //
 // Type changes are permitted:
-//    - between a named type and its underlying type.
-//    - between two named types of the same underlying type.
-//    - between (possibly named) pointers to identical base types.
-//    - from a bidirectional channel to a read- or write-channel,
-//      optionally adding/removing a name.
+//   - between a named type and its underlying type.
+//   - between two named types of the same underlying type.
+//   - between (possibly named) pointers to identical base types.
+//   - from a bidirectional channel to a read- or write-channel,
+//     optionally adding/removing a name.
 //
 // This operation cannot fail dynamically.
 //
@@ -840,8 +873,8 @@ type Load struct {
 // from an explicit conversion in the source.
 //
 // Example printed form:
-// 	t2 = ChangeType <*T> t1
 //
+//	t2 = ChangeType <*T> t1
 type ChangeType struct {
 	register
 	X Value
@@ -852,12 +885,13 @@ type ChangeType struct {
 //
 // A conversion may change the value and representation of its operand.
 // Conversions are permitted:
-//    - between real numeric types.
-//    - between complex numeric types.
-//    - between string and []byte or []rune.
-//    - between pointers and unsafe.Pointer.
-//    - between unsafe.Pointer and uintptr.
-//    - from (Unicode) integer to (UTF-8) string.
+//   - between real numeric types.
+//   - between complex numeric types.
+//   - between string and []byte or []rune.
+//   - between pointers and unsafe.Pointer.
+//   - between unsafe.Pointer and uintptr.
+//   - from (Unicode) integer to (UTF-8) string.
+//
 // A conversion may imply a type name change also.
 //
 // This operation cannot fail dynamically.
@@ -869,11 +903,31 @@ type ChangeType struct {
 // from an explicit conversion in the source.
 //
 // Example printed form:
-// 	t2 = Convert <[]byte> t1
 //
+//	t2 = Convert <[]byte> t1
 type Convert struct {
 	register
 	X Value
+}
+
+// The MultiConvert instruction yields the conversion of value X to type
+// Type(). Either X.Type() or Type() must be a type parameter. Each
+// type in the type set of X.Type() can be converted to each type in the
+// type set of Type().
+//
+// See the documentation for Convert, ChangeType, SliceToArray, and SliceToArrayPointer
+// for the conversions that are permitted.
+//
+// This operation can fail dynamically (see SliceToArrayPointer).
+//
+// Example printed form:
+//
+//	t1 = multiconvert D <- S (t0) [*[2]rune <- []rune | string <- []rune]
+type MultiConvert struct {
+	register
+	X    Value
+	from typeutil.TypeSet
+	to   typeutil.TypeSet
 }
 
 // ChangeInterface constructs a value of one interface type from a
@@ -886,8 +940,8 @@ type Convert struct {
 // otherwise.
 //
 // Example printed form:
-// 	t2 = ChangeInterface <I1> t1
 //
+//	t2 = ChangeInterface <I1> t1
 type ChangeInterface struct {
 	register
 	X Value
@@ -900,9 +954,23 @@ type ChangeInterface struct {
 // from an explicit conversion in the source.
 //
 // Example printed form:
-// 	t1 = SliceToArrayPointer <*[4]byte> t1
 //
+//	t2 = SliceToArrayPointer <*[4]byte> t1
 type SliceToArrayPointer struct {
+	register
+	X Value
+}
+
+// The SliceToArray instruction yields the conversion of slice X to
+// array.
+//
+// Pos() returns the ast.CallExpr.Lparen, if the instruction arose
+// from an explicit conversion in the source.
+//
+// Example printed form:
+//
+//	t2 = SliceToArray <[4]byte> t1
+type SliceToArray struct {
 	register
 	X Value
 }
@@ -914,14 +982,15 @@ type SliceToArrayPointer struct {
 // of X, and Program.MethodValue(m) to find the implementation of a method.
 //
 // To construct the zero value of an interface type T, use:
-// 	NewConst(constant.MakeNil(), T, pos)
+//
+//	NewConst(constant.MakeNil(), T, pos)
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
 // from an explicit conversion in the source.
 //
 // Example printed form:
-// 	t2 = MakeInterface <interface{}> t1
 //
+//	t2 = MakeInterface <interface{}> t1
 type MakeInterface struct {
 	register
 	X Value
@@ -936,9 +1005,9 @@ type MakeInterface struct {
 // closure or the ast.SelectorExpr.Sel for a bound method closure.
 //
 // Example printed form:
-// 	t1 = MakeClosure <func()> foo$1 t1 t2
-// 	t5 = MakeClosure <func(int)> (T).foo$bound t4
 //
+//	t1 = MakeClosure <func()> foo$1 t1 t2
+//	t5 = MakeClosure <func(int)> (T).foo$bound t4
 type MakeClosure struct {
 	register
 	Fn       Value   // always a *Function
@@ -954,9 +1023,9 @@ type MakeClosure struct {
 // the ast.CompositeLit.Lbrack if created by a literal.
 //
 // Example printed form:
-// 	t1 = MakeMap <map[string]int>
-// 	t2 = MakeMap <StringIntMap> t1
 //
+//	t1 = MakeMap <map[string]int>
+//	t2 = MakeMap <StringIntMap> t1
 type MakeMap struct {
 	register
 	Reserve Value // initial space reservation; nil => default
@@ -971,9 +1040,9 @@ type MakeMap struct {
 // created it.
 //
 // Example printed form:
-// 	t3 = MakeChan <chan int> t1
-// 	t4 = MakeChan <chan IntChan> t2
 //
+//	t3 = MakeChan <chan int> t1
+//	t4 = MakeChan <chan IntChan> t2
 type MakeChan struct {
 	register
 	Size Value // int; size of buffer; zero => synchronous.
@@ -993,9 +1062,9 @@ type MakeChan struct {
 // created it.
 //
 // Example printed form:
-// 	t3 = MakeSlice <[]string> t1 t2
-// 	t4 = MakeSlice <StringSlice> t1 t2
 //
+//	t3 = MakeSlice <[]string> t1 t2
+//	t4 = MakeSlice <StringSlice> t1 t2
 type MakeSlice struct {
 	register
 	Len Value
@@ -1016,8 +1085,8 @@ type MakeSlice struct {
 // NoPos if not explicit in the source (e.g. a variadic argument slice).
 //
 // Example printed form:
-// 	t4 = Slice <[]int> t3 t2 t1 <nil>
 //
+//	t4 = Slice <[]int> t3 t2 t1 <nil>
 type Slice struct {
 	register
 	X              Value // slice, string, or *array
@@ -1038,8 +1107,8 @@ type Slice struct {
 // field, if explicit in the source.
 //
 // Example printed form:
-// 	t2 = FieldAddr <*int> [0] (X) t1
 //
+//	t2 = FieldAddr <*int> [0] (X) t1
 type FieldAddr struct {
 	register
 	X     Value // *struct
@@ -1056,8 +1125,8 @@ type FieldAddr struct {
 // field, if explicit in the source.
 //
 // Example printed form:
-// 	t2 = FieldAddr <int> [0] (X) t1
 //
+//	t2 = FieldAddr <int> [0] (X) t1
 type Field struct {
 	register
 	X     Value // struct
@@ -1079,8 +1148,8 @@ type Field struct {
 // explicit in the source.
 //
 // Example printed form:
-// 	t3 = IndexAddr <*int> t2 t1
 //
+//	t3 = IndexAddr <*int> t2 t1
 type IndexAddr struct {
 	register
 	X     Value // slice or *array,
@@ -1093,8 +1162,8 @@ type IndexAddr struct {
 // explicit in the source.
 //
 // Example printed form:
-// 	t3 = Index <int> t2 t1
 //
+//	t3 = Index <int> t2 t1
 type Index struct {
 	register
 	X     Value // array
@@ -1110,9 +1179,9 @@ type Index struct {
 // Pos() returns the ast.IndexExpr.Lbrack, if explicit in the source.
 //
 // Example printed form:
-// 	t4 = MapLookup <string> t3 t1
-// 	t6 = MapLookup <(string, bool)> t3 t2
 //
+//	t4 = MapLookup <string> t3 t1
+//	t6 = MapLookup <(string, bool)> t3 t2
 type MapLookup struct {
 	register
 	X       Value // map
@@ -1126,8 +1195,8 @@ type MapLookup struct {
 // Pos() returns the ast.IndexExpr.Lbrack, if explicit in the source.
 //
 // Example printed form:
-// 	t3 = StringLookup <uint8> t2 t1
 //
+//	t3 = StringLookup <uint8> t2 t1
 type StringLookup struct {
 	register
 	X     Value // string
@@ -1136,7 +1205,6 @@ type StringLookup struct {
 
 // SelectState is a helper for Select.
 // It represents one goal state and its corresponding communication.
-//
 type SelectState struct {
 	Dir       types.ChanDir // direction of case (SendOnly or RecvOnly)
 	Chan      Value         // channel to use (for send or receive)
@@ -1151,7 +1219,9 @@ type SelectState struct {
 // Let n be the number of States for which Dir==RECV and Tᵢ (0 ≤ i < n)
 // be the element type of each such state's Chan.
 // Select returns an n+2-tuple
-//    (index int, recvOk bool, r₀ T₀, ... rₙ-1 Tₙ-1)
+//
+//	(index int, recvOk bool, r₀ T₀, ... rₙ-1 Tₙ-1)
+//
 // The tuple's components, described below, must be accessed via the
 // Extract instruction.
 //
@@ -1177,9 +1247,9 @@ type SelectState struct {
 // Pos() returns the ast.SelectStmt.Select.
 //
 // Example printed form:
-// 	t6 = SelectNonBlocking <(index int, ok bool, int)> [<-t4, t5<-t1]
-// 	t11 = SelectBlocking <(index int, ok bool)> []
 //
+//	t6 = SelectNonBlocking <(index int, ok bool, int)> [<-t4, t5<-t1]
+//	t11 = SelectBlocking <(index int, ok bool)> []
 type Select struct {
 	register
 	States   []*SelectState
@@ -1196,8 +1266,8 @@ type Select struct {
 // Pos() returns the ast.RangeStmt.For.
 //
 // Example printed form:
-// 	t2 = Range <iter> t1
 //
+//	t2 = Range <iter> t1
 type Range struct {
 	register
 	X Value // string or map
@@ -1219,9 +1289,9 @@ type Range struct {
 // The types of k and/or v may be types.Invalid.
 //
 // Example printed form:
-// 	t5 = Next <(ok bool, k int, v rune)> t2
-// 	t5 = Next <(ok bool, k invalid type, v invalid type)> t2
 //
+//	t5 = Next <(ok bool, k int, v rune)> t2
+//	t5 = Next <(ok bool, k invalid type, v invalid type)> t2
 type Next struct {
 	register
 	Iter     Value
@@ -1260,9 +1330,9 @@ type Next struct {
 // type-switch statement.
 //
 // Example printed form:
-// 	t2 = TypeAssert <int> t1
-// 	t4 = TypeAssert <(value fmt.Stringer, ok bool)> t1
 //
+//	t2 = TypeAssert <int> t1
+//	t4 = TypeAssert <(value fmt.Stringer, ok bool)> t1
 type TypeAssert struct {
 	register
 	X            Value
@@ -1277,8 +1347,8 @@ type TypeAssert struct {
 // MapLookup and others.
 //
 // Example printed form:
-// 	t7 = Extract <bool> [1] (ok) t4
 //
+//	t7 = Extract <bool> [1] (ok) t4
 type Extract struct {
 	register
 	Tuple Value
@@ -1295,11 +1365,10 @@ type Extract struct {
 // Pos() returns NoPos.
 //
 // Example printed form:
-// 	Jump → b1
 //
+//	Jump → b1
 type Jump struct {
 	anInstruction
-	Comment string
 }
 
 // The Unreachable pseudo-instruction signals that execution cannot
@@ -1313,8 +1382,8 @@ type Jump struct {
 // containing BasicBlock.
 //
 // Example printed form:
-// 	Unreachable → b1
 //
+//	Unreachable → b1
 type Unreachable struct {
 	anInstruction
 }
@@ -1329,8 +1398,8 @@ type Unreachable struct {
 // Pos() returns the *ast.IfStmt, if explicit in the source.
 //
 // Example printed form:
-// 	If t2 → b1 b2
 //
+//	If t2 → b1 b2
 type If struct {
 	anInstruction
 	Cond Value
@@ -1369,9 +1438,9 @@ type TypeSwitch struct {
 // Pos() returns the ast.ReturnStmt.Return, if explicit in the source.
 //
 // Example printed form:
-// 	Return
-// 	Return t1 t2
 //
+//	Return
+//	Return t1 t2
 type Return struct {
 	anInstruction
 	Results []Value
@@ -1387,8 +1456,8 @@ type Return struct {
 // Pos() returns NoPos.
 //
 // Example printed form:
-// 	RunDefers
 //
+//	RunDefers
 type RunDefers struct {
 	anInstruction
 }
@@ -1405,8 +1474,8 @@ type RunDefers struct {
 // in the source.
 //
 // Example printed form:
-// 	Panic t1
 //
+//	Panic t1
 type Panic struct {
 	anInstruction
 	X Value // an interface{}
@@ -1420,10 +1489,10 @@ type Panic struct {
 // Pos() returns the ast.GoStmt.Go.
 //
 // Example printed form:
-// 	Go println t1
-// 	Go t3
-// 	GoInvoke t4.Bar t2
 //
+//	Go println t1
+//	Go t3
+//	GoInvoke t4.Bar t2
 type Go struct {
 	anInstruction
 	Call CallCommon
@@ -1432,18 +1501,27 @@ type Go struct {
 // The Defer instruction pushes the specified call onto a stack of
 // functions to be called by a RunDefers instruction or by a panic.
 //
+// If _DeferStack != nil, it indicates the defer list that the defer is
+// added to. Defer list values come from the Builtin function
+// ssa:deferstack. Calls to ssa:deferstack() produces the defer stack
+// of the current function frame. _DeferStack allows for deferring into an
+// alternative function stack than the current function.
+//
 // See CallCommon for generic function call documentation.
 //
 // Pos() returns the ast.DeferStmt.Defer.
 //
 // Example printed form:
-// 	Defer println t1
-// 	Defer t3
-// 	DeferInvoke t4.Bar t2
 //
+//	Defer println t1
+//	Defer t3
+//	DeferInvoke t4.Bar t2
 type Defer struct {
 	anInstruction
-	Call CallCommon
+	Call        CallCommon
+	_DeferStack Value // stack (from ssa:deferstack() intrinsic) onto which this function is pushed
+
+	// TODO: Exporting _DeferStack and possibly making _DeferStack != nil awaits proposal https://github.com/golang/go/issues/66601.
 }
 
 // The Send instruction sends X on channel Chan.
@@ -1451,8 +1529,8 @@ type Defer struct {
 // Pos() returns the ast.SendStmt.Arrow, if explicit in the source.
 //
 // Example printed form:
-// 	Send t2 t1
 //
+//	Send t2 t1
 type Send struct {
 	anInstruction
 	Chan, X Value
@@ -1469,8 +1547,9 @@ type Send struct {
 // Pos() returns the ast.RangeStmt.For.
 //
 // Example printed form:
-// 	t2 = Recv <int> t1
-// 	t3 = Recv <(int, bool)> t1
+//
+//	t2 = Recv <int> t1
+//	t3 = Recv <(int, bool)> t1
 type Recv struct {
 	register
 	Chan    Value
@@ -1486,8 +1565,8 @@ type Recv struct {
 // implementation choices, the details are not specified.
 //
 // Example printed form:
-// 	Store {int} t2 t1
 //
+//	Store {int} t2 t1
 type Store struct {
 	anInstruction
 	Addr Value
@@ -1502,8 +1581,8 @@ type Store struct {
 // Pos() returns NoPos.
 //
 // Example printed form:
-// 	BlankStore t1
 //
+//	BlankStore t1
 type BlankStore struct {
 	anInstruction
 	Val Value
@@ -1516,8 +1595,8 @@ type BlankStore struct {
 // if explicit in the source.
 //
 // Example printed form:
-// 	MapUpdate t3 t1 t2
 //
+//	MapUpdate t3 t1 t2
 type MapUpdate struct {
 	anInstruction
 	Map   Value
@@ -1549,10 +1628,10 @@ type MapUpdate struct {
 // ordinary SSA renaming machinery.)
 //
 // Example printed form:
-//      ; *ast.CallExpr @ 102:9 is t5
-//      ; var x float64 @ 109:72 is x
-//      ; address of *ast.CompositeLit @ 216:10 is t0
 //
+//	; *ast.CallExpr @ 102:9 is t5
+//	; var x float64 @ 109:72 is x
+//	; address of *ast.CompositeLit @ 216:10 is t0
 type DebugRef struct {
 	anInstruction
 	Expr   ast.Expr     // the referring expression (never *ast.ParenExpr)
@@ -1570,7 +1649,6 @@ type DebugRef struct {
 //
 // Temporary names are automatically assigned to each register on
 // completion of building a function in IR form.
-//
 type register struct {
 	anInstruction
 	typ       types.Type // type of virtual register
@@ -1599,7 +1677,12 @@ func (n *node) Pos() token.Pos {
 // It provides the implementations of the Block and setBlock methods.
 type anInstruction struct {
 	node
-	block *BasicBlock // the basic block of this instruction
+	block   *BasicBlock // the basic block of this instruction
+	comment string
+}
+
+func (instr anInstruction) Comment() string {
+	return instr.comment
 }
 
 // CallCommon is contained by Go, Defer and Call to hold the
@@ -1614,15 +1697,17 @@ type anInstruction struct {
 // 'func'.
 //
 // Value may be one of:
-//    (a) a *Function, indicating a statically dispatched call
-//        to a package-level function, an anonymous function, or
-//        a method of a named type.
-//    (b) a *MakeClosure, indicating an immediately applied
-//        function literal with free variables.
-//    (c) a *Builtin, indicating a statically dispatched call
-//        to a built-in function.
-//    (d) any other value, indicating a dynamically dispatched
-//        function call.
+//
+//	(a) a *Function, indicating a statically dispatched call
+//	    to a package-level function, an anonymous function, or
+//	    a method of a named type.
+//	(b) a *MakeClosure, indicating an immediately applied
+//	    function literal with free variables.
+//	(c) a *Builtin, indicating a statically dispatched call
+//	    to a built-in function.
+//	(d) any other value, indicating a dynamically dispatched
+//	    function call.
+//
 // StaticCallee returns the identity of the callee in cases
 // (a) and (b), nil otherwise.
 //
@@ -1630,9 +1715,10 @@ type anInstruction struct {
 // Args[0] contains the receiver parameter.
 //
 // Example printed form:
-// 	t3 = Call <()> println t1 t2
-// 	Go t3
-// 	Defer t3
+//
+//	t3 = Call <()> println t1 t2
+//	Go t3
+//	Defer t3
 //
 // 2. "invoke" mode: when Method is non-nil (IsInvoke), a CallCommon
 // represents a dynamically dispatched call to an interface method.
@@ -1646,13 +1732,13 @@ type anInstruction struct {
 // receiver but the first true argument.
 //
 // Example printed form:
-// 	t6 = Invoke <string> t5.String
-// 	GoInvoke t4.Bar t2
-// 	DeferInvoke t4.Bar t2
+//
+//	t6 = Invoke <string> t5.String
+//	GoInvoke t4.Bar t2
+//	DeferInvoke t4.Bar t2
 //
 // For all calls to variadic functions (Signature().Variadic()),
 // the last element of Args is a slice.
-//
 type CallCommon struct {
 	Value    Value       // receiver (invoke mode) or func value (call mode)
 	Method   *types.Func // abstract method (invoke mode)
@@ -1673,7 +1759,6 @@ func (c *CallCommon) IsInvoke() bool {
 //
 // In either "call" or "invoke" mode, if the callee is a method, its
 // receiver is represented by sig.Recv, not sig.Params().At(0).
-//
 func (c *CallCommon) Signature() *types.Signature {
 	if c.Method != nil {
 		return c.Method.Type().(*types.Signature)
@@ -1716,7 +1801,6 @@ func (c *CallCommon) Description() string {
 // The CallInstruction interface, implemented by *Go, *Defer and *Call,
 // exposes the common parts of function-calling instructions,
 // yet provides a way back to the Value defined by *Call alone.
-//
 type CallInstruction interface {
 	Instruction
 	Common() *CallCommon // returns the common parts of the call
@@ -1753,13 +1837,18 @@ func (v *Global) String() string                       { return v.RelString(nil)
 func (v *Global) Package() *Package                    { return v.Pkg }
 func (v *Global) RelString(from *types.Package) string { return relString(v, from) }
 
-func (v *Function) Name() string         { return v.name }
-func (v *Function) Type() types.Type     { return v.Signature }
-func (v *Function) Token() token.Token   { return token.FUNC }
-func (v *Function) Object() types.Object { return v.object }
-func (v *Function) String() string       { return v.RelString(nil) }
-func (v *Function) Package() *Package    { return v.Pkg }
-func (v *Function) Parent() *Function    { return v.parent }
+func (v *Function) Name() string       { return v.name }
+func (v *Function) Type() types.Type   { return v.Signature }
+func (v *Function) Token() token.Token { return token.FUNC }
+func (v *Function) Object() types.Object {
+	if v.object != nil {
+		return types.Object(v.object)
+	}
+	return nil
+}
+func (v *Function) String() string    { return v.RelString(nil) }
+func (v *Function) Package() *Package { return v.Pkg }
+func (v *Function) Parent() *Function { return v.parent }
 func (v *Function) Referrers() *[]Instruction {
 	if v.parent != nil {
 		return &v.referrers
@@ -1802,7 +1891,6 @@ func (c *NamedConst) RelString(from *types.Package) string { return relString(c,
 
 // Func returns the package-level function of the specified name,
 // or nil if not found.
-//
 func (p *Package) Func(name string) (f *Function) {
 	f, _ = p.Members[name].(*Function)
 	return
@@ -1810,7 +1898,6 @@ func (p *Package) Func(name string) (f *Function) {
 
 // Var returns the package-level variable of the specified name,
 // or nil if not found.
-//
 func (p *Package) Var(name string) (g *Global) {
 	g, _ = p.Members[name].(*Global)
 	return
@@ -1818,7 +1905,6 @@ func (p *Package) Var(name string) (g *Global) {
 
 // Const returns the package-level constant of the specified name,
 // or nil if not found.
-//
 func (p *Package) Const(name string) (c *NamedConst) {
 	c, _ = p.Members[name].(*NamedConst)
 	return
@@ -1826,7 +1912,6 @@ func (p *Package) Const(name string) (c *NamedConst) {
 
 // Type returns the package-level type of the specified name,
 // or nil if not found.
-//
 func (p *Package) Type(name string) (t *Type) {
 	t, _ = p.Members[name].(*Type)
 	return
@@ -1861,7 +1946,7 @@ func (s *Call) Operands(rands []*Value) []*Value {
 }
 
 func (s *Defer) Operands(rands []*Value) []*Value {
-	return s.Call.Operands(rands)
+	return append(s.Call.Operands(rands), &s._DeferStack)
 }
 
 func (v *ChangeInterface) Operands(rands []*Value) []*Value {
@@ -1876,7 +1961,15 @@ func (v *Convert) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 
+func (v *MultiConvert) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
 func (v *SliceToArrayPointer) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *SliceToArray) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 
@@ -2042,13 +2135,26 @@ func (v *Load) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 
+func (v *AggregateConst) Operands(rands []*Value) []*Value {
+	for i := range v.Values {
+		rands = append(rands, &v.Values[i])
+	}
+	return rands
+}
+
+func (v *CompositeValue) Operands(rands []*Value) []*Value {
+	for i := range v.Values {
+		rands = append(rands, &v.Values[i])
+	}
+	return rands
+}
+
 // Non-Instruction Values:
-func (v *Builtin) Operands(rands []*Value) []*Value        { return rands }
-func (v *FreeVar) Operands(rands []*Value) []*Value        { return rands }
-func (v *Const) Operands(rands []*Value) []*Value          { return rands }
-func (v *ArrayConst) Operands(rands []*Value) []*Value     { return rands }
-func (v *AggregateConst) Operands(rands []*Value) []*Value { return rands }
-func (v *GenericConst) Operands(rands []*Value) []*Value   { return rands }
-func (v *Function) Operands(rands []*Value) []*Value       { return rands }
-func (v *Global) Operands(rands []*Value) []*Value         { return rands }
-func (v *Parameter) Operands(rands []*Value) []*Value      { return rands }
+func (v *Builtin) Operands(rands []*Value) []*Value      { return rands }
+func (v *FreeVar) Operands(rands []*Value) []*Value      { return rands }
+func (v *Const) Operands(rands []*Value) []*Value        { return rands }
+func (v *ArrayConst) Operands(rands []*Value) []*Value   { return rands }
+func (v *GenericConst) Operands(rands []*Value) []*Value { return rands }
+func (v *Function) Operands(rands []*Value) []*Value     { return rands }
+func (v *Global) Operands(rands []*Value) []*Value       { return rands }
+func (v *Parameter) Operands(rands []*Value) []*Value    { return rands }

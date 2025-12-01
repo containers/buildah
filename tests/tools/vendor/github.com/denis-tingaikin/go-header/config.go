@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Denis Tingaikin
+// Copyright (c) 2020-2024 Denis Tingaikin
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,7 +19,7 @@ package goheader
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -40,7 +40,7 @@ func (c *Configuration) builtInValues() map[string]Value {
 	var result = make(map[string]Value)
 	year := fmt.Sprint(time.Now().Year())
 	result["year-range"] = &RegexpValue{
-		RawValue: strings.ReplaceAll(`((20\d\d\-YEAR)|(YEAR))`, "YEAR", year),
+		RawValue: `((20\d\d\-{{YEAR}})|({{YEAR}}))`,
 	}
 	result["year"] = &ConstValue{
 		RawValue: year,
@@ -82,7 +82,7 @@ func (c *Configuration) GetTemplate() (string, error) {
 	if c.TemplatePath == "" {
 		return "", errors.New("template has not passed")
 	}
-	if b, err := ioutil.ReadFile(c.TemplatePath); err != nil {
+	if b, err := os.ReadFile(c.TemplatePath); err != nil {
 		return "", err
 	} else {
 		c.Template = strings.TrimSpace(string(b))
@@ -91,7 +91,7 @@ func (c *Configuration) GetTemplate() (string, error) {
 }
 
 func (c *Configuration) Parse(p string) error {
-	b, err := ioutil.ReadFile(p)
+	b, err := os.ReadFile(p)
 	if err != nil {
 		return err
 	}

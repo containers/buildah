@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	"golang.org/x/exp/typeparams"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 func IsIdent(expr ast.Expr, ident string) bool {
@@ -132,7 +132,7 @@ func CopyExpr(node ast.Expr) (ast.Expr, bool) {
 		cp.X, ok1 = CopyExpr(cp.X)
 		cp.Index, ok2 = CopyExpr(cp.Index)
 		return &cp, ok1 && ok2
-	case *typeparams.IndexListExpr:
+	case *ast.IndexListExpr:
 		var ok bool
 		cp := *node
 		cp.X, ok = CopyExpr(cp.X)
@@ -280,8 +280,8 @@ func Equal(a, b ast.Node) bool {
 	case *ast.IndexExpr:
 		b := b.(*ast.IndexExpr)
 		return Equal(a.X, b.X) && Equal(a.Index, b.Index)
-	case *typeparams.IndexListExpr:
-		b := b.(*typeparams.IndexListExpr)
+	case *ast.IndexListExpr:
+		b := b.(*ast.IndexListExpr)
 		if len(a.Indices) != len(b.Indices) {
 			return false
 		}
@@ -361,4 +361,113 @@ func Equal(a, b ast.Node) bool {
 	default:
 		panic(fmt.Sprintf("unreachable: %T", a))
 	}
+}
+
+func NegateDeMorgan(expr ast.Expr, recursive bool) ast.Expr {
+	switch expr := expr.(type) {
+	case *ast.BinaryExpr:
+		var out ast.BinaryExpr
+		switch expr.Op {
+		case token.EQL:
+			out.X = expr.X
+			out.Op = token.NEQ
+			out.Y = expr.Y
+		case token.LSS:
+			out.X = expr.X
+			out.Op = token.GEQ
+			out.Y = expr.Y
+		case token.GTR:
+			out.X = expr.X
+			out.Op = token.LEQ
+			out.Y = expr.Y
+		case token.NEQ:
+			out.X = expr.X
+			out.Op = token.EQL
+			out.Y = expr.Y
+		case token.LEQ:
+			out.X = expr.X
+			out.Op = token.GTR
+			out.Y = expr.Y
+		case token.GEQ:
+			out.X = expr.X
+			out.Op = token.LSS
+			out.Y = expr.Y
+
+		case token.LAND:
+			out.X = NegateDeMorgan(expr.X, recursive)
+			out.Op = token.LOR
+			out.Y = NegateDeMorgan(expr.Y, recursive)
+		case token.LOR:
+			out.X = NegateDeMorgan(expr.X, recursive)
+			out.Op = token.LAND
+			out.Y = NegateDeMorgan(expr.Y, recursive)
+		}
+		return &out
+
+	case *ast.ParenExpr:
+		if recursive {
+			return &ast.ParenExpr{
+				X: NegateDeMorgan(expr.X, recursive),
+			}
+		} else {
+			return &ast.UnaryExpr{
+				Op: token.NOT,
+				X:  expr,
+			}
+		}
+
+	case *ast.UnaryExpr:
+		if expr.Op == token.NOT {
+			return expr.X
+		} else {
+			return &ast.UnaryExpr{
+				Op: token.NOT,
+				X:  expr,
+			}
+		}
+
+	default:
+		return &ast.UnaryExpr{
+			Op: token.NOT,
+			X:  expr,
+		}
+	}
+}
+
+func SimplifyParentheses(node ast.Expr) ast.Expr {
+	var changed bool
+	// XXX accept list of ops to operate on
+	// XXX copy AST node, don't modify in place
+	post := func(c *astutil.Cursor) bool {
+		out := c.Node()
+		if paren, ok := c.Node().(*ast.ParenExpr); ok {
+			out = paren.X
+		}
+
+		if binop, ok := out.(*ast.BinaryExpr); ok {
+			if right, ok := binop.Y.(*ast.BinaryExpr); ok && binop.Op == right.Op {
+				// XXX also check that Op is associative
+
+				root := binop
+				pivot := root.Y.(*ast.BinaryExpr)
+				root.Y = pivot.X
+				pivot.X = root
+				root = pivot
+				out = root
+			}
+		}
+
+		if out != c.Node() {
+			changed = true
+			c.Replace(out)
+		}
+		return true
+	}
+
+	for changed = true; changed; {
+		changed = false
+		node = astutil.Apply(node, nil, post).(ast.Expr)
+	}
+
+	return node
 }

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package analysisinternal exposes internal-only fields from go/analysis.
+// Package analysisinternal provides gopls' internal analyses with a
+// number of helper functions that operate on typed syntax trees.
 package analysisinternal
 
 import (
@@ -11,15 +12,11 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"os"
+	pathpkg "path"
 	"strconv"
-)
 
-// Flag to gate diagnostics for fuzz tests in 1.18.
-var DiagnoseFuzzTests bool = false
-
-var (
-	GetTypeErrors func(p interface{}) []types.Error
-	SetTypeErrors func(p interface{}, errors []types.Error)
+	"golang.org/x/tools/go/analysis"
 )
 
 func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
@@ -35,21 +32,24 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 }
 
 func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
-	under := typ
-	if n, ok := typ.(*types.Named); ok {
+	// TODO(adonovan): think about generics, and also generic aliases.
+	under := types.Unalias(typ)
+	// Don't call Underlying unconditionally: although it removes
+	// Named and Alias, it also removes TypeParam.
+	if n, ok := under.(*types.Named); ok {
 		under = n.Underlying()
 	}
-	switch u := under.(type) {
+	switch under := under.(type) {
 	case *types.Basic:
 		switch {
-		case u.Info()&types.IsNumeric != 0:
+		case under.Info()&types.IsNumeric != 0:
 			return &ast.BasicLit{Kind: token.INT, Value: "0"}
-		case u.Info()&types.IsBoolean != 0:
+		case under.Info()&types.IsBoolean != 0:
 			return &ast.Ident{Name: "false"}
-		case u.Info()&types.IsString != 0:
+		case under.Info()&types.IsString != 0:
 			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
 		default:
-			panic("unknown basic type")
+			panic(fmt.Sprintf("unknown basic type %v", under))
 		}
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return ast.NewIdent("nil")
@@ -78,6 +78,9 @@ func IsZeroValue(expr ast.Expr) bool {
 	}
 }
 
+// TypeExpr returns syntax for the specified type. References to
+// named types from packages other than pkg are qualified by an appropriate
+// package name, as defined by the import environment of file.
 func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
@@ -155,6 +158,10 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				},
 			})
 		}
+		if t.Variadic() {
+			last := params[len(params)-1]
+			last.Type = &ast.Ellipsis{Elt: last.Type.(*ast.ArrayType).Elt}
+		}
 		var returns []*ast.Field
 		for i := 0; i < t.Results().Len(); i++ {
 			r := TypeExpr(f, pkg, t.Results().At(i).Type())
@@ -173,7 +180,7 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				List: returns,
 			},
 		}
-	case *types.Named:
+	case interface{ Obj() *types.TypeName }: // *types.{Alias,Named,TypeParam}
 		if t.Obj().Pkg() == nil {
 			return ast.NewIdent(t.Obj().Name())
 		}
@@ -205,14 +212,6 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		return nil
 	}
 }
-
-type TypeErrorPass string
-
-const (
-	NoNewVars      TypeErrorPass = "nonewvars"
-	NoResultValues TypeErrorPass = "noresultvalues"
-	UndeclaredName TypeErrorPass = "undeclaredname"
-)
 
 // StmtToInsertVarBefore returns the ast.Stmt before which we can safely insert a new variable.
 // Some examples:
@@ -270,6 +269,8 @@ func StmtToInsertVarBefore(path []ast.Node) ast.Stmt {
 		if expr.Init == enclosingStmt || expr.Post == enclosingStmt {
 			return expr
 		}
+	case *ast.SwitchStmt, *ast.TypeSwitchStmt:
+		return expr.(ast.Stmt)
 	}
 	return enclosingStmt.(ast.Stmt)
 }
@@ -307,19 +308,21 @@ func WalkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
 	})
 }
 
-// FindMatchingIdents finds all identifiers in 'node' that match any of the given types.
+// MatchingIdents finds the names of all identifiers in 'node' that match any of the given types.
 // 'pos' represents the position at which the identifiers may be inserted. 'pos' must be within
 // the scope of each of identifier we select. Otherwise, we will insert a variable at 'pos' that
 // is unrecognized.
-func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *types.Info, pkg *types.Package) map[types.Type][]*ast.Ident {
-	matches := map[types.Type][]*ast.Ident{}
+func MatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *types.Info, pkg *types.Package) map[types.Type][]string {
+
 	// Initialize matches to contain the variable types we are searching for.
+	matches := make(map[types.Type][]string)
 	for _, typ := range typs {
 		if typ == nil {
-			continue
+			continue // TODO(adonovan): is this reachable?
 		}
-		matches[typ] = []*ast.Ident{}
+		matches[typ] = nil // create entry
 	}
+
 	seen := map[types.Object]struct{}{}
 	ast.Inspect(node, func(n ast.Node) bool {
 		if n == nil {
@@ -331,8 +334,7 @@ func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *t
 		//
 		// x := fakeStruct{f0: x}
 		//
-		assignment, ok := n.(*ast.AssignStmt)
-		if ok && pos > assignment.Pos() && pos <= assignment.End() {
+		if assign, ok := n.(*ast.AssignStmt); ok && pos > assign.Pos() && pos <= assign.End() {
 			return false
 		}
 		if n.End() > pos {
@@ -365,17 +367,17 @@ func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *t
 			return true
 		}
 		// The object must match one of the types that we are searching for.
-		if idents, ok := matches[obj.Type()]; ok {
-			matches[obj.Type()] = append(idents, ast.NewIdent(ident.Name))
-		}
-		// If the object type does not exactly match any of the target types, greedily
-		// find the first target type that the object type can satisfy.
-		for typ := range matches {
-			if obj.Type() == typ {
-				continue
-			}
-			if equivalentTypes(obj.Type(), typ) {
-				matches[typ] = append(matches[typ], ast.NewIdent(ident.Name))
+		// TODO(adonovan): opt: use typeutil.Map?
+		if names, ok := matches[obj.Type()]; ok {
+			matches[obj.Type()] = append(names, ident.Name)
+		} else {
+			// If the object type does not exactly match
+			// any of the target types, greedily find the first
+			// target type that the object type can satisfy.
+			for typ := range matches {
+				if equivalentTypes(obj.Type(), typ) {
+					matches[typ] = append(matches[typ], ident.Name)
+				}
 			}
 		}
 		return true
@@ -384,7 +386,7 @@ func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *t
 }
 
 func equivalentTypes(want, got types.Type) bool {
-	if want == got || types.Identical(want, got) {
+	if types.Identical(want, got) {
 		return true
 	}
 	// Code segment to help check for untyped equality from (golang/go#32146).
@@ -394,4 +396,116 @@ func equivalentTypes(want, got types.Type) bool {
 		}
 	}
 	return types.AssignableTo(want, got)
+}
+
+// MakeReadFile returns a simple implementation of the Pass.ReadFile function.
+func MakeReadFile(pass *analysis.Pass) func(filename string) ([]byte, error) {
+	return func(filename string) ([]byte, error) {
+		if err := CheckReadable(pass, filename); err != nil {
+			return nil, err
+		}
+		return os.ReadFile(filename)
+	}
+}
+
+// CheckReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
+func CheckReadable(pass *analysis.Pass, filename string) error {
+	if slicesContains(pass.OtherFiles, filename) ||
+		slicesContains(pass.IgnoredFiles, filename) {
+		return nil
+	}
+	for _, f := range pass.Files {
+		if pass.Fset.File(f.FileStart).Name() == filename {
+			return nil
+		}
+	}
+	return fmt.Errorf("Pass.ReadFile: %s is not among OtherFiles, IgnoredFiles, or names of Files", filename)
+}
+
+// TODO(adonovan): use go1.21 slices.Contains.
+func slicesContains[S ~[]E, E comparable](slice S, x E) bool {
+	for _, elem := range slice {
+		if elem == x {
+			return true
+		}
+	}
+	return false
+}
+
+// AddImport checks whether this file already imports pkgpath and
+// that import is in scope at pos. If so, it returns the name under
+// which it was imported and a zero edit. Otherwise, it adds a new
+// import of pkgpath, using a name derived from the preferred name,
+// and returns the chosen name along with the edit for the new import.
+//
+// It does not mutate its arguments.
+func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferredName string) (name string, newImport []analysis.TextEdit) {
+	// Find innermost enclosing lexical block.
+	scope := info.Scopes[file].Innermost(pos)
+	if scope == nil {
+		panic("no enclosing lexical block")
+	}
+
+	// Is there an existing import of this package?
+	// If so, are we in its scope? (not shadowed)
+	for _, spec := range file.Imports {
+		pkgname, ok := importedPkgName(info, spec)
+		if ok && pkgname.Imported().Path() == pkgpath {
+			if _, obj := scope.LookupParent(pkgname.Name(), pos); obj == pkgname {
+				return pkgname.Name(), nil
+			}
+		}
+	}
+
+	// We must add a new import.
+	// Ensure we have a fresh name.
+	newName := preferredName
+	for i := 0; ; i++ {
+		if _, obj := scope.LookupParent(newName, pos); obj == nil {
+			break // fresh
+		}
+		newName = fmt.Sprintf("%s%d", preferredName, i)
+	}
+
+	// For now, keep it real simple: create a new import
+	// declaration before the first existing declaration (which
+	// must exist), including its comments, and let goimports tidy it up.
+	//
+	// Use a renaming import whenever the preferred name is not
+	// available, or the chosen name does not match the last
+	// segment of its path.
+	newText := fmt.Sprintf("import %q\n\n", pkgpath)
+	if newName != preferredName || newName != pathpkg.Base(pkgpath) {
+		newText = fmt.Sprintf("import %s %q\n\n", newName, pkgpath)
+	}
+	decl0 := file.Decls[0]
+	var before ast.Node = decl0
+	switch decl0 := decl0.(type) {
+	case *ast.GenDecl:
+		if decl0.Doc != nil {
+			before = decl0.Doc
+		}
+	case *ast.FuncDecl:
+		if decl0.Doc != nil {
+			before = decl0.Doc
+		}
+	}
+	return newName, []analysis.TextEdit{{
+		Pos:     before.Pos(),
+		End:     before.Pos(),
+		NewText: []byte(newText),
+	}}
+}
+
+// importedPkgName returns the PkgName object declared by an ImportSpec.
+// TODO(adonovan): use go1.22's Info.PkgNameOf.
+func importedPkgName(info *types.Info, imp *ast.ImportSpec) (*types.PkgName, bool) {
+	var obj types.Object
+	if imp.Name != nil {
+		obj = info.Defs[imp.Name]
+	} else {
+		obj = info.Implicits[imp]
+	}
+	pkgname, ok := obj.(*types.PkgName)
+	return pkgname, ok
 }

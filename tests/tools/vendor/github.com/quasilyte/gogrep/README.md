@@ -24,7 +24,7 @@ $ go get github.com/quasilyte/gogrep
 To get a gogrep command-line tool, install the `cmd/gogrep` Go submodule.
 
 ```bash
-$ go install github.com/quasilyte/cmd/gogrep
+$ go install github.com/quasilyte/gogrep/cmd/gogrep@latest
 ```
 
 See [docs/gogrep_cli.md](_docs/gogrep_cli.md) to learn how to use it.

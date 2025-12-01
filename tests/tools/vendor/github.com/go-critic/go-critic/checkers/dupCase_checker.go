@@ -5,13 +5,13 @@ import (
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "dupCase"
-	info.Tags = []string{"diagnostic"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects duplicated case clauses inside switch or select statements"
 	info.Before = `
 switch x {

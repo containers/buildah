@@ -90,7 +90,7 @@ func parseSockstat(r io.Reader) (*NetSockstat, error) {
 		// The remaining fields are key/value pairs.
 		kvs, err := parseSockstatKVs(fields[1:])
 		if err != nil {
-			return nil, fmt.Errorf("parsing sockstat key/value pairs from %q: %w", s.Text(), err)
+			return nil, fmt.Errorf("error parsing sockstat key/value pairs from %q: %w", s.Text(), err)
 		}
 
 		// The first field is the protocol. We must trim its colon suffix.

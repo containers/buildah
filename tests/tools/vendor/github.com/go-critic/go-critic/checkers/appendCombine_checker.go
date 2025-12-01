@@ -5,7 +5,8 @@ import (
 	"go/token"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astequal"
 )
@@ -13,7 +14,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "appendCombine"
-	info.Tags = []string{"performance"}
+	info.Tags = []string{linter.PerformanceTag}
 	info.Summary = "Detects `append` chains to the same slice that can be done in a single `append` call"
 	info.Before = `
 xs = append(xs, 1)

@@ -12,7 +12,7 @@ import (
 type IncrementDecrementRule struct{}
 
 // Apply applies the rule to given file.
-func (r *IncrementDecrementRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*IncrementDecrementRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -29,13 +29,12 @@ func (r *IncrementDecrementRule) Apply(file *lint.File, _ lint.Arguments) []lint
 }
 
 // Name returns the rule name.
-func (r *IncrementDecrementRule) Name() string {
+func (*IncrementDecrementRule) Name() string {
 	return "increment-decrement"
 }
 
 type lintIncrementDecrement struct {
 	file      *lint.File
-	fileAst   *ast.File
 	onFailure func(lint.Failure)
 }
 

@@ -3,7 +3,6 @@ run:
 
 linters-settings:
   govet:
-    check-shadowing: true
     enable-all: true
     disable:
       - fieldalignment
@@ -28,18 +27,25 @@ linters-settings:
 linters:
   enable-all: true
   disable:
-    - maligned # Deprecated
-    - scopelint # Deprecated
-    - golint # Deprecated
-    - interfacer # Deprecated
-    - exhaustivestruct # Deprecated
+    - deadcode # deprecated
+    - exhaustivestruct # deprecated
+    - golint # deprecated
+    - ifshort # deprecated
+    - interfacer # deprecated
+    - maligned # deprecated
+    - nosnakecase # deprecated
+    - scopelint # deprecated
+    - structcheck # deprecated
+    - varcheck # deprecated
     - cyclop # duplicate of gocyclo
+    - sqlclosecheck # not relevant (SQL)
+    - rowserrcheck # not relevant (SQL)
+    - execinquery # not relevant (SQL)
     - dupl
     - lll
     - nestif
     - gomnd
     - goerr113
-#    - wrapcheck
     - nlreturn
     - wsl
     - exhaustive
@@ -54,10 +60,11 @@ linters:
     - nosnakecase
     - nonamedreturns
     - nilerr
+    - depguard
 
 issues:
   exclude-use-default: false
-  max-per-linter: 0
+  max-issues-per-linter: 0
   max-same-issues: 0
   exclude:
     - 'ST1000: at least one file in a package should have a package comment'
