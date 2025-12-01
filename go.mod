@@ -19,6 +19,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/sys/capability v0.3.0
+	github.com/moby/sys/userns v0.1.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.30.0
 	github.com/opencontainers/go-digest v1.0.0
@@ -105,7 +106,6 @@ require (
 	github.com/moby/sys/mountinfo v0.7.1 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect
-	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
