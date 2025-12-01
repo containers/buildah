@@ -49,7 +49,7 @@ load helpers
 
   # Role and Type should always be constant. (We don't check user)
   role=$(awk -F: '{print $2}' <<<$context)
-  expect_output --from="$role" "system_r" "SELinux role"
+  expect_output --from="$role" "unconfined_r" "SELinux role"
 
   type=$(awk -F: '{print $3}' <<<$context)
   expect_output --from="$type" "spc_t" "SELinux type"
