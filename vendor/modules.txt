@@ -79,7 +79,7 @@ github.com/containernetworking/plugins/pkg/ns
 # github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01
 ## explicit
 github.com/containers/libtrust
-# github.com/containers/luksy v0.0.0-20251013183210-adfea1d56c77
+# github.com/containers/luksy v0.0.0-20251120151536-e33b6d68eabe
 ## explicit; go 1.24.0
 github.com/containers/luksy
 # github.com/containers/ocicrypt v1.2.1
