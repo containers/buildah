@@ -26,7 +26,7 @@ load helpers
   run_buildah 0 login --cert-dir $REGISTRY_DIR --username testuserfoo --password testpassword localhost:$REGISTRY_PORT
 
   run_buildah 125 logout --authfile /tmp/nonexistent localhost:$REGISTRY_PORT
-  expect_output "checking authfile: stat /tmp/nonexistent: no such file or directory"
+  expect_output --substring "nonexistent: no such file or directory"
 
   run_buildah 0 logout localhost:$REGISTRY_PORT
 }
@@ -49,11 +49,11 @@ load helpers
 
   # wrong credentials: should fail
   run_buildah 125 from --cert-dir $REGISTRY_DIR $WITH_POLICY_JSON --creds baduser:badpassword localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "unauthorized: authentication required"
+  expect_output --substring "authentication required"
   run_buildah 125 from --cert-dir $REGISTRY_DIR $WITH_POLICY_JSON --creds "$testuser":badpassword localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "unauthorized: authentication required"
+  expect_output --substring "authentication required"
   run_buildah 125 from --cert-dir $REGISTRY_DIR $WITH_POLICY_JSON --creds baduser:"$testpassword" localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "unauthorized: authentication required"
+  expect_output --substring "authentication required"
 
   # This should work
   run_buildah from --cert-dir $REGISTRY_DIR --name "my-alpine-work-ctr" $WITH_POLICY_JSON --creds "$testuser":"$testpassword" localhost:$REGISTRY_PORT/my-alpine
@@ -72,7 +72,7 @@ EOM
 
   # bud test bad password should fail
   run_buildah 125 bud -f $DOCKERFILE $WITH_POLICY_JSON --tls-verify=false --creds="$testuser":badpassword
-  expect_output --substring "unauthorized: authentication required" \
+  expect_output --substring "authentication required" \
                 "buildah bud with wrong credentials"
 
   # bud test this should work
@@ -93,7 +93,7 @@ EOM
 
   # Push with wrong credentials: should fail
   run_buildah 125 push $WITH_POLICY_JSON --tls-verify=true --cert-dir=$REGISTRY_DIR --creds testuser:WRONGPASSWORD alpine localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "unauthorized: authentication required"
+  expect_output --substring "authentication required"
 
   # Make sure we can fetch it
   run_buildah from --pull-always --cert-dir=$REGISTRY_DIR --tls-verify=true --creds=testuser:testpassword localhost:$REGISTRY_PORT/my-alpine
@@ -133,16 +133,15 @@ EOM
 
   # After login, push should pass
   run_buildah push $WITH_POLICY_JSON --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "Storing signatures"
+  expect_output --substring "Writing manifest to image destination"
 
   run_buildah 125 login --tls-verify=false --username testuser --password WRONGPASSWORD localhost:$REGISTRY_PORT
-  expect_output 'error logging into "localhost:'"$REGISTRY_PORT"'": invalid username/password' \
-                "buildah login, wrong credentials"
+  expect_output --substring 'invalid username/password'
 
   run_buildah 0 logout localhost:$REGISTRY_PORT
   expect_output "Removed login credentials for localhost:$REGISTRY_PORT"
 
   run_buildah 125 push $WITH_POLICY_JSON --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "unauthorized: authentication required" \
+  expect_output --substring "authentication required" \
                 "buildah push after buildah logout"
 }

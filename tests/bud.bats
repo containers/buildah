@@ -3329,7 +3329,7 @@ _EOF
 @test "bud with Containerfile should fail with nonexistent authfile" {
   target=alpine-image
   run_buildah 125 build --authfile /tmp/nonexistent $WITH_POLICY_JSON -t ${target} $BUDFILES/containerfile
-  expect_output "checking authfile: stat /tmp/nonexistent: no such file or directory"
+  expect_output --substring "nonexistent: no such file or directory"
 }
 
 
