@@ -10,7 +10,7 @@ import (
 type EmptyBlockRule struct{}
 
 // Apply applies the rule to given file.
-func (r *EmptyBlockRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*EmptyBlockRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -23,7 +23,7 @@ func (r *EmptyBlockRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure
 }
 
 // Name returns the rule name.
-func (r *EmptyBlockRule) Name() string {
+func (*EmptyBlockRule) Name() string {
 	return "empty-block"
 }
 
@@ -40,6 +40,16 @@ func (w lintEmptyBlock) Visit(node ast.Node) ast.Visitor {
 	case *ast.FuncLit:
 		w.ignore[n.Body] = true
 		return w
+	case *ast.SelectStmt:
+		w.ignore[n.Body] = true
+		return w
+	case *ast.ForStmt:
+		if len(n.Body.List) == 0 && n.Init == nil && n.Post == nil && n.Cond != nil {
+			if _, isCall := n.Cond.(*ast.CallExpr); isCall {
+				w.ignore[n.Body] = true
+				return w
+			}
+		}
 	case *ast.RangeStmt:
 		if len(n.Body.List) == 0 {
 			w.onFailure(lint.Failure{

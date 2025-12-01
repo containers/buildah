@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Denis Tingaikin
+// Copyright (c) 2020-2024 Denis Tingaikin
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 type Calculable interface {
 	Calculate(map[string]Value) error
 	Get() string
+	Raw() string
 }
 
 type Value interface {
@@ -35,7 +36,7 @@ type Value interface {
 
 func calculateValue(calculable Calculable, values map[string]Value) (string, error) {
 	sb := strings.Builder{}
-	r := calculable.Get()
+	r := calculable.Raw()
 	var endIndex int
 	var startIndex int
 	for startIndex = strings.Index(r, "{{"); startIndex >= 0; startIndex = strings.Index(r, "{{") {
@@ -61,7 +62,7 @@ func calculateValue(calculable Calculable, values map[string]Value) (string, err
 }
 
 type ConstValue struct {
-	RawValue string
+	RawValue, Value string
 }
 
 func (c *ConstValue) Calculate(values map[string]Value) error {
@@ -69,12 +70,23 @@ func (c *ConstValue) Calculate(values map[string]Value) error {
 	if err != nil {
 		return err
 	}
-	c.RawValue = v
+	c.Value = v
 	return nil
 }
 
-func (c *ConstValue) Get() string {
+func (c *ConstValue) Raw() string {
 	return c.RawValue
+}
+
+func (c *ConstValue) Get() string {
+	if c.Value != "" {
+		return c.Value
+	}
+	return c.RawValue
+}
+
+func (c *ConstValue) String() string {
+	return c.Get()
 }
 
 func (c *ConstValue) Read(s *Reader) Issue {
@@ -94,7 +106,7 @@ func (c *ConstValue) Read(s *Reader) Issue {
 }
 
 type RegexpValue struct {
-	RawValue string
+	RawValue, Value string
 }
 
 func (r *RegexpValue) Calculate(values map[string]Value) error {
@@ -102,12 +114,22 @@ func (r *RegexpValue) Calculate(values map[string]Value) error {
 	if err != nil {
 		return err
 	}
-	r.RawValue = v
+	r.Value = v
 	return nil
 }
 
-func (r *RegexpValue) Get() string {
+func (r *RegexpValue) Raw() string {
 	return r.RawValue
+}
+func (r *RegexpValue) Get() string {
+	if r.Value != "" {
+		return r.Value
+	}
+	return r.RawValue
+}
+
+func (r *RegexpValue) String() string {
+	return r.Get()
 }
 
 func (r *RegexpValue) Read(s *Reader) Issue {

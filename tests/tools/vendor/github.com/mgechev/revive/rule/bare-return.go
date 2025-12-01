@@ -10,7 +10,7 @@ import (
 type BareReturnRule struct{}
 
 // Apply applies the rule to given file.
-func (r *BareReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*BareReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -23,7 +23,7 @@ func (r *BareReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure
 }
 
 // Name returns the rule name.
-func (r *BareReturnRule) Name() string {
+func (*BareReturnRule) Name() string {
 	return "bare-return"
 }
 
