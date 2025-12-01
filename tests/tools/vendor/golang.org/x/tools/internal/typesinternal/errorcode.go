@@ -31,6 +31,12 @@ type ErrorCode int
 // problem with types.
 
 const (
+	// InvalidSyntaxTree occurs if an invalid syntax tree is provided
+	// to the type checker. It should never happen.
+	InvalidSyntaxTree ErrorCode = -1
+)
+
+const (
 	_ ErrorCode = iota
 
 	// Test is reserved for errors that only apply while in self-test mode.
@@ -153,15 +159,15 @@ const (
 
 	/* decls > var (+ other variable assignment codes) */
 
-	// UntypedNil occurs when the predeclared (untyped) value nil is used to
+	// UntypedNilUse occurs when the predeclared (untyped) value nil is used to
 	// initialize a variable declared without an explicit type.
 	//
 	// Example:
 	//  var x = nil
-	UntypedNil
+	UntypedNilUse
 
 	// WrongAssignCount occurs when the number of values on the right-hand side
-	// of an assignment or or initialization expression does not match the number
+	// of an assignment or initialization expression does not match the number
 	// of variables on the left-hand side.
 	//
 	// Example:
@@ -832,7 +838,7 @@ const (
 	// InvalidCap occurs when an argument to the cap built-in function is not of
 	// supported type.
 	//
-	// See https://golang.org/ref/spec#Lengthand_capacity for information on
+	// See https://golang.org/ref/spec#Length_and_capacity for information on
 	// which underlying types are supported as arguments to cap and len.
 	//
 	// Example:
@@ -853,7 +859,7 @@ const (
 	// InvalidCopy occurs when the arguments are not of slice type or do not
 	// have compatible type.
 	//
-	// See https://golang.org/ref/spec#Appendingand_copying_slices for more
+	// See https://golang.org/ref/spec#Appending_and_copying_slices for more
 	// information on the type requirements for the copy built-in.
 	//
 	// Example:
@@ -891,7 +897,7 @@ const (
 	// InvalidLen occurs when an argument to the len built-in function is not of
 	// supported type.
 	//
-	// See https://golang.org/ref/spec#Lengthand_capacity for information on
+	// See https://golang.org/ref/spec#Length_and_capacity for information on
 	// which underlying types are supported as arguments to cap and len.
 	//
 	// Example:
@@ -908,7 +914,7 @@ const (
 
 	// InvalidMake occurs when make is called with an unsupported type argument.
 	//
-	// See https://golang.org/ref/spec#Makingslices_maps_and_channels for
+	// See https://golang.org/ref/spec#Making_slices_maps_and_channels for
 	// information on the types that may be created using make.
 	//
 	// Example:
@@ -1443,10 +1449,10 @@ const (
 	NotAGenericType
 
 	// WrongTypeArgCount occurs when a type or function is instantiated with an
-	// incorrent number of type arguments, including when a generic type or
+	// incorrect number of type arguments, including when a generic type or
 	// function is used without instantiation.
 	//
-	// Errors inolving failed type inference are assigned other error codes.
+	// Errors involving failed type inference are assigned other error codes.
 	//
 	// Example:
 	//  type T[p any] int
@@ -1523,4 +1529,32 @@ const (
 	// Example:
 	//  type T[P any] struct{ *P }
 	MisplacedTypeParam
+
+	// InvalidUnsafeSliceData occurs when unsafe.SliceData is called with
+	// an argument that is not of slice type. It also occurs if it is used
+	// in a package compiled for a language version before go1.20.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.SliceData(x)
+	InvalidUnsafeSliceData
+
+	// InvalidUnsafeString occurs when unsafe.String is called with
+	// a length argument that is not of integer type, negative, or
+	// out of bounds. It also occurs if it is used in a package
+	// compiled for a language version before go1.20.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var b [10]byte
+	//  var _ = unsafe.String(&b[0], -1)
+	InvalidUnsafeString
+
+	// InvalidUnsafeStringData occurs if it is used in a package
+	// compiled for a language version before go1.20.
+	_ // not used anymore
+
 )

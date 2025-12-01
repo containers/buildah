@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "deprecatedComment"
-	info.Tags = []string{"diagnostic"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects malformed 'deprecated' doc-comments"
 	info.Before = `
 // deprecated, use FuncNew instead

@@ -110,6 +110,19 @@ func (b *builder) buildExits(fn *Function) {
 				// all of these call os.Exit after logging
 				fn.NoReturn = AlwaysExits
 			}
+		case "k8s.io/klog/v2":
+			switch obj.(*types.Func).FullName() {
+			case "k8s.io/klog/v2.Exit",
+				"k8s.io/klog/v2.ExitDepth",
+				"k8s.io/klog/v2.Exitf",
+				"k8s.io/klog/v2.Exitln",
+				"k8s.io/klog/v2.Fatal",
+				"k8s.io/klog/v2.FatalDepth",
+				"k8s.io/klog/v2.Fatalf",
+				"k8s.io/klog/v2.Fatalln":
+				// all of these call os.Exit after logging
+				fn.NoReturn = AlwaysExits
+			}
 		}
 	}
 
@@ -330,7 +343,7 @@ func (b *builder) addUnreachables(fn *Function) {
 					var c Call
 					c.Call.Value = &Builtin{
 						name: "ir:noreturnWasPanic",
-						sig: types.NewSignature(nil,
+						sig: types.NewSignatureType(nil, nil, nil,
 							types.NewTuple(),
 							types.NewTuple(anonVar(types.Typ[types.Bool])),
 							false,

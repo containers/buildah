@@ -131,7 +131,7 @@ func (s *Section) GetKey(name string) (*Key, error) {
 			}
 			break
 		}
-		return nil, fmt.Errorf("when getting key of section %q: key %q not exists", s.name, name)
+		return nil, fmt.Errorf("error when getting key of section %q: key %q not exists", s.name, name)
 	}
 	return key, nil
 }

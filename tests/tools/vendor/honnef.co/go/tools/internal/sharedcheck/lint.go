@@ -44,7 +44,7 @@ func CheckRangeStringRunes(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				return true
 			}
-			TdstElem, ok := Tdst.Elem().(*types.Basic)
+			TdstElem, ok := types.Unalias(Tdst.Elem()).(*types.Basic)
 			if !ok || TdstElem.Kind() != types.Int32 {
 				return true
 			}
@@ -154,7 +154,7 @@ func RedundantTypeInDeclarationChecker(verb string, flagHelpfulTypes bool) *anal
 					if err != nil {
 						panic(err)
 					}
-					if b, ok := tv.Type.(*types.Basic); ok && (b.Info()&types.IsUntyped) != 0 {
+					if b, ok := types.Unalias(tv.Type).(*types.Basic); ok && (b.Info()&types.IsUntyped) != 0 {
 						if Tlhs != types.Default(b) {
 							// The rhs is untyped and its default type differs from the explicit type on the lhs
 							continue specLoop

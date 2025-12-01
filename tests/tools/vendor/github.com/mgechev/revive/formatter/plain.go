@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/mgechev/revive/lint"
@@ -13,14 +14,15 @@ type Plain struct {
 }
 
 // Name returns the name of the formatter
-func (f *Plain) Name() string {
+func (*Plain) Name() string {
 	return "plain"
 }
 
 // Format formats the failures gotten from the lint.
-func (f *Plain) Format(failures <-chan lint.Failure, _ lint.Config) (string, error) {
+func (*Plain) Format(failures <-chan lint.Failure, _ lint.Config) (string, error) {
+	var buf bytes.Buffer
 	for failure := range failures {
-		fmt.Printf("%v: %s %s\n", failure.Position.Start, failure.Failure, "https://revive.run/r#"+failure.RuleName)
+		fmt.Fprintf(&buf, "%v: %s %s\n", failure.Position.Start, failure.Failure, "https://revive.run/r#"+failure.RuleName)
 	}
-	return "", nil
+	return buf.String(), nil
 }

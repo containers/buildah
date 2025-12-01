@@ -1,6 +1,7 @@
 package ngfunc
 
 import (
+	"fmt"
 	"go/types"
 
 	"github.com/gostaticanalysis/analysisutil"
@@ -34,8 +35,11 @@ func Run(pass *analysis.Pass) (interface{}, error) {
 func ngCalledFuncs(pass *analysis.Pass, ngFuncs []*types.Func) []*Report {
 	var reports []*Report
 
-	srcFuncs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
-	for _, sf := range srcFuncs {
+	ssa, ok := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+	if !ok {
+		panic(fmt.Sprintf("%T is not *buildssa.SSA", pass.ResultOf[buildssa.Analyzer]))
+	}
+	for _, sf := range ssa.SrcFuncs {
 		for _, b := range sf.Blocks {
 			for _, instr := range b.Instrs {
 				for _, ngFunc := range ngFuncs {
