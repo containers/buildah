@@ -12,3 +12,6 @@ Dockerfile*
 /result/
 internal/mkcw/embed/entrypoint_amd64.o
 internal/mkcw/embed/entrypoint_amd64
+
+.gemini/
+gha-creds-*.json
