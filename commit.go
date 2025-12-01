@@ -354,7 +354,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imgID, nil, "", fmt.Errorf("locating just-written image %q: %w", transports.ImageName(dest), err)
 			}
@@ -367,7 +367,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 	}
 
-	img, err := is.Transport.GetStoreImage(b.store, dest)
+	img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 	if err != nil && !errors.Is(err, storage.ErrImageUnknown) {
 		return imgID, nil, "", fmt.Errorf("locating image %q in local storage: %w", transports.ImageName(dest), err)
 	}

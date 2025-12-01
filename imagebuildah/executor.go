@@ -949,7 +949,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if dest, err := b.resolveNameToImageRef(b.output); err == nil {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, fmt.Errorf("locating just-written image %q: %w", transports.ImageName(dest), err)
 			}
@@ -960,7 +960,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
 			}
 			// Report back the caller the tags applied, if any.
-			img, err = is.Transport.GetStoreImage(b.store, dest)
+			img, err = is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, fmt.Errorf("locating just-written image %q: %w", transports.ImageName(dest), err)
 			}
