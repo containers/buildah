@@ -23,7 +23,7 @@ require (
 	github.com/opencontainers/cgroups v0.0.6
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
-	github.com/opencontainers/runc v1.3.3
+	github.com/opencontainers/runc v1.4.0
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116
 	github.com/opencontainers/selinux v1.13.1
@@ -34,9 +34,9 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
-	go.podman.io/common v0.66.1-0.20251126153106-c7808184e6f4
-	go.podman.io/image/v5 v5.38.1-0.20251126153106-c7808184e6f4
-	go.podman.io/storage v1.61.1-0.20251126153106-c7808184e6f4
+	go.podman.io/common v0.66.1-0.20251128185259-94e31d2e45ba
+	go.podman.io/image/v5 v5.38.1-0.20251128185259-94e31d2e45ba
+	go.podman.io/storage v1.61.1-0.20251128185259-94e31d2e45ba
 	golang.org/x/crypto v0.45.0
 	golang.org/x/sync v0.18.0
 	golang.org/x/sys v0.38.0
@@ -95,7 +95,7 @@ require (
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/moby/api v1.52.0 // indirect
-	github.com/moby/moby/client v0.1.0 // indirect
+	github.com/moby/moby/client v0.2.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
