@@ -45,17 +45,22 @@ function _gpg_setup() {
   # Pushing should preserve the signature.
   run_buildah push $WITH_POLICY_JSON signed-alpine-image dir:${TEST_SCRATCH_DIR}/signed-image
   ls -l ${TEST_SCRATCH_DIR}/signed-image/
+  cat ${TEST_SCRATCH_DIR}/signed-image/version
+  cat ${TEST_SCRATCH_DIR}/signed-image/manifest.json
   test -s ${TEST_SCRATCH_DIR}/signed-image/signature-1
 
   # Pushing with --remove-signatures should remove the signature.
   run_buildah push $WITH_POLICY_JSON --remove-signatures signed-alpine-image dir:${TEST_SCRATCH_DIR}/unsigned-image
   ls -l ${TEST_SCRATCH_DIR}/unsigned-image/
+  cat ${TEST_SCRATCH_DIR}/unsigned-image/version
+  cat ${TEST_SCRATCH_DIR}/unsigned-image/manifest.json
   ! test -s ${TEST_SCRATCH_DIR}/unsigned-image/signature-1
 
   run_buildah commit $WITH_POLICY_JSON $cid unsigned-alpine-image
   # Pushing with --sign-by should fail add the signature to a dir: location, if it tries to add them.
   run_buildah 125 push $WITH_POLICY_JSON --sign-by amanda@localhost unsigned-alpine-image dir:${TEST_SCRATCH_DIR}/signed-image
   expect_output --substring "Cannot determine canonical Docker reference"
+  ls -l ${TEST_SCRATCH_DIR}/signed-image/
 
   # Clear out images, so that we don't have leftover signatures when we pull in an image that will end up
   # causing us to merge its contents with the image with the same ID.
@@ -66,14 +71,19 @@ function _gpg_setup() {
   imageID="$output"
   run_buildah push $WITH_POLICY_JSON "$imageID" dir:${TEST_SCRATCH_DIR}/unsigned-image
   ls -l ${TEST_SCRATCH_DIR}/unsigned-image/
+  cat ${TEST_SCRATCH_DIR}/unsigned-image/version
+  cat ${TEST_SCRATCH_DIR}/unsigned-image/manifest.json
   ! test -s ${TEST_SCRATCH_DIR}/unsigned-image/signature-1
 
   # Build a manifest list and try to push the list with signatures.
   run_buildah manifest create list
   run_buildah manifest add list $imageID
-  run_buildah 125 manifest push $WITH_POLICY_JSON --sign-by amanda@localhost --all list dir:${TEST_SCRATCH_DIR}/signed-image
+  run_buildah 125 manifest push $WITH_POLICY_JSON --sign-by amanda@localhost --all list dir:${TEST_SCRATCH_DIR}/signed-list
   expect_output --substring "Cannot determine canonical Docker reference"
-  run_buildah manifest push $WITH_POLICY_JSON --all list dir:${TEST_SCRATCH_DIR}/unsigned-image
+  run_buildah manifest push $WITH_POLICY_JSON --all list dir:${TEST_SCRATCH_DIR}/unsigned-list
+  ls -l ${TEST_SCRATCH_DIR}/unsigned-list/
+  cat ${TEST_SCRATCH_DIR}/unsigned-list/version
+  cat ${TEST_SCRATCH_DIR}/unsigned-list/manifest.json
 }
 
 @test "build-with-dockerfile-signatures" {
