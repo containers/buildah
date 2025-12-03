@@ -8,9 +8,10 @@ import (
 type BuildOutputType int
 
 const (
-	BuildOutputStdout   BuildOutputType = 0 // stream tar to stdout
-	BuildOutputLocalDir BuildOutputType = 1
-	BuildOutputTar      BuildOutputType = 2
+	BuildOutputInvalid  BuildOutputType = 0
+	BuildOutputStdout   BuildOutputType = 1 // stream tar to stdout
+	BuildOutputLocalDir BuildOutputType = 2
+	BuildOutputTar      BuildOutputType = 3
 )
 
 // BuildOutputOptions contains the the outcome of parsing the value of a build --output flag
@@ -40,7 +41,7 @@ func GetBuildOutput(buildOutput string) (BuildOutputOption, error) {
 	}
 
 	// Support complex values, in the form --output type=local,dest=./mydir
-	var typeSelected BuildOutputType = -1
+	typeSelected := BuildOutputInvalid
 	pathSelected := ""
 	for option := range strings.SplitSeq(buildOutput, ",") {
 		key, value, found := strings.Cut(option, "=")
@@ -49,7 +50,7 @@ func GetBuildOutput(buildOutput string) (BuildOutputOption, error) {
 		}
 		switch key {
 		case "type":
-			if typeSelected != -1 {
+			if typeSelected != BuildOutputInvalid {
 				return BuildOutputOption{}, fmt.Errorf("duplicate %q not supported", key)
 			}
 			switch value {
@@ -71,7 +72,7 @@ func GetBuildOutput(buildOutput string) (BuildOutputOption, error) {
 	}
 
 	// Validate there is a type
-	if typeSelected == -1 {
+	if typeSelected == BuildOutputInvalid {
 		return BuildOutputOption{}, fmt.Errorf("missing required key %q in build output option: %q", "type", buildOutput)
 	}
 
