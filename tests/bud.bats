@@ -976,16 +976,22 @@ symlink(subdir)"
 
 @test "bud with .dockerignore #2" {
   _prefetch busybox
-  run_buildah 125 build -t testbud3 $WITH_POLICY_JSON $BUDFILES/dockerignore3
+  run_buildah 125 build --debug -t testbud3 $WITH_POLICY_JSON $BUDFILES/dockerignore3
   expect_output --substring 'building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
-  expect_output --substring 'filtered out using /[^ ]*/.dockerignore'
+  expect_output --substring 'Skipping excluded path: test1.txt'
+  if test "$STORAGE_DRIVER" = overlay ; then
+    expect_output --substring 'filtered out using /[^ ]*/.dockerignore'
+  fi
 }
 
 @test "bud with .dockerignore #4" {
   _prefetch busybox
-  run_buildah 125 build -t testbud3 $WITH_POLICY_JSON -f Dockerfile.test $BUDFILES/dockerignore4
+  run_buildah 125 build --debug -t testbud3 $WITH_POLICY_JSON -f Dockerfile.test $BUDFILES/dockerignore4
   expect_output --substring 'building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
-  expect_output --substring '1 filtered out using /[^ ]*/Dockerfile.test.dockerignore'
+  expect_output --substring 'Skipping excluded path: test1.txt'
+  if test "$STORAGE_DRIVER" = overlay ; then
+    expect_output --substring 'filtered out using /[^ ]*/Dockerfile.test.dockerignore'
+  fi
 }
 
 @test "bud with .dockerignore #6" {

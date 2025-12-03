@@ -27,7 +27,7 @@ import (
 // indicates whether the caller can write directly to the location; and a
 // cleanup function which should be called when the location is no longer
 // needed (on success). Returned errors should be treated as fatal.
-func platformSetupContextDirectoryOverlay(store storage.Store, options *define.BuildOptions) (string, string, string, bool, func(), error) {
+func platformSetupContextDirectoryOverlay(store storage.Store, containerFiles []string, options *define.BuildOptions) (string, string, string, bool, func(), error) {
 	var succeeded bool
 	var tmpDir string
 	cleanup := func() {
@@ -58,7 +58,7 @@ func platformSetupContextDirectoryOverlay(store storage.Store, options *define.B
 		return "", "", "", false, nil, fmt.Errorf("creating a temporary directory under %s: %w", tmpDir, err)
 	}
 	// copy the contents of the default build context to the new location so that it can be written to more or less safely
-	excludes, _, err := parse.ContainerIgnoreFile(contextDirectoryAbsolute, options.IgnoreFile, nil)
+	excludes, _, err := parse.ContainerIgnoreFile(contextDirectoryAbsolute, options.IgnoreFile, containerFiles)
 	if err != nil {
 		return "", "", "", false, nil, fmt.Errorf("parsing ignore file under context directory %s: %w", contextDirectoryAbsolute, err)
 	}

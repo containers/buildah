@@ -284,7 +284,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		}
 
 		builds.Go(func() error {
-			contextDirectory, processLabel, mountLabel, usingContextOverlay, cleanupOverlay, err := platformSetupContextDirectoryOverlay(store, &options)
+			contextDirectory, processLabel, mountLabel, usingContextOverlay, cleanupOverlay, err := platformSetupContextDirectoryOverlay(store, paths, &options)
 			if err != nil {
 				return fmt.Errorf("mounting an overlay over build context directory: %w", err)
 			}
