@@ -461,7 +461,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			if fromErr != nil {
 				return fmt.Errorf("unable to resolve argument %q: %w", copy.From, fromErr)
 			}
-			var additionalBuildContext *define.AdditionalBuildContext
+			var additionalBuildContext *additionalBuildContext
 			if foundContext, ok := s.executor.additionalBuildContexts[from]; ok {
 				additionalBuildContext = foundContext
 			} else {
@@ -483,7 +483,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 					if additionalBuildContext.IsURL {
 						// Check if following buildContext was already
 						// downloaded before in any other RUN step. If not
-						// download it and populate DownloadCache field for
+						// download it and populate DownloadedCache field for
 						// future RUN steps.
 						if additionalBuildContext.DownloadedCache == "" {
 							// additional context contains a tar file
@@ -497,6 +497,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 							contextDir = filepath.Join(path, subdir)
 							// populate cache for next RUN step
 							additionalBuildContext.DownloadedCache = contextDir
+							additionalBuildContext.cleanupDirectory = path
 						} else {
 							contextDir = additionalBuildContext.DownloadedCache
 						}
@@ -682,7 +683,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 						if additionalBuildContext.IsURL {
 							// Check if following buildContext was already
 							// downloaded before in any other RUN step. If not
-							// download it and populate DownloadCache field for
+							// download it and populate DownloadedCache field for
 							// future RUN steps.
 							if additionalBuildContext.DownloadedCache == "" {
 								// additional context contains a tar file
@@ -696,6 +697,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 								mountPoint = filepath.Join(path, subdir)
 								// populate cache for next RUN step
 								additionalBuildContext.DownloadedCache = mountPoint
+								additionalBuildContext.cleanupDirectory = path
 							} else {
 								mountPoint = additionalBuildContext.DownloadedCache
 							}
