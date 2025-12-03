@@ -192,6 +192,12 @@ github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee h1:W5t00kpgFd
 github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/morikuni/aec v1.0.0 h1:nP9CBfwrvYnBRgY6qfDQkygYDmYwOilePFkwzv4dU8A=
 github.com/morikuni/aec v1.0.0/go.mod h1:BbKIizmSmc5MMPqRYbxO4ZU0S0+P200+tUnFx7PXmsc=
+github.com/mtrmac/container-libs/common v0.0.0-20251203185239-f869fc7c6d70 h1:VJ71Zcl6ggYQkhBMciSQcOC9BAaRc4uYF/gAGKYjzXM=
+github.com/mtrmac/container-libs/common v0.0.0-20251203185239-f869fc7c6d70/go.mod h1:GFrzqrbwoH7/v7Cn8VBNijRctxZLE6/xEcq/QdMGbfs=
+github.com/mtrmac/container-libs/image/v5 v5.0.0-20251203185239-f869fc7c6d70 h1:/Axk7BvKF6UejZiobju6q2ZqyP0iiBuHLUHic/ABbT8=
+github.com/mtrmac/container-libs/image/v5 v5.0.0-20251203185239-f869fc7c6d70/go.mod h1:1hwk51dCUWRcmnRoqabgb3NrOQ1n0rsv8ZntDcl9G8I=
+github.com/mtrmac/container-libs/storage v0.0.0-20251203185239-f869fc7c6d70 h1:F29XOdDp9yidcV3VRHEKcbk2ctZxJ2Aj6FNBrVn/w/E=
+github.com/mtrmac/container-libs/storage v0.0.0-20251203185239-f869fc7c6d70/go.mod h1:wjc8i/eBrHqzzV9rDY7waC/TJSUzsbRg3kMiIJYnGcc=
 github.com/onsi/ginkgo/v2 v2.27.2 h1:LzwLj0b89qtIy6SSASkzlNvX6WktqurSHwkk2ipF/Ns=
 github.com/onsi/ginkgo/v2 v2.27.2/go.mod h1:ArE1D/XhNXBXCBkKOLkbsb2c81dQHCRcF5zwn/ykDRo=
 github.com/onsi/gomega v1.38.2 h1:eZCjf2xjZAqe+LeWvKb5weQ+NcPwX84kqJ0cZNxok2A=
@@ -240,8 +246,8 @@ github.com/sigstore/protobuf-specs v0.5.0 h1:F8YTI65xOHw70NrvPwJ5PhAzsvTnuJMGLkA
 github.com/sigstore/protobuf-specs v0.5.0/go.mod h1:+gXR+38nIa2oEupqDdzg4qSBT0Os+sP7oYv6alWewWc=
 github.com/sigstore/sigstore v1.9.6-0.20251111174640-d8ab8afb1326 h1:s39MsSDVn8LhePV5adidcOjjKHaplLxpHM1mvbC24l4=
 github.com/sigstore/sigstore v1.9.6-0.20251111174640-d8ab8afb1326/go.mod h1:xSCb7eki7lCdi+mNh4I4MVpKPP2cWGtDYmSPPmX/K70=
-github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af h1:Sp5TG9f7K39yfB+If0vjp97vuT74F72r8hfRpP8jLU0=
-github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
+github.com/sirupsen/logrus v1.9.4-0.20251023124752-b61f268f75b6 h1:JEH4GlfEqachL/BWMxNEqYZGst5AGInBdLF/bEx+dZY=
+github.com/sirupsen/logrus v1.9.4-0.20251023124752-b61f268f75b6/go.mod h1:ftWc9WdOfJ0a92nsE2jF5u5ZwH8Bv2zdeOC42RjbV2g=
 github.com/smallstep/pkcs7 v0.1.1 h1:x+rPdt2W088V9Vkjho4KtoggyktZJlMduZAtRHm68LU=
 github.com/smallstep/pkcs7 v0.1.1/go.mod h1:dL6j5AIz9GHjVEBTXtW+QliALcgM19RtXaTeyxI+AfA=
 github.com/spf13/cobra v1.10.1 h1:lJeBwCfmrnXthfAupyUTzJ/J4Nc1RsHC/mSRU2dll/s=
@@ -253,7 +259,6 @@ github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 h1:pnnLy
 github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6/go.mod h1:39R/xuhNgVhi+K0/zst4TLrJrVmbm6LVgl4A0+ZFS5M=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
-github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/sylabs/sif/v2 v2.22.0 h1:Y+xXufp4RdgZe02SR3nWEg7S6q4tPWN237WHYzkDSKA=
@@ -301,12 +306,6 @@ go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJr
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
 go.opentelemetry.io/proto/otlp v1.7.1 h1:gTOMpGDb0WTBOP8JaO72iL3auEZhVmAQg4ipjOVAtj4=
 go.opentelemetry.io/proto/otlp v1.7.1/go.mod h1:b2rVh6rfI/s2pHWNlB7ILJcRALpcNDzKhACevjI+ZnE=
-go.podman.io/common v0.66.1-0.20251202202200-df55d6c661e8 h1:X/HMawr2P5VtTICpL57wJLRpYQrLDSMOwNKKusJ4tVI=
-go.podman.io/common v0.66.1-0.20251202202200-df55d6c661e8/go.mod h1:wpnuqmlKx7El9QgMIMJiZq9SM+InftBZF4QUlEKGAZI=
-go.podman.io/image/v5 v5.38.1-0.20251202202200-df55d6c661e8 h1:JKM6NKkbcq+HpAtYlnWwugOCM08aUKE5nbI0aNIDSIQ=
-go.podman.io/image/v5 v5.38.1-0.20251202202200-df55d6c661e8/go.mod h1:bXKvkbQgtxD3hibVOhAeGANyKPqo6lVwdwOxt93+V40=
-go.podman.io/storage v1.61.1-0.20251202202200-df55d6c661e8 h1:1zf8nDepbe13RUhjdgj2UIQRHAUZlDohNZbhQBZVnm0=
-go.podman.io/storage v1.61.1-0.20251202202200-df55d6c661e8/go.mod h1:izI0U2FxSpqivwmkVbTO7ECcoER6FnM6ZL7CFPu0Tfs=
 go.yaml.in/yaml/v2 v2.4.3 h1:6gvOSjQoTB3vt1l+CU+tSyi/HOjfOjRLJ4YwYZGwRO0=
 go.yaml.in/yaml/v2 v2.4.3/go.mod h1:zSxWcmIDjOzPXpjlTTbAsKokqkDNAVtZO0WOMiT90s8=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=
@@ -363,7 +362,6 @@ golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20210616094352-59db8d763f22/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.2.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.5.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
@@ -426,7 +424,6 @@ google.golang.org/protobuf v1.36.10/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
-gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gotest.tools/v3 v3.5.2 h1:7koQfIKdy+I8UTetycgUqXWSDwpgv193Ka+qRsmBY8Q=
