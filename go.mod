@@ -29,7 +29,7 @@ require (
 	github.com/opencontainers/selinux v1.13.1
 	github.com/openshift/imagebuilder v1.2.19
 	github.com/seccomp/libseccomp-golang v0.11.1
-	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af
+	github.com/sirupsen/logrus v1.9.4-0.20251023124752-b61f268f75b6
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
@@ -139,3 +139,9 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.1-0.20251120202831-139ffec09210 // indirect
 )
+
+replace go.podman.io/common => github.com/lsm5/container-libs/common v0.0.0-20251203132913-9847f62bc9d1
+
+replace go.podman.io/storage => github.com/lsm5/container-libs/storage v0.0.0-20251203132913-9847f62bc9d1
+
+replace go.podman.io/image/v5 => github.com/lsm5/container-libs/image/v5 v5.0.0-20251203132913-9847f62bc9d1
