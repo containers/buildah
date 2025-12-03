@@ -222,6 +222,14 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		return options, nil, nil, errors.New("'rm' and 'force-rm' can only be set with either 'layers' or 'no-cache'")
 	}
 
+	if iopts.StageLabels && !iopts.CacheStages {
+		return options, nil, nil, errors.New("'stage-labels' requires 'cache-stages'")
+	}
+
+	if iopts.BuildIDFile != "" && !iopts.StageLabels {
+		return options, nil, nil, errors.New("'build-id-file' requires 'stage-labels'")
+	}
+
 	if c.Flag("compress").Changed {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
@@ -408,6 +416,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		GroupAdd:                iopts.GroupAdd,
 		IDMappingOptions:        idmappingOptions,
 		IIDFile:                 iopts.Iidfile,
+		BuildIDFile:             iopts.BuildIDFile,
 		IgnoreFile:              iopts.IgnoreFile,
 		In:                      stdin,
 		InheritLabels:           inheritLabels,
@@ -417,6 +426,8 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		Labels:                  iopts.Label,
 		LayerLabels:             iopts.LayerLabel,
 		Layers:                  layers,
+		CacheStages:             iopts.CacheStages,
+		StageLabels:             iopts.StageLabels,
 		LogFile:                 iopts.Logfile,
 		LogRusage:               iopts.LogRusage,
 		LogSplitByPlatform:      iopts.LogSplitByPlatform,
