@@ -58,7 +58,8 @@ func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 			return err
 		}
 	}
-	if opts.Type == parse.BuildOutputLocalDir {
+	switch opts.Type {
+	case parse.BuildOutputLocalDir:
 		// In order to keep this feature as close as possible to
 		// buildkit it was decided to preserve ownership when
 		// invoked as root since caller already has access to artifacts
@@ -78,7 +79,7 @@ func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 		if err = chrootarchive.Untar(input, opts.Path, &archive.TarOptions{NoLchown: noLChown}); err != nil {
 			return fmt.Errorf("failed while performing untar at %q: %w", opts.Path, err)
 		}
-	} else {
+	case parse.BuildOutputTar, parse.BuildOutputStdout:
 		outFile := os.Stdout
 		if opts.Type != parse.BuildOutputStdout {
 			if outFile, err = os.Create(opts.Path); err != nil {
