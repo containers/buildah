@@ -53,11 +53,17 @@ func NormalizePlatform(platform v1.Platform) v1.Platform {
 // ExportFromReader reads bytes from given reader and exports to external tar, directory or stdout.
 func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 	var err error
-	if !filepath.IsAbs(opts.Path) {
-		if opts.Path, err = filepath.Abs(opts.Path); err != nil {
-			return err
+
+	// Only process path for types that require it.
+	if opts.Type == parse.BuildOutputLocalDir || opts.Type == parse.BuildOutputTar {
+		if !filepath.IsAbs(opts.Path) {
+			if opts.Path, err = filepath.Abs(opts.Path); err != nil {
+				return err
+			}
 		}
 	}
+
+	// Process output type
 	switch opts.Type {
 	case parse.BuildOutputLocalDir:
 		// In order to keep this feature as close as possible to
