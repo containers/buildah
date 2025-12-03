@@ -79,14 +79,17 @@ func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 		if err = chrootarchive.Untar(input, opts.Path, &archive.TarOptions{NoLchown: noLChown}); err != nil {
 			return fmt.Errorf("failed while performing untar at %q: %w", opts.Path, err)
 		}
-	case parse.BuildOutputTar, parse.BuildOutputStdout:
-		outFile := os.Stdout
-		if opts.Type != parse.BuildOutputStdout {
-			if outFile, err = os.Create(opts.Path); err != nil {
-				return fmt.Errorf("failed while creating destination tar at %q: %w", opts.Path, err)
-			}
-			defer outFile.Close()
+	case parse.BuildOutputStdout:
+		if _, err = io.Copy(os.Stdout, input); err != nil {
+			return fmt.Errorf("failed while performing copy to %q: %w", opts.Path, err)
 		}
+	case parse.BuildOutputTar:
+		outFile, err := os.Create(opts.Path)
+		if err != nil {
+			return fmt.Errorf("failed while creating destination tar at %q: %w", opts.Path, err)
+		}
+		defer outFile.Close()
+
 		if _, err = io.Copy(outFile, input); err != nil {
 			return fmt.Errorf("failed while performing copy to %q: %w", opts.Path, err)
 		}
