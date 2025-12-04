@@ -87,7 +87,7 @@ func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 		}
 	case parse.BuildOutputStdout:
 		if _, err = io.Copy(os.Stdout, input); err != nil {
-			return fmt.Errorf("failed while performing copy to %q: %w", opts.Path, err)
+			return fmt.Errorf("failed while writing to stdout: %w", err)
 		}
 	case parse.BuildOutputTar:
 		outFile, err := os.Create(opts.Path)
