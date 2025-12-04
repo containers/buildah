@@ -9,6 +9,8 @@ package typeutil
 import (
 	"go/types"
 	"sync"
+
+	"golang.org/x/tools/internal/aliases"
 )
 
 // A MethodSetCache records the method set of each type T for which
@@ -25,7 +27,6 @@ type MethodSetCache struct {
 // If cache is nil, this function is equivalent to types.NewMethodSet(T).
 // Utility functions can thus expose an optional *MethodSetCache
 // parameter to clients that care about performance.
-//
 func (cache *MethodSetCache) MethodSet(T types.Type) *types.MethodSet {
 	if cache == nil {
 		return types.NewMethodSet(T)
@@ -33,12 +34,12 @@ func (cache *MethodSetCache) MethodSet(T types.Type) *types.MethodSet {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	switch T := T.(type) {
+	switch T := aliases.Unalias(T).(type) {
 	case *types.Named:
 		return cache.lookupNamed(T).value
 
 	case *types.Pointer:
-		if N, ok := T.Elem().(*types.Named); ok {
+		if N, ok := aliases.Unalias(T.Elem()).(*types.Named); ok {
 			return cache.lookupNamed(N).pointer
 		}
 	}

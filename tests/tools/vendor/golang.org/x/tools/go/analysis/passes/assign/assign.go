@@ -2,32 +2,33 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package assign defines an Analyzer that detects useless assignments.
 package assign
 
 // TODO(adonovan): check also for assignments to struct fields inside
 // methods that are on T instead of *T.
 
 import (
+	_ "embed"
+	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"reflect"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const Doc = `check for useless assignments
-
-This checker reports assignments of the form x = x or a[i] = a[i].
-These are almost always useless, and even when they aren't they are
-usually a mistake.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "assign",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "assign"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/assign",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -50,7 +51,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for i, lhs := range stmt.Lhs {
 			rhs := stmt.Rhs[i]
 			if analysisutil.HasSideEffects(pass.TypesInfo, lhs) ||
-				analysisutil.HasSideEffects(pass.TypesInfo, rhs) {
+				analysisutil.HasSideEffects(pass.TypesInfo, rhs) ||
+				isMapIndex(pass.TypesInfo, lhs) {
 				continue // expressions may not be equal
 			}
 			if reflect.TypeOf(lhs) != reflect.TypeOf(rhs) {
@@ -59,10 +61,28 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			le := analysisutil.Format(pass.Fset, lhs)
 			re := analysisutil.Format(pass.Fset, rhs)
 			if le == re {
-				pass.Reportf(stmt.Pos(), "self-assignment of %s to %s", re, le)
+				pass.Report(analysis.Diagnostic{
+					Pos: stmt.Pos(), Message: fmt.Sprintf("self-assignment of %s to %s", re, le),
+					SuggestedFixes: []analysis.SuggestedFix{
+						{Message: "Remove", TextEdits: []analysis.TextEdit{
+							{Pos: stmt.Pos(), End: stmt.End(), NewText: []byte{}},
+						}},
+					},
+				})
 			}
 		}
 	})
 
 	return nil, nil
+}
+
+// isMapIndex returns true if e is a map index expression.
+func isMapIndex(info *types.Info, e ast.Expr) bool {
+	if idx, ok := astutil.Unparen(e).(*ast.IndexExpr); ok {
+		if typ := info.Types[idx.X].Type; typ != nil {
+			_, ok := typ.Underlying().(*types.Map)
+			return ok
+		}
+	}
+	return false
 }

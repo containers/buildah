@@ -20,6 +20,11 @@ func ToTime(i interface{}) time.Time {
 	return v
 }
 
+func ToTimeInDefaultLocation(i interface{}, location *time.Location) time.Time {
+	v, _ := ToTimeInDefaultLocationE(i, location)
+	return v
+}
+
 // ToDuration casts an interface to a time.Duration type.
 func ToDuration(i interface{}) time.Duration {
 	v, _ := ToDurationE(i)
@@ -119,6 +124,18 @@ func ToStringMapStringSlice(i interface{}) map[string][]string {
 // ToStringMapBool casts an interface to a map[string]bool type.
 func ToStringMapBool(i interface{}) map[string]bool {
 	v, _ := ToStringMapBoolE(i)
+	return v
+}
+
+// ToStringMapInt casts an interface to a map[string]int type.
+func ToStringMapInt(i interface{}) map[string]int {
+	v, _ := ToStringMapIntE(i)
+	return v
+}
+
+// ToStringMapInt64 casts an interface to a map[string]int64 type.
+func ToStringMapInt64(i interface{}) map[string]int64 {
+	v, _ := ToStringMapInt64E(i)
 	return v
 }
 

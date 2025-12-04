@@ -32,7 +32,7 @@ $(BUILDDIR): \
 	$(BUILDDIR)/golangci-lint
 
 $(BUILDDIR)/ginkgo:
-	$(call go-build,./vendor/github.com/onsi/ginkgo/ginkgo)
+	$(call go-build,./vendor/github.com/onsi/ginkgo/v2/ginkgo)
 
 $(BUILDDIR)/git-validation:
 	$(call go-build,./vendor/github.com/vbatts/git-validation)
