@@ -10,8 +10,8 @@ type nodePath struct {
 	stack []ast.Node
 }
 
-func newNodePath() nodePath {
-	return nodePath{stack: make([]ast.Node, 0, 32)}
+func newNodePath() *nodePath {
+	return &nodePath{stack: make([]ast.Node, 0, 32)}
 }
 
 func (p nodePath) String() string {
@@ -22,17 +22,17 @@ func (p nodePath) String() string {
 	return strings.Join(parts, "/")
 }
 
-func (p nodePath) Parent() ast.Node {
+func (p *nodePath) Parent() ast.Node {
 	return p.NthParent(1)
 }
 
-func (p nodePath) Current() ast.Node {
+func (p *nodePath) Current() ast.Node {
 	return p.NthParent(0)
 }
 
-func (p nodePath) NthParent(n int) ast.Node {
-	index := len(p.stack) - n - 1
-	if index >= 0 {
+func (p *nodePath) NthParent(n int) ast.Node {
+	index := uint(len(p.stack) - n - 1)
+	if index < uint(len(p.stack)) {
 		return p.stack[index]
 	}
 	return nil

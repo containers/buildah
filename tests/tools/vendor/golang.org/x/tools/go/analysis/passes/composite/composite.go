@@ -7,6 +7,7 @@
 package composite
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"strings"
@@ -36,6 +37,7 @@ should be replaced by:
 var Analyzer = &analysis.Analyzer{
 	Name:             "composites",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composite",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,
@@ -69,8 +71,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 		var structuralTypes []types.Type
-		switch typ := typ.(type) {
-		case *typeparams.TypeParam:
+		switch typ := types.Unalias(typ).(type) {
+		case *types.TypeParam:
 			terms, err := typeparams.StructuralTerms(typ)
 			if err != nil {
 				return // invalid type
@@ -81,9 +83,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		default:
 			structuralTypes = append(structuralTypes, typ)
 		}
+
 		for _, typ := range structuralTypes {
-			under := deref(typ.Underlying())
-			if _, ok := under.(*types.Struct); !ok {
+			strct, ok := typeparams.Deref(typ).Underlying().(*types.Struct)
+			if !ok {
 				// skip non-struct composite literals
 				continue
 			}
@@ -92,48 +95,64 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				continue
 			}
 
-			// check if the CompositeLit contains an unkeyed field
+			// check if the struct contains an unkeyed field
 			allKeyValue := true
-			for _, e := range cl.Elts {
+			var suggestedFixAvailable = len(cl.Elts) == strct.NumFields()
+			var missingKeys []analysis.TextEdit
+			for i, e := range cl.Elts {
 				if _, ok := e.(*ast.KeyValueExpr); !ok {
 					allKeyValue = false
-					break
+					if i >= strct.NumFields() {
+						break
+					}
+					field := strct.Field(i)
+					if !field.Exported() {
+						// Adding unexported field names for structs not defined
+						// locally will not work.
+						suggestedFixAvailable = false
+						break
+					}
+					missingKeys = append(missingKeys, analysis.TextEdit{
+						Pos:     e.Pos(),
+						End:     e.Pos(),
+						NewText: []byte(fmt.Sprintf("%s: ", field.Name())),
+					})
 				}
 			}
 			if allKeyValue {
-				// all the composite literal fields are keyed
+				// all the struct fields are keyed
 				continue
 			}
 
-			pass.ReportRangef(cl, "%s composite literal uses unkeyed fields", typeName)
+			diag := analysis.Diagnostic{
+				Pos:     cl.Pos(),
+				End:     cl.End(),
+				Message: fmt.Sprintf("%s struct literal uses unkeyed fields", typeName),
+			}
+			if suggestedFixAvailable {
+				diag.SuggestedFixes = []analysis.SuggestedFix{{
+					Message:   "Add field names to struct literal",
+					TextEdits: missingKeys,
+				}}
+			}
+			pass.Report(diag)
 			return
 		}
 	})
 	return nil, nil
 }
 
-func deref(typ types.Type) types.Type {
-	for {
-		ptr, ok := typ.(*types.Pointer)
-		if !ok {
-			break
-		}
-		typ = ptr.Elem().Underlying()
-	}
-	return typ
-}
-
+// isLocalType reports whether typ belongs to the same package as pass.
+// TODO(adonovan): local means "internal to a function"; rename to isSamePackageType.
 func isLocalType(pass *analysis.Pass, typ types.Type) bool {
-	switch x := typ.(type) {
+	switch x := types.Unalias(typ).(type) {
 	case *types.Struct:
 		// struct literals are local types
 		return true
 	case *types.Pointer:
 		return isLocalType(pass, x.Elem())
-	case *types.Named:
+	case interface{ Obj() *types.TypeName }: // *Named or *TypeParam (aliases were removed already)
 		// names in package foo are local to foo_test too
-		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
-	case *typeparams.TypeParam:
 		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
 	}
 	return false

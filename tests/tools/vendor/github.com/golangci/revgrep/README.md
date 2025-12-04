@@ -1,14 +1,11 @@
 # Overview
 
-[![Build Status](https://travis-ci.org/bradleyfalzon/revgrep.svg?branch=master)](https://travis-ci.org/bradleyfalzon/revgrep) [![Coverage
-Status](https://coveralls.io/repos/github/bradleyfalzon/revgrep/badge.svg?branch=master)](https://coveralls.io/github/bradleyfalzon/revgrep?branch=master) [![GoDoc](https://godoc.org/github.com/bradleyfalzon/revgrep?status.svg)](https://godoc.org/github.com/bradleyfalzon/revgrep)
-
 `revgrep` is a CLI tool used to filter static analysis tools to only lines changed based on a commit reference.
 
 # Install
 
 ```bash
-go get -u github.com/bradleyfalzon/revgrep/...
+go get -u github.com/golangci/revgrep/...
 ```
 
 # Usage

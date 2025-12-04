@@ -20,12 +20,8 @@ clean:
 
 .PHONY: $(BUILDDIR)
 $(BUILDDIR): \
-	$(BUILDDIR)/ginkgo \
 	$(BUILDDIR)/go-md2man \
 	$(BUILDDIR)/golangci-lint
-
-$(BUILDDIR)/ginkgo:
-	$(GO_BUILD) -o $@ ./vendor/github.com/onsi/ginkgo/ginkgo
 
 $(BUILDDIR)/go-md2man:
 	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man/v2

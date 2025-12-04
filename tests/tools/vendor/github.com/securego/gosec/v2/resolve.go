@@ -66,7 +66,7 @@ func resolveBinExpr(n *ast.BinaryExpr, c *Context) bool {
 	return (TryResolve(n.X, c) && TryResolve(n.Y, c))
 }
 
-func resolveCallExpr(n *ast.CallExpr, c *Context) bool {
+func resolveCallExpr(_ *ast.CallExpr, _ *Context) bool {
 	// TODO(tkelsey): next step, full function resolution
 	return false
 }

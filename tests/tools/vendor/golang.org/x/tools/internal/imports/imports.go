@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go run mkstdlib.go
-
 // Package imports implements a Go pretty-printer (like package "go/format")
 // that also adds or removes import statements as necessary.
 package imports
@@ -11,6 +9,7 @@ package imports
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -23,6 +22,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/event"
 )
 
 // Options is golang.org/x/tools/imports.Options with extra internal-only options.
@@ -66,14 +66,17 @@ func Process(filename string, src []byte, opt *Options) (formatted []byte, err e
 //
 // Note that filename's directory influences which imports can be chosen,
 // so it is important that filename be accurate.
-func FixImports(filename string, src []byte, opt *Options) (fixes []*ImportFix, err error) {
+func FixImports(ctx context.Context, filename string, src []byte, opt *Options) (fixes []*ImportFix, err error) {
+	ctx, done := event.Start(ctx, "imports.FixImports")
+	defer done()
+
 	fileSet := token.NewFileSet()
 	file, _, err := parse(fileSet, filename, src, opt)
 	if err != nil {
 		return nil, err
 	}
 
-	return getFixes(fileSet, file, filename, opt.Env)
+	return getFixes(ctx, fileSet, file, filename, opt.Env)
 }
 
 // ApplyFixes applies all of the fixes to the file and formats it. extraMode
@@ -83,7 +86,7 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options, e
 	// Don't use parse() -- we don't care about fragments or statement lists
 	// here, and we need to work with unparseable files.
 	fileSet := token.NewFileSet()
-	parserMode := parser.Mode(0)
+	parserMode := parser.SkipObjectResolution
 	if opt.Comments {
 		parserMode |= parser.ParseComments
 	}
@@ -103,12 +106,17 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options, e
 	return formatFile(fileSet, file, src, nil, opt)
 }
 
-func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(orig []byte, src []byte) []byte, opt *Options) ([]byte, error) {
-	mergeImports(fileSet, file)
-	sortImports(opt.LocalPrefix, fileSet, file)
-	imps := astutil.Imports(fileSet, file)
+// formatFile formats the file syntax tree.
+// It may mutate the token.FileSet and the ast.File.
+//
+// If an adjust function is provided, it is called after formatting
+// with the original source (formatFile's src parameter) and the
+// formatted file, and returns the postpocessed result.
+func formatFile(fset *token.FileSet, file *ast.File, src []byte, adjust func(orig []byte, src []byte) []byte, opt *Options) ([]byte, error) {
+	mergeImports(file)
+	sortImports(opt.LocalPrefix, fset.File(file.Pos()), file)
 	var spacesBefore []string // import paths we need spaces before
-	for _, impSection := range imps {
+	for _, impSection := range astutil.Imports(fset, file) {
 		// Within each block of contiguous imports, see if any
 		// import lines are in different group numbers. If so,
 		// we'll need to put a space between them so it's
@@ -132,7 +140,7 @@ func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(
 	printConfig := &printer.Config{Mode: printerMode, Tabwidth: opt.TabWidth}
 
 	var buf bytes.Buffer
-	err := printConfig.Fprint(&buf, fileSet, file)
+	err := printConfig.Fprint(&buf, fset, file)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +165,7 @@ func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(
 // parse parses src, which was read from filename,
 // as a Go source file or statement list.
 func parse(fset *token.FileSet, filename string, src []byte, opt *Options) (*ast.File, func(orig, src []byte) []byte, error) {
-	parserMode := parser.Mode(0)
+	var parserMode parser.Mode // legacy ast.Object resolution is required here
 	if opt.Comments {
 		parserMode |= parser.ParseComments
 	}
@@ -226,7 +234,7 @@ func parse(fset *token.FileSet, filename string, src []byte, opt *Options) (*ast
 			src = src[:len(src)-len("}\n")]
 			// Gofmt has also indented the function body one level.
 			// Remove that indent.
-			src = bytes.Replace(src, []byte("\n\t"), []byte("\n"), -1)
+			src = bytes.ReplaceAll(src, []byte("\n\t"), []byte("\n"))
 			return matchSpace(orig, src)
 		}
 		return file, adjust, nil
@@ -276,11 +284,11 @@ func cutSpace(b []byte) (before, middle, after []byte) {
 }
 
 // matchSpace reformats src to use the same space context as orig.
-// 1) If orig begins with blank lines, matchSpace inserts them at the beginning of src.
-// 2) matchSpace copies the indentation of the first non-blank line in orig
-//    to every non-blank line in src.
-// 3) matchSpace copies the trailing space from orig and uses it in place
-//   of src's trailing space.
+//  1. If orig begins with blank lines, matchSpace inserts them at the beginning of src.
+//  2. matchSpace copies the indentation of the first non-blank line in orig
+//     to every non-blank line in src.
+//  3. matchSpace copies the trailing space from orig and uses it in place
+//     of src's trailing space.
 func matchSpace(orig []byte, src []byte) []byte {
 	before, _, after := cutSpace(orig)
 	i := bytes.LastIndex(before, []byte{'\n'})
