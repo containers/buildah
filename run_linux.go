@@ -221,6 +221,24 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	spec := g.Config
 	g = nil
 
+	// Override a buggy resource limit default that containers/common could supply before
+	// https://github.com/containers/common/pull/2199 fixed it.
+	if kernelPidMaxBytes, err := os.ReadFile("/proc/sys/kernel/pid_max"); err == nil {
+		kernelPidMaxString := strings.TrimSpace(string(kernelPidMaxBytes))
+		if kernelPidMaxValue, err := strconv.ParseUint(kernelPidMaxString, 10, 64); err == nil {
+			const rlimitDefaultValue = 1024 * 1024
+			var filteredLimits []specs.POSIXRlimit
+			for _, rlimit := range spec.Process.Rlimits {
+				if rlimit.Type == "RLIMIT_NPROC" && rlimit.Soft == kernelPidMaxValue && rlimit.Hard == kernelPidMaxValue {
+					rlimit.Soft, rlimit.Hard = rlimitDefaultValue, rlimitDefaultValue
+					logrus.Debugf("overrode RLIMIT_NPROC set to kernel system-wide process limit with %d", rlimitDefaultValue)
+				}
+				filteredLimits = append(filteredLimits, rlimit)
+			}
+			spec.Process.Rlimits = filteredLimits
+		}
+	}
+
 	// Set the seccomp configuration using the specified profile name.  Some syscalls are
 	// allowed if certain capabilities are to be granted (example: CAP_SYS_CHROOT and chroot),
 	// so we sorted out the capabilities lists first.
