@@ -108,77 +108,89 @@ const (
 	// Stack effect: (args...) -> (results...)
 	opCallNative opcode = 25
 
-	// Encoding: 0x1a (width=1)
-	// Stack effect: (value) -> (result:bool)
-	opIsNil opcode = 26
+	// Encoding: 0x1a funcid:u16 (width=3)
+	// Stack effect: (args...) -> (result)
+	opCall opcode = 26
 
-	// Encoding: 0x1b (width=1)
-	// Stack effect: (value) -> (result:bool)
-	opIsNotNil opcode = 27
+	// Encoding: 0x1b funcid:u16 (width=3)
+	// Stack effect: (args...) -> (result:int)
+	opIntCall opcode = 27
 
-	// Encoding: 0x1c (width=1)
-	// Stack effect: (value:bool) -> (result:bool)
-	opNot opcode = 28
+	// Encoding: 0x1c funcid:u16 (width=3)
+	// Stack effect: (args...) -> ()
+	opVoidCall opcode = 28
 
 	// Encoding: 0x1d (width=1)
-	// Stack effect: (x:int y:int) -> (result:bool)
-	opEqInt opcode = 29
+	// Stack effect: (value) -> (result:bool)
+	opIsNil opcode = 29
 
 	// Encoding: 0x1e (width=1)
-	// Stack effect: (x:int y:int) -> (result:bool)
-	opNotEqInt opcode = 30
+	// Stack effect: (value) -> (result:bool)
+	opIsNotNil opcode = 30
 
 	// Encoding: 0x1f (width=1)
-	// Stack effect: (x:int y:int) -> (result:bool)
-	opGtInt opcode = 31
+	// Stack effect: (value:bool) -> (result:bool)
+	opNot opcode = 31
 
 	// Encoding: 0x20 (width=1)
 	// Stack effect: (x:int y:int) -> (result:bool)
-	opGtEqInt opcode = 32
+	opEqInt opcode = 32
 
 	// Encoding: 0x21 (width=1)
 	// Stack effect: (x:int y:int) -> (result:bool)
-	opLtInt opcode = 33
+	opNotEqInt opcode = 33
 
 	// Encoding: 0x22 (width=1)
 	// Stack effect: (x:int y:int) -> (result:bool)
-	opLtEqInt opcode = 34
+	opGtInt opcode = 34
 
 	// Encoding: 0x23 (width=1)
-	// Stack effect: (x:string y:string) -> (result:bool)
-	opEqString opcode = 35
+	// Stack effect: (x:int y:int) -> (result:bool)
+	opGtEqInt opcode = 35
 
 	// Encoding: 0x24 (width=1)
-	// Stack effect: (x:string y:string) -> (result:bool)
-	opNotEqString opcode = 36
+	// Stack effect: (x:int y:int) -> (result:bool)
+	opLtInt opcode = 36
 
 	// Encoding: 0x25 (width=1)
-	// Stack effect: (x:string y:string) -> (result:string)
-	opConcat opcode = 37
+	// Stack effect: (x:int y:int) -> (result:bool)
+	opLtEqInt opcode = 37
 
 	// Encoding: 0x26 (width=1)
-	// Stack effect: (x:int y:int) -> (result:int)
-	opAdd opcode = 38
+	// Stack effect: (x:string y:string) -> (result:bool)
+	opEqString opcode = 38
 
 	// Encoding: 0x27 (width=1)
-	// Stack effect: (x:int y:int) -> (result:int)
-	opSub opcode = 39
+	// Stack effect: (x:string y:string) -> (result:bool)
+	opNotEqString opcode = 39
 
 	// Encoding: 0x28 (width=1)
-	// Stack effect: (s:string from:int to:int) -> (result:string)
-	opStringSlice opcode = 40
+	// Stack effect: (x:string y:string) -> (result:string)
+	opConcat opcode = 40
 
 	// Encoding: 0x29 (width=1)
-	// Stack effect: (s:string from:int) -> (result:string)
-	opStringSliceFrom opcode = 41
+	// Stack effect: (x:int y:int) -> (result:int)
+	opAdd opcode = 41
 
 	// Encoding: 0x2a (width=1)
-	// Stack effect: (s:string to:int) -> (result:string)
-	opStringSliceTo opcode = 42
+	// Stack effect: (x:int y:int) -> (result:int)
+	opSub opcode = 42
 
 	// Encoding: 0x2b (width=1)
+	// Stack effect: (s:string from:int to:int) -> (result:string)
+	opStringSlice opcode = 43
+
+	// Encoding: 0x2c (width=1)
+	// Stack effect: (s:string from:int) -> (result:string)
+	opStringSliceFrom opcode = 44
+
+	// Encoding: 0x2d (width=1)
+	// Stack effect: (s:string to:int) -> (result:string)
+	opStringSliceTo opcode = 45
+
+	// Encoding: 0x2e (width=1)
 	// Stack effect: (s:string) -> (result:int)
-	opStringLen opcode = 43
+	opStringLen opcode = 46
 )
 
 type opcodeInfo struct {
@@ -213,6 +225,9 @@ var opcodeInfoTable = [256]opcodeInfo{
 	opJumpTrue:        {width: 3},
 	opSetVariadicLen:  {width: 2},
 	opCallNative:      {width: 3},
+	opCall:            {width: 3},
+	opIntCall:         {width: 3},
+	opVoidCall:        {width: 3},
 	opIsNil:           {width: 1},
 	opIsNotNil:        {width: 1},
 	opNot:             {width: 1},

@@ -1,6 +1,6 @@
 values:
   regexp:
-    copyright-holder: Copyright \(c\) {{year-range}} Denis Tingaikin
+    copyright-holder: Copyright \(c\) {{mod-year-range}} Denis Tingaikin
 template: |
   {{copyright-holder}}
 

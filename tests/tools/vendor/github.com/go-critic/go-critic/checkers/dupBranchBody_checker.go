@@ -4,14 +4,15 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astequal"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "dupBranchBody"
-	info.Tags = []string{"diagnostic"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects duplicated branch bodies inside conditional statements"
 	info.Before = `
 if cond {
@@ -54,5 +55,5 @@ func (c *dupBranchBodyChecker) checkIf(stmt *ast.IfStmt) {
 }
 
 func (c *dupBranchBodyChecker) warnIf(cause ast.Node) {
-	c.ctx.Warn(cause, "both branches in if statement has same body")
+	c.ctx.Warn(cause, "both branches in if statement have same body")
 }

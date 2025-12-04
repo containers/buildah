@@ -64,6 +64,8 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 		field := resStruct.Field(i)
 		if field.Id() == "Body" {
 			r.bodyObj = field
+
+			break
 		}
 	}
 	if r.bodyObj == nil {
@@ -75,20 +77,19 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 		bmthd := bodyItrf.Method(i)
 		if bmthd.Id() == closeMethod {
 			r.closeMthd = bmthd
+
+			break
 		}
 	}
 
 	r.skipFile = map[*ast.File]bool{}
+FuncLoop:
 	for _, f := range funcs {
 		// skip if the function is just referenced
-		var isreffunc bool
 		for i := 0; i < f.Signature.Results().Len(); i++ {
 			if f.Signature.Results().At(i).Type().String() == r.resTyp.String() {
-				isreffunc = true
+				continue FuncLoop
 			}
-		}
-		if isreffunc {
-			continue
 		}
 
 		for _, b := range f.Blocks {
@@ -126,7 +127,12 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		resRefs := *val.Referrers()
 		for _, resRef := range resRefs {
 			switch resRef := resRef.(type) {
-			case *ssa.Store: // Call in Closure function
+			case *ssa.Store: // Call in Closure function / Response is global variable
+				if _, ok := resRef.Addr.(*ssa.Global); ok {
+					// Referrers for globals are always nil, so skip.
+					return false
+				}
+
 				if len(*resRef.Addr.Referrers()) == 0 {
 					return true
 				}
@@ -144,11 +150,26 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 					}
 
 				}
-			case *ssa.Call: // Indirect function call
-				if f, ok := resRef.Call.Value.(*ssa.Function); ok {
+			case *ssa.Call, *ssa.Defer: // Indirect function call
+				// Hacky way to extract CommonCall
+				var call ssa.CallCommon
+				switch rr := resRef.(type) {
+				case *ssa.Call:
+					call = rr.Call
+				case *ssa.Defer:
+					call = rr.Call
+				}
+
+				if f, ok := call.Value.(*ssa.Function); ok {
 					for _, b := range f.Blocks {
-						for i := range b.Instrs {
-							return r.isopen(b, i)
+						for i, bi := range b.Instrs {
+							if r.isCloseCall(bi) {
+								return false
+							}
+
+							if r.isopen(b, i) {
+								return true
+							}
 						}
 					}
 				}
@@ -201,6 +222,10 @@ func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 	case ssa.Value:
 		if instr.Type().String() == r.resTyp.String() {
 			return instr, true
+		}
+	case *ssa.Store:
+		if instr.Val.Type().String() == r.resTyp.String() {
+			return instr.Val, true
 		}
 	}
 	return nil, false

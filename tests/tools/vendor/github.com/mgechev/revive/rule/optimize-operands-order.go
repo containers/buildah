@@ -12,7 +12,7 @@ import (
 type OptimizeOperandsOrderRule struct{}
 
 // Apply applies the rule to given file.
-func (r *OptimizeOperandsOrderRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*OptimizeOperandsOrderRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -26,7 +26,7 @@ func (r *OptimizeOperandsOrderRule) Apply(file *lint.File, _ lint.Arguments) []l
 }
 
 // Name returns the rule name.
-func (r *OptimizeOperandsOrderRule) Name() string {
+func (*OptimizeOperandsOrderRule) Name() string {
 	return "optimize-operands-order"
 }
 
@@ -49,18 +49,27 @@ func (w lintOptimizeOperandsOrderlExpr) Visit(node ast.Node) ast.Visitor {
 	}
 
 	isCaller := func(n ast.Node) bool {
-		_, ok := n.(*ast.CallExpr)
-		return ok
+		ce, ok := n.(*ast.CallExpr)
+		if !ok {
+			return false
+		}
+
+		ident, isIdent := ce.Fun.(*ast.Ident)
+		if !isIdent {
+			return true
+		}
+
+		return ident.Name != "len" || ident.Obj != nil
 	}
 
 	// check if the left sub-expression contains a function call
-	nodes := pick(binExpr.X, isCaller, nil)
+	nodes := pick(binExpr.X, isCaller)
 	if len(nodes) < 1 {
 		return w
 	}
 
 	// check if the right sub-expression does not contain a function call
-	nodes = pick(binExpr.Y, isCaller, nil)
+	nodes = pick(binExpr.Y, isCaller)
 	if len(nodes) > 0 {
 		return w
 	}

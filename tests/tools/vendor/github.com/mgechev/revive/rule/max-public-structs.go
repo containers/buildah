@@ -3,6 +3,7 @@ package rule
 import (
 	"go/ast"
 	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -10,11 +11,20 @@ import (
 // MaxPublicStructsRule lints given else constructs.
 type MaxPublicStructsRule struct {
 	max int64
+	sync.Mutex
 }
 
-// Apply applies the rule to given file.
-func (r *MaxPublicStructsRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+const defaultMaxPublicStructs = 5
+
+func (r *MaxPublicStructsRule) configure(arguments lint.Arguments) {
+	r.Lock()
+	defer r.Unlock()
 	if r.max < 1 {
+		if len(arguments) < 1 {
+			r.max = defaultMaxPublicStructs
+			return
+		}
+
 		checkNumberOfArguments(1, arguments, r.Name())
 
 		max, ok := arguments[0].(int64) // Alt. non panicking version
@@ -23,10 +33,16 @@ func (r *MaxPublicStructsRule) Apply(file *lint.File, arguments lint.Arguments) 
 		}
 		r.max = max
 	}
+}
+
+// Apply applies the rule to given file.
+func (r *MaxPublicStructsRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
 
 	var failures []lint.Failure
 
 	fileAst := file.AST
+
 	walker := &lintMaxPublicStructs{
 		fileAst: fileAst,
 		onFailure: func(failure lint.Failure) {
@@ -49,7 +65,7 @@ func (r *MaxPublicStructsRule) Apply(file *lint.File, arguments lint.Arguments) 
 }
 
 // Name returns the rule name.
-func (r *MaxPublicStructsRule) Name() string {
+func (*MaxPublicStructsRule) Name() string {
 	return "max-public-structs"
 }
 

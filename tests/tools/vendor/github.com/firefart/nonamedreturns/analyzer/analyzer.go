@@ -53,6 +53,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
+		// Function without body, ex: https://github.com/golang/go/blob/master/src/internal/syscall/unix/net.go
+		if funcBody == nil {
+			return
+		}
+
 		// no return values
 		if funcResults == nil {
 			return
