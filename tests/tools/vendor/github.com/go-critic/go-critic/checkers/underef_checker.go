@@ -5,7 +5,8 @@ import (
 	"go/types"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astp"
 )
@@ -13,7 +14,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "underef"
-	info.Tags = []string{"style"}
+	info.Tags = []string{linter.StyleTag}
 	info.Params = linter.CheckerParams{
 		"skipRecvDeref": {
 			Value: true,

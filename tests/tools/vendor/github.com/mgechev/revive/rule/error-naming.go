@@ -13,7 +13,7 @@ import (
 type ErrorNamingRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ErrorNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ErrorNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -31,7 +31,7 @@ func (r *ErrorNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failur
 }
 
 // Name returns the rule name.
-func (r *ErrorNamingRule) Name() string {
+func (*ErrorNamingRule) Name() string {
 	return "error-naming"
 }
 

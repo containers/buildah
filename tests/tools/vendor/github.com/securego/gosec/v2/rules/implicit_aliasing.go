@@ -3,12 +3,14 @@ package rules
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type implicitAliasing struct {
-	gosec.MetaData
+	issue.MetaData
 	aliases         map[*ast.Object]struct{}
 	rightBrace      token.Pos
 	acceptableAlias []*ast.UnaryExpr
@@ -27,7 +29,30 @@ func containsUnary(exprs []*ast.UnaryExpr, expr *ast.UnaryExpr) bool {
 	return false
 }
 
-func (r *implicitAliasing) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
+func getIdentExpr(expr ast.Expr) (*ast.Ident, bool) {
+	return doGetIdentExpr(expr, false)
+}
+
+func doGetIdentExpr(expr ast.Expr, hasSelector bool) (*ast.Ident, bool) {
+	switch node := expr.(type) {
+	case *ast.Ident:
+		return node, hasSelector
+	case *ast.SelectorExpr:
+		return doGetIdentExpr(node.X, true)
+	case *ast.UnaryExpr:
+		return doGetIdentExpr(node.X, hasSelector)
+	default:
+		return nil, false
+	}
+}
+
+func (r *implicitAliasing) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
+	// This rule does not apply for Go 1.22, see https://tip.golang.org/doc/go1.22#language.
+	major, minor, _ := gosec.GoVersion()
+	if major >= 1 && minor >= 22 {
+		return nil, nil
+	}
+
 	switch node := n.(type) {
 	case *ast.RangeStmt:
 		// When presented with a range statement, get the underlying Object bound to
@@ -71,9 +96,13 @@ func (r *implicitAliasing) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, er
 		}
 
 		// If we find a unary op of & (reference) of an object within r.aliases, complain.
-		if ident, ok := node.X.(*ast.Ident); ok && node.Op.String() == "&" {
-			if _, contains := r.aliases[ident.Obj]; contains {
-				return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+		if identExpr, hasSelector := getIdentExpr(node); identExpr != nil && node.Op.String() == "&" {
+			if _, contains := r.aliases[identExpr.Obj]; contains {
+				_, isPointer := c.Info.TypeOf(identExpr).(*types.Pointer)
+
+				if !hasSelector || !isPointer {
+					return c.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
+				}
 			}
 		}
 	case *ast.ReturnStmt:
@@ -89,15 +118,15 @@ func (r *implicitAliasing) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, er
 }
 
 // NewImplicitAliasing detects implicit memory aliasing of type: for blah := SomeCall() {... SomeOtherCall(&blah) ...}
-func NewImplicitAliasing(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewImplicitAliasing(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	return &implicitAliasing{
 		aliases:         make(map[*ast.Object]struct{}),
 		rightBrace:      token.NoPos,
 		acceptableAlias: make([]*ast.UnaryExpr, 0),
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.Medium,
+			Severity:   issue.Medium,
+			Confidence: issue.Medium,
 			What:       "Implicit memory aliasing in for loop.",
 		},
 	}, []ast.Node{(*ast.RangeStmt)(nil), (*ast.UnaryExpr)(nil), (*ast.ReturnStmt)(nil)}

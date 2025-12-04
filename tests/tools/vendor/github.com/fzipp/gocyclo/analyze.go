@@ -41,12 +41,26 @@ func Analyze(paths []string, ignore *regexp.Regexp) Stats {
 
 func analyzeDir(dirname string, ignore *regexp.Regexp, stats Stats) Stats {
 	filepath.WalkDir(dirname, func(path string, entry fs.DirEntry, err error) error {
+		if isSkipDir(entry) {
+			return filepath.SkipDir
+		}
 		if err == nil && isGoFile(entry) {
 			stats = analyzeFile(path, ignore, stats)
 		}
 		return err
 	})
 	return stats
+}
+
+var skipDirs = map[string]bool{
+	"testdata": true,
+	"vendor":   true,
+}
+
+func isSkipDir(entry fs.DirEntry) bool {
+	return entry.IsDir() && (skipDirs[entry.Name()] ||
+		(strings.HasPrefix(entry.Name(), ".") && entry.Name() != "." && entry.Name() != "..") ||
+		strings.HasPrefix(entry.Name(), "_"))
 }
 
 func isGoFile(entry fs.DirEntry) bool {

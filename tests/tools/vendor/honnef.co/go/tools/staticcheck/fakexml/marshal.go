@@ -14,10 +14,10 @@ package fakexml
 
 import (
 	"fmt"
-	"go/token"
 	"go/types"
 
 	"honnef.co/go/tools/go/types/typeutil"
+	"honnef.co/go/tools/knowledge"
 	"honnef.co/go/tools/staticcheck/fakereflect"
 )
 
@@ -26,13 +26,14 @@ func Marshal(v types.Type) error {
 }
 
 type Encoder struct {
-	seen map[fakereflect.TypeAndCanAddr]struct{}
+	// TODO we track addressable and non-addressable instances separately out of an abundance of caution. We don't know
+	// if this is actually required for correctness.
+	seenCanAddr  typeutil.Map[struct{}]
+	seenCantAddr typeutil.Map[struct{}]
 }
 
 func NewEncoder() *Encoder {
-	e := &Encoder{
-		seen: map[fakereflect.TypeAndCanAddr]struct{}{},
-	}
+	e := &Encoder{}
 	return e
 }
 
@@ -43,11 +44,7 @@ func (enc *Encoder) Encode(v types.Type) error {
 
 func implementsMarshaler(v fakereflect.TypeAndCanAddr) bool {
 	t := v.Type
-	named, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj, _, _ := types.LookupFieldOrMethod(named, false, nil, "MarshalXML")
+	obj, _, _ := types.LookupFieldOrMethod(t, false, nil, "MarshalXML")
 	if obj == nil {
 		return false
 	}
@@ -59,17 +56,17 @@ func implementsMarshaler(v fakereflect.TypeAndCanAddr) bool {
 	if params.Len() != 2 {
 		return false
 	}
-	if !typeutil.IsType(params.At(0).Type(), "*encoding/xml.Encoder") {
+	if !typeutil.IsPointerToTypeWithName(params.At(0).Type(), "encoding/xml.Encoder") {
 		return false
 	}
-	if !typeutil.IsType(params.At(1).Type(), "encoding/xml.StartElement") {
+	if !typeutil.IsTypeWithName(params.At(1).Type(), "encoding/xml.StartElement") {
 		return false
 	}
 	rets := fn.Type().(*types.Signature).Results()
 	if rets.Len() != 1 {
 		return false
 	}
-	if !typeutil.IsType(rets.At(0).Type(), "error") {
+	if !typeutil.IsTypeWithName(rets.At(0).Type(), "error") {
 		return false
 	}
 	return true
@@ -77,11 +74,7 @@ func implementsMarshaler(v fakereflect.TypeAndCanAddr) bool {
 
 func implementsMarshalerAttr(v fakereflect.TypeAndCanAddr) bool {
 	t := v.Type
-	named, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj, _, _ := types.LookupFieldOrMethod(named, false, nil, "MarshalXMLAttr")
+	obj, _, _ := types.LookupFieldOrMethod(t, false, nil, "MarshalXMLAttr")
 	if obj == nil {
 		return false
 	}
@@ -93,48 +86,57 @@ func implementsMarshalerAttr(v fakereflect.TypeAndCanAddr) bool {
 	if params.Len() != 1 {
 		return false
 	}
-	if !typeutil.IsType(params.At(0).Type(), "encoding/xml.Name") {
+	if !typeutil.IsTypeWithName(params.At(0).Type(), "encoding/xml.Name") {
 		return false
 	}
 	rets := fn.Type().(*types.Signature).Results()
 	if rets.Len() != 2 {
 		return false
 	}
-	if !typeutil.IsType(rets.At(0).Type(), "encoding/xml.Attr") {
+	if !typeutil.IsTypeWithName(rets.At(0).Type(), "encoding/xml.Attr") {
 		return false
 	}
-	if !typeutil.IsType(rets.At(1).Type(), "error") {
+	if !typeutil.IsTypeWithName(rets.At(1).Type(), "error") {
 		return false
 	}
 	return true
 }
 
-var textMarshalerType = types.NewInterfaceType([]*types.Func{
-	types.NewFunc(token.NoPos, nil, "MarshalText", types.NewSignature(nil,
-		types.NewTuple(),
-		types.NewTuple(
-			types.NewVar(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
-			types.NewVar(0, nil, "", types.Universe.Lookup("error").Type())),
-		false,
-	)),
-}, nil).Complete()
+type CyclicTypeError struct {
+	Type types.Type
+	Path string
+}
 
-var N = 0
+func (err *CyclicTypeError) Error() string {
+	return "cyclic type"
+}
 
 // marshalValue writes one or more XML elements representing val.
 // If val was obtained from a struct field, finfo must have its details.
 func (e *Encoder) marshalValue(val fakereflect.TypeAndCanAddr, finfo *fieldInfo, startTemplate *StartElement, stack string) error {
-	if _, ok := e.seen[val]; ok {
+	var m *typeutil.Map[struct{}]
+	if val.CanAddr() {
+		m = &e.seenCanAddr
+	} else {
+		m = &e.seenCantAddr
+	}
+	if _, ok := m.At(val.Type); ok {
 		return nil
 	}
-	e.seen[val] = struct{}{}
+	m.Set(val.Type, struct{}{})
 
 	// Drill into interfaces and pointers.
+	seen := map[fakereflect.TypeAndCanAddr]struct{}{}
 	for val.IsInterface() || val.IsPtr() {
 		if val.IsInterface() {
 			return nil
 		}
 		val = val.Elem()
+		if _, ok := seen[val]; ok {
+			// Loop in type graph, e.g. 'type P *P'
+			return &CyclicTypeError{val.Type, stack}
+		}
+		seen[val] = struct{}{}
 	}
 
 	// Check for marshaler.
@@ -149,12 +151,12 @@ func (e *Encoder) marshalValue(val fakereflect.TypeAndCanAddr, finfo *fieldInfo,
 	}
 
 	// Check for text marshaler.
-	if val.Implements(textMarshalerType) {
+	if val.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 		return nil
 	}
 	if val.CanAddr() {
 		pv := fakereflect.PtrTo(val)
-		if pv.Implements(textMarshalerType) {
+		if pv.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 			return nil
 		}
 	}
@@ -253,13 +255,13 @@ func (e *Encoder) marshalAttr(start *StartElement, name Name, val fakereflect.Ty
 		}
 	}
 
-	if val.Implements(textMarshalerType) {
+	if val.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 		return nil
 	}
 
 	if val.CanAddr() {
 		pv := fakereflect.PtrTo(val)
-		if pv.Implements(textMarshalerType) {
+		if pv.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 			return nil
 		}
 	}
@@ -277,7 +279,7 @@ func (e *Encoder) marshalAttr(start *StartElement, name Name, val fakereflect.Ty
 		return nil
 	}
 
-	if typeutil.IsType(val.Type, "encoding/xml.Attr") {
+	if typeutil.IsTypeWithName(val.Type, "encoding/xml.Attr") {
 		return nil
 	}
 
@@ -328,17 +330,15 @@ func (e *Encoder) marshalStruct(tinfo *typeInfo, val fakereflect.TypeAndCanAddr,
 
 		switch finfo.flags & fMode {
 		case fCDATA, fCharData:
-			if vf.Implements(textMarshalerType) {
+			if vf.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 				continue
 			}
 			if vf.CanAddr() {
 				pv := fakereflect.PtrTo(vf)
-				if pv.Implements(textMarshalerType) {
+				if pv.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 					continue
 				}
 			}
-
-			vf = indirect(vf)
 			continue
 
 		case fComment:
@@ -350,7 +350,7 @@ func (e *Encoder) marshalStruct(tinfo *typeInfo, val fakereflect.TypeAndCanAddr,
 
 		case fInnerXML:
 			vf = indirect(vf)
-			if typeutil.IsType(vf.Type, "[]byte") || typeutil.IsType(vf.Type, "string") {
+			if t, ok := vf.Type.(*types.Slice); (ok && types.Identical(t.Elem(), types.Typ[types.Byte])) || types.Identical(vf.Type, types.Typ[types.String]) {
 				continue
 			}
 

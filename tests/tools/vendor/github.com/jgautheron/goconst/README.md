@@ -23,6 +23,7 @@ Usage:
 Flags:
 
   -ignore            exclude files matching the given regular expression
+  -ignore-strings    exclude strings matching the given regular expression  
   -ignore-tests      exclude tests from the search (default: true)
   -min-occurrences   report from how many occurrences (default: 2)
   -min-length        only report strings with the minimum given length (default: 3)

@@ -1,3 +1,4 @@
+//go:build generate
 // +build generate
 
 package main
@@ -6,7 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -40,6 +41,7 @@ func main() {
 		{name: "LtEq", comment: "$Args[0] <= $Args[1]", flags: flagIsBinaryExpr},
 
 		{name: "VarAddressable", comment: "m[$Value].Addressable", valueType: "string", flags: flagHasVar},
+		{name: "VarComparable", comment: "m[$Value].Comparable", valueType: "string", flags: flagHasVar},
 		{name: "VarPure", comment: "m[$Value].Pure", valueType: "string", flags: flagHasVar},
 		{name: "VarConst", comment: "m[$Value].Const", valueType: "string", flags: flagHasVar},
 		{name: "VarConstSlice", comment: "m[$Value].ConstSlice", valueType: "string", flags: flagHasVar},
@@ -52,14 +54,20 @@ func main() {
 		{name: "VarFilter", comment: "m[$Value].Filter($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarNodeIs", comment: "m[$Value].Node.Is($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarObjectIs", comment: "m[$Value].Object.Is($Args[0])", valueType: "string", flags: flagHasVar},
+		{name: "VarObjectIsGlobal", comment: "m[$Value].Object.IsGlobal()", valueType: "string", flags: flagHasVar},
+		{name: "VarObjectIsVariadicParam", comment: "m[$Value].Object.IsVariadicParam()", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeIs", comment: "m[$Value].Type.Is($Args[0])", valueType: "string", flags: flagHasVar},
+		{name: "VarTypeIdenticalTo", comment: "m[$Value].Type.IdenticalTo($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeUnderlyingIs", comment: "m[$Value].Type.Underlying().Is($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeOfKind", comment: "m[$Value].Type.OfKind($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeUnderlyingOfKind", comment: "m[$Value].Type.Underlying().OfKind($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeConvertibleTo", comment: "m[$Value].Type.ConvertibleTo($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeAssignableTo", comment: "m[$Value].Type.AssignableTo($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeImplements", comment: "m[$Value].Type.Implements($Args[0])", valueType: "string", flags: flagHasVar},
+		{name: "VarTypeHasMethod", comment: "m[$Value].Type.HasMethod($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTextMatches", comment: "m[$Value].Text.Matches($Args[0])", valueType: "string", flags: flagHasVar},
+
+		{name: "VarContains", comment: "m[$Value].Contains($Args[0])", valueType: "string", flags: flagHasVar},
 
 		{name: "Deadcode", comment: "m.Deadcode()"},
 
@@ -79,6 +87,7 @@ func main() {
 		{name: "Int", comment: "$Value holds an int64 constant", valueType: "int64", flags: flagIsBasicLit},
 
 		{name: "RootNodeParentIs", comment: "m[`$$`].Node.Parent().Is($Args[0])"},
+		{name: "RootSinkTypeIs", comment: "m[`$$`].SinkType.Is($Args[0])"},
 	}
 
 	var buf bytes.Buffer
@@ -133,7 +142,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := ioutil.WriteFile("filter_op.gen.go", pretty, 0644); err != nil {
+	if err := os.WriteFile("filter_op.gen.go", pretty, 0644); err != nil {
 		panic(err)
 	}
 }

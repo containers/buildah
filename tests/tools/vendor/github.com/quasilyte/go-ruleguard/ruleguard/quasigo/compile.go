@@ -54,7 +54,9 @@ type compiler struct {
 	locals           map[string]int
 	constantsPool    map[interface{}]int
 	intConstantsPool map[int]int
-	params           map[string]int
+
+	params    map[string]int
+	intParams map[string]int
 
 	code         []byte
 	constants    []interface{}
@@ -89,20 +91,31 @@ func (cl *compiler) compileFunc(fn *ast.FuncDecl) *Func {
 		panic(cl.errorUnsupportedType(fn.Name, cl.retType, "function result"))
 	}
 
-	dbg := funcDebugInfo{
-		paramNames: make([]string, cl.fnType.Params().Len()),
-	}
-
 	cl.params = make(map[string]int, cl.fnType.Params().Len())
+	cl.intParams = make(map[string]int, cl.fnType.Params().Len())
 	for i := 0; i < cl.fnType.Params().Len(); i++ {
 		p := cl.fnType.Params().At(i)
 		paramName := p.Name()
 		paramType := p.Type()
-		cl.params[paramName] = i
-		dbg.paramNames[i] = paramName
 		if !cl.isSupportedType(paramType) {
 			panic(cl.errorUnsupportedType(fn.Name, paramType, paramName+" param"))
 		}
+		if typeIsInt(paramType) {
+			cl.intParams[paramName] = len(cl.intParams)
+		} else {
+			cl.params[paramName] = len(cl.params)
+		}
+	}
+
+	dbg := funcDebugInfo{
+		paramNames:    make([]string, len(cl.params)),
+		intParamNames: make([]string, len(cl.intParams)),
+	}
+	for paramName, i := range cl.params {
+		dbg.paramNames[i] = paramName
+	}
+	for paramName, i := range cl.intParams {
+		dbg.intParamNames[i] = paramName
 	}
 
 	cl.compileStmt(fn.Body)
@@ -111,9 +124,12 @@ func (cl *compiler) compileFunc(fn *ast.FuncDecl) *Func {
 	}
 
 	compiled := &Func{
-		code:         cl.code,
-		constants:    cl.constants,
-		intConstants: cl.intConstants,
+		code:            cl.code,
+		constants:       cl.constants,
+		intConstants:    cl.intConstants,
+		numObjectParams: len(cl.params),
+		numIntParams:    len(cl.intParams),
+		name:            cl.ctx.Package.Path() + "." + fn.Name.String(),
 	}
 	if len(cl.locals) != 0 {
 		dbg.localNames = make([]string, len(cl.locals))
@@ -298,10 +314,20 @@ func (cl *compiler) compileAssignStmt(assign *ast.AssignStmt) {
 	}
 }
 
+func (cl *compiler) isParamName(varname string) bool {
+	if _, ok := cl.params[varname]; ok {
+		return true
+	}
+	if _, ok := cl.intParams[varname]; ok {
+		return true
+	}
+	return false
+}
+
 func (cl *compiler) getLocal(v ast.Expr, varname string) int {
 	id, ok := cl.locals[varname]
 	if !ok {
-		if _, ok := cl.params[varname]; ok {
+		if cl.isParamName(varname) {
 			panic(cl.errorf(v, "can't assign to %s, params are readonly", varname))
 		}
 		panic(cl.errorf(v, "%s is not a writeable local variable", varname))
@@ -552,19 +578,51 @@ func (cl *compiler) compileCallExpr(call *ast.CallExpr) {
 	if sig.Variadic() {
 		variadic = sig.Params().Len() - 1
 	}
-	if !cl.compileNativeCall(key, variadic, expr, call.Args) {
-		panic(cl.errorf(call.Fun, "can't compile a call to %s func", key))
+	if expr != nil {
+		cl.compileExpr(expr)
 	}
+	if cl.compileNativeCall(key, variadic, expr, call.Args) {
+		return
+	}
+	if cl.compileCall(key, sig, call.Args) {
+		return
+	}
+	panic(cl.errorf(call.Fun, "can't compile a call to %s func", key))
 }
 
-func (cl *compiler) compileNativeCall(key funcKey, variadic int, expr ast.Expr, args []ast.Expr) bool {
+func (cl *compiler) compileCall(key funcKey, sig *types.Signature, args []ast.Expr) bool {
+	if sig.Variadic() {
+		return false
+	}
+
+	funcID, ok := cl.ctx.Env.nameToFuncID[key]
+	if !ok {
+		return false
+	}
+
+	for _, arg := range args {
+		cl.compileExpr(arg)
+	}
+
+	var op opcode
+	if sig.Results().Len() == 0 {
+		op = opVoidCall
+	} else if typeIsInt(sig.Results().At(0).Type()) {
+		op = opIntCall
+	} else {
+		op = opCall
+	}
+
+	cl.emit16(op, int(funcID))
+	return true
+}
+
+func (cl *compiler) compileNativeCall(key funcKey, variadic int, funcExpr ast.Expr, args []ast.Expr) bool {
 	funcID, ok := cl.ctx.Env.nameToNativeFuncID[key]
 	if !ok {
 		return false
 	}
-	if expr != nil {
-		cl.compileExpr(expr)
-	}
+
 	if len(args) == 1 {
 		// Check that it's not a f(g()) call, where g() returns
 		// a multi-value result; we can't compile that yet.
@@ -596,7 +654,7 @@ func (cl *compiler) compileNativeCall(key funcKey, variadic int, expr ast.Expr, 
 			}
 		}
 		if len(variadicArgs) > 255 {
-			panic(cl.errorf(expr, "too many variadic args"))
+			panic(cl.errorf(funcExpr, "too many variadic args"))
 		}
 		// Even if len(variadicArgs) is 0, we still need to overwrite
 		// the old variadicLen value, so the variadic func is not confused
@@ -645,7 +703,11 @@ func (cl *compiler) compileIdent(ident *ast.Ident) {
 		return
 	}
 	if paramIndex, ok := cl.params[ident.String()]; ok {
-		cl.emit8(pickOp(typeIsInt(tv.Type), opPushIntParam, opPushParam), paramIndex)
+		cl.emit8(opPushParam, paramIndex)
+		return
+	}
+	if paramIndex, ok := cl.intParams[ident.String()]; ok {
+		cl.emit8(opPushIntParam, paramIndex)
 		return
 	}
 	if localIndex, ok := cl.locals[ident.String()]; ok {

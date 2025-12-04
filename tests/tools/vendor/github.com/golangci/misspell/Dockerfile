@@ -1,16 +1,13 @@
-FROM golang:1.10.0-alpine
+FROM golang:1.22-alpine
 
 # cache buster
-RUN echo 4 
+RUN echo 4
 
 # git is needed for "go get" below
 RUN apk add --no-cache git make
 
 # these are my standard testing / linting tools
 RUN /bin/true \
-    && go get -u github.com/golang/dep/cmd/dep \
-    && go get -u github.com/alecthomas/gometalinter \
-    && gometalinter --install \
     && rm -rf /go/src /go/pkg
 #
 # * SCOWL word list
@@ -35,3 +32,4 @@ RUN /bin/true \
   && wget -O /scowl-wl/words-US-60.txt ${SOURCE_US} \
   && wget -O /scowl-wl/words-GB-ise-60.txt ${SOURCE_GB_ISE} 
 
+RUN git config --global --add safe.directory "/go/src/github.com/golangci/misspell"

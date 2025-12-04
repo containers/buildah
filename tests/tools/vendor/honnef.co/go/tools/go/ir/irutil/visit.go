@@ -18,7 +18,6 @@ import "honnef.co/go/tools/go/ir"
 // synthetic wrappers.
 //
 // Precondition: all packages are built.
-//
 func AllFunctions(prog *ir.Program) map[*ir.Function]bool {
 	visit := visitor{
 		prog: prog,

@@ -7,8 +7,8 @@
 package imports // import "golang.org/x/tools/imports"
 
 import (
-	"io/ioutil"
 	"log"
+	"os"
 
 	"golang.org/x/tools/internal/gocommand"
 	intimp "golang.org/x/tools/internal/imports"
@@ -40,11 +40,11 @@ var LocalPrefix string
 //
 // Note that filename's directory influences which imports can be chosen,
 // so it is important that filename be accurate.
-// To process data ``as if'' it were in filename, pass the data as a non-nil src.
+// To process data “as if” it were in filename, pass the data as a non-nil src.
 func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 	var err error
 	if src == nil {
-		src, err = ioutil.ReadFile(filename)
+		src, err = os.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}
