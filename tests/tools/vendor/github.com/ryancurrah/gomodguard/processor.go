@@ -22,12 +22,10 @@ const (
 )
 
 var (
-	blockReasonNotInAllowedList = "import of package `%s` is blocked because the module is not in the " +
-		"allowed modules list."
-	blockReasonInBlockedList = "import of package `%s` is blocked because the module is in the " +
-		"blocked modules list."
-	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a " +
-		"local replace directive."
+	blockReasonNotInAllowedList         = "import of package `%s` is blocked because the module is not in the allowed modules list."
+	blockReasonInBlockedList            = "import of package `%s` is blocked because the module is in the blocked modules list."
+	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a local replace directive."
+	blockReasonInvalidVersionConstraint = "import of package `%s` is blocked because the version constraint is invalid."
 
 	// startsWithVersion is used to test when a string begins with the version identifier of a module,
 	// after having stripped the prefix base module name. IE "github.com/foo/bar/v2/baz" => "v2/baz"
@@ -141,7 +139,7 @@ func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason strin
 //
 // It works by iterating over the dependant modules specified in the require
 // directive, checking if the module domain or full name is in the allowed list.
-func (p *Processor) SetBlockedModules() { //nolint:gocognit,funlen
+func (p *Processor) SetBlockedModules() { //nolint:funlen
 	blockedModules := make(map[string][]string, len(p.Modfile.Require))
 	currentModuleName := p.Modfile.Module.Mod.Path
 	lintedModules := p.Modfile.Require
@@ -181,9 +179,21 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit,funlen
 				fmt.Sprintf("%s %s", blockReasonInBlockedList, blockModuleReason.Message()))
 		}
 
-		if blockVersionReason != nil && blockVersionReason.IsLintedModuleVersionBlocked(lintedModuleVersion) {
-			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName],
-				fmt.Sprintf("%s %s", blockReasonInBlockedList, blockVersionReason.Message(lintedModuleVersion)))
+		if blockVersionReason != nil {
+			isVersBlocked, err := blockVersionReason.IsLintedModuleVersionBlocked(lintedModuleVersion)
+
+			var msg string
+
+			switch err {
+			case nil:
+				msg = fmt.Sprintf("%s %s", blockReasonInBlockedList, blockVersionReason.Message(lintedModuleVersion))
+			default:
+				msg = fmt.Sprintf("%s %s", blockReasonInvalidVersionConstraint, err)
+			}
+
+			if isVersBlocked {
+				blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName], msg)
+			}
 		}
 	}
 
@@ -223,6 +233,11 @@ func (p *Processor) isBlockedPackageFromModFile(packageName string) []string {
 	return nil
 }
 
+// loadGoModFile loads the contents of the go.mod file in the current working directory.
+// It first checks the "GOMOD" environment variable to determine the path of the go.mod file.
+// If the environment variable is not set or the file does not exist, it falls back to reading the go.mod file in the current directory.
+// If the "GOMOD" environment variable is set to "/dev/null", it returns an error indicating that the current working directory must have a go.mod file.
+// The function returns the contents of the go.mod file as a byte slice and any error encountered during the process.
 func loadGoModFile() ([]byte, error) {
 	cmd := exec.Command("go", "env", "-json")
 	stdout, _ := cmd.StdoutPipe()
@@ -250,14 +265,14 @@ func loadGoModFile() ([]byte, error) {
 		return os.ReadFile(goModFilename)
 	}
 
-	if goEnv["GOMOD"] == "/dev/null" {
+	if goEnv["GOMOD"] == "/dev/null" || goEnv["GOMOD"] == "NUL" {
 		return nil, errors.New("current working directory must have a go.mod file")
 	}
 
 	return os.ReadFile(goEnv["GOMOD"])
 }
 
-// isPackageInModule determines if a package is apart of the specified go module.
+// isPackageInModule determines if a package is a part of the specified Go module.
 func isPackageInModule(pkg, mod string) bool {
 	// Split pkg and mod paths into parts
 	pkgPart := strings.Split(pkg, "/")

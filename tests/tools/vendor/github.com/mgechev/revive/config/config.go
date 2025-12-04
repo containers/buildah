@@ -1,13 +1,14 @@
+// Package config implements revive's configuration data structures and related methods
 package config
 
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
-
-	"github.com/mgechev/revive/formatter"
+	"os"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/mgechev/revive/formatter"
 	"github.com/mgechev/revive/lint"
 	"github.com/mgechev/revive/rule"
 )
@@ -31,21 +32,22 @@ var defaultRules = []lint.Rule{
 	&rule.TimeNamingRule{},
 	&rule.ContextKeysType{},
 	&rule.ContextAsArgumentRule{},
+	&rule.EmptyBlockRule{},
+	&rule.SuperfluousElseRule{},
+	&rule.UnusedParamRule{},
+	&rule.UnreachableCodeRule{},
+	&rule.RedefinesBuiltinIDRule{},
 }
 
 var allRules = append([]lint.Rule{
 	&rule.ArgumentsLimitRule{},
 	&rule.CyclomaticRule{},
 	&rule.FileHeaderRule{},
-	&rule.EmptyBlockRule{},
-	&rule.SuperfluousElseRule{},
 	&rule.ConfusingNamingRule{},
 	&rule.GetReturnRule{},
 	&rule.ModifiesParamRule{},
 	&rule.ConfusingResultsRule{},
 	&rule.DeepExitRule{},
-	&rule.UnusedParamRule{},
-	&rule.UnreachableCodeRule{},
 	&rule.AddConstantRule{},
 	&rule.FlagParamRule{},
 	&rule.UnnecessaryStmtRule{},
@@ -53,8 +55,7 @@ var allRules = append([]lint.Rule{
 	&rule.ModifiesValRecRule{},
 	&rule.ConstantLogicalExprRule{},
 	&rule.BoolLiteralRule{},
-	&rule.RedefinesBuiltinIDRule{},
-	&rule.ImportsBlacklistRule{},
+	&rule.ImportsBlocklistRule{},
 	&rule.FunctionResultsLimitRule{},
 	&rule.MaxPublicStructsRule{},
 	&rule.RangeValInClosureRule{},
@@ -79,14 +80,22 @@ var allRules = append([]lint.Rule{
 	&rule.UnexportedNamingRule{},
 	&rule.FunctionLength{},
 	&rule.NestedStructs{},
-	&rule.IfReturnRule{},
 	&rule.UselessBreak{},
+	&rule.UncheckedTypeAssertionRule{},
 	&rule.TimeEqualRule{},
 	&rule.BannedCharsRule{},
 	&rule.OptimizeOperandsOrderRule{},
 	&rule.UseAnyRule{},
 	&rule.DataRaceRule{},
 	&rule.CommentSpacingsRule{},
+	&rule.IfReturnRule{},
+	&rule.RedundantImportAlias{},
+	&rule.ImportAliasNamingRule{},
+	&rule.EnforceMapStyleRule{},
+	&rule.EnforceRepeatedArgTypeStyleRule{},
+	&rule.EnforceSliceStyleRule{},
+	&rule.MaxControlNestingRule{},
+	&rule.CommentsDensityRule{},
 }, defaultRules...)
 
 var allFormatters = []lint.Formatter{
@@ -124,7 +133,8 @@ func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, 
 
 	var lintingRules []lint.Rule
 	for name, ruleConfig := range config.Rules {
-		r, ok := rulesMap[name]
+		actualName := actualRuleName(name)
+		r, ok := rulesMap[actualName]
 		if !ok {
 			return nil, fmt.Errorf("cannot find rule: %s", name)
 		}
@@ -139,8 +149,17 @@ func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, 
 	return lintingRules, nil
 }
 
+func actualRuleName(name string) string {
+	switch name {
+	case "imports-blacklist":
+		return "imports-blocklist"
+	default:
+		return name
+	}
+}
+
 func parseConfig(path string, config *lint.Config) error {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return errors.New("cannot read the config file")
 	}
@@ -148,6 +167,14 @@ func parseConfig(path string, config *lint.Config) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse the config file: %v", err)
 	}
+	for k, r := range config.Rules {
+		err := r.Initialize()
+		if err != nil {
+			return fmt.Errorf("error in config of rule [%s] : [%v]", k, err)
+		}
+		config.Rules[k] = r
+	}
+
 	return nil
 }
 

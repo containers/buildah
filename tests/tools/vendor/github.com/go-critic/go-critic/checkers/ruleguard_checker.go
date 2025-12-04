@@ -12,15 +12,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/quasilyte/go-ruleguard/ruleguard"
+	"github.com/go-critic/go-critic/linter"
 
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/quasilyte/go-ruleguard/ruleguard"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "ruleguard"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Params = linter.CheckerParams{
 		"rules": {
 			Value: "",
@@ -84,7 +84,7 @@ func newErrorHandler(failOnErrorFlag string) (*parseErrorHandler, error) {
 	h := parseErrorHandler{
 		failureConditions: make(map[string]func(err error) bool),
 	}
-	var failOnErrorPredicates = map[string]func(error) bool{
+	failOnErrorPredicates := map[string]func(error) bool{
 		"dsl":    func(err error) bool { var e *ruleguard.ImportError; return !errors.As(err, &e) },
 		"import": func(err error) bool { var e *ruleguard.ImportError; return errors.As(err, &e) },
 		"all":    func(err error) bool { return true },
@@ -160,8 +160,8 @@ func newRuleguardChecker(info *linter.CheckerInfo, ctx *linter.CheckerContext) (
 		}
 	}
 
-	if !enabledTags["experimental"] {
-		disabledTags["experimental"] = true
+	if !enabledTags[linter.ExperimentalTag] {
+		disabledTags[linter.ExperimentalTag] = true
 	}
 	ruleguardDebug := os.Getenv("GOCRITIC_RULEGUARD_DEBUG") != ""
 

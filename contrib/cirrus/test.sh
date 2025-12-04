@@ -64,7 +64,7 @@ else
             fi
             echo "Linting & Validating from ${GITVALIDATE_EPOCH:-default EPOCH}"
             # Disabled linting, release-1.33 branch was previously modified w/ failing linters.
-            # showrun make lint LINTFLAGS="--deadline=20m --color=always -j1"
+            # showrun make lint LINTFLAGS="--timeout=20m --color=always -j1"
             showrun make validate
             ;;
         unit)

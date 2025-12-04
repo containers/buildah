@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// EnvTestRun value: "1"
+const EnvTestRun = "GL_TEST_RUN"
+
 // envDebug value: one or several debug keys.
 // examples:
 // - Remove output to `/dev/null`: `GL_DEBUG=linters_output ./golangci-lint run`
@@ -22,6 +25,8 @@ const (
 	DebugKeyExcludeRules       = "exclude_rules"
 	DebugKeyExec               = "exec"
 	DebugKeyFilenameUnadjuster = "filename_unadjuster"
+	DebugKeyInvalidIssue       = "invalid_issue"
+	DebugKeyForbidigo          = "forbidigo"
 	DebugKeyGoEnv              = "goenv"
 	DebugKeyLinter             = "linter"
 	DebugKeyLintersContext     = "linters_context"
@@ -56,9 +61,10 @@ const (
 
 const (
 	DebugKeyGoCritic  = "gocritic"  // Debugs `go-critic` linter.
+	DebugKeyGovet     = "govet"     // Debugs `govet` linter.
 	DebugKeyMegacheck = "megacheck" // Debugs `staticcheck` related linters.
 	DebugKeyNolint    = "nolint"    // Debugs a filter excluding issues by `//nolint` comments.
-	DebugKeyRevive    = "revive"    // Debugs `revice` linter.
+	DebugKeyRevive    = "revive"    // Debugs `revive` linter.
 )
 
 func getEnabledDebugs() map[string]bool {
@@ -77,9 +83,9 @@ func getEnabledDebugs() map[string]bool {
 
 var enabledDebugs = getEnabledDebugs()
 
-type DebugFunc func(format string, args ...interface{})
+type DebugFunc func(format string, args ...any)
 
-func nopDebugf(format string, args ...interface{}) {}
+func nopDebugf(_ string, _ ...any) {}
 
 func Debug(tag string) DebugFunc {
 	if !enabledDebugs[tag] {
@@ -89,7 +95,7 @@ func Debug(tag string) DebugFunc {
 	logger := NewStderrLog(tag)
 	logger.SetLevel(LogLevelDebug)
 
-	return func(format string, args ...interface{}) {
+	return func(format string, args ...any) {
 		logger.Debugf(format, args...)
 	}
 }
@@ -98,8 +104,15 @@ func HaveDebugTag(tag string) bool {
 	return enabledDebugs[tag]
 }
 
+var verbose bool
+
 func SetupVerboseLog(log Log, isVerbose bool) {
 	if isVerbose {
+		verbose = isVerbose
 		log.SetLevel(LogLevelInfo)
 	}
+}
+
+func IsVerbose() bool {
+	return verbose
 }

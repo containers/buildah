@@ -5,22 +5,22 @@ import (
 	"go/token"
 	"strconv"
 
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/lintutil"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astcopy"
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/astp"
 	"github.com/go-toolsmith/typep"
 	"golang.org/x/tools/go/ast/astutil"
-
-	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "boolExprSimplify"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects bool expressions that can be simplified"
 	info.Before = `
 a := !(elapsed >= expectElapsedMin)

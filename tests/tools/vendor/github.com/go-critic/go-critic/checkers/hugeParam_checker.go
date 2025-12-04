@@ -4,13 +4,15 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
+	"github.com/go-toolsmith/astcast"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "hugeParam"
-	info.Tags = []string{"performance"}
+	info.Tags = []string{linter.PerformanceTag}
 	info.Params = linter.CheckerParams{
 		"sizeThreshold": {
 			Value: 80,
@@ -39,10 +41,28 @@ type hugeParamChecker struct {
 func (c *hugeParamChecker) VisitFuncDecl(decl *ast.FuncDecl) {
 	// TODO(quasilyte): maybe it's worthwhile to permit skipping
 	// test files for this checker?
+	if c.isImplementStringer(decl) {
+		return
+	}
+
 	if decl.Recv != nil {
 		c.checkParams(decl.Recv.List)
 	}
 	c.checkParams(decl.Type.Params.List)
+}
+
+// isImplementStringer check method signature is: String() string.
+func (*hugeParamChecker) isImplementStringer(decl *ast.FuncDecl) bool {
+	if decl.Recv != nil &&
+		decl.Name.Name == "String" &&
+		decl.Type != nil &&
+		len(decl.Type.Params.List) == 0 &&
+		len(decl.Type.Results.List) == 1 &&
+		astcast.ToIdent(decl.Type.Results.List[0].Type).Name == "string" {
+		return true
+	}
+
+	return false
 }
 
 func (c *hugeParamChecker) checkParams(params []*ast.Field) {
