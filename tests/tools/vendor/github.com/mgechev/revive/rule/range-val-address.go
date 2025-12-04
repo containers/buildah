@@ -16,6 +16,10 @@ type RangeValAddress struct{}
 func (*RangeValAddress) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
+	if file.Pkg.IsAtLeastGo122() {
+		return failures
+	}
+
 	walker := rangeValAddress{
 		file: file,
 		onFailure: func(failure lint.Failure) {

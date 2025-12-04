@@ -82,7 +82,7 @@ func (w lintContextArguments) Visit(n ast.Node) ast.Visitor {
 func getAllowTypesFromArguments(args lint.Arguments) map[string]struct{} {
 	allowTypesBefore := []string{}
 	if len(args) >= 1 {
-		argKV, ok := args[0].(map[string]interface{})
+		argKV, ok := args[0].(map[string]any)
 		if !ok {
 			panic(fmt.Sprintf("Invalid argument to the context-as-argument rule. Expecting a k,v map, got %T", args[0]))
 		}

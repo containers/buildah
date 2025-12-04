@@ -19,10 +19,11 @@ import (
 	"go/types"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type subprocess struct {
-	gosec.MetaData
+	issue.MetaData
 	gosec.CallList
 }
 
@@ -39,7 +40,7 @@ func (r *subprocess) ID() string {
 // is unsafe. For example:
 //
 // syscall.Exec("echo", "foobar" + tainted)
-func (r *subprocess) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
+func (r *subprocess) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
 	if node := r.ContainsPkgCallExpr(n, c, false); node != nil {
 		args := node.Args
 		if r.isContext(n, c) {
@@ -64,7 +65,7 @@ func (r *subprocess) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 						_, assignment := ident.Obj.Decl.(*ast.AssignStmt)
 						if variable && assignment {
 							if !gosec.TryResolve(ident, c) {
-								return gosec.NewIssue(c, n, r.ID(), "Subprocess launched with variable", gosec.Medium, gosec.High), nil
+								return c.NewIssue(n, r.ID(), "Subprocess launched with variable", issue.Medium, issue.High), nil
 							}
 						}
 					case *ast.Field:
@@ -74,21 +75,21 @@ func (r *subprocess) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 							vv, vvok := obj.(*types.Var)
 
 							if vvok && vv.Parent().Lookup(ident.Name) == nil {
-								return gosec.NewIssue(c, n, r.ID(), "Subprocess launched with variable", gosec.Medium, gosec.High), nil
+								return c.NewIssue(n, r.ID(), "Subprocess launched with variable", issue.Medium, issue.High), nil
 							}
 						}
 					case *ast.ValueSpec:
 						_, valueSpec := ident.Obj.Decl.(*ast.ValueSpec)
 						if variable && valueSpec {
 							if !gosec.TryResolve(ident, c) {
-								return gosec.NewIssue(c, n, r.ID(), "Subprocess launched with variable", gosec.Medium, gosec.High), nil
+								return c.NewIssue(n, r.ID(), "Subprocess launched with variable", issue.Medium, issue.High), nil
 							}
 						}
 					}
 				}
 			} else if !gosec.TryResolve(arg, c) {
 				// the arg is not a constant or a variable but instead a function call or os.Args[i]
-				return gosec.NewIssue(c, n, r.ID(), "Subprocess launched with a potential tainted input or cmd arguments", gosec.Medium, gosec.High), nil
+				return c.NewIssue(n, r.ID(), "Subprocess launched with a potential tainted input or cmd arguments", issue.Medium, issue.High), nil
 			}
 		}
 	}
@@ -96,7 +97,7 @@ func (r *subprocess) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 }
 
 // isContext checks whether or not the node is a CommandContext call or not
-// Thi is required in order to skip the first argument from the check.
+// This is required in order to skip the first argument from the check.
 func (r *subprocess) isContext(n ast.Node, ctx *gosec.Context) bool {
 	selector, indent, err := gosec.GetCallInfo(n, ctx)
 	if err != nil {
@@ -109,8 +110,8 @@ func (r *subprocess) isContext(n ast.Node, ctx *gosec.Context) bool {
 }
 
 // NewSubproc detects cases where we are forking out to an external process
-func NewSubproc(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
-	rule := &subprocess{gosec.MetaData{ID: id}, gosec.NewCallList()}
+func NewSubproc(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
+	rule := &subprocess{issue.MetaData{ID: id}, gosec.NewCallList()}
 	rule.Add("os/exec", "Command")
 	rule.Add("os/exec", "CommandContext")
 	rule.Add("syscall", "Exec")

@@ -78,11 +78,6 @@ func (w lintModifiesValRecRule) Visit(node ast.Node) ast.Visitor {
 					if name == "" || name != receiverName {
 						continue
 					}
-
-					if w.skipType(ast.Expr(e.Sel)) {
-						continue
-					}
-
 				case *ast.Ident: // receiver := ...
 					if e.Name != receiverName {
 						continue
@@ -97,7 +92,7 @@ func (w lintModifiesValRecRule) Visit(node ast.Node) ast.Visitor {
 			return false
 		}
 
-		assignmentsToReceiver := pick(n.Body, fselect, nil)
+		assignmentsToReceiver := pick(n.Body, fselect)
 
 		for _, assignment := range assignmentsToReceiver {
 			w.onFailure(lint.Failure{

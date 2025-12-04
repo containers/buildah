@@ -6,7 +6,7 @@ lint:
 
 .PHONY: build
 build:
-	go build -o gomodguard cmd/gomodguard/main.go
+	go build -o "$$(go env GOPATH)/bin/gomodguard" cmd/gomodguard/main.go
 
 .PHONY: run
 run: build
@@ -43,4 +43,4 @@ install-tools-mac:
 
 .PHONY: install-go-tools
 install-go-tools:
-	go install -v github.com/t-yuki/gocover-cobertura
+	go install -v github.com/t-yuki/gocover-cobertura@latest

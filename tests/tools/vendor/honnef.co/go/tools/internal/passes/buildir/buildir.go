@@ -35,7 +35,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 // IR provides intermediate representation for all the
-// non-blank source functions in the current package.
+// source functions in the current package.
 type IR struct {
 	Pkg      *ir.Package
 	SrcFuncs []*ir.Function

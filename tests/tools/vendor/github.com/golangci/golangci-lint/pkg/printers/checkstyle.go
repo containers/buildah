@@ -1,13 +1,13 @@
 package printers
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"sort"
 
 	"github.com/go-xmlfmt/xmlfmt"
+	"golang.org/x/exp/maps"
 
 	"github.com/golangci/golangci-lint/pkg/result"
 )
@@ -41,7 +41,7 @@ func NewCheckstyle(w io.Writer) *Checkstyle {
 	return &Checkstyle{w: w}
 }
 
-func (p Checkstyle) Print(ctx context.Context, issues []result.Issue) error {
+func (p Checkstyle) Print(issues []result.Issue) error {
 	out := checkstyleOutput{
 		Version: "5.0",
 	}
@@ -75,10 +75,7 @@ func (p Checkstyle) Print(ctx context.Context, issues []result.Issue) error {
 		file.Errors = append(file.Errors, newError)
 	}
 
-	out.Files = make([]*checkstyleFile, 0, len(files))
-	for _, file := range files {
-		out.Files = append(out.Files, file)
-	}
+	out.Files = maps.Values(files)
 
 	sort.Slice(out.Files, func(i, j int) bool {
 		return out.Files[i].Name < out.Files[j].Name

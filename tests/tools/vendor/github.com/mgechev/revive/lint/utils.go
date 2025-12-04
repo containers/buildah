@@ -6,7 +6,7 @@ import (
 )
 
 // Name returns a different name if it should be different.
-func Name(name string, whitelist, blacklist []string) (should string) {
+func Name(name string, allowlist, blocklist []string) (should string) {
 	// Fast path for simple cases: "_" and all lowercase.
 	if name == "_" {
 		return name
@@ -57,12 +57,12 @@ func Name(name string, whitelist, blacklist []string) (should string) {
 		// [w,i) is a word.
 		word := string(runes[w:i])
 		ignoreInitWarnings := map[string]bool{}
-		for _, i := range whitelist {
+		for _, i := range allowlist {
 			ignoreInitWarnings[i] = true
 		}
 
 		extraInits := map[string]bool{}
-		for _, i := range blacklist {
+		for _, i := range blocklist {
 			extraInits[i] = true
 		}
 
@@ -70,6 +70,10 @@ func Name(name string, whitelist, blacklist []string) (should string) {
 			// Keep consistent case, which is lowercase only at the start.
 			if w == 0 && unicode.IsLower(runes[w]) {
 				u = strings.ToLower(u)
+			}
+			// Keep lowercase s for IDs
+			if u == "IDS" {
+				u = "IDs"
 			}
 			// All the common initialisms are ASCII,
 			// so we can replace the bytes exactly.
@@ -99,6 +103,7 @@ var commonInitialisms = map[string]bool{
 	"HTTP":  true,
 	"HTTPS": true,
 	"ID":    true,
+	"IDS":   true,
 	"IP":    true,
 	"JSON":  true,
 	"LHS":   true,
