@@ -2,6 +2,9 @@ dist/
 bin/
 vendor/
 
+.idea/
+/misspell
+
 # editor turds
 *~
 *.gz

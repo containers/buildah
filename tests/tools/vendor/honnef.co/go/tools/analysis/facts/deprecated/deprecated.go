@@ -48,6 +48,7 @@ func deprecated(pass *analysis.Pass) (interface{}, error) {
 		}
 		return ""
 	}
+
 	doDocs := func(names []*ast.Ident, docs []*ast.CommentGroup) {
 		alt := extractDeprecatedMessage(docs)
 		if alt == "" {
@@ -86,7 +87,15 @@ func deprecated(pass *analysis.Pass) (interface{}, error) {
 				switch node.Tok {
 				case token.TYPE, token.CONST, token.VAR:
 					docs = append(docs, node.Doc)
-					return true
+					for i := range node.Specs {
+						switch n := node.Specs[i].(type) {
+						case *ast.ValueSpec:
+							names = append(names, n.Names...)
+						case *ast.TypeSpec:
+							names = append(names, n.Name)
+						}
+					}
+					ret = true
 				default:
 					return false
 				}

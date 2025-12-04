@@ -11,7 +11,7 @@ import (
 type BoolLiteralRule struct{}
 
 // Apply applies the rule to given file.
-func (r *BoolLiteralRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*BoolLiteralRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -26,7 +26,7 @@ func (r *BoolLiteralRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failur
 }
 
 // Name returns the rule name.
-func (r *BoolLiteralRule) Name() string {
+func (*BoolLiteralRule) Name() string {
 	return "bool-literal-in-expr"
 }
 

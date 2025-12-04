@@ -1,6 +1,7 @@
 package pattern
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -11,7 +12,10 @@ type Pattern struct {
 	Root Node
 	// Relevant contains instances of ast.Node that could potentially
 	// initiate a successful match of the pattern.
-	Relevant []reflect.Type
+	Relevant map[reflect.Type]struct{}
+
+	// Mapping from binding index to binding name
+	Bindings []string
 }
 
 func MustParse(s string) Pattern {
@@ -23,27 +27,29 @@ func MustParse(s string) Pattern {
 	return pat
 }
 
-func roots(node Node) []reflect.Type {
+func roots(node Node, m map[reflect.Type]struct{}) {
 	switch node := node.(type) {
 	case Or:
-		var out []reflect.Type
 		for _, el := range node.Nodes {
-			out = append(out, roots(el)...)
+			roots(el, m)
 		}
-		return out
 	case Not:
-		return roots(node.Node)
+		roots(node.Node, m)
 	case Binding:
-		return roots(node.Node)
+		roots(node.Node, m)
 	case Nil, nil:
 		// this branch is reached via bindings
-		return allTypes
+		for _, T := range allTypes {
+			m[T] = struct{}{}
+		}
 	default:
 		Ts, ok := nodeToASTTypes[reflect.TypeOf(node)]
 		if !ok {
 			panic(fmt.Sprintf("internal error: unhandled type %T", node))
 		}
-		return Ts
+		for _, T := range Ts {
+			m[T] = struct{}{}
+		}
 	}
 }
 
@@ -160,6 +166,20 @@ type Parser struct {
 	cur   item
 	last  *item
 	items chan item
+
+	bindings map[string]int
+}
+
+func (p *Parser) bindingIndex(name string) int {
+	if p.bindings == nil {
+		p.bindings = map[string]int{}
+	}
+	if idx, ok := p.bindings[name]; ok {
+		return idx
+	}
+	idx := len(p.bindings)
+	p.bindings[name] = idx
+	return idx
 }
 
 func (p *Parser) Parse(s string) (Pattern, error) {
@@ -185,9 +205,22 @@ func (p *Parser) Parse(s string) (Pattern, error) {
 	if item := <-p.lex.items; item.typ != itemEOF {
 		return Pattern{}, fmt.Errorf("unexpected token %s after end of pattern", item.typ)
 	}
+
+	if len(p.bindings) > 64 {
+		return Pattern{}, errors.New("encountered more than 64 bindings")
+	}
+
+	bindings := make([]string, len(p.bindings))
+	for name, idx := range p.bindings {
+		bindings[idx] = name
+	}
+
+	relevant := map[reflect.Type]struct{}{}
+	roots(root, relevant)
 	return Pattern{
 		Root:     root,
-		Relevant: roots(root),
+		Relevant: relevant,
+		Bindings: bindings,
 	}, nil
 }
 
@@ -263,7 +296,14 @@ func (p *Parser) node() (Node, error) {
 		}
 	}
 
-	return p.populateNode(typ.val, objs)
+	node, err := p.populateNode(typ.val, objs)
+	if err != nil {
+		return nil, err
+	}
+	if node, ok := node.(Binding); ok {
+		node.idx = p.bindingIndex(node.Name)
+	}
+	return node, nil
 }
 
 func populateNode(typ string, objs []Node, allowTypeInfo bool) (Node, error) {
@@ -287,10 +327,23 @@ func populateNode(typ string, objs []Node, allowTypeInfo bool) (Node, error) {
 			return v.Interface().(Node), nil
 		}
 	}
-	if len(objs) != v.NumField() {
-		return nil, fmt.Errorf("tried to initialize node %s with %d values, expected %d", typ, len(objs), v.NumField())
+
+	n := -1
+	for i := 0; i < T.NumField(); i++ {
+		if !T.Field(i).IsExported() {
+			break
+		}
+		n = i
 	}
+
+	if len(objs) != n+1 {
+		return nil, fmt.Errorf("tried to initialize node %s with %d values, expected %d", typ, len(objs), n+1)
+	}
+
 	for i := 0; i < v.NumField(); i++ {
+		if !T.Field(i).IsExported() {
+			break
+		}
 		f := v.Field(i)
 		if f.Kind() == reflect.String {
 			if obj, ok := objs[i].(String); ok {
@@ -399,10 +452,14 @@ func (p *Parser) object() (Node, error) {
 			b = Binding{
 				Name: v.val,
 				Node: o,
+				idx:  p.bindingIndex(v.val),
 			}
 		} else {
 			p.rewind()
-			b = Binding{Name: v.val}
+			b = Binding{
+				Name: v.val,
+				idx:  p.bindingIndex(v.val),
+			}
 		}
 		if p.peek().typ == itemColon {
 			p.next()

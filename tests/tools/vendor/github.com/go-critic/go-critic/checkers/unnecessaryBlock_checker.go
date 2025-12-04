@@ -5,14 +5,15 @@ import (
 	"go/token"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astp"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "unnecessaryBlock"
-	info.Tags = []string{"style", "opinionated", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.OpinionatedTag, linter.ExperimentalTag}
 	info.Summary = "Detects unnecessary braced statement blocks"
 	info.Before = `
 x := 1

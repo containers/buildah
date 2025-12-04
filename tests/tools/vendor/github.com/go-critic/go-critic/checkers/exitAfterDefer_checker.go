@@ -4,7 +4,8 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astfmt"
 	"github.com/go-toolsmith/astp"
 	"golang.org/x/tools/go/ast/astutil"
@@ -13,7 +14,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "exitAfterDefer"
-	info.Tags = []string{"diagnostic"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects calls to exit/fatal inside functions that use defer"
 	info.Before = `
 defer os.Remove(filename)

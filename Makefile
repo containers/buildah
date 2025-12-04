@@ -174,7 +174,7 @@ test-conformance:
 
 .PHONY: test-integration
 test-integration: install.tools
-	./tests/tools/build/ginkgo $(BUILDFLAGS) -v tests/e2e/.
+	$(GO_TEST) $(BUILDFLAGS) -v ./tests/e2e/.
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go

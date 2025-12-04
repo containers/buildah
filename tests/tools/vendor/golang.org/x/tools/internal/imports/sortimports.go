@@ -18,7 +18,7 @@ import (
 // sortImports sorts runs of consecutive import lines in import blocks in f.
 // It also removes duplicate imports when it is possible to do so without data loss.
 //
-// It may mutate the token.File.
+// It may mutate the token.File and the ast.File.
 func sortImports(localPrefix string, tokFile *token.File, f *ast.File) {
 	for i, d := range f.Decls {
 		d, ok := d.(*ast.GenDecl)
@@ -52,6 +52,7 @@ func sortImports(localPrefix string, tokFile *token.File, f *ast.File) {
 		d.Specs = specs
 
 		// Deduping can leave a blank line before the rparen; clean that up.
+		// Ignore line directives.
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
 			lastLine := tokFile.PositionFor(lastSpec.Pos(), false).Line

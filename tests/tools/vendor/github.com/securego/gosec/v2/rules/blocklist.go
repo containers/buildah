@@ -19,27 +19,28 @@ import (
 	"strings"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type blocklistedImport struct {
-	gosec.MetaData
+	issue.MetaData
 	Blocklisted map[string]string
 }
 
 func unquote(original string) string {
-	copy := strings.TrimSpace(original)
-	copy = strings.TrimLeft(copy, `"`)
-	return strings.TrimRight(copy, `"`)
+	cleaned := strings.TrimSpace(original)
+	cleaned = strings.TrimLeft(cleaned, `"`)
+	return strings.TrimRight(cleaned, `"`)
 }
 
 func (r *blocklistedImport) ID() string {
 	return r.MetaData.ID
 }
 
-func (r *blocklistedImport) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
+func (r *blocklistedImport) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
 	if node, ok := n.(*ast.ImportSpec); ok {
 		if description, ok := r.Blocklisted[unquote(node.Path.Value)]; ok {
-			return gosec.NewIssue(c, node, r.ID(), description, r.Severity, r.Confidence), nil
+			return c.NewIssue(node, r.ID(), description, r.Severity, r.Confidence), nil
 		}
 	}
 	return nil, nil
@@ -47,12 +48,12 @@ func (r *blocklistedImport) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, e
 
 // NewBlocklistedImports reports when a blocklisted import is being used.
 // Typically when a deprecated technology is being used.
-func NewBlocklistedImports(id string, conf gosec.Config, blocklist map[string]string) (gosec.Rule, []ast.Node) {
+func NewBlocklistedImports(id string, _ gosec.Config, blocklist map[string]string) (gosec.Rule, []ast.Node) {
 	return &blocklistedImport{
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 		},
 		Blocklisted: blocklist,
 	}, []ast.Node{(*ast.ImportSpec)(nil)}
@@ -90,5 +91,19 @@ func NewBlocklistedImportCGI(id string, conf gosec.Config) (gosec.Rule, []ast.No
 func NewBlocklistedImportSHA1(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 	return NewBlocklistedImports(id, conf, map[string]string{
 		"crypto/sha1": "Blocklisted import crypto/sha1: weak cryptographic primitive",
+	})
+}
+
+// NewBlocklistedImportMD4 fails if MD4 is imported
+func NewBlocklistedImportMD4(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+	return NewBlocklistedImports(id, conf, map[string]string{
+		"golang.org/x/crypto/md4": "Blocklisted import golang.org/x/crypto/md4: deprecated and weak cryptographic primitive",
+	})
+}
+
+// NewBlocklistedImportRIPEMD160 fails if RIPEMD160 is imported
+func NewBlocklistedImportRIPEMD160(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+	return NewBlocklistedImports(id, conf, map[string]string{
+		"golang.org/x/crypto/ripemd160": "Blocklisted import golang.org/x/crypto/ripemd160: deprecated and weak cryptographic primitive",
 	})
 }

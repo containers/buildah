@@ -2,40 +2,50 @@ package lint
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/token"
 	"go/types"
 	"sync"
 
-	"golang.org/x/tools/go/gcexportdata"
+	goversion "github.com/hashicorp/go-version"
+
+	"github.com/mgechev/revive/internal/typeparams"
 )
 
 // Package represents a package in the project.
 type Package struct {
-	fset  *token.FileSet
-	files map[string]*File
+	fset      *token.FileSet
+	files     map[string]*File
+	goVersion *goversion.Version
 
-	TypesPkg  *types.Package
-	TypesInfo *types.Info
+	typesPkg  *types.Package
+	typesInfo *types.Info
 
 	// sortable is the set of types in the package that implement sort.Interface.
-	Sortable map[string]bool
+	sortable map[string]bool
 	// main is whether this is a "main" package.
 	main int
-	mu   sync.Mutex
-}
-
-var newImporter = func(fset *token.FileSet) types.ImporterFrom {
-	return gcexportdata.NewImporter(fset, make(map[string]*types.Package))
+	sync.RWMutex
 }
 
 var (
 	trueValue  = 1
 	falseValue = 2
 	notSet     = 3
+
+	go122 = goversion.Must(goversion.NewVersion("1.22"))
 )
+
+// Files return package's files.
+func (p *Package) Files() map[string]*File {
+	return p.files
+}
 
 // IsMain returns if that's the main package.
 func (p *Package) IsMain() bool {
+	p.Lock()
+	defer p.Unlock()
+
 	if p.main == trueValue {
 		return true
 	} else if p.main == falseValue {
@@ -51,19 +61,41 @@ func (p *Package) IsMain() bool {
 	return false
 }
 
+// TypesPkg yields information on this package
+func (p *Package) TypesPkg() *types.Package {
+	p.RLock()
+	defer p.RUnlock()
+	return p.typesPkg
+}
+
+// TypesInfo yields type information of this package identifiers
+func (p *Package) TypesInfo() *types.Info {
+	p.RLock()
+	defer p.RUnlock()
+	return p.typesInfo
+}
+
+// Sortable yields a map of sortable types in this package
+func (p *Package) Sortable() map[string]bool {
+	p.RLock()
+	defer p.RUnlock()
+	return p.sortable
+}
+
 // TypeCheck performs type checking for given package.
 func (p *Package) TypeCheck() error {
-	p.mu.Lock()
+	p.Lock()
+	defer p.Unlock()
+
 	// If type checking has already been performed
 	// skip it.
-	if p.TypesInfo != nil || p.TypesPkg != nil {
-		p.mu.Unlock()
+	if p.typesInfo != nil || p.typesPkg != nil {
 		return nil
 	}
 	config := &types.Config{
 		// By setting a no-op error reporter, the type checker does as much work as possible.
 		Error:    func(error) {},
-		Importer: newImporter(p.fset),
+		Importer: importer.Default(),
 	}
 	info := &types.Info{
 		Types:  make(map[ast.Expr]types.TypeAndValue),
@@ -82,9 +114,9 @@ func (p *Package) TypeCheck() error {
 
 	// Remember the typechecking info, even if config.Check failed,
 	// since we will get partial information.
-	p.TypesPkg = typesPkg
-	p.TypesInfo = info
-	p.mu.Unlock()
+	p.typesPkg = typesPkg
+	p.typesInfo = info
+
 	return err
 }
 
@@ -104,10 +136,10 @@ func check(config *types.Config, n string, fset *token.FileSet, astFiles []*ast.
 
 // TypeOf returns the type of an expression.
 func (p *Package) TypeOf(expr ast.Expr) types.Type {
-	if p.TypesInfo == nil {
+	if p.typesInfo == nil {
 		return nil
 	}
-	return p.TypesInfo.TypeOf(expr)
+	return p.typesInfo.TypeOf(expr)
 }
 
 type walker struct {
@@ -121,7 +153,7 @@ func (w *walker) Visit(n ast.Node) ast.Visitor {
 		return w
 	}
 	// TODO(dsymonds): We could check the signature to be more precise.
-	recv := receiverType(fn)
+	recv := typeparams.ReceiverType(fn)
 	if i, ok := w.nmap[fn.Name.Name]; ok {
 		w.has[recv] |= i
 	}
@@ -129,7 +161,7 @@ func (w *walker) Visit(n ast.Node) ast.Visitor {
 }
 
 func (p *Package) scanSortable() {
-	p.Sortable = make(map[string]bool)
+	p.sortable = make(map[string]bool)
 
 	// bitfield for which methods exist on each type.
 	const (
@@ -144,24 +176,9 @@ func (p *Package) scanSortable() {
 	}
 	for typ, ms := range has {
 		if ms == Len|Less|Swap {
-			p.Sortable[typ] = true
+			p.sortable[typ] = true
 		}
 	}
-}
-
-// receiverType returns the named type of the method receiver, sans "*",
-// or "invalid-type" if fn.Recv is ill formed.
-func receiverType(fn *ast.FuncDecl) string {
-	switch e := fn.Recv.List[0].Type.(type) {
-	case *ast.Ident:
-		return e.Name
-	case *ast.StarExpr:
-		if id, ok := e.X.(*ast.Ident); ok {
-			return id.Name
-		}
-	}
-	// The parser accepts much more than just the legal forms.
-	return "invalid-type"
 }
 
 func (p *Package) lint(rules []Rule, config Config, failures chan Failure) {
@@ -175,4 +192,9 @@ func (p *Package) lint(rules []Rule, config Config, failures chan Failure) {
 		})(file)
 	}
 	wg.Wait()
+}
+
+// IsAtLeastGo122 returns true if the Go version for this package is 1.22 or higher, false otherwise
+func (p *Package) IsAtLeastGo122() bool {
+	return p.goVersion.GreaterThanOrEqual(go122)
 }

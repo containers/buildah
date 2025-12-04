@@ -55,7 +55,6 @@ type TypeCase struct {
 // A type switch may contain duplicate types, or types assignable
 // to an interface type also in the list.
 // TODO(adonovan): eliminate such duplicates.
-//
 type Switch struct {
 	Start      *ir.BasicBlock // block containing start of if/else chain
 	X          ir.Value       // the switch operand
@@ -103,7 +102,6 @@ func (sw *Switch) String() string {
 // Switches may even be inferred from if/else- or goto-based control flow.
 // (In general, the control flow constructs of the source program
 // cannot be faithfully reproduced from the IR.)
-//
 func Switches(fn *ir.Function) []Switch {
 	// Traverse the CFG in dominance order, so we don't
 	// enter an if/else-chain in the middle.
@@ -227,7 +225,6 @@ func typeSwitch(sw *Switch, y ir.Value, T types.Type, seen map[*ir.BasicBlock]bo
 
 // isComparisonBlock returns the operands (v, k) if a block ends with
 // a comparison v==k, where k is a compile-time constant.
-//
 func isComparisonBlock(b *ir.BasicBlock) (v ir.Value, k *ir.Const) {
 	if n := len(b.Instrs); n >= 2 {
 		if i, ok := b.Instrs[n-1].(*ir.If); ok {
@@ -246,7 +243,6 @@ func isComparisonBlock(b *ir.BasicBlock) (v ir.Value, k *ir.Const) {
 
 // isTypeAssertBlock returns the operands (y, x, T) if a block ends with
 // a type assertion "if y, ok := x.(T); ok {".
-//
 func isTypeAssertBlock(b *ir.BasicBlock) (y, x ir.Value, T types.Type) {
 	if n := len(b.Instrs); n >= 4 {
 		if i, ok := b.Instrs[n-1].(*ir.If); ok {
