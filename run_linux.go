@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -329,6 +330,23 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	// will quickly be able to tell that they're supposed to be modifying the spec directly from here.
 	spec := g.Config
 	g = nil
+
+	// Override a buggy resource limit default that containers/common could supply before
+	// https://github.com/containers/common/pull/2199 fixed it.
+	if kernelPidMaxBytes, err := os.ReadFile("/proc/sys/kernel/pid_max"); err == nil {
+		kernelPidMaxString := strings.TrimSpace(string(kernelPidMaxBytes))
+		if kernelPidMaxValue, err := strconv.ParseUint(kernelPidMaxString, 10, 64); err == nil {
+			var filteredLimits []specs.POSIXRlimit
+			for _, rlimit := range spec.Process.Rlimits {
+				if rlimit.Type == "RLIMIT_NPROC" && rlimit.Soft == kernelPidMaxValue && rlimit.Hard == kernelPidMaxValue {
+					rlimit.Soft, rlimit.Hard = define.RLimitDefaultValue, define.RLimitDefaultValue
+					logrus.Debugf("overrode RLIMIT_NPROC set to kernel system-wide process limit with %d", define.RLimitDefaultValue)
+				}
+				filteredLimits = append(filteredLimits, rlimit)
+			}
+			spec.Process.Rlimits = filteredLimits
+		}
+	}
 
 	// Set the seccomp configuration using the specified profile name.  Some syscalls are
 	// allowed if certain capabilities are to be granted (example: CAP_SYS_CHROOT and chroot),
