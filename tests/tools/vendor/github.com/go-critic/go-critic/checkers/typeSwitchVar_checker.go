@@ -5,7 +5,8 @@ import (
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/astp"
 )
@@ -13,7 +14,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "typeSwitchVar"
-	info.Tags = []string{"style"}
+	info.Tags = []string{linter.StyleTag}
 	info.Summary = "Detects type switches that can benefit from type guard clause with variable"
 	info.Before = `
 switch v.(type) {

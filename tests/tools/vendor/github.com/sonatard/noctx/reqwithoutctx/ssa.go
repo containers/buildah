@@ -1,6 +1,7 @@
 package reqwithoutctx
 
 import (
+	"fmt"
 	"go/types"
 
 	"github.com/gostaticanalysis/analysisutil"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
+//nolint:govet
 type Analyzer struct {
 	Funcs          []*ssa.Function
 	newRequestType types.Type
@@ -20,10 +22,13 @@ func NewAnalyzer(pass *analysis.Pass) *Analyzer {
 	newRequestType := analysisutil.TypeOf(pass, "net/http", "NewRequest")
 	requestType := analysisutil.TypeOf(pass, "net/http", "*Request")
 
-	srcFuncs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
+	ssa, ok := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+	if !ok {
+		panic(fmt.Sprintf("%T is not *buildssa.SSA", pass.ResultOf[buildssa.Analyzer]))
+	}
 
 	return &Analyzer{
-		Funcs:          srcFuncs,
+		Funcs:          ssa.SrcFuncs,
 		newRequestType: newRequestType,
 		requestType:    requestType,
 	}
@@ -88,14 +93,14 @@ func (a *Analyzer) usedReqs() map[string]*ssa.Extract {
 }
 
 func (a *Analyzer) usedReqByCall(call *ssa.Call) []*ssa.Extract {
-	var exts []*ssa.Extract
+	args := call.Common().Args
+	exts := make([]*ssa.Extract, 0, len(args))
 
 	// skip net/http.Request method call
 	if call.Common().Signature().Recv() != nil && types.Identical(call.Value().Type(), a.requestType) {
 		return exts
 	}
 
-	args := call.Common().Args
 	if len(args) == 0 {
 		return exts
 	}

@@ -308,14 +308,14 @@ func (e *errchkjson) inspectArgs(pass *analysis.Pass, args []ast.Expr) {
 }
 
 // Construct *types.Interface for interface encoding.TextMarshaler
-//     type TextMarshaler interface {
-//         MarshalText() (text []byte, err error)
-//     }
 //
+//	type TextMarshaler interface {
+//	    MarshalText() (text []byte, err error)
+//	}
 func textMarshalerInterface() *types.Interface {
 	textMarshalerInterface := types.NewInterfaceType([]*types.Func{
-		types.NewFunc(token.NoPos, nil, "MarshalText", types.NewSignature(
-			nil, nil, types.NewTuple(
+		types.NewFunc(token.NoPos, nil, "MarshalText", types.NewSignatureType(
+			nil, nil, nil, nil, types.NewTuple(
 				types.NewVar(token.NoPos, nil, "text",
 					types.NewSlice(
 						types.Universe.Lookup("byte").Type())),
@@ -328,14 +328,14 @@ func textMarshalerInterface() *types.Interface {
 }
 
 // Construct *types.Interface for interface json.Marshaler
-//     type Marshaler interface {
-//         MarshalJSON() ([]byte, error)
-//     }
 //
+//	type Marshaler interface {
+//	    MarshalJSON() ([]byte, error)
+//	}
 func jsonMarshalerInterface() *types.Interface {
 	textMarshalerInterface := types.NewInterfaceType([]*types.Func{
-		types.NewFunc(token.NoPos, nil, "MarshalJSON", types.NewSignature(
-			nil, nil, types.NewTuple(
+		types.NewFunc(token.NoPos, nil, "MarshalJSON", types.NewSignatureType(
+			nil, nil, nil, nil, types.NewTuple(
 				types.NewVar(token.NoPos, nil, "",
 					types.NewSlice(
 						types.Universe.Lookup("byte").Type())),

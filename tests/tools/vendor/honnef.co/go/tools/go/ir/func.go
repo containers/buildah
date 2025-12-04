@@ -10,13 +10,15 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/constant"
 	"go/format"
 	"go/token"
 	"go/types"
 	"io"
 	"os"
+	"sort"
 	"strings"
+
+	"honnef.co/go/tools/go/types/typeutil"
 )
 
 // addEdge adds a control-flow graph edge from from to to.
@@ -53,14 +55,12 @@ func (b *BasicBlock) Parent() *Function { return b.parent }
 
 // String returns a human-readable label of this block.
 // It is not guaranteed unique within the function.
-//
 func (b *BasicBlock) String() string {
 	return fmt.Sprintf("%d", b.Index)
 }
 
 // emit appends an instruction to the current basic block.
 // If the instruction defines a Value, it is returned.
-//
 func (b *BasicBlock) emit(i Instruction, source ast.Node) Value {
 	i.setSource(source)
 	i.setBlock(b)
@@ -112,7 +112,6 @@ func (b *BasicBlock) phis() []Instruction {
 
 // replacePred replaces all occurrences of p in b's predecessor list with q.
 // Ordinarily there should be at most one.
-//
 func (b *BasicBlock) replacePred(p, q *BasicBlock) {
 	for i, pred := range b.Preds {
 		if pred == p {
@@ -123,7 +122,6 @@ func (b *BasicBlock) replacePred(p, q *BasicBlock) {
 
 // replaceSucc replaces all occurrences of p in b's successor list with q.
 // Ordinarily there should be at most one.
-//
 func (b *BasicBlock) replaceSucc(p, q *BasicBlock) {
 	for i, succ := range b.Succs {
 		if succ == p {
@@ -135,7 +133,6 @@ func (b *BasicBlock) replaceSucc(p, q *BasicBlock) {
 // removePred removes all occurrences of p in b's
 // predecessor list and φ-nodes.
 // Ordinarily there should be at most one.
-//
 func (b *BasicBlock) removePred(p *BasicBlock) {
 	phis := b.phis()
 
@@ -169,7 +166,6 @@ func (b *BasicBlock) removePred(p *BasicBlock) {
 // Destinations associated with unlabelled for/switch/select stmts.
 // We push/pop one of these as we enter/leave each construct and for
 // each BranchStmt we scan for the innermost target of the right type.
-//
 type targets struct {
 	tail         *targets // rest of stack
 	_break       *BasicBlock
@@ -180,86 +176,141 @@ type targets struct {
 // Destinations associated with a labelled block.
 // We populate these as labels are encountered in forward gotos or
 // labelled statements.
-//
+// Forward gotos are resolved once it is known which statement they
+// are associated with inside the Function.
 type lblock struct {
+	label     *types.Label // Label targeted by the blocks.
+	resolved  bool         // _goto block encountered (back jump or resolved fwd jump)
 	_goto     *BasicBlock
 	_break    *BasicBlock
 	_continue *BasicBlock
 }
 
-// labelledBlock returns the branch target associated with the
-// specified label, creating it if needed.
+// label returns the symbol denoted by a label identifier.
 //
-func (f *Function) labelledBlock(label *ast.Ident) *lblock {
-	obj := f.Pkg.objectOf(label)
-	lb := f.lblocks[obj]
+// label should be a non-blank identifier (label.Name != "_").
+func (f *Function) label(label *ast.Ident) *types.Label {
+	return f.Pkg.objectOf(label).(*types.Label)
+}
+
+// lblockOf returns the branch target associated with the
+// specified label, creating it if needed.
+func (f *Function) lblockOf(label *types.Label) *lblock {
+	lb := f.lblocks[label]
 	if lb == nil {
-		lb = &lblock{_goto: f.newBasicBlock(label.Name)}
-		if f.lblocks == nil {
-			f.lblocks = make(map[types.Object]*lblock)
+		lb = &lblock{
+			label: label,
+			_goto: f.newBasicBlock(label.Name()),
 		}
-		f.lblocks[obj] = lb
+		if f.lblocks == nil {
+			f.lblocks = make(map[*types.Label]*lblock)
+		}
+		f.lblocks[label] = lb
 	}
 	return lb
 }
 
-// addParam adds a (non-escaping) parameter to f.Params of the
-// specified name, type and source position.
+// labelledBlock searches f for the block of the specified label.
 //
-func (f *Function) addParam(name string, typ types.Type, source ast.Node) *Parameter {
+// If f is a yield function, it additionally searches ancestor Functions
+// corresponding to enclosing range-over-func statements within the
+// same source function, so the returned block may belong to a different Function.
+func labelledBlock(f *Function, label *types.Label, tok token.Token) *BasicBlock {
+	if lb := f.lblocks[label]; lb != nil {
+		var block *BasicBlock
+		switch tok {
+		case token.BREAK:
+			block = lb._break
+		case token.CONTINUE:
+			block = lb._continue
+		case token.GOTO:
+			block = lb._goto
+		}
+		if block != nil {
+			return block
+		}
+	}
+	// Search ancestors if this is a yield function.
+	if f.jump != nil {
+		return labelledBlock(f.parent, label, tok)
+	}
+	return nil
+}
+
+// targetedBlock looks for the nearest block in f.targets
+// (and f's ancestors) that matches tok's type, and returns
+// the block and function it was found in.
+func targetedBlock(f *Function, tok token.Token) *BasicBlock {
+	if f == nil {
+		return nil
+	}
+	for t := f.targets; t != nil; t = t.tail {
+		var block *BasicBlock
+		switch tok {
+		case token.BREAK:
+			block = t._break
+		case token.CONTINUE:
+			block = t._continue
+		case token.FALLTHROUGH:
+			block = t._fallthrough
+		}
+		if block != nil {
+			return block
+		}
+	}
+	// Search f's ancestors (in case f is a yield function).
+	return targetedBlock(f.parent, tok)
+}
+
+// addResultVar adds a result for a variable v to f.results and v to f.returnVars.
+func (f *Function) addResultVar(v *types.Var, source ast.Node) {
+	name := v.Name()
+	if name == "" {
+		name = fmt.Sprintf("res.%d", len(f.results))
+	}
+	result := emitLocalVar(f, v, source)
+	result.comment = name
+	f.results = append(f.results, result)
+	f.returnVars = append(f.returnVars, v)
+}
+
+func (f *Function) addParamVar(v *types.Var, source ast.Node) *Parameter {
+	name := v.Name()
+	if name == "" {
+		name = fmt.Sprintf("arg%d", len(f.Params))
+	}
 	var b *BasicBlock
 	if len(f.Blocks) > 0 {
 		b = f.Blocks[0]
 	}
-	v := &Parameter{
-		name: name,
-	}
-	v.setBlock(b)
-	v.setType(typ)
-	v.setSource(source)
-	f.Params = append(f.Params, v)
+	param := &Parameter{name: name}
+	param.setBlock(b)
+	param.setType(v.Type())
+	param.setSource(source)
+	param.object = v
+	f.Params = append(f.Params, param)
 	if b != nil {
-		// There may be no blocks if this function has no body. We
-		// still create params, but aren't interested in the
-		// instruction.
-		f.Blocks[0].Instrs = append(f.Blocks[0].Instrs, v)
+		f.Blocks[0].Instrs = append(f.Blocks[0].Instrs, param)
 	}
-	return v
-}
-
-func (f *Function) addParamObj(obj types.Object, source ast.Node) *Parameter {
-	name := obj.Name()
-	if name == "" {
-		name = fmt.Sprintf("arg%d", len(f.Params))
-	}
-	param := f.addParam(name, obj.Type(), source)
-	param.object = obj
 	return param
 }
 
 // addSpilledParam declares a parameter that is pre-spilled to the
 // stack; the function body will load/store the spilled location.
 // Subsequent lifting will eliminate spills where possible.
-//
-func (f *Function) addSpilledParam(obj types.Object, source ast.Node) {
-	param := f.addParamObj(obj, source)
-	spill := &Alloc{}
-	spill.setType(types.NewPointer(obj.Type()))
-	spill.source = source
-	f.objects[obj] = spill
-	f.Locals = append(f.Locals, spill)
-	f.emit(spill, source)
+func (f *Function) addSpilledParam(obj *types.Var, source ast.Node) {
+	param := f.addParamVar(obj, source)
+	spill := emitLocalVar(f, obj, source)
 	emitStore(f, spill, param, source)
 	// f.emit(&Store{Addr: spill, Val: param})
 }
 
 // startBody initializes the function prior to generating IR code for its body.
 // Precondition: f.Type() already set.
-//
 func (f *Function) startBody() {
 	entry := f.newBasicBlock("entry")
 	f.currentBlock = entry
-	f.objects = make(map[types.Object]Value) // needed for some synthetics, e.g. init
+	f.vars = make(map[*types.Var]Value) // needed for some synthetics, e.g. init
 }
 
 func (f *Function) blockset(i int) *BlockSet {
@@ -283,12 +334,11 @@ func (f *Function) exitBlock() {
 	f.Exit = f.newBasicBlock("exit")
 	f.currentBlock = f.Exit
 
-	ret := f.results()
-	results := make([]Value, len(ret))
+	results := make([]Value, len(f.results))
 	// Run function calls deferred in this
 	// function when explicitly returning from it.
 	f.emit(new(RunDefers), nil)
-	for i, r := range ret {
+	for i, r := range f.results {
 		results[i] = emitLoad(f, r, nil)
 	}
 
@@ -304,17 +354,16 @@ func (f *Function) exitBlock() {
 // f.startBody() was called.
 // Postcondition:
 // len(f.Params) == len(f.Signature.Params) + (f.Signature.Recv() ? 1 : 0)
-//
 func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.FuncType) {
 	// Receiver (at most one inner iteration).
 	if recv != nil {
 		for _, field := range recv.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(f.Pkg.info.Defs[n], n)
+				f.addSpilledParam(identVar(f, n), n)
 			}
 			// Anonymous receiver?  No need to spill.
 			if field.Names == nil {
-				f.addParamObj(f.Signature.Recv(), field)
+				f.addParamVar(f.Signature.Recv(), field)
 			}
 		}
 	}
@@ -324,33 +373,43 @@ func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.Func
 		n := len(f.Params) // 1 if has recv, 0 otherwise
 		for _, field := range functype.Params.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(f.Pkg.info.Defs[n], n)
+				f.addSpilledParam(identVar(f, n), n)
 			}
 			// Anonymous parameter?  No need to spill.
 			if field.Names == nil {
-				f.addParamObj(f.Signature.Params().At(len(f.Params)-n), field)
+				f.addParamVar(f.Signature.Params().At(len(f.Params)-n), field)
 			}
 		}
 	}
 
-	// Named results.
+	// Results.
 	if functype.Results != nil {
 		for _, field := range functype.Results.List {
 			// Implicit "var" decl of locals for named results.
 			for _, n := range field.Names {
-				f.namedResults = append(f.namedResults, f.addLocalForIdent(n))
+				v := identVar(f, n)
+				f.addResultVar(v, n)
 			}
-		}
-
-		if len(f.namedResults) == 0 {
-			sig := f.Signature.Results()
-			for i := 0; i < sig.Len(); i++ {
-				// XXX position information
-				v := f.addLocal(sig.At(i).Type(), nil)
-				f.implicitResults = append(f.implicitResults, v)
+			// Implicit "var" decl of local for an unnamed result.
+			if field.Names == nil {
+				v := f.Signature.Results().At(len(f.results))
+				f.addResultVar(v, field.Type)
 			}
 		}
 	}
+}
+
+// createDeferStack initializes fn.deferstack to a local variable
+// initialized to a ssa:deferstack() call.
+func (fn *Function) createDeferStack() {
+	// Each syntactic function makes a call to ssa:deferstack,
+	// which is spilled to a local. Unused ones are later removed.
+	fn.deferstack = newVar("defer$stack", tDeferStack)
+	call := &Call{Call: CallCommon{Value: vDeferStack}}
+	call.setType(tDeferStack)
+	deferstack := fn.emit(call, nil)
+	spill := emitLocalVar(fn, fn.deferstack, nil)
+	emitStore(fn, spill, deferstack, nil)
 }
 
 func numberNodes(f *Function) {
@@ -366,141 +425,85 @@ func numberNodes(f *Function) {
 	}
 }
 
-// buildReferrers populates the def/use information in all non-nil
-// Value.Referrers slice.
-// Precondition: all such slices are initially empty.
-func buildReferrers(f *Function) {
-	var rands []*Value
-	for _, b := range f.Blocks {
-		for _, instr := range b.Instrs {
-			rands = instr.Operands(rands[:0]) // recycle storage
-			for _, rand := range rands {
-				if r := *rand; r != nil {
-					if ref := r.Referrers(); ref != nil {
-						if len(*ref) == 0 {
-							// per median, each value has two referrers, so we can avoid one call into growslice
-							//
-							// Note: we experimented with allocating
-							// sequential scratch space, but we
-							// couldn't find a value that gave better
-							// performance than making many individual
-							// allocations
-							*ref = make([]Instruction, 1, 2)
-							(*ref)[0] = instr
-						} else {
-							*ref = append(*ref, instr)
-						}
-					}
+func updateOperandsReferrers(instr Instruction, ops []*Value) {
+	for _, op := range ops {
+		if r := *op; r != nil {
+			if refs := (*op).Referrers(); refs != nil {
+				if len(*refs) == 0 {
+					// per median, each value has two referrers, so we can avoid one call into growslice
+					//
+					// Note: we experimented with allocating
+					// sequential scratch space, but we
+					// couldn't find a value that gave better
+					// performance than making many individual
+					// allocations
+					*refs = make([]Instruction, 1, 2)
+					(*refs)[0] = instr
+				} else {
+					*refs = append(*refs, instr)
 				}
 			}
 		}
 	}
 }
 
+// buildReferrers populates the def/use information in all non-nil
+// Value.Referrers slice.
+// Precondition: all such slices are initially empty.
+func buildReferrers(f *Function) {
+	var rands []*Value
+
+	for _, b := range f.Blocks {
+		for _, instr := range b.Instrs {
+			rands = instr.Operands(rands[:0]) // recycle storage
+			updateOperandsReferrers(instr, rands)
+		}
+	}
+
+	for _, c := range f.consts {
+		rands = c.c.Operands(rands[:0])
+		updateOperandsReferrers(c.c, rands)
+	}
+}
+
 func (f *Function) emitConsts() {
-	if len(f.Blocks) == 0 {
+	defer func() {
 		f.consts = nil
+		f.aggregateConsts = typeutil.Map[[]*AggregateConst]{}
+	}()
+
+	if len(f.Blocks) == 0 {
 		return
 	}
 
 	// TODO(dh): our deduplication only works on booleans and
 	// integers. other constants are represented as pointers to
 	// things.
-	if len(f.consts) == 0 {
-		return
-	} else if len(f.consts) <= 32 {
-		f.emitConstsFew()
-	} else {
-		f.emitConstsMany()
-	}
-}
-
-func (f *Function) emitConstsFew() {
-	dedup := make([]Constant, 0, 32)
+	head := make([]constValue, 0, len(f.consts))
 	for _, c := range f.consts {
-		if len(*c.Referrers()) == 0 {
-			continue
-		}
-		found := false
-		for _, d := range dedup {
-			if c.equal(d) {
-				replaceAll(c, d)
-				found = true
-				break
-			}
-		}
-		if !found {
-			dedup = append(dedup, c)
-		}
-	}
-
-	instrs := make([]Instruction, len(f.Blocks[0].Instrs)+len(dedup))
-	for i, c := range dedup {
-		instrs[i] = c
-		c.setBlock(f.Blocks[0])
-	}
-	copy(instrs[len(dedup):], f.Blocks[0].Instrs)
-	f.Blocks[0].Instrs = instrs
-	f.consts = nil
-}
-
-func (f *Function) emitConstsMany() {
-	type constKey struct {
-		typ   types.Type
-		value constant.Value
-	}
-
-	m := make(map[constKey]Value, len(f.consts))
-	areNil := 0
-	for i, c := range f.consts {
-		if len(*c.Referrers()) == 0 {
-			f.consts[i] = nil
-			areNil++
-			continue
-		}
-
-		var typ types.Type
-		var val constant.Value
-		switch c := c.(type) {
-		case *Const:
-			typ = c.typ
-			val = c.Value
-		case *ArrayConst:
-			// ArrayConst can only encode zero constants, so all we need is the type
-			typ = c.typ
-		case *AggregateConst:
-			// ArrayConst can only encode zero constants, so all we need is the type
-			typ = c.typ
-		case *GenericConst:
-			typ = c.typ
-		default:
-			panic(fmt.Sprintf("unexpected type %T", c))
-		}
-		k := constKey{
-			typ:   typ,
-			value: val,
-		}
-		if dup, ok := m[k]; !ok {
-			m[k] = c
+		if len(*c.c.Referrers()) == 0 {
+			// TODO(dh): killing a const may make other consts dead, too
+			killInstruction(c.c)
 		} else {
-			f.consts[i] = nil
-			areNil++
-			replaceAll(c, dup)
+			head = append(head, c)
 		}
 	}
+	sort.Slice(head, func(i, j int) bool {
+		return head[i].idx < head[j].idx
+	})
+	entry := f.Blocks[0]
+	instrs := make([]Instruction, 0, len(entry.Instrs)+len(head))
+	for _, c := range head {
+		instrs = append(instrs, c.c)
+	}
+	f.aggregateConsts.Iterate(func(key types.Type, value []*AggregateConst) {
+		for _, c := range value {
+			instrs = append(instrs, c)
+		}
+	})
 
-	instrs := make([]Instruction, len(f.Blocks[0].Instrs)+len(f.consts)-areNil)
-	i := 0
-	for _, c := range f.consts {
-		if c != nil {
-			instrs[i] = c
-			c.setBlock(f.Blocks[0])
-			i++
-		}
-	}
-	copy(instrs[i:], f.Blocks[0].Instrs)
-	f.Blocks[0].Instrs = instrs
-	f.consts = nil
+	instrs = append(instrs, entry.Instrs...)
+	entry.Instrs = instrs
 }
 
 // buildFakeExits ensures that every block in the function is
@@ -568,7 +571,6 @@ buildLoop:
 
 // finishBody() finalizes the function after IR code generation of its body.
 func (f *Function) finishBody() {
-	f.objects = nil
 	f.currentBlock = nil
 	f.lblocks = nil
 
@@ -593,7 +595,12 @@ func (f *Function) finishBody() {
 	buildPostDomTree(f)
 
 	if f.Prog.mode&NaiveForm == 0 {
-		lift(f)
+		for lift(f) {
+		}
+		if doSimplifyConstantCompositeValues {
+			for simplifyConstantCompositeValues(f) {
+			}
+		}
 	}
 
 	// emit constants after lifting, because lifting may produce new constants, but before other variable splitting,
@@ -604,8 +611,11 @@ func (f *Function) finishBody() {
 		splitOnNewInformation(f.Blocks[0], &StackMap{})
 	}
 
-	f.namedResults = nil // (used by lifting)
-	f.implicitResults = nil
+	// clear remaining builder state
+	f.results = nil    // (used by lifting)
+	f.deferstack = nil // (used by lifting)
+	f.vars = nil       // (used by lifting)
+	f.goversion = ""
 
 	numberNodes(f)
 
@@ -652,7 +662,6 @@ func (f *Function) RemoveNilBlocks() {
 
 // removeNilBlocks eliminates nils from f.Blocks and updates each
 // BasicBlock.Index.  Use this after any pass that may delete blocks.
-//
 func (f *Function) removeNilBlocks() {
 	j := 0
 	for _, b := range f.Blocks {
@@ -673,7 +682,6 @@ func (f *Function) removeNilBlocks() {
 // functions will include full debug info.  This greatly increases the
 // size of the instruction stream, and causes Functions to depend upon
 // the ASTs, potentially keeping them live in memory for longer.
-//
 func (pkg *Package) SetDebugMode(debug bool) {
 	// TODO(adonovan): do we want ast.File granularity?
 	pkg.debug = debug
@@ -684,40 +692,25 @@ func (f *Function) debugInfo() bool {
 	return f.Pkg != nil && f.Pkg.debug
 }
 
-// addNamedLocal creates a local variable, adds it to function f and
-// returns it.  Its name and type are taken from obj.  Subsequent
-// calls to f.lookup(obj) will return the same local.
-//
-func (f *Function) addNamedLocal(obj types.Object, source ast.Node) *Alloc {
-	l := f.addLocal(obj.Type(), source)
-	f.objects[obj] = l
-	return l
-}
-
-func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
-	return f.addNamedLocal(f.Pkg.info.Defs[id], id)
-}
-
-// addLocal creates an anonymous local variable of type typ, adds it
-// to function f and returns it.  pos is the optional source location.
-//
-func (f *Function) addLocal(typ types.Type, source ast.Node) *Alloc {
-	v := &Alloc{}
-	v.setType(types.NewPointer(typ))
-	f.Locals = append(f.Locals, v)
-	f.emit(v, source)
-	return v
-}
-
 // lookup returns the address of the named variable identified by obj
 // that is local to function f or one of its enclosing functions.
 // If escaping, the reference comes from a potentially escaping pointer
 // expression and the referent must be heap-allocated.
-//
-func (f *Function) lookup(obj types.Object, escaping bool) Value {
-	if v, ok := f.objects[obj]; ok {
-		if alloc, ok := v.(*Alloc); ok && escaping {
-			alloc.Heap = true
+// We assume the referent is a *Alloc or *Phi.
+// (The only Phis at this stage are those created directly by go1.22 "for" loops.)
+func (f *Function) lookup(obj *types.Var, escaping bool) Value {
+	if v, ok := f.vars[obj]; ok {
+		if escaping {
+			switch v := v.(type) {
+			case *Alloc:
+				v.Heap = true
+			case *Phi:
+				for _, edge := range v.Edges {
+					if alloc, ok := edge.(*Alloc); ok {
+						alloc.Heap = true
+					}
+				}
+			}
 		}
 		return v // function-local var (address)
 	}
@@ -734,7 +727,7 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 		outer:  outer,
 		parent: f,
 	}
-	f.objects[obj] = v
+	f.vars[obj] = v
 	f.FreeVars = append(f.FreeVars, v)
 	return v
 }
@@ -750,13 +743,14 @@ func (f *Function) emit(instr Instruction, source ast.Node) Value {
 // The specific formatting rules are not guaranteed and may change.
 //
 // Examples:
-//      "math.IsNaN"                  // a package-level function
-//      "(*bytes.Buffer).Bytes"       // a declared method or a wrapper
-//      "(*bytes.Buffer).Bytes$thunk" // thunk (func wrapping method; receiver is param 0)
-//      "(*bytes.Buffer).Bytes$bound" // bound (func wrapping method; receiver supplied by closure)
-//      "main.main$1"                 // an anonymous function in main
-//      "main.init#1"                 // a declared init function
-//      "main.init"                   // the synthesized package initializer
+//
+//	"math.IsNaN"                  // a package-level function
+//	"(*bytes.Buffer).Bytes"       // a declared method or a wrapper
+//	"(*bytes.Buffer).Bytes$thunk" // thunk (func wrapping method; receiver is param 0)
+//	"(*bytes.Buffer).Bytes$bound" // bound (func wrapping method; receiver supplied by closure)
+//	"main.main$1"                 // an anonymous function in main
+//	"main.init#1"                 // a declared init function
+//	"main.init"                   // the synthesized package initializer
 //
 // When these functions are referred to from within the same package
 // (i.e. from == f.Pkg.Object), they are rendered without the package path.
@@ -766,7 +760,6 @@ func (f *Function) emit(instr Instruction, source ast.Node) Value {
 // (But two methods may have the same name "(T).f" if one is a synthetic
 // wrapper promoting a non-exported method "f" from another package; in
 // that case, the strings are equal but the identifiers "f" are distinct.)
-//
 func (f *Function) RelString(from *types.Package) string {
 	// Anonymous?
 	if f.parent != nil {
@@ -812,15 +805,15 @@ func (f *Function) relMethod(from *types.Package, recv types.Type) string {
 }
 
 // writeSignature writes to buf the signature sig in declaration syntax.
-func writeSignature(buf *bytes.Buffer, from *types.Package, name string, sig *types.Signature, params []*Parameter) {
+func writeSignature(buf *bytes.Buffer, from *types.Package, name string, sig *types.Signature) {
 	buf.WriteString("func ")
 	if recv := sig.Recv(); recv != nil {
 		buf.WriteString("(")
-		if n := params[0].Name(); n != "" {
-			buf.WriteString(n)
+		if name := recv.Name(); name != "" {
+			buf.WriteString(name)
 			buf.WriteString(" ")
 		}
-		types.WriteType(buf, params[0].Type(), types.RelativeTo(from))
+		types.WriteType(buf, recv.Type(), types.RelativeTo(from))
 		buf.WriteString(") ")
 	}
 	buf.WriteString(name)
@@ -875,7 +868,7 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), from))
 		}
 	}
-	writeSignature(buf, from, f.Name(), f.Signature, f.Params)
+	writeSignature(buf, from, f.Name(), f.Signature)
 	buf.WriteString(":\n")
 
 	if f.Blocks == nil {
@@ -920,6 +913,10 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 			default:
 				buf.WriteString(instr.String())
 			}
+			if instr != nil && instr.Comment() != "" {
+				buf.WriteString(" # ")
+				buf.WriteString(instr.Comment())
+			}
 			buf.WriteString("\n")
 
 			if f.Prog.mode&PrintSource != 0 {
@@ -950,7 +947,6 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 // newBasicBlock adds to f a new basic block and returns it.  It does
 // not automatically become the current block for subsequent calls to emit.
 // comment is an optional string for more readable debugging output.
-//
 func (f *Function) newBasicBlock(comment string) *BasicBlock {
 	var instrs []Instruction
 	if len(f.functionBody.scratchInstructions) > 0 {
@@ -985,7 +981,6 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 // "reflect" package, etc.
 //
 // TODO(adonovan): think harder about the API here.
-//
 func (prog *Program) NewFunction(name string, sig *types.Signature, provenance Synthetic) *Function {
 	return &Function{Prog: prog, name: name, Signature: sig, Synthetic: provenance}
 }
@@ -1003,4 +998,93 @@ func (f *Function) initHTML(name string) {
 	if rel := f.RelString(nil); rel == name {
 		f.wr = NewHTMLWriter("ir.html", rel, "")
 	}
+}
+
+func killInstruction(instr Instruction) {
+	ops := instr.Operands(nil)
+	for _, op := range ops {
+		if refs := (*op).Referrers(); refs != nil {
+			*refs = removeInstr(*refs, instr)
+		}
+	}
+}
+
+// identVar returns the variable defined by id.
+func identVar(fn *Function, id *ast.Ident) *types.Var {
+	return fn.Pkg.info.Defs[id].(*types.Var)
+}
+
+// unique returns a unique positive int within the source tree of f.
+// The source tree of f includes all of f's ancestors by parent and all
+// of the AnonFuncs contained within these.
+func unique(f *Function) int64 {
+	f.uniq++
+	return f.uniq
+}
+
+// exit is a change of control flow going from a range-over-func
+// yield function to an ancestor function caused by a break, continue,
+// goto, or return statement.
+//
+// There are 3 types of exits:
+// * return from the source function (from ReturnStmt),
+// * jump to a block (from break and continue statements [labelled/unlabelled]),
+// * go to a label (from goto statements).
+//
+// As the builder does one pass over the ast, it is unclear whether
+// a forward goto statement will leave a range-over-func body.
+// The function being exited to is unresolved until the end
+// of building the range-over-func body.
+type exit struct {
+	id     int64     // unique value for exit within from and to
+	from   *Function // the function the exit starts from
+	to     *Function // the function being exited to (nil if unresolved)
+	source ast.Node
+
+	block *BasicBlock  // basic block within to being jumped to.
+	label *types.Label // forward label being jumped to via goto.
+	// block == nil && label == nil => return
+}
+
+// storeVar emits to function f code to store a value v to a *types.Var x.
+func storeVar(f *Function, x *types.Var, v Value, source ast.Node) {
+	emitStore(f, f.lookup(x, true), v, source)
+}
+
+// labelExit creates a new exit to a yield fn to exit the function using a label.
+func labelExit(fn *Function, label *types.Label, source ast.Node) *exit {
+	e := &exit{
+		id:     unique(fn),
+		from:   fn,
+		to:     nil,
+		source: source,
+		label:  label,
+	}
+	fn.exits = append(fn.exits, e)
+	return e
+}
+
+// blockExit creates a new exit to a yield fn that jumps to a basic block.
+func blockExit(fn *Function, block *BasicBlock, source ast.Node) *exit {
+	e := &exit{
+		id:     unique(fn),
+		from:   fn,
+		to:     block.parent,
+		source: source,
+		block:  block,
+	}
+	fn.exits = append(fn.exits, e)
+	return e
+}
+
+// returnExit creates a new exit to a yield fn that returns to the source function.
+func returnExit(fn *Function, source ast.Node) *exit {
+	e := &exit{
+		id:     unique(fn),
+		from:   fn,
+		to:     fn.sourceFn,
+		source: source,
+	}
+	fn.exits = append(fn.exits, e)
+	return e
 }

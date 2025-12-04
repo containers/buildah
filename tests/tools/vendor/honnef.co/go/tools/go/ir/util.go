@@ -26,7 +26,6 @@ func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 // isBlankIdent returns true iff e is an Ident with name "_".
 // They have no associated types.Object, and thus no type.
-//
 func isBlankIdent(e ast.Expr) bool {
 	id, ok := e.(*ast.Ident)
 	return ok && id.Name == "_"
@@ -45,14 +44,15 @@ func isPointer(typ types.Type) bool {
 	return ok
 }
 
-func isInterface(T types.Type) bool { return types.IsInterface(T) }
-
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
 	orig := typ
+	typ = types.Unalias(typ)
 
-	if t, ok := typ.(*typeparams.TypeParam); ok {
+	if t, ok := typ.(*types.TypeParam); ok {
 		if ctyp := typeutil.CoreType(t); ctyp != nil {
+			// This can happen, for example, with len(T) where T is a
+			// type parameter whose core type is a pointer to array.
 			typ = ctyp
 		}
 	}
@@ -71,7 +71,6 @@ func recvType(obj *types.Func) types.Type {
 // returns a closure that prints the corresponding "end" message.
 // Call using 'defer logStack(...)()' to show builder stack on panic.
 // Don't forget trailing parens!
-//
 func logStack(format string, args ...interface{}) func() {
 	msg := fmt.Sprintf(format, args...)
 	io.WriteString(os.Stderr, msg)
@@ -99,7 +98,7 @@ func makeLen(T types.Type) *Builtin {
 	lenParams := types.NewTuple(anonVar(T))
 	return &Builtin{
 		name: "len",
-		sig:  types.NewSignature(nil, lenParams, lenResults, false),
+		sig:  types.NewSignatureType(nil, nil, nil, lenParams, lenResults, false),
 	}
 }
 
@@ -146,4 +145,18 @@ func assert(x bool) {
 	if !x {
 		panic("failed assertion")
 	}
+}
+
+// BlockMap is a mapping from basic blocks (identified by their indices) to values.
+type BlockMap[T any] []T
+
+// isBasic reports whether t is a basic type.
+func isBasic(t types.Type) bool {
+	_, ok := t.(*types.Basic)
+	return ok
+}
+
+// isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
+func isNonTypeParamInterface(t types.Type) bool {
+	return !typeparams.IsTypeParam(t) && types.IsInterface(t)
 }

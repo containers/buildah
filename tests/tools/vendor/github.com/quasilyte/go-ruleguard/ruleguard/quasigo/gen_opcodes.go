@@ -7,8 +7,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"text/template"
 )
@@ -45,6 +45,9 @@ var opcodePrototypes = []opcodeProto{
 
 	{"SetVariadicLen", "op len:u8", stackUnchanged},
 	{"CallNative", "op funcid:u16", "(args...) -> (results...)"},
+	{"Call", "op funcid:u16", "(args...) -> (result)"},
+	{"IntCall", "op funcid:u16", "(args...) -> (result:int)"},
+	{"VoidCall", "op funcid:u16", "(args...) -> ()"},
 
 	{"IsNil", "op", "(value) -> (result:bool)"},
 	{"IsNotNil", "op", "(value) -> (result:bool)"},
@@ -183,7 +186,7 @@ func writeFile(filename string, data []byte) {
 	if err != nil {
 		log.Panicf("gofmt: %v", err)
 	}
-	if err := ioutil.WriteFile(filename, pretty, 0666); err != nil {
+	if err := os.WriteFile(filename, pretty, 0666); err != nil {
 		log.Panicf("write %s: %v", filename, err)
 	}
 }

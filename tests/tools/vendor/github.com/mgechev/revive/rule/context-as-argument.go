@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -11,21 +12,26 @@ import (
 // ContextAsArgumentRule lints given else constructs.
 type ContextAsArgumentRule struct {
 	allowTypesLUT map[string]struct{}
+	sync.Mutex
 }
 
 // Apply applies the rule to given file.
 func (r *ContextAsArgumentRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+	r.Lock()
 	if r.allowTypesLUT == nil {
 		r.allowTypesLUT = getAllowTypesFromArguments(args)
 	}
+	r.Unlock()
 
 	var failures []lint.Failure
+	r.Lock()
 	walker := lintContextArguments{
 		allowTypesLUT: r.allowTypesLUT,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
 		},
 	}
+	r.Unlock()
 
 	ast.Walk(walker, file.AST)
 
@@ -33,7 +39,7 @@ func (r *ContextAsArgumentRule) Apply(file *lint.File, args lint.Arguments) []li
 }
 
 // Name returns the rule name.
-func (r *ContextAsArgumentRule) Name() string {
+func (*ContextAsArgumentRule) Name() string {
 	return "context-as-argument"
 }
 
@@ -76,7 +82,7 @@ func (w lintContextArguments) Visit(n ast.Node) ast.Visitor {
 func getAllowTypesFromArguments(args lint.Arguments) map[string]struct{} {
 	allowTypesBefore := []string{}
 	if len(args) >= 1 {
-		argKV, ok := args[0].(map[string]interface{})
+		argKV, ok := args[0].(map[string]any)
 		if !ok {
 			panic(fmt.Sprintf("Invalid argument to the context-as-argument rule. Expecting a k,v map, got %T", args[0]))
 		}

@@ -65,46 +65,51 @@ const (
 
 	// OpQuote is a \Q...\E enclosed literal.
 	// Examples: `\Q.?\E` `\Q?q[]=1`
-	//
-	// Note that closing \E is not mandatory.
+	// FormQuoteUnclosed: `\Qabc`
+	// Args[0] - literal value (OpString)
 	OpQuote
 
 	// OpEscapeChar is a single char escape.
 	// Examples: `\d` `\a` `\n`
+	// Args[0] - escaped value (OpString)
 	OpEscapeChar
 
 	// OpEscapeMeta is an escaped meta char.
 	// Examples: `\(` `\[` `\+`
+	// Args[0] - escaped value (OpString)
 	OpEscapeMeta
 
 	// OpEscapeOctal is an octal char code escape (up to 3 digits).
 	// Examples: `\123` `\12`
+	// Args[0] - escaped value (OpString)
 	OpEscapeOctal
 
 	// OpEscapeHex is a hex char code escape.
 	// Examples: `\x7F` `\xF7`
 	// FormEscapeHexFull examples: `\x{10FFFF}` `\x{F}`.
+	// Args[0] - escaped value (OpString)
 	OpEscapeHex
 
 	// OpEscapeUni is a Unicode char class escape.
 	// Examples: `\pS` `\pL` `\PL`
 	// FormEscapeUniFull examples: `\p{Greek}` `\p{Symbol}` `\p{^L}`
+	// Args[0] - escaped value (OpString)
 	OpEscapeUni
 
 	// OpCharClass is a char class enclosed in [].
 	// Examples: `[abc]` `[a-z0-9\]]`
-	// Args - char class elements (can include OpCharRange and OpPosixClass).
+	// Args - char class elements (can include OpCharRange and OpPosixClass)
 	OpCharClass
 
 	// OpNegCharClass is a negated char class enclosed in [].
 	// Examples: `[^abc]` `[^a-z0-9\]]`
-	// Args - char class elements (can include OpCharRange and OpPosixClass).
+	// Args - char class elements (can include OpCharRange and OpPosixClass)
 	OpNegCharClass
 
 	// OpCharRange is an inclusive char range inside a char class.
 	// Examples: `0-9` `A-Z`
-	// Args[0] - range lower bound (OpChar or OpEscape).
-	// Args[1] - range upper bound (OpChar or OpEscape).
+	// Args[0] - range lower bound
+	// Args[1] - range upper bound
 	OpCharRange
 
 	// OpPosixClass is a named ASCII char set inside a char class.
@@ -186,4 +191,5 @@ const (
 	FormEscapeUniFull
 	FormNamedCaptureAngle
 	FormNamedCaptureQuote
+	FormQuoteUnclosed
 )

@@ -6,7 +6,8 @@ import (
 	"go/types"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/typep"
 )
@@ -14,7 +15,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "dupSubExpr"
-	info.Tags = []string{"diagnostic"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects suspicious duplicated sub-expressions"
 	info.Before = `
 sort.Slice(xs, func(i, j int) bool {

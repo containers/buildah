@@ -6,7 +6,7 @@ import (
 )
 
 var Signatures = map[string]*types.Signature{
-	"(io.Seeker).Seek": types.NewSignature(nil,
+	"(io.Seeker).Seek": types.NewSignatureType(nil, nil, nil,
 		types.NewTuple(
 			types.NewParam(token.NoPos, nil, "", types.Typ[types.Int64]),
 			types.NewParam(token.NoPos, nil, "", types.Typ[types.Int]),
@@ -18,7 +18,7 @@ var Signatures = map[string]*types.Signature{
 		false,
 	),
 
-	"(io.Writer).Write": types.NewSignature(nil,
+	"(io.Writer).Write": types.NewSignatureType(nil, nil, nil,
 		types.NewTuple(
 			types.NewParam(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
 		),
@@ -29,7 +29,7 @@ var Signatures = map[string]*types.Signature{
 		false,
 	),
 
-	"(io.StringWriter).WriteString": types.NewSignature(nil,
+	"(io.StringWriter).WriteString": types.NewSignatureType(nil, nil, nil,
 		types.NewTuple(
 			types.NewParam(token.NoPos, nil, "", types.Typ[types.String]),
 		),
@@ -40,7 +40,7 @@ var Signatures = map[string]*types.Signature{
 		false,
 	),
 
-	"(encoding.TextMarshaler).MarshalText": types.NewSignature(nil,
+	"(encoding.TextMarshaler).MarshalText": types.NewSignatureType(nil, nil, nil,
 		types.NewTuple(),
 		types.NewTuple(
 			types.NewParam(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
@@ -49,7 +49,7 @@ var Signatures = map[string]*types.Signature{
 		false,
 	),
 
-	"(encoding/json.Marshaler).MarshalJSON": types.NewSignature(nil,
+	"(encoding/json.Marshaler).MarshalJSON": types.NewSignatureType(nil, nil, nil,
 		types.NewTuple(),
 		types.NewTuple(
 			types.NewParam(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
@@ -58,7 +58,7 @@ var Signatures = map[string]*types.Signature{
 		false,
 	),
 
-	"(fmt.Stringer).String": types.NewSignature(nil,
+	"(fmt.Stringer).String": types.NewSignatureType(nil, nil, nil,
 		types.NewTuple(),
 		types.NewTuple(
 			types.NewParam(token.NoPos, nil, "", types.Typ[types.String]),
