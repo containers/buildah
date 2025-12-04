@@ -3,7 +3,7 @@ package formatter
 import (
 	"bytes"
 	"encoding/xml"
-	plainTemplate "text/template"
+	plain "text/template"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -50,7 +50,7 @@ func (*Checkstyle) Format(failures <-chan lint.Failure, config lint.Config) (str
 		issues[fn] = append(issues[fn], iss)
 	}
 
-	t, err := plainTemplate.New("revive").Parse(checkstyleTemplate)
+	t, err := plain.New("revive").Parse(checkstyleTemplate)
 	if err != nil {
 		return "", err
 	}

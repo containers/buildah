@@ -15,17 +15,176 @@
 package rules
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"regexp"
 	"strconv"
 
-	zxcvbn "github.com/nbutton23/zxcvbn-go"
+	zxcvbn "github.com/ccojocar/zxcvbn-go"
+
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
+type secretPattern struct {
+	name   string
+	regexp *regexp.Regexp
+}
+
+var secretsPatterns = [...]secretPattern{
+	{
+		name:   "RSA private key",
+		regexp: regexp.MustCompile(`-----BEGIN RSA PRIVATE KEY-----`),
+	},
+	{
+		name:   "SSH (DSA) private key",
+		regexp: regexp.MustCompile(`-----BEGIN DSA PRIVATE KEY-----`),
+	},
+	{
+		name:   "SSH (EC) private key",
+		regexp: regexp.MustCompile(`-----BEGIN EC PRIVATE KEY-----`),
+	},
+	{
+		name:   "PGP private key block",
+		regexp: regexp.MustCompile(`-----BEGIN PGP PRIVATE KEY BLOCK-----`),
+	},
+	{
+		name:   "Slack Token",
+		regexp: regexp.MustCompile(`xox[pborsa]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32}`),
+	},
+	{
+		name:   "AWS API Key",
+		regexp: regexp.MustCompile(`AKIA[0-9A-Z]{16}`),
+	},
+	{
+		name:   "Amazon MWS Auth Token",
+		regexp: regexp.MustCompile(`amzn\.mws\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`),
+	},
+	{
+		name:   "AWS AppSync GraphQL Key",
+		regexp: regexp.MustCompile(`da2-[a-z0-9]{26}`),
+	},
+	{
+		name:   "GitHub personal access token",
+		regexp: regexp.MustCompile(`ghp_[a-zA-Z0-9]{36}`),
+	},
+	{
+		name:   "GitHub fine-grained access token",
+		regexp: regexp.MustCompile(`github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}`),
+	},
+	{
+		name:   "GitHub action temporary token",
+		regexp: regexp.MustCompile(`ghs_[a-zA-Z0-9]{36}`),
+	},
+	{
+		name:   "Google API Key",
+		regexp: regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`),
+	},
+	{
+		name:   "Google Cloud Platform API Key",
+		regexp: regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`),
+	},
+	{
+		name:   "Google Cloud Platform OAuth",
+		regexp: regexp.MustCompile(`[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com`),
+	},
+	{
+		name:   "Google Drive API Key",
+		regexp: regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`),
+	},
+	{
+		name:   "Google Drive OAuth",
+		regexp: regexp.MustCompile(`[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com`),
+	},
+	{
+		name:   "Google (GCP) Service-account",
+		regexp: regexp.MustCompile(`"type": "service_account"`),
+	},
+	{
+		name:   "Google Gmail API Key",
+		regexp: regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`),
+	},
+	{
+		name:   "Google Gmail OAuth",
+		regexp: regexp.MustCompile(`[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com`),
+	},
+	{
+		name:   "Google OAuth Access Token",
+		regexp: regexp.MustCompile(`ya29\.[0-9A-Za-z\-_]+`),
+	},
+	{
+		name:   "Google YouTube API Key",
+		regexp: regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`),
+	},
+	{
+		name:   "Google YouTube OAuth",
+		regexp: regexp.MustCompile(`[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com`),
+	},
+	{
+		name:   "Generic API Key",
+		regexp: regexp.MustCompile(`[aA][pP][iI]_?[kK][eE][yY].*[''|"][0-9a-zA-Z]{32,45}[''|"]`),
+	},
+	{
+		name:   "Generic Secret",
+		regexp: regexp.MustCompile(`[sS][eE][cC][rR][eE][tT].*[''|"][0-9a-zA-Z]{32,45}[''|"]`),
+	},
+	{
+		name:   "Heroku API Key",
+		regexp: regexp.MustCompile(`[hH][eE][rR][oO][kK][uU].*[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}`),
+	},
+	{
+		name:   "MailChimp API Key",
+		regexp: regexp.MustCompile(`[0-9a-f]{32}-us[0-9]{1,2}`),
+	},
+	{
+		name:   "Mailgun API Key",
+		regexp: regexp.MustCompile(`key-[0-9a-zA-Z]{32}`),
+	},
+	{
+		name:   "Password in URL",
+		regexp: regexp.MustCompile(`[a-zA-Z]{3,10}://[^/\\s:@]{3,20}:[^/\\s:@]{3,20}@.{1,100}["'\\s]`),
+	},
+	{
+		name:   "Slack Webhook",
+		regexp: regexp.MustCompile(`https://hooks\.slack\.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}`),
+	},
+	{
+		name:   "Stripe API Key",
+		regexp: regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24}`),
+	},
+	{
+		name:   "Stripe Restricted API Key",
+		regexp: regexp.MustCompile(`rk_live_[0-9a-zA-Z]{24}`),
+	},
+	{
+		name:   "Square Access Token",
+		regexp: regexp.MustCompile(`sq0atp-[0-9A-Za-z\-_]{22}`),
+	},
+	{
+		name:   "Square OAuth Secret",
+		regexp: regexp.MustCompile(`sq0csp-[0-9A-Za-z\-_]{43}`),
+	},
+	{
+		name:   "Telegram Bot API Key",
+		regexp: regexp.MustCompile(`[0-9]+:AA[0-9A-Za-z\-_]{33}`),
+	},
+	{
+		name:   "Twilio API Key",
+		regexp: regexp.MustCompile(`SK[0-9a-fA-F]{32}`),
+	},
+	{
+		name:   "Twitter Access Token",
+		regexp: regexp.MustCompile(`[tT][wW][iI][tT][tT][eE][rR].*[1-9][0-9]+-[0-9a-zA-Z]{40}`),
+	},
+	{
+		name:   "Twitter OAuth",
+		regexp: regexp.MustCompile(`[tT][wW][iI][tT][tT][eE][rR].*[''|"][0-9a-zA-Z]{35,44}[''|"]`),
+	},
+}
+
 type credentials struct {
-	gosec.MetaData
+	issue.MetaData
 	pattern          *regexp.Regexp
 	entropyThreshold float64
 	perCharThreshold float64
@@ -53,7 +212,16 @@ func (r *credentials) isHighEntropyString(str string) bool {
 			entropyPerChar >= r.perCharThreshold))
 }
 
-func (r *credentials) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) isSecretPattern(str string) (bool, string) {
+	for _, pattern := range secretsPatterns {
+		if pattern.regexp.MatchString(str) {
+			return true, pattern.name
+		}
+	}
+	return false, ""
+}
+
+func (r *credentials) Match(n ast.Node, ctx *gosec.Context) (*issue.Issue, error) {
 	switch node := n.(type) {
 	case *ast.AssignStmt:
 		return r.matchAssign(node, ctx)
@@ -65,15 +233,30 @@ func (r *credentials) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, error
 	return nil, nil
 }
 
-func (r *credentials) matchAssign(assign *ast.AssignStmt, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) matchAssign(assign *ast.AssignStmt, ctx *gosec.Context) (*issue.Issue, error) {
 	for _, i := range assign.Lhs {
 		if ident, ok := i.(*ast.Ident); ok {
+			// First check LHS to find anything being assigned to variables whose name appears to be a cred
 			if r.pattern.MatchString(ident.Name) {
 				for _, e := range assign.Rhs {
 					if val, err := gosec.GetString(e); err == nil {
 						if r.ignoreEntropy || (!r.ignoreEntropy && r.isHighEntropyString(val)) {
-							return gosec.NewIssue(ctx, assign, r.ID(), r.What, r.Severity, r.Confidence), nil
+							return ctx.NewIssue(assign, r.ID(), r.What, r.Severity, r.Confidence), nil
 						}
+					}
+				}
+			}
+
+			// Now that no names were matched, match the RHS to see if the actual values being assigned are creds
+			for _, e := range assign.Rhs {
+				val, err := gosec.GetString(e)
+				if err != nil {
+					continue
+				}
+
+				if r.ignoreEntropy || r.isHighEntropyString(val) {
+					if ok, patternName := r.isSecretPattern(val); ok {
+						return ctx.NewIssue(assign, r.ID(), fmt.Sprintf("%s: %s", r.What, patternName), r.Severity, r.Confidence), nil
 					}
 				}
 			}
@@ -82,7 +265,9 @@ func (r *credentials) matchAssign(assign *ast.AssignStmt, ctx *gosec.Context) (*
 	return nil, nil
 }
 
-func (r *credentials) matchValueSpec(valueSpec *ast.ValueSpec, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) matchValueSpec(valueSpec *ast.ValueSpec, ctx *gosec.Context) (*issue.Issue, error) {
+	// Running match against the variable name(s) first. Will catch any creds whose var name matches the pattern,
+	// then will go back over to check the values themselves.
 	for index, ident := range valueSpec.Names {
 		if r.pattern.MatchString(ident.Name) && valueSpec.Values != nil {
 			// const foo, bar = "same value"
@@ -91,15 +276,27 @@ func (r *credentials) matchValueSpec(valueSpec *ast.ValueSpec, ctx *gosec.Contex
 			}
 			if val, err := gosec.GetString(valueSpec.Values[index]); err == nil {
 				if r.ignoreEntropy || (!r.ignoreEntropy && r.isHighEntropyString(val)) {
-					return gosec.NewIssue(ctx, valueSpec, r.ID(), r.What, r.Severity, r.Confidence), nil
+					return ctx.NewIssue(valueSpec, r.ID(), r.What, r.Severity, r.Confidence), nil
 				}
 			}
 		}
 	}
+
+	// Now that no variable names have been matched, match the actual values to find any creds
+	for _, ident := range valueSpec.Values {
+		if val, err := gosec.GetString(ident); err == nil {
+			if r.ignoreEntropy || r.isHighEntropyString(val) {
+				if ok, patternName := r.isSecretPattern(val); ok {
+					return ctx.NewIssue(valueSpec, r.ID(), fmt.Sprintf("%s: %s", r.What, patternName), r.Severity, r.Confidence), nil
+				}
+			}
+		}
+	}
+
 	return nil, nil
 }
 
-func (r *credentials) matchEqualityCheck(binaryExpr *ast.BinaryExpr, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *credentials) matchEqualityCheck(binaryExpr *ast.BinaryExpr, ctx *gosec.Context) (*issue.Issue, error) {
 	if binaryExpr.Op == token.EQL || binaryExpr.Op == token.NEQ {
 		ident, ok := binaryExpr.X.(*ast.Ident)
 		if !ok {
@@ -113,7 +310,23 @@ func (r *credentials) matchEqualityCheck(binaryExpr *ast.BinaryExpr, ctx *gosec.
 			}
 			if val, err := gosec.GetString(valueNode); err == nil {
 				if r.ignoreEntropy || (!r.ignoreEntropy && r.isHighEntropyString(val)) {
-					return gosec.NewIssue(ctx, binaryExpr, r.ID(), r.What, r.Severity, r.Confidence), nil
+					return ctx.NewIssue(binaryExpr, r.ID(), r.What, r.Severity, r.Confidence), nil
+				}
+			}
+		}
+
+		// Now that the variable names have been checked, and no matches were found, make sure that
+		// either the left or right operands is a string literal so we can match the value.
+		identStrConst, ok := binaryExpr.X.(*ast.BasicLit)
+		if !ok {
+			identStrConst, ok = binaryExpr.Y.(*ast.BasicLit)
+		}
+
+		if ok && identStrConst.Kind == token.STRING {
+			s, _ := gosec.GetString(identStrConst)
+			if r.ignoreEntropy || r.isHighEntropyString(s) {
+				if ok, patternName := r.isSecretPattern(s); ok {
+					return ctx.NewIssue(binaryExpr, r.ID(), fmt.Sprintf("%s: %s", r.What, patternName), r.Severity, r.Confidence), nil
 				}
 			}
 		}
@@ -136,6 +349,7 @@ func NewHardcodedCredentials(id string, conf gosec.Config) (gosec.Rule, []ast.No
 				pattern = cfgPattern
 			}
 		}
+
 		if configIgnoreEntropy, ok := conf["ignore_entropy"]; ok {
 			if cfgIgnoreEntropy, ok := configIgnoreEntropy.(bool); ok {
 				ignoreEntropy = cfgIgnoreEntropy
@@ -170,11 +384,11 @@ func NewHardcodedCredentials(id string, conf gosec.Config) (gosec.Rule, []ast.No
 		perCharThreshold: perCharThreshold,
 		ignoreEntropy:    ignoreEntropy,
 		truncate:         truncateString,
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
 			What:       "Potential hardcoded credentials",
-			Confidence: gosec.Low,
-			Severity:   gosec.High,
+			Confidence: issue.Low,
+			Severity:   issue.High,
 		},
 	}, []ast.Node{(*ast.AssignStmt)(nil), (*ast.ValueSpec)(nil), (*ast.BinaryExpr)(nil)}
 }

@@ -18,22 +18,22 @@ import (
 	"go/ast"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type weakRand struct {
-	gosec.MetaData
-	funcNames   []string
-	packagePath string
+	issue.MetaData
+	blocklist map[string][]string
 }
 
 func (w *weakRand) ID() string {
 	return w.MetaData.ID
 }
 
-func (w *weakRand) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
-	for _, funcName := range w.funcNames {
-		if _, matched := gosec.MatchCallByPackage(n, c, w.packagePath, funcName); matched {
-			return gosec.NewIssue(c, n, w.ID(), w.What, w.Severity, w.Confidence), nil
+func (w *weakRand) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
+	for pkg, funcs := range w.blocklist {
+		if _, matched := gosec.MatchCallByPackage(n, c, pkg, funcs...); matched {
+			return c.NewIssue(n, w.ID(), w.What, w.Severity, w.Confidence), nil
 		}
 	}
 
@@ -41,18 +41,23 @@ func (w *weakRand) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 }
 
 // NewWeakRandCheck detects the use of random number generator that isn't cryptographically secure
-func NewWeakRandCheck(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewWeakRandCheck(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
+	calls := make(map[string][]string)
+	calls["math/rand"] = []string{
+		"New", "Read", "Float32", "Float64", "Int", "Int31", "Int31n",
+		"Int63", "Int63n", "Intn", "NormFloat64", "Uint32", "Uint64",
+	}
+	calls["math/rand/v2"] = []string{
+		"New", "Float32", "Float64", "Int", "Int32", "Int32N",
+		"Int64", "Int64N", "IntN", "N", "NormFloat64", "Uint32", "Uint32N", "Uint64", "Uint64N", "UintN",
+	}
 	return &weakRand{
-		funcNames: []string{
-			"New", "Read", "Float32", "Float64", "Int", "Int31",
-			"Int31n", "Int63", "Int63n", "Intn", "NormalFloat64", "Uint32", "Uint64",
-		},
-		packagePath: "math/rand",
-		MetaData: gosec.MetaData{
+		blocklist: calls,
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.High,
-			Confidence: gosec.Medium,
-			What:       "Use of weak random number generator (math/rand instead of crypto/rand)",
+			Severity:   issue.High,
+			Confidence: issue.Medium,
+			What:       "Use of weak random number generator (math/rand or math/rand/v2 instead of crypto/rand)",
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}
 }

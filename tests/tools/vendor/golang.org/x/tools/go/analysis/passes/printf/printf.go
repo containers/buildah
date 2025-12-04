@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package printf defines an Analyzer that checks consistency
-// of Printf format strings and arguments.
 package printf
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -32,42 +31,18 @@ func init() {
 	Analyzer.Flags.Var(isPrint, "funcs", "comma-separated list of print function names to check")
 }
 
+//go:embed doc.go
+var doc string
+
 var Analyzer = &analysis.Analyzer{
 	Name:       "printf",
-	Doc:        Doc,
+	Doc:        analysisutil.MustExtractDoc(doc, "printf"),
+	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/printf",
 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
 	Run:        run,
 	ResultType: reflect.TypeOf((*Result)(nil)),
 	FactTypes:  []analysis.Fact{new(isWrapper)},
 }
-
-const Doc = `check consistency of Printf format strings and arguments
-
-The check applies to known functions (for example, those in package fmt)
-as well as any detected wrappers of known functions.
-
-A function that wants to avail itself of printf checking but is not
-found by this analyzer's heuristics (for example, due to use of
-dynamic calls) can insert a bogus call:
-
-	if false {
-		_ = fmt.Sprintf(format, args...) // enable printf checking
-	}
-
-The -funcs flag specifies a comma-separated list of names of additional
-known formatting functions or methods. If the name contains a period,
-it must denote a specific function using one of the following forms:
-
-	dir/pkg.Function
-	dir/pkg.Type.Method
-	(*dir/pkg.Type).Method
-
-Otherwise the name is interpreted as a case-insensitive unqualified
-identifier such as "errorf". Either way, if a listed name ends in f, the
-function is assumed to be Printf-like, taking a format string before the
-argument list. Otherwise it is assumed to be Print-like, taking a list
-of arguments with no format string.
-`
 
 // Kind is a kind of fmt function behavior.
 type Kind int
@@ -183,10 +158,11 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
 	params := sig.Params()
 	nparams := params.Len() // variadic => nonzero
 
+	// Check final parameter is "args ...interface{}".
 	args := params.At(nparams - 1)
-	iface, ok := args.Type().(*types.Slice).Elem().(*types.Interface)
+	iface, ok := types.Unalias(args.Type().(*types.Slice).Elem()).(*types.Interface)
 	if !ok || !iface.Empty() {
-		return nil // final (args) param is not ...interface{}
+		return nil
 	}
 
 	// Is second last param 'format string'?
@@ -303,7 +279,7 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 			// print/printf function can take, adding an ellipsis
 			// would break the program. For example:
 			//
-			//   func foo(arg1 string, arg2 ...interface{} {
+			//   func foo(arg1 string, arg2 ...interface{}) {
 			//       fmt.Printf("%s %v", arg1, arg2)
 			//   }
 			return
@@ -340,9 +316,10 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 // example, fmt.Printf forwards to fmt.Fprintf. We avoid relying on the
 // driver applying analyzers to standard packages because "go vet" does
 // not do so with gccgo, and nor do some other build systems.
-// TODO(adonovan): eliminate the redundant facts once this restriction
-// is lifted.
 var isPrint = stringSet{
+	"fmt.Appendf":  true,
+	"fmt.Append":   true,
+	"fmt.Appendln": true,
 	"fmt.Errorf":   true,
 	"fmt.Fprint":   true,
 	"fmt.Fprintf":  true,
@@ -395,64 +372,29 @@ var isPrint = stringSet{
 	"(testing.TB).Skipf":  true,
 }
 
-// formatString returns the format string argument and its index within
-// the given printf-like call expression.
-//
-// The last parameter before variadic arguments is assumed to be
-// a format string.
-//
-// The first string literal or string constant is assumed to be a format string
-// if the call's signature cannot be determined.
-//
-// If it cannot find any format string parameter, it returns ("", -1).
-func formatString(pass *analysis.Pass, call *ast.CallExpr) (format string, idx int) {
+// formatStringIndex returns the index of the format string (the last
+// non-variadic parameter) within the given printf-like call
+// expression, or -1 if unknown.
+func formatStringIndex(pass *analysis.Pass, call *ast.CallExpr) int {
 	typ := pass.TypesInfo.Types[call.Fun].Type
-	if typ != nil {
-		if sig, ok := typ.(*types.Signature); ok {
-			if !sig.Variadic() {
-				// Skip checking non-variadic functions.
-				return "", -1
-			}
-			idx := sig.Params().Len() - 2
-			if idx < 0 {
-				// Skip checking variadic functions without
-				// fixed arguments.
-				return "", -1
-			}
-			s, ok := stringConstantArg(pass, call, idx)
-			if !ok {
-				// The last argument before variadic args isn't a string.
-				return "", -1
-			}
-			return s, idx
-		}
+	if typ == nil {
+		return -1 // missing type
 	}
-
-	// Cannot determine call's signature. Fall back to scanning for the first
-	// string constant in the call.
-	for idx := range call.Args {
-		if s, ok := stringConstantArg(pass, call, idx); ok {
-			return s, idx
-		}
-		if pass.TypesInfo.Types[call.Args[idx]].Type == types.Typ[types.String] {
-			// Skip checking a call with a non-constant format
-			// string argument, since its contents are unavailable
-			// for validation.
-			return "", -1
-		}
+	sig, ok := typ.(*types.Signature)
+	if !ok {
+		return -1 // ill-typed
 	}
-	return "", -1
-}
-
-// stringConstantArg returns call's string constant argument at the index idx.
-//
-// ("", false) is returned if call's argument at the index idx isn't a string
-// constant.
-func stringConstantArg(pass *analysis.Pass, call *ast.CallExpr, idx int) (string, bool) {
-	if idx >= len(call.Args) {
-		return "", false
+	if !sig.Variadic() {
+		// Skip checking non-variadic functions.
+		return -1
 	}
-	return stringConstantExpr(pass, call.Args[idx])
+	idx := sig.Params().Len() - 2
+	if idx < 0 {
+		// Skip checking variadic functions without
+		// fixed arguments.
+		return -1
+	}
+	return idx
 }
 
 // stringConstantExpr returns expression's string constant value.
@@ -535,13 +477,8 @@ func isFormatter(typ types.Type) bool {
 	sig := fn.Type().(*types.Signature)
 	return sig.Params().Len() == 2 &&
 		sig.Results().Len() == 0 &&
-		isNamed(sig.Params().At(0).Type(), "fmt", "State") &&
+		analysisutil.IsNamedType(sig.Params().At(0).Type(), "fmt", "State") &&
 		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
-}
-
-func isNamed(T types.Type, pkgpath, name string) bool {
-	named, ok := T.(*types.Named)
-	return ok && named.Obj().Pkg().Path() == pkgpath && named.Obj().Name() == name
 }
 
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
@@ -564,10 +501,34 @@ type formatState struct {
 
 // checkPrintf checks a call to a formatted print routine such as Printf.
 func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.Func) {
-	format, idx := formatString(pass, call)
-	if idx < 0 {
-		if false {
-			pass.Reportf(call.Lparen, "can't check non-constant format in call to %s", fn.FullName())
+	idx := formatStringIndex(pass, call)
+	if idx < 0 || idx >= len(call.Args) {
+		return
+	}
+	formatArg := call.Args[idx]
+	format, ok := stringConstantExpr(pass, formatArg)
+	if !ok {
+		// Format string argument is non-constant.
+
+		// It is a common mistake to call fmt.Printf(msg) with a
+		// non-constant format string and no arguments:
+		// if msg contains "%", misformatting occurs.
+		// Report the problem and suggest a fix: fmt.Printf("%s", msg).
+		if !suppressNonconstants && idx == len(call.Args)-1 {
+			pass.Report(analysis.Diagnostic{
+				Pos: formatArg.Pos(),
+				End: formatArg.End(),
+				Message: fmt.Sprintf("non-constant format string in call to %s",
+					fn.FullName()),
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message: `Insert "%s" format string`,
+					TextEdits: []analysis.TextEdit{{
+						Pos:     formatArg.Pos(),
+						End:     formatArg.Pos(),
+						NewText: []byte(`"%s", `),
+					}},
+				}},
+			})
 		}
 		return
 	}
@@ -988,6 +949,8 @@ func isStringer(sig *types.Signature) bool {
 // It is almost always a mistake to print a function value.
 func isFunctionValue(pass *analysis.Pass, e ast.Expr) bool {
 	if typ := pass.TypesInfo.Types[e].Type; typ != nil {
+		// Don't call Underlying: a named func type with a String method is ok.
+		// TODO(adonovan): it would be more precise to check isStringer.
 		_, ok := typ.(*types.Signature)
 		return ok
 	}
@@ -1039,7 +1002,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 		// Skip checking functions with unknown type.
 		return
 	}
-	if sig, ok := typ.(*types.Signature); ok {
+	if sig, ok := typ.Underlying().(*types.Signature); ok {
 		if !sig.Variadic() {
 			// Skip checking non-variadic functions.
 			return
@@ -1049,7 +1012,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 
 		typ := params.At(firstArg).Type()
 		typ = typ.(*types.Slice).Elem()
-		it, ok := typ.(*types.Interface)
+		it, ok := types.Unalias(typ).(*types.Interface)
 		if !ok || !it.Empty() {
 			// Skip variadic functions accepting non-interface{} args.
 			return
@@ -1080,7 +1043,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 		if strings.Contains(s, "%") {
 			m := printFormatRE.FindStringSubmatch(s)
 			if m != nil {
-				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.FullName(), m[0])
+				pass.ReportRangef(call, "%s call has possible Printf formatting directive %s", fn.FullName(), m[0])
 			}
 		}
 	}
@@ -1137,3 +1100,12 @@ func (ss stringSet) Set(flag string) error {
 	}
 	return nil
 }
+
+// suppressNonconstants suppresses reporting printf calls with
+// non-constant formatting strings (proposal #60529) when true.
+//
+// This variable is to allow for staging the transition to newer
+// versions of x/tools by vendoring.
+//
+// Remove this after the 1.24 release.
+var suppressNonconstants bool
