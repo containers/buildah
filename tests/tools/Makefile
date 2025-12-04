@@ -22,7 +22,7 @@ $(BUILDDIR): \
 	$(BUILDDIR)/golangci-lint
 
 $(BUILDDIR)/ginkgo:
-	$(GO_BUILD) -o $@ ./vendor/github.com/onsi/ginkgo/ginkgo
+	$(GO_BUILD) -o $@ ./vendor/github.com/onsi/ginkgo/v2/ginkgo
 
 $(BUILDDIR)/go-md2man:
 	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man/v2
