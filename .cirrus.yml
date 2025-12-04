@@ -93,6 +93,7 @@ smoke_task:
 
     gce_instance:
         memory: "12Gb"
+        cpu: 8
 
     # Don't bother running on branches (including cron), or for tags.
     only_if: $CIRRUS_PR != ''
@@ -134,6 +135,9 @@ vendor_task:
 # Confirm cross-compile ALL architectures on a Mac OS-X VM.
 cross_build_task:
     name: "Cross Compile"
+    gce_instance:
+        cpu: 8
+        memory: "24G"
     alias: cross_build
     only_if: >-
         $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
@@ -149,6 +153,8 @@ cross_build_task:
 
 unit_task:
     name: 'Unit tests w/ $STORAGE_DRIVER'
+    gce_instance:
+      cpu: 4
     alias: unit
     only_if: &not_build_docs >-
         $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*' &&
@@ -181,6 +187,7 @@ conformance_task:
     depends_on: *smoke_vendor_cross
 
     gce_instance:
+        cpu: 4
         image_name: "${DEBIAN_CACHE_IMAGE_NAME}"
 
     timeout_in: 65m
@@ -213,7 +220,7 @@ integration_task:
             IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
         - env:
-            DISTRO_NV: "${DEBIAN_NAME}"
+            DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
         # OVERLAY
@@ -226,12 +233,14 @@ integration_task:
             IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
         - env:
-            DISTRO_NV: "${DEBIAN_NAME}"
+            DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
 
     gce_instance:
         image_name: "$IMAGE_NAME"
+        cpu: 8
+        memory: "8G"
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
@@ -271,13 +280,15 @@ integration_rootless_task:
             STORAGE_DRIVER: 'overlay'
             PRIV_NAME: rootless
         - env:
-            DISTRO_NV: "${DEBIAN_NAME}"
+            DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
             PRIV_NAME: rootless
 
     gce_instance:
         image_name: "$IMAGE_NAME"
+        cpu: 8
+        memory: "8G"
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
@@ -295,6 +306,10 @@ in_podman_task:
     alias: in_podman
     only_if: *not_build_docs
     depends_on: *smoke_vendor_cross
+
+    gce_instance:
+        cpu: 8
+        memory: "8G"
 
     env:
         # This is key, cause the scripts to re-execute themselves inside a container.
@@ -331,6 +346,7 @@ success_task:
       - vendor
       - cross_build
       - integration
+      - integration_rootless
       - in_podman
 
     container:
