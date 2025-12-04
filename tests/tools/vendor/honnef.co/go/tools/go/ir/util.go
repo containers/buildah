@@ -15,6 +15,9 @@ import (
 	"os"
 
 	"honnef.co/go/tools/go/ast/astutil"
+	"honnef.co/go/tools/go/types/typeutil"
+
+	"golang.org/x/exp/typeparams"
 )
 
 //// AST utilities
@@ -23,7 +26,6 @@ func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 // isBlankIdent returns true iff e is an Ident with name "_".
 // They have no associated types.Object, and thus no type.
-//
 func isBlankIdent(e ast.Expr) bool {
 	id, ok := e.(*ast.Ident)
 	return ok && id.Name == "_"
@@ -31,20 +33,33 @@ func isBlankIdent(e ast.Expr) bool {
 
 //// Type utilities.  Some of these belong in go/types.
 
-// isPointer returns true for types whose underlying type is a pointer.
+// isPointer returns true for types whose underlying type is a pointer,
+// and for type parameters whose core type is a pointer.
 func isPointer(typ types.Type) bool {
+	if ctyp := typeutil.CoreType(typ); ctyp != nil {
+		_, ok := ctyp.(*types.Pointer)
+		return ok
+	}
 	_, ok := typ.Underlying().(*types.Pointer)
 	return ok
 }
 
-func isInterface(T types.Type) bool { return types.IsInterface(T) }
-
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
+	orig := typ
+	typ = types.Unalias(typ)
+
+	if t, ok := typ.(*types.TypeParam); ok {
+		if ctyp := typeutil.CoreType(t); ctyp != nil {
+			// This can happen, for example, with len(T) where T is a
+			// type parameter whose core type is a pointer to array.
+			typ = ctyp
+		}
+	}
 	if p, ok := typ.Underlying().(*types.Pointer); ok {
 		return p.Elem()
 	}
-	return typ
+	return orig
 }
 
 // recvType returns the receiver type of method obj.
@@ -56,7 +71,6 @@ func recvType(obj *types.Func) types.Type {
 // returns a closure that prints the corresponding "end" message.
 // Call using 'defer logStack(...)()' to show builder stack on panic.
 // Don't forget trailing parens!
-//
 func logStack(format string, args ...interface{}) func() {
 	msg := fmt.Sprintf(format, args...)
 	io.WriteString(os.Stderr, msg)
@@ -84,6 +98,65 @@ func makeLen(T types.Type) *Builtin {
 	lenParams := types.NewTuple(anonVar(T))
 	return &Builtin{
 		name: "len",
-		sig:  types.NewSignature(nil, lenParams, lenResults, false),
+		sig:  types.NewSignatureType(nil, nil, nil, lenParams, lenResults, false),
 	}
+}
+
+type StackMap struct {
+	m []map[Value]Value
+}
+
+func (m *StackMap) Push() {
+	m.m = append(m.m, map[Value]Value{})
+}
+
+func (m *StackMap) Pop() {
+	m.m = m.m[:len(m.m)-1]
+}
+
+func (m *StackMap) Get(key Value) (Value, bool) {
+	for i := len(m.m) - 1; i >= 0; i-- {
+		if v, ok := m.m[i][key]; ok {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+func (m *StackMap) Set(k Value, v Value) {
+	m.m[len(m.m)-1][k] = v
+}
+
+// Unwrap recursively unwraps Sigma and Copy nodes.
+func Unwrap(v Value) Value {
+	for {
+		switch vv := v.(type) {
+		case *Sigma:
+			v = vv.X
+		case *Copy:
+			v = vv.X
+		default:
+			return v
+		}
+	}
+}
+
+func assert(x bool) {
+	if !x {
+		panic("failed assertion")
+	}
+}
+
+// BlockMap is a mapping from basic blocks (identified by their indices) to values.
+type BlockMap[T any] []T
+
+// isBasic reports whether t is a basic type.
+func isBasic(t types.Type) bool {
+	_, ok := t.(*types.Basic)
+	return ok
+}
+
+// isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
+func isNonTypeParamInterface(t types.Type) bool {
+	return !typeparams.IsTypeParam(t) && types.IsInterface(t)
 }

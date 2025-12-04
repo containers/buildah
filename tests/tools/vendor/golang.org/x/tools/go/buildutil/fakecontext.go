@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,7 +29,6 @@ import (
 // /go/src/ including, for instance, "math" and "math/big".
 // ReadDir("/go/src/math/big") would return all the files in the
 // "math/big" package.
-//
 func FakeContext(pkgs map[string]map[string]string) *build.Context {
 	clean := func(filename string) string {
 		f := path.Clean(filepath.ToSlash(filename))
@@ -77,7 +75,7 @@ func FakeContext(pkgs map[string]map[string]string) *build.Context {
 		if !ok {
 			return nil, fmt.Errorf("file not found: %s", filename)
 		}
-		return ioutil.NopCloser(strings.NewReader(content)), nil
+		return io.NopCloser(strings.NewReader(content)), nil
 	}
 	ctxt.IsAbsPath = func(path string) bool {
 		path = filepath.ToSlash(path)

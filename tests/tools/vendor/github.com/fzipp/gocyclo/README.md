@@ -51,8 +51,6 @@ Flags:
     -top N                show the top N most complex functions only
     -avg, -avg-short      show the average complexity over all functions;
                           the short option prints the value without a label
-    -total, -total-short  show the total complexity for all functions;
-                          the short option prints the value without a label
     -ignore REGEX         exclude files matching the given regular expression
 
 The output fields for each line are:

@@ -2,15 +2,16 @@ package rule
 
 import (
 	"fmt"
-	"github.com/mgechev/revive/lint"
 	"go/ast"
+
+	"github.com/mgechev/revive/lint"
 )
 
 // FlagParamRule lints given else constructs.
 type FlagParamRule struct{}
 
 // Apply applies the rule to given file.
-func (r *FlagParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*FlagParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -23,7 +24,7 @@ func (r *FlagParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure 
 }
 
 // Name returns the rule name.
-func (r *FlagParamRule) Name() string {
+func (*FlagParamRule) Name() string {
 	return "flag-parameter"
 }
 
@@ -87,7 +88,7 @@ func (w conditionVisitor) Visit(node ast.Node) ast.Visitor {
 		return false
 	}
 
-	uses := pick(ifStmt.Cond, fselect, nil)
+	uses := pick(ifStmt.Cond, fselect)
 
 	if len(uses) < 1 {
 		return w

@@ -3,8 +3,10 @@
 tags
 
 # binary
-cmd/exhaustive/exhaustive
-exhaustive
+/cmd/exhaustive/exhaustive
+/exhaustive
 
 # testing artifacts
-coverage.out
+/coverage.out
+
+/CHANGELOG.md

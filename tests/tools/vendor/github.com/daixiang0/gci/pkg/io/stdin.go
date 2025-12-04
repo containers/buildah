@@ -5,8 +5,7 @@ import (
 	"os"
 )
 
-type stdInFile struct {
-}
+type stdInFile struct{}
 
 func (s stdInFile) Load() ([]byte, error) {
 	return ioutil.ReadAll(os.Stdin)

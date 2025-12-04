@@ -1,53 +1,107 @@
 package commands
 
 import (
-	"log"
-	"os"
+	"fmt"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
-	"github.com/golangci/golangci-lint/pkg/exitcodes"
+	"github.com/golangci/golangci-lint/pkg/config"
 	"github.com/golangci/golangci-lint/pkg/lint/linter"
+	"github.com/golangci/golangci-lint/pkg/lint/lintersdb"
+	"github.com/golangci/golangci-lint/pkg/logutils"
 )
 
-func (e *Executor) initLinters() {
-	e.lintersCmd = &cobra.Command{
-		Use:   "linters",
-		Short: "List current linters configuration",
-		Run:   e.executeLinters,
-	}
-	e.rootCmd.AddCommand(e.lintersCmd)
-	e.initRunConfiguration(e.lintersCmd)
+type lintersOptions struct {
+	config.LoaderOptions
 }
 
-// executeLinters runs the 'linters' CLI command, which displays the supported linters.
-func (e *Executor) executeLinters(_ *cobra.Command, args []string) {
-	if len(args) != 0 {
-		e.log.Fatalf("Usage: golangci-lint linters")
+type lintersCommand struct {
+	viper *viper.Viper
+	cmd   *cobra.Command
+
+	opts lintersOptions
+
+	cfg *config.Config
+
+	log logutils.Log
+
+	dbManager *lintersdb.Manager
+}
+
+func newLintersCommand(logger logutils.Log) *lintersCommand {
+	c := &lintersCommand{
+		viper: viper.New(),
+		cfg:   config.NewDefault(),
+		log:   logger,
 	}
 
-	enabledLintersMap, err := e.EnabledLintersSet.GetEnabledLintersMap()
+	lintersCmd := &cobra.Command{
+		Use:               "linters",
+		Short:             "List current linters configuration",
+		Args:              cobra.NoArgs,
+		ValidArgsFunction: cobra.NoFileCompletions,
+		RunE:              c.execute,
+		PreRunE:           c.preRunE,
+		SilenceUsage:      true,
+	}
+
+	fs := lintersCmd.Flags()
+	fs.SortFlags = false // sort them as they are defined here
+
+	setupConfigFileFlagSet(fs, &c.opts.LoaderOptions)
+	setupLintersFlagSet(c.viper, fs)
+
+	c.cmd = lintersCmd
+
+	return c
+}
+
+func (c *lintersCommand) preRunE(cmd *cobra.Command, args []string) error {
+	loader := config.NewLoader(c.log.Child(logutils.DebugKeyConfigReader), c.viper, cmd.Flags(), c.opts.LoaderOptions, c.cfg, args)
+
+	err := loader.Load(config.LoadOptions{Validation: true})
 	if err != nil {
-		log.Fatalf("Can't get enabled linters: %s", err)
+		return fmt.Errorf("can't load config: %w", err)
 	}
 
-	color.Green("Enabled by your configuration linters:\n")
-	enabledLinters := make([]*linter.Config, 0, len(enabledLintersMap))
-	for _, linter := range enabledLintersMap {
-		enabledLinters = append(enabledLinters, linter)
+	dbManager, err := lintersdb.NewManager(c.log.Child(logutils.DebugKeyLintersDB), c.cfg,
+		lintersdb.NewLinterBuilder(), lintersdb.NewPluginModuleBuilder(c.log), lintersdb.NewPluginGoBuilder(c.log))
+	if err != nil {
+		return err
 	}
-	printLinterConfigs(enabledLinters)
 
+	c.dbManager = dbManager
+
+	return nil
+}
+
+func (c *lintersCommand) execute(_ *cobra.Command, _ []string) error {
+	enabledLintersMap, err := c.dbManager.GetEnabledLintersMap()
+	if err != nil {
+		return fmt.Errorf("can't get enabled linters: %w", err)
+	}
+
+	var enabledLinters []*linter.Config
 	var disabledLCs []*linter.Config
-	for _, lc := range e.DBManager.GetAllSupportedLinterConfigs() {
+
+	for _, lc := range c.dbManager.GetAllSupportedLinterConfigs() {
+		if lc.Internal {
+			continue
+		}
+
 		if enabledLintersMap[lc.Name()] == nil {
 			disabledLCs = append(disabledLCs, lc)
+		} else {
+			enabledLinters = append(enabledLinters, lc)
 		}
 	}
 
+	color.Green("Enabled by your configuration linters:\n")
+	printLinters(enabledLinters)
 	color.Red("\nDisabled by your configuration linters:\n")
-	printLinterConfigs(disabledLCs)
+	printLinters(disabledLCs)
 
-	os.Exit(exitcodes.Success)
+	return nil
 }

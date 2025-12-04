@@ -23,7 +23,7 @@ type AbstractRule struct {
 }
 
 // ToFailurePosition returns the failure position.
-func ToFailurePosition(start token.Pos, end token.Pos, file *File) FailurePosition {
+func ToFailurePosition(start, end token.Pos, file *File) FailurePosition {
 	return FailurePosition{
 		Start: file.ToPosition(start),
 		End:   file.ToPosition(end),

@@ -42,6 +42,8 @@ var opPrototypes = []operationProto{
 
 	{name: "IndexExpr", tag: "IndexExpr", args: "x expr"},
 
+	{name: "IndexListExpr", tag: "IndexListExpr", args: "x exprs..."},
+
 	{name: "SliceExpr", tag: "SliceExpr", args: "x"},
 	{name: "SliceFromExpr", tag: "SliceExpr", args: "x from", example: "x[from:]"},
 	{name: "SliceToExpr", tag: "SliceExpr", args: "x to", example: "x[:to]"},
@@ -60,9 +62,12 @@ var opPrototypes = []operationProto{
 	{name: "TypeSwitchAssertExpr", tag: "TypeAssertExpr", args: "x"},
 
 	{name: "StructType", tag: "StructType", args: "fields"},
-	{name: "InterfaceType", tag: "StructType", args: "fields"},
+	{name: "InterfaceType", tag: "InterfaceType", args: "fields"},
+	{name: "EfaceType", tag: "InterfaceType"},
 	{name: "VoidFuncType", tag: "FuncType", args: "params"},
+	{name: "GenericVoidFuncType", tag: "FuncType", args: "typeparams params"},
 	{name: "FuncType", tag: "FuncType", args: "params results"},
+	{name: "GenericFuncType", tag: "FuncType", args: "typeparams params results"},
 	{name: "ArrayType", tag: "ArrayType", args: "length elem"},
 	{name: "SliceType", tag: "ArrayType", args: "elem"},
 	{name: "MapType", tag: "MapType", args: "key value"},
@@ -92,6 +97,7 @@ var opPrototypes = []operationProto{
 
 	{name: "VariadicCallExpr", tag: "CallExpr", args: "fn args", example: "f(1, xs...)"},
 	{name: "NonVariadicCallExpr", tag: "CallExpr", args: "fn args", example: "f(1, xs)"},
+	{name: "MaybeVariadicCallExpr", tag: "CallExpr", args: "fn args", value: "int | can be variadic if len(args)>value", example: "f(1, xs) or f(1, xs...)"},
 	{name: "CallExpr", tag: "CallExpr", args: "fn args", example: "f(1, xs) or f(1, xs...)"},
 
 	{name: "AssignStmt", tag: "AssignStmt", args: "lhs rhs", value: "token.Token | ':=' or '='", example: "lhs := rhs()"},
@@ -151,6 +157,11 @@ var opPrototypes = []operationProto{
 	{name: "RangeKeyStmt", tag: "RangeStmt", args: "key x block", value: "token.Token | ':=' or '='", example: "for key := range x {}"},
 	{name: "RangeKeyValueStmt", tag: "RangeStmt", args: "key value x block", value: "token.Token | ':=' or '='", example: "for key, value := range x {}"},
 
+	{name: "RangeClause", tag: "RangeStmt", args: "x", example: "range x"},
+	{name: "RangeHeader", tag: "RangeStmt", args: "x", example: "for range x"},
+	{name: "RangeKeyHeader", tag: "RangeStmt", args: "key x", value: "token.Token | ':=' or '='", example: "for key := range x"},
+	{name: "RangeKeyValueHeader", tag: "RangeStmt", args: "key value x", value: "token.Token | ':=' or '='", example: "for key, value := range x"},
+
 	{name: "FieldList", args: "fields..."},
 	{name: "UnnamedField", args: "typ", example: "type"},
 	{name: "SimpleField", args: "typ", valueIndex: "strings | field name", example: "name type"},
@@ -162,9 +173,12 @@ var opPrototypes = []operationProto{
 	{name: "TypedValueInitSpec", tag: "ValueSpec", args: "lhs... type rhs...", example: "lhs typ = rhs"},
 	{name: "TypedValueSpec", tag: "ValueSpec", args: "lhs... type", example: "lhs typ"},
 
+	{name: "SimpleTypeSpec", tag: "TypeSpec", args: "type", valueIndex: "strings | type name", example: "name type"},
 	{name: "TypeSpec", tag: "TypeSpec", args: "name type", example: "name type"},
+	{name: "GenericTypeSpec", tag: "TypeSpec", args: "name typeparasm type", example: "name[typeparams] type"},
 	{name: "TypeAliasSpec", tag: "TypeSpec", args: "name type", example: "name = type"},
 
+	{name: "SimpleFuncDecl", tag: "FuncDecl", args: "type block", valueIndex: "strings | field name"},
 	{name: "FuncDecl", tag: "FuncDecl", args: "name type block"},
 	{name: "MethodDecl", tag: "FuncDecl", args: "recv name type block"},
 	{name: "FuncProtoDecl", tag: "FuncDecl", args: "name type"},

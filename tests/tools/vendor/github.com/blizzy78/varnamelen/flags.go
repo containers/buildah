@@ -96,3 +96,14 @@ func (dv *declarationsValue) matchParameter(param parameter) bool {
 
 	return false
 }
+
+// matchParameter returns true if param matches any of the declarations in dv.
+func (dv *declarationsValue) matchTypeParameter(param typeParam) bool {
+	for _, decl := range dv.Values {
+		if param.match(decl) {
+			return true
+		}
+	}
+
+	return false
+}
