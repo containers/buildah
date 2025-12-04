@@ -14,10 +14,16 @@ type ArgumentsLimitRule struct {
 	sync.Mutex
 }
 
+const defaultArgumentsLimit = 8
+
 func (r *ArgumentsLimitRule) configure(arguments lint.Arguments) {
 	r.Lock()
+	defer r.Unlock()
 	if r.total == 0 {
-		checkNumberOfArguments(1, arguments, r.Name())
+		if len(arguments) < 1 {
+			r.total = defaultArgumentsLimit
+			return
+		}
 
 		total, ok := arguments[0].(int64) // Alt. non panicking version
 		if !ok {
@@ -25,7 +31,6 @@ func (r *ArgumentsLimitRule) configure(arguments lint.Arguments) {
 		}
 		r.total = int(total)
 	}
-	r.Unlock()
 }
 
 // Apply applies the rule to given file.

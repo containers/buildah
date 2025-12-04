@@ -183,8 +183,11 @@ func (bld *builder) Visit(n ast.Node) ast.Visitor {
 		brek.setDestination(bld.newBlock(exits...))
 		bld.breaks.pop()
 	case *ast.DeferStmt:
+		bld.walk(n.Call.Fun)
+		for _, a := range n.Call.Args {
+			bld.walk(a)
+		}
 		bld.defers[len(bld.defers)-1] = true
-		return bld
 	case *ast.LabeledStmt:
 		bld.gotos.get(n.Label).setDestination(bld.newBlock(bld.block))
 		bld.labelStmt = n

@@ -26,6 +26,13 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	indentAdj int,
 	err error,
 ) {
+
+	// START - Change related to usage inside golangci-lint
+	parserModeMu.Lock()
+	parserMode := parserMode
+	parserModeMu.Unlock()
+	// END - Change related to usage inside golangci-lint
+
 	// Try as whole source file.
 	file, err = parser.ParseFile(fset, filename, src, parserMode)
 	// If there's no error, return. If the error is that the source file didn't begin with a

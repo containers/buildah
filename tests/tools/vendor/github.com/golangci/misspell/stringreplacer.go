@@ -102,7 +102,6 @@ func (t *trieNode) add(key, val string, priority int, r *genericReplacer) {
 		return
 	}
 
-	//nolint:nestif // TODO(ldez) must be fixed.
 	if t.prefix != "" {
 		// Need to split the prefix among multiple nodes.
 		var n int // length of the longest common prefix
@@ -111,9 +110,10 @@ func (t *trieNode) add(key, val string, priority int, r *genericReplacer) {
 				break
 			}
 		}
-		if n == len(t.prefix) {
+		switch n {
+		case len(t.prefix):
 			t.next.add(key[n:], val, priority, r)
-		} else if n == 0 {
+		case 0:
 			// First byte differs, start a new lookup table here. Looking up
 			// what is currently t.prefix[0] will lead to prefixNode, and
 			// looking up key[0] will lead to keyNode.
@@ -133,7 +133,7 @@ func (t *trieNode) add(key, val string, priority int, r *genericReplacer) {
 			t.prefix = ""
 			t.next = nil
 			keyNode.add(key[1:], val, priority, r)
-		} else {
+		default:
 			// Insert new node after the common section of the prefix.
 			next := &trieNode{
 				prefix: t.prefix[n:],
@@ -143,18 +143,22 @@ func (t *trieNode) add(key, val string, priority int, r *genericReplacer) {
 			t.next = next
 			next.add(key[n:], val, priority, r)
 		}
-	} else if t.table != nil {
+		return
+	}
+
+	if t.table != nil {
 		// Insert into existing table.
 		m := r.mapping[key[0]]
 		if t.table[m] == nil {
 			t.table[m] = new(trieNode)
 		}
 		t.table[m].add(key[1:], val, priority, r)
-	} else {
-		t.prefix = key
-		t.next = new(trieNode)
-		t.next.add("", val, priority, r)
+		return
 	}
+
+	t.prefix = key
+	t.next = new(trieNode)
+	t.next.add("", val, priority, r)
 }
 
 // genericReplacer is the fully generic algorithm.
@@ -242,7 +246,6 @@ func (r *genericReplacer) Replace(s string) string {
 	return string(buf)
 }
 
-//nolint:gocognit // TODO(ldez) must be fixed.
 func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	sw := getStringWriter(w)
 	var last, wn int

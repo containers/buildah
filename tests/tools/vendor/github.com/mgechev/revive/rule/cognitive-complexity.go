@@ -16,10 +16,17 @@ type CognitiveComplexityRule struct {
 	sync.Mutex
 }
 
+const defaultMaxCognitiveComplexity = 7
+
 func (r *CognitiveComplexityRule) configure(arguments lint.Arguments) {
 	r.Lock()
+	defer r.Unlock()
 	if r.maxComplexity == 0 {
-		checkNumberOfArguments(1, arguments, r.Name())
+
+		if len(arguments) < 1 {
+			r.maxComplexity = defaultMaxCognitiveComplexity
+			return
+		}
 
 		complexity, ok := arguments[0].(int64)
 		if !ok {
@@ -27,7 +34,6 @@ func (r *CognitiveComplexityRule) configure(arguments lint.Arguments) {
 		}
 		r.maxComplexity = int(complexity)
 	}
-	r.Unlock()
 }
 
 // Apply applies the rule to given file.

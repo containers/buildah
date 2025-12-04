@@ -18,7 +18,7 @@ import (
 	"github.com/timonwong/loggercheck/internal/sets"
 )
 
-const Doc = `Checks key valur pairs for common logger libraries (kitlog,klog,logr,zap).`
+const Doc = `Checks key value pairs for common logger libraries (kitlog,klog,logr,zap).`
 
 func NewAnalyzer(opts ...Option) *analysis.Analyzer {
 	l := newLoggerCheck(opts...)

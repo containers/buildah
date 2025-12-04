@@ -8,7 +8,7 @@ import (
 	"go/build"
 	"go/printer"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -166,7 +166,7 @@ func (rr *rulesRunner) fileBytes() []byte {
 	}
 
 	// TODO(quasilyte): re-use src slice?
-	src, err := ioutil.ReadFile(rr.filename)
+	src, err := os.ReadFile(rr.filename)
 	if err != nil || src == nil {
 		// Assign a zero-length slice so rr.src
 		// is never nil during the second fileBytes call.

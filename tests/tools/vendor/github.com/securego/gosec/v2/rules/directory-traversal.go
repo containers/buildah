@@ -5,18 +5,19 @@ import (
 	"regexp"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type traversal struct {
 	pattern *regexp.Regexp
-	gosec.MetaData
+	issue.MetaData
 }
 
 func (r *traversal) ID() string {
 	return r.MetaData.ID
 }
 
-func (r *traversal) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *traversal) Match(n ast.Node, ctx *gosec.Context) (*issue.Issue, error) {
 	switch node := n.(type) {
 	case *ast.CallExpr:
 		return r.matchCallExpr(node, ctx)
@@ -24,14 +25,14 @@ func (r *traversal) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, error) 
 	return nil, nil
 }
 
-func (r *traversal) matchCallExpr(assign *ast.CallExpr, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *traversal) matchCallExpr(assign *ast.CallExpr, ctx *gosec.Context) (*issue.Issue, error) {
 	for _, i := range assign.Args {
 		if basiclit, ok1 := i.(*ast.BasicLit); ok1 {
 			if fun, ok2 := assign.Fun.(*ast.SelectorExpr); ok2 {
 				if x, ok3 := fun.X.(*ast.Ident); ok3 {
-					string := x.Name + "." + fun.Sel.Name + "(" + basiclit.Value + ")"
-					if r.pattern.MatchString(string) {
-						return gosec.NewIssue(ctx, assign, r.ID(), r.What, r.Severity, r.Confidence), nil
+					str := x.Name + "." + fun.Sel.Name + "(" + basiclit.Value + ")"
+					if r.pattern.MatchString(str) {
+						return ctx.NewIssue(assign, r.ID(), r.What, r.Severity, r.Confidence), nil
 					}
 				}
 			}
@@ -54,11 +55,11 @@ func NewDirectoryTraversal(id string, conf gosec.Config) (gosec.Rule, []ast.Node
 
 	return &traversal{
 		pattern: regexp.MustCompile(pattern),
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
 			What:       "Potential directory traversal",
-			Confidence: gosec.Medium,
-			Severity:   gosec.Medium,
+			Confidence: issue.Medium,
+			Severity:   issue.Medium,
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}
 }

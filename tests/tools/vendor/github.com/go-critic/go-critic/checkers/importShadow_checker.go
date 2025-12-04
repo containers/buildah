@@ -5,13 +5,13 @@ import (
 	"go/types"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "importShadow"
-	info.Tags = []string{"style", "opinionated"}
+	info.Tags = []string{linter.StyleTag, linter.OpinionatedTag}
 	info.Summary = "Detects when imported package names shadowed in the assignments"
 	info.Before = `
 // "path/filepath" is imported.

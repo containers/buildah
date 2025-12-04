@@ -1,8 +1,9 @@
 package utils
 
 const (
-	Indent    = '\t'
-	Linebreak = '\n'
+	Indent       = '\t'
+	Linebreak    = '\n'
+	WinLinebreak = '\r'
 
 	Colon = ":"
 
