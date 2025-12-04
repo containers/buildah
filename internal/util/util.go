@@ -99,6 +99,8 @@ func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 		if _, err = io.Copy(outFile, input); err != nil {
 			return fmt.Errorf("failed while performing copy to %q: %w", opts.Path, err)
 		}
+	default:
+		return fmt.Errorf("unsupported output type %q", opts.Type)
 	}
 	return nil
 }
