@@ -15,6 +15,7 @@ This is a list of gosec's users. Please send a pull request with your organisati
 9. [PingCAP/tidb](https://github.com/pingcap/tidb)
 10. [Checkmarx](https://www.checkmarx.com/)
 11. [SeatGeek](https://www.seatgeek.com/)
+12. [reMarkable](https://remarkable.com)
 
 ## Projects
 

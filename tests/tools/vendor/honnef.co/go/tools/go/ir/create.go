@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"go/version"
 	"os"
 	"sync"
 
@@ -27,14 +28,11 @@ const avgInstructionsPerBlock = 16
 // NewProgram returns a new IR Program.
 //
 // mode controls diagnostics and checking during IR construction.
-//
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
 		Fset:     fset,
 		imported: make(map[string]*Package),
 		packages: make(map[*types.Package]*Package),
-		thunks:   make(map[selectionKey]*Function),
-		bounds:   make(map[*types.Func]*Function),
 		mode:     mode,
 	}
 
@@ -48,11 +46,10 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 // memberFromObject populates package pkg with a member for the
 // typechecker object obj.
 //
-// For objects from Go source code, syntax is the associated syntax
-// tree (for funcs and vars only); it will be used during the build
-// phase.
-//
-func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
+// For objects from Go source code, syntax is the associated syntax tree
+// (for funcs and vars only) and goversion defines the appropriate
+// interpretation; they will be used during the build phase.
+func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node, goversion string) {
 	name := obj.Name()
 	switch obj := obj.(type) {
 	case *types.Builtin:
@@ -61,19 +58,23 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		}
 
 	case *types.TypeName:
-		pkg.Members[name] = &Type{
-			object: obj,
-			pkg:    pkg,
+		if name != "_" {
+			pkg.Members[name] = &Type{
+				object: obj,
+				pkg:    pkg,
+			}
 		}
 
 	case *types.Const:
 		c := &NamedConst{
 			object: obj,
-			Value:  NewConst(obj.Val(), obj.Type()),
+			Value:  NewConst(obj.Val(), obj.Type(), syntax),
 			pkg:    pkg,
 		}
 		pkg.values[obj] = c.Value
-		pkg.Members[name] = c
+		if name != "_" {
+			pkg.Members[name] = c
+		}
 
 	case *types.Var:
 		g := &Global{
@@ -83,7 +84,9 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			typ:    types.NewPointer(obj.Type()), // address
 		}
 		pkg.values[obj] = g
-		pkg.Members[name] = g
+		if name != "_" {
+			pkg.Members[name] = g
+		}
 
 	case *types.Func:
 		sig := obj.Type().(*types.Signature)
@@ -97,6 +100,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Signature: sig,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
+			goversion: goversion,
 		}
 
 		fn.source = syntax
@@ -116,7 +120,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 
 		pkg.values[obj] = fn
 		pkg.Functions = append(pkg.Functions, fn)
-		if sig.Recv() == nil {
+		if name != "_" && sig.Recv() == nil {
 			pkg.Members[name] = fn // package-level function
 		}
 
@@ -128,43 +132,46 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 // membersFromDecl populates package pkg with members for each
 // typechecker object (var, func, const or type) associated with the
 // specified decl.
-//
-func membersFromDecl(pkg *Package, decl ast.Decl) {
+func membersFromDecl(pkg *Package, decl ast.Decl, goversion string) {
 	switch decl := decl.(type) {
 	case *ast.GenDecl: // import, const, type or var
 		switch decl.Tok {
 		case token.CONST:
 			for _, spec := range decl.Specs {
 				for _, id := range spec.(*ast.ValueSpec).Names {
-					if !isBlankIdent(id) {
-						memberFromObject(pkg, pkg.info.Defs[id], nil)
-					}
+					memberFromObject(pkg, pkg.info.Defs[id], nil, "")
 				}
 			}
 
 		case token.VAR:
 			for _, spec := range decl.Specs {
+				for _, rhs := range spec.(*ast.ValueSpec).Values {
+					pkg.initVersion[rhs] = goversion
+				}
 				for _, id := range spec.(*ast.ValueSpec).Names {
-					if !isBlankIdent(id) {
-						memberFromObject(pkg, pkg.info.Defs[id], spec)
-					}
+					memberFromObject(pkg, pkg.info.Defs[id], spec, goversion)
 				}
 			}
 
 		case token.TYPE:
 			for _, spec := range decl.Specs {
 				id := spec.(*ast.TypeSpec).Name
-				if !isBlankIdent(id) {
-					memberFromObject(pkg, pkg.info.Defs[id], nil)
-				}
+				memberFromObject(pkg, pkg.info.Defs[id], nil, "")
 			}
 		}
 
 	case *ast.FuncDecl:
 		id := decl.Name
-		if !isBlankIdent(id) {
-			memberFromObject(pkg, pkg.info.Defs[id], decl)
+		obj, ok := pkg.info.Defs[id]
+		if !ok {
+			panic(fmt.Sprintf("couldn't find object for id %q at %s",
+				id.Name, pkg.Prog.Fset.PositionFor(id.Pos(), false)))
 		}
+		if obj == nil {
+			panic(fmt.Sprintf("found nil object for id %q at %s",
+				id.Name, pkg.Prog.Fset.PositionFor(id.Pos(), false)))
+		}
+		memberFromObject(pkg, obj, decl, goversion)
 	}
 }
 
@@ -177,16 +184,17 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 //
 // The real work of building IR form for each function is not done
 // until a subsequent call to Package.Build().
-//
 func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *types.Info, importable bool) *Package {
 	p := &Package{
-		Prog:      prog,
-		Members:   make(map[string]Member),
-		values:    make(map[types.Object]Value),
-		Pkg:       pkg,
-		info:      info,  // transient (CREATE and BUILD phases)
-		files:     files, // transient (CREATE and BUILD phases)
-		printFunc: prog.PrintFunc,
+		Prog:    prog,
+		Members: make(map[string]Member),
+		values:  make(map[types.Object]Value),
+		Pkg:     pkg,
+		// transient values (CREATE and BUILD phases)
+		info:        info,
+		files:       files,
+		printFunc:   prog.PrintFunc,
+		initVersion: make(map[ast.Expr]string),
 	}
 
 	// Add init() function.
@@ -197,6 +205,7 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 		Pkg:          p,
 		Prog:         prog,
 		functionBody: new(functionBody),
+		goversion:    "", // See Package.build for details.
 	}
 	p.init.initHTML(prog.PrintFunc)
 	p.Members[p.init.name] = p.init
@@ -207,8 +216,9 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 	if len(files) > 0 {
 		// Go source package.
 		for _, file := range files {
+			goversion := version.Lang(p.info.FileVersions[file])
 			for _, decl := range file.Decls {
-				membersFromDecl(p, decl)
+				membersFromDecl(p, decl, goversion)
 			}
 		}
 	} else {
@@ -218,11 +228,11 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 		scope := p.Pkg.Scope()
 		for _, name := range scope.Names() {
 			obj := scope.Lookup(name)
-			memberFromObject(p, obj, nil)
+			memberFromObject(p, obj, nil, "")
 			if obj, ok := obj.(*types.TypeName); ok {
 				if named, ok := obj.Type().(*types.Named); ok {
 					for i, n := 0, named.NumMethods(); i < n; i++ {
-						memberFromObject(p, named.Method(i), nil)
+						memberFromObject(p, named.Method(i), nil, "")
 					}
 				}
 			}
@@ -260,7 +270,6 @@ var printMu sync.Mutex
 
 // AllPackages returns a new slice containing all packages in the
 // program prog in unspecified order.
-//
 func (prog *Program) AllPackages() []*Package {
 	pkgs := make([]*Package, 0, len(prog.packages))
 	for _, pkg := range prog.packages {
@@ -282,7 +291,6 @@ func (prog *Program) AllPackages() []*Package {
 // false---yet this function remains very convenient.
 // Clients should use (*Program).Package instead where possible.
 // IR doesn't really need a string-keyed map of packages.
-//
 func (prog *Program) ImportedPackage(path string) *Package {
 	return prog.imported[path]
 }

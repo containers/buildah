@@ -1,7 +1,7 @@
 package misspell
 
-// ByteToUpper converts an ascii byte to upper cases
-// Uses a branchless algorithm
+// ByteToUpper converts an ascii byte to upper cases.
+// Uses a branch-less algorithm.
 func ByteToUpper(x byte) byte {
 	b := byte(0x80) | x
 	c := b - byte(0x61)
@@ -10,8 +10,8 @@ func ByteToUpper(x byte) byte {
 	return x - (e >> 2)
 }
 
-// ByteToLower converts an ascii byte to lower case
-// uses a branchless algorithm
+// ByteToLower converts an ascii byte to lower case.
+// Uses a branch-less algorithm.
 func ByteToLower(eax byte) byte {
 	ebx := eax&byte(0x7f) + byte(0x25)
 	ebx = ebx&byte(0x7f) + byte(0x1a)
@@ -19,7 +19,7 @@ func ByteToLower(eax byte) byte {
 	return eax + ebx
 }
 
-// ByteEqualFold does ascii compare, case insensitive
+// ByteEqualFold does ascii compare, case insensitive.
 func ByteEqualFold(a, b byte) bool {
 	return a == b || ByteToLower(a) == ByteToLower(b)
 }
@@ -27,7 +27,7 @@ func ByteEqualFold(a, b byte) bool {
 // StringEqualFold ASCII case-insensitive comparison
 // golang toUpper/toLower for both bytes and strings
 // appears to be Unicode based which is super slow
-// based from https://codereview.appspot.com/5180044/patch/14007/21002
+// based from https://codereview.appspot.com/5180044/patch/14007/21002.
 func StringEqualFold(s1, s2 string) bool {
 	if len(s1) != len(s2) {
 		return false
@@ -47,9 +47,7 @@ func StringEqualFold(s1, s2 string) bool {
 	return true
 }
 
-// StringHasPrefixFold is similar to strings.HasPrefix but comparison
-// is done ignoring ASCII case.
-// /
+// StringHasPrefixFold is similar to strings.HasPrefix but comparison is done ignoring ASCII case.
 func StringHasPrefixFold(s1, s2 string) bool {
 	// prefix is bigger than input --> false
 	if len(s1) < len(s2) {
