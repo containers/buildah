@@ -6,7 +6,7 @@ env:
     #### Global variables used for all tasks
     ####
     # Name of the ultimate destination branch for this CI run, PR or post-merge.
-    DEST_BRANCH: "release-1.29"
+    DEST_BRANCH: "release-1.27"
     GOPATH: "/var/tmp/go"
     GOSRC: "${GOPATH}/src/github.com/containers/buildah"
     GOCACHE: "/tmp/go-build"
@@ -156,6 +156,42 @@ unit_task:
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP}'
 
+cross_build_task:
+    name: "Cross Compile"
+    gce_instance:
+        cpu: 8
+        memory: "24G"
+    alias: cross_build
+    skip: >-
+        $CIRRUS_CHANGE_TITLE =~ '.*CI:DOCS.*'
+    env:
+        HOME: /root
+    script:
+        - go version
+        - make cross CGO_ENABLED=0
+    binary_artifacts:
+        path: ./bin/*
+
+conformance_task:
+    name: 'Debian Conformance w/ $STORAGE_DRIVER'
+    alias: conformance
+    skip: *not_build_docs
+    depends_on: *smoke_vendor
+
+    gce_instance:
+        image_name: "${DEBIAN_CACHE_IMAGE_NAME}"
+
+    timeout_in: 30m
+
+    matrix:
+        - env:
+            STORAGE_DRIVER: 'vfs'
+            TMPDIR: '/var/tmp'
+        - env:
+            STORAGE_DRIVER: 'overlay'
+
+    setup_script: '${SCRIPT_BASE}/setup.sh conformance |& ${_TIMESTAMP}'
+    conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
 
 integration_task:
     name: "Integration $DISTRO_NV$RUNTIME_N w/ $STORAGE_DRIVER"
@@ -287,6 +323,40 @@ integration_rootless_task:
             IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
             PRIV_NAME: rootless
+        # VFS
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${DEBIAN_NAME}"
+            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
 
     gce_instance:
         image_name: "$IMAGE_NAME"
@@ -344,9 +414,11 @@ success_task:
       - smoke
       - unit
       - vendor
+      - cross_build
       - integration
       - integration_rootless
       - in_podman
+      - conformance
 
     container:
         image: "quay.io/libpod/alpine:latest"
