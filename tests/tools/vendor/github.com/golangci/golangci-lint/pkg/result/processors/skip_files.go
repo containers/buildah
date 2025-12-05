@@ -8,29 +8,33 @@ import (
 	"github.com/golangci/golangci-lint/pkg/result"
 )
 
-type SkipFiles struct {
-	patterns []*regexp.Regexp
-}
-
 var _ Processor = (*SkipFiles)(nil)
 
-func NewSkipFiles(patterns []string) (*SkipFiles, error) {
+type SkipFiles struct {
+	patterns   []*regexp.Regexp
+	pathPrefix string
+}
+
+func NewSkipFiles(patterns []string, pathPrefix string) (*SkipFiles, error) {
 	var patternsRe []*regexp.Regexp
 	for _, p := range patterns {
 		p = fsutils.NormalizePathInRegex(p)
+
 		patternRe, err := regexp.Compile(p)
 		if err != nil {
-			return nil, fmt.Errorf("can't compile regexp %q: %s", p, err)
+			return nil, fmt.Errorf("can't compile regexp %q: %w", p, err)
 		}
+
 		patternsRe = append(patternsRe, patternRe)
 	}
 
 	return &SkipFiles{
-		patterns: patternsRe,
+		patterns:   patternsRe,
+		pathPrefix: pathPrefix,
 	}, nil
 }
 
-func (p SkipFiles) Name() string {
+func (SkipFiles) Name() string {
 	return "skip_files"
 }
 
@@ -39,9 +43,11 @@ func (p SkipFiles) Process(issues []result.Issue) ([]result.Issue, error) {
 		return issues, nil
 	}
 
-	return filterIssues(issues, func(i *result.Issue) bool {
-		for _, p := range p.patterns {
-			if p.MatchString(i.FilePath()) {
+	return filterIssues(issues, func(issue *result.Issue) bool {
+		path := fsutils.WithPathPrefix(p.pathPrefix, issue.FilePath())
+
+		for _, pattern := range p.patterns {
+			if pattern.MatchString(path) {
 				return false
 			}
 		}
@@ -50,4 +56,4 @@ func (p SkipFiles) Process(issues []result.Issue) ([]result.Issue, error) {
 	}), nil
 }
 
-func (p SkipFiles) Finish() {}
+func (SkipFiles) Finish() {}

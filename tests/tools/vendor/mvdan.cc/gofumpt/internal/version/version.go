@@ -97,6 +97,9 @@ func goVersion() string {
 	return runtime.Version()
 }
 
-func String() string {
+func String(injected string) string {
+	if injected != "" {
+		return fmt.Sprintf("%s (%s)", injected, goVersion())
+	}
 	return fmt.Sprintf("%s (%s)", gofumptVersion(), goVersion())
 }

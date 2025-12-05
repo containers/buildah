@@ -14,9 +14,17 @@ type MaxPublicStructsRule struct {
 	sync.Mutex
 }
 
+const defaultMaxPublicStructs = 5
+
 func (r *MaxPublicStructsRule) configure(arguments lint.Arguments) {
 	r.Lock()
+	defer r.Unlock()
 	if r.max < 1 {
+		if len(arguments) < 1 {
+			r.max = defaultMaxPublicStructs
+			return
+		}
+
 		checkNumberOfArguments(1, arguments, r.Name())
 
 		max, ok := arguments[0].(int64) // Alt. non panicking version
@@ -25,7 +33,6 @@ func (r *MaxPublicStructsRule) configure(arguments lint.Arguments) {
 		}
 		r.max = max
 	}
-	r.Unlock()
 }
 
 // Apply applies the rule to given file.

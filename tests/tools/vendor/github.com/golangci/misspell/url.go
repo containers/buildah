@@ -10,7 +10,7 @@ import (
 // @(https?|ftp)://(-\.)?([^\s/?\.#-]+\.?)+(/[^\s]*)?$@iS.
 var reURL = regexp.MustCompile(`(?i)(https?|ftp)://(-\.)?([^\s/?.#]+\.?)+(/\S*)?`)
 
-// StripURL attemps to replace URLs with blank spaces, e.g.
+// StripURL attempts to replace URLs with blank spaces, e.g.
 //
 //	"xxx http://foo.com/ yyy -> "xxx          yyyy".
 func StripURL(s string) string {

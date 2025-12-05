@@ -273,7 +273,7 @@ func isTypeExpr(info *types.Info, x ast.Expr) bool {
 
 	case *ast.Ident:
 		// Identifier may be a type expression if object
-		// it reffers to is a type name.
+		// it refers to is a type name.
 		_, ok := info.ObjectOf(x).(*types.TypeName)
 		return ok
 

@@ -1,17 +1,16 @@
 package processors
 
 import (
-	"path/filepath"
-
+	"github.com/golangci/golangci-lint/pkg/fsutils"
 	"github.com/golangci/golangci-lint/pkg/result"
 )
+
+var _ Processor = (*PathPrefixer)(nil)
 
 // PathPrefixer adds a customizable prefix to every output path
 type PathPrefixer struct {
 	prefix string
 }
-
-var _ Processor = new(PathPrefixer)
 
 // NewPathPrefixer returns a new path prefixer for the provided string
 func NewPathPrefixer(prefix string) *PathPrefixer {
@@ -27,7 +26,7 @@ func (*PathPrefixer) Name() string {
 func (p *PathPrefixer) Process(issues []result.Issue) ([]result.Issue, error) {
 	if p.prefix != "" {
 		for i := range issues {
-			issues[i].Pos.Filename = filepath.Join(p.prefix, issues[i].Pos.Filename)
+			issues[i].Pos.Filename = fsutils.WithPathPrefix(p.prefix, issues[i].Pos.Filename)
 		}
 	}
 	return issues, nil

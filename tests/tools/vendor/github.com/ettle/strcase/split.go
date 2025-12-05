@@ -10,6 +10,7 @@ type SplitFn func(prev, curr, next rune) SplitAction
 // NewSplitFn covers the majority of common options that other strcase
 // libraries provide and should allow you to simply create a custom caser.
 // For more complicated use cases, feel free to write your own SplitFn
+//
 //nolint:gocyclo
 func NewSplitFn(
 	delimiters []rune,

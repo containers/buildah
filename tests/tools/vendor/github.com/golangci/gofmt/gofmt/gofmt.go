@@ -16,10 +16,12 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"strings"
 
 	"github.com/golangci/gofmt/gofmt/internal/diff"
@@ -75,6 +77,11 @@ func initParserMode() {
 	parserMode = parser.ParseComments
 	if *allErrors {
 		parserMode |= parser.AllErrors
+	}
+	// It's only -r that makes use of go/ast's object resolution,
+	// so avoid the unnecessary work if the flag isn't used.
+	if *rewriteRule == "" {
+		parserMode |= parser.SkipObjectResolution
 	}
 }
 
@@ -228,12 +235,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 	}
 
 	fileSet := token.NewFileSet()
-	fragmentOk := false
-	if info == nil {
-		// If we are formatting stdin, we accept a program fragment in lieu of a
-		// complete source file.
-		fragmentOk = true
-	}
+	// If we are formatting stdin, we accept a program fragment in lieu of a
+	// complete source file.
+	fragmentOk := info == nil
 	file, sourceAdj, indentAdj, err := parse(fileSet, filename, src, fragmentOk)
 	if err != nil {
 		return err
@@ -267,31 +271,16 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			if info == nil {
 				panic("-w should not have been allowed with stdin")
 			}
-			// make a temporary backup before overwriting original
+
 			perm := info.Mode().Perm()
-			bakname, err := backupFile(filename+".", src, perm)
-			if err != nil {
-				return err
-			}
-			fdSem <- true
-			err = os.WriteFile(filename, res, perm)
-			<-fdSem
-			if err != nil {
-				os.Rename(bakname, filename)
-				return err
-			}
-			err = os.Remove(bakname)
-			if err != nil {
+			if err := writeFile(filename, src, res, perm, info.Size()); err != nil {
 				return err
 			}
 		}
 		if *doDiff {
-			data, err := diffWithReplaceTempFile(src, res, filename)
-			if err != nil {
-				return fmt.Errorf("computing diff: %s", err)
-			}
-			fmt.Fprintf(r, "diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
-			r.Write(data)
+			newName := filepath.ToSlash(filename)
+			oldName := newName + ".orig"
+			r.Write(diff.Diff(oldName, src, newName, res))
 		}
 	}
 
@@ -350,7 +339,12 @@ func readFile(filename string, info fs.FileInfo, in io.Reader) ([]byte, error) {
 	// stop to avoid corrupting it.)
 	src := make([]byte, size+1)
 	n, err := io.ReadFull(in, src)
-	if err != nil && err != io.ErrUnexpectedEOF {
+	switch err {
+	case nil, io.EOF, io.ErrUnexpectedEOF:
+		// io.ReadFull returns io.EOF (for an empty file) or io.ErrUnexpectedEOF
+		// (for a non-empty file) if the file was changed unexpectedly. Continue
+		// with comparing file sizes in those cases.
+	default:
 		return nil, err
 	}
 	if n < size {
@@ -463,69 +457,111 @@ func fileWeight(path string, info fs.FileInfo) int64 {
 	return info.Size()
 }
 
-func diffWithReplaceTempFile(b1, b2 []byte, filename string) ([]byte, error) {
-	data, err := diff.Diff("gofmt", b1, b2)
-	if len(data) > 0 {
-		return replaceTempFilename(data, filename)
+// writeFile updates a file with the new formatted data.
+func writeFile(filename string, orig, formatted []byte, perm fs.FileMode, size int64) error {
+	// Make a temporary backup file before rewriting the original file.
+	bakname, err := backupFile(filename, orig, perm)
+	if err != nil {
+		return err
 	}
-	return data, err
-}
 
-// replaceTempFilename replaces temporary filenames in diff with actual one.
-//
-// --- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
-// +++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
-// ...
-// ->
-// --- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
-// +++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
-// ...
-func replaceTempFilename(diff []byte, filename string) ([]byte, error) {
-	bs := bytes.SplitN(diff, []byte{'\n'}, 3)
-	if len(bs) < 3 {
-		return nil, fmt.Errorf("got unexpected diff for %s", filename)
-	}
-	// Preserve timestamps.
-	var t0, t1 []byte
-	if i := bytes.LastIndexByte(bs[0], '\t'); i != -1 {
-		t0 = bs[0][i:]
-	}
-	if i := bytes.LastIndexByte(bs[1], '\t'); i != -1 {
-		t1 = bs[1][i:]
-	}
-	// Always print filepath with slash separator.
-	f := filepath.ToSlash(filename)
-	bs[0] = []byte(fmt.Sprintf("--- %s%s", f+".orig", t0))
-	bs[1] = []byte(fmt.Sprintf("+++ %s%s", f, t1))
-	return bytes.Join(bs, []byte{'\n'}), nil
-}
+	fdSem <- true
+	defer func() { <-fdSem }()
 
-const chmodSupported = runtime.GOOS != "windows"
+	fout, err := os.OpenFile(filename, os.O_WRONLY, perm)
+	if err != nil {
+		// We couldn't even open the file, so it should
+		// not have changed.
+		os.Remove(bakname)
+		return err
+	}
+	defer fout.Close() // for error paths
+
+	restoreFail := func(err error) {
+		fmt.Fprintf(os.Stderr, "gofmt: %s: error restoring file to original: %v; backup in %s\n", filename, err, bakname)
+	}
+
+	n, err := fout.Write(formatted)
+	if err == nil && int64(n) < size {
+		err = fout.Truncate(int64(n))
+	}
+
+	if err != nil {
+		// Rewriting the file failed.
+
+		if n == 0 {
+			// Original file unchanged.
+			os.Remove(bakname)
+			return err
+		}
+
+		// Try to restore the original contents.
+
+		no, erro := fout.WriteAt(orig, 0)
+		if erro != nil {
+			// That failed too.
+			restoreFail(erro)
+			return err
+		}
+
+		if no < n {
+			// Original file is shorter. Truncate.
+			if erro = fout.Truncate(int64(no)); erro != nil {
+				restoreFail(erro)
+				return err
+			}
+		}
+
+		if erro := fout.Close(); erro != nil {
+			restoreFail(erro)
+			return err
+		}
+
+		// Original contents restored.
+		os.Remove(bakname)
+		return err
+	}
+
+	if err := fout.Close(); err != nil {
+		restoreFail(err)
+		return err
+	}
+
+	// File updated.
+	os.Remove(bakname)
+	return nil
+}
 
 // backupFile writes data to a new file named filename<number> with permissions perm,
-// with <number randomly chosen such that the file name is unique. backupFile returns
+// with <number> randomly chosen such that the file name is unique. backupFile returns
 // the chosen file name.
 func backupFile(filename string, data []byte, perm fs.FileMode) (string, error) {
 	fdSem <- true
 	defer func() { <-fdSem }()
 
-	// create backup file
-	f, err := os.CreateTemp(filepath.Dir(filename), filepath.Base(filename))
-	if err != nil {
-		return "", err
+	nextRandom := func() string {
+		return strconv.Itoa(rand.Int())
 	}
-	bakname := f.Name()
-	if chmodSupported {
-		err = f.Chmod(perm)
-		if err != nil {
-			f.Close()
-			os.Remove(bakname)
-			return bakname, err
+
+	dir, base := filepath.Split(filename)
+	var (
+		bakname string
+		f       *os.File
+	)
+	for {
+		bakname = filepath.Join(dir, base+"."+nextRandom())
+		var err error
+		f, err = os.OpenFile(bakname, os.O_RDWR|os.O_CREATE|os.O_EXCL, perm)
+		if err == nil {
+			break
+		}
+		if err != nil && !os.IsExist(err) {
+			return "", err
 		}
 	}
 
 	// write data to backup file
-	_, err = f.Write(data)
+	_, err := f.Write(data)
 	if err1 := f.Close(); err == nil {
 		err = err1
 	}

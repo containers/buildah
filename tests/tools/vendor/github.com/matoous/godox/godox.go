@@ -8,20 +8,70 @@ import (
 	"go/token"
 	"path/filepath"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
-var (
-	defaultKeywords = []string{"TODO", "BUG", "FIXME"}
-)
+var defaultKeywords = []string{"TODO", "BUG", "FIXME"}
 
-// Message contains a message and position
+// Message contains a message and position.
 type Message struct {
 	Pos     token.Position
 	Message string
 }
 
-func getMessages(c *ast.Comment, fset *token.FileSet, keywords []string) []Message {
-	commentText := c.Text
+func getMessages(comment *ast.Comment, fset *token.FileSet, keywords []string) []Message {
+	commentText := extractComment(comment.Text)
+
+	b := bufio.NewReader(bytes.NewBufferString(commentText))
+
+	var comments []Message
+
+	for lineNum := 0; ; lineNum++ {
+		line, _, err := b.ReadLine()
+		if err != nil {
+			break
+		}
+
+		const minimumSize = 4
+
+		sComment := bytes.TrimSpace(line)
+		if len(sComment) < minimumSize {
+			continue
+		}
+
+		for _, kw := range keywords {
+			if lkw := len(kw); !(bytes.EqualFold([]byte(kw), sComment[0:lkw]) &&
+				!hasAlphanumRuneAdjacent(sComment[lkw:])) {
+				continue
+			}
+
+			pos := fset.Position(comment.Pos())
+			// trim the comment
+			const commentLimit = 40
+			if len(sComment) > commentLimit {
+				sComment = []byte(fmt.Sprintf("%.40s...", sComment))
+			}
+
+			comments = append(comments, Message{
+				Pos: pos,
+				Message: fmt.Sprintf(
+					"%s:%d: Line contains %s: %q",
+					filepath.Clean(pos.Filename),
+					pos.Line+lineNum,
+					strings.Join(keywords, "/"),
+					sComment,
+				),
+			})
+
+			break
+		}
+	}
+
+	return comments
+}
+
+func extractComment(commentText string) string {
 	switch commentText[1] {
 	case '/':
 		commentText = commentText[2:]
@@ -32,40 +82,22 @@ func getMessages(c *ast.Comment, fset *token.FileSet, keywords []string) []Messa
 		commentText = commentText[2 : len(commentText)-2]
 	}
 
-	b := bufio.NewReader(bytes.NewBufferString(commentText))
-	var comments []Message
+	return commentText
+}
 
-	for lineNum := 0; ; lineNum++ {
-		line, _, err := b.ReadLine()
-		if err != nil {
-			break
-		}
-		sComment := bytes.TrimSpace(line)
-		if len(sComment) < 4 {
-			continue
-		}
-		for _, kw := range keywords {
-			if bytes.EqualFold([]byte(kw), sComment[0:len(kw)]) {
-				pos := fset.Position(c.Pos())
-				// trim the comment
-				if len(sComment) > 40 {
-					sComment = []byte(fmt.Sprintf("%.40s...", sComment))
-				}
-				comments = append(comments, Message{
-					Pos: pos,
-					Message: fmt.Sprintf(
-						"%s:%d: Line contains %s: \"%s\"",
-						filepath.Join(pos.Filename),
-						pos.Line+lineNum,
-						strings.Join(keywords, "/"),
-						sComment,
-					),
-				})
-				break
-			}
-		}
+func hasAlphanumRuneAdjacent(rest []byte) bool {
+	if len(rest) == 0 {
+		return false
 	}
-	return comments
+
+	switch rest[0] { // most common cases
+	case ':', ' ', '(':
+		return false
+	}
+
+	r, _ := utf8.DecodeRune(rest)
+
+	return unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsDigit(r)
 }
 
 // Run runs the godox linter on given file.
@@ -74,11 +106,14 @@ func Run(file *ast.File, fset *token.FileSet, keywords ...string) []Message {
 	if len(keywords) == 0 {
 		keywords = defaultKeywords
 	}
+
 	var messages []Message
+
 	for _, c := range file.Comments {
 		for _, ci := range c.List {
 			messages = append(messages, getMessages(ci, fset, keywords)...)
 		}
 	}
+
 	return messages
 }

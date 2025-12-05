@@ -17,10 +17,16 @@ type CyclomaticRule struct {
 	sync.Mutex
 }
 
+const defaultMaxCyclomaticComplexity = 10
+
 func (r *CyclomaticRule) configure(arguments lint.Arguments) {
 	r.Lock()
+	defer r.Unlock()
 	if r.maxComplexity == 0 {
-		checkNumberOfArguments(1, arguments, r.Name())
+		if len(arguments) < 1 {
+			r.maxComplexity = defaultMaxCyclomaticComplexity
+			return
+		}
 
 		complexity, ok := arguments[0].(int64) // Alt. non panicking version
 		if !ok {
@@ -28,7 +34,6 @@ func (r *CyclomaticRule) configure(arguments lint.Arguments) {
 		}
 		r.maxComplexity = int(complexity)
 	}
-	r.Unlock()
 }
 
 // Apply applies the rule to given file.

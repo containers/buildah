@@ -15,8 +15,11 @@ package gosec
 import (
 	"go/ast"
 	"go/types"
+	"regexp"
 	"strings"
 )
+
+var versioningPackagePattern = regexp.MustCompile(`v[0-9]+$`)
 
 // ImportTracker is used to normalize the packages that have been imported
 // by a source file. It is able to differentiate between plain imports, aliased
@@ -51,9 +54,7 @@ func (t *ImportTracker) TrackPackages(pkgs ...*types.Package) {
 func (t *ImportTracker) TrackImport(imported *ast.ImportSpec) {
 	importPath := strings.Trim(imported.Path.Value, `"`)
 	if imported.Name != nil {
-		if imported.Name.Name == "_" {
-			// Initialization only import
-		} else {
+		if imported.Name.Name != "_" {
 			// Aliased import
 			t.Imported[importPath] = append(t.Imported[importPath], imported.Name.String())
 		}
@@ -67,6 +68,11 @@ func importName(importPath string) string {
 	name := importPath
 	if len(parts) > 0 {
 		name = parts[len(parts)-1]
+	}
+	// If the last segment of the path is version information, consider the second to last segment as the package name.
+	// (e.g., `math/rand/v2` would be `rand`)
+	if len(parts) > 1 && versioningPackagePattern.MatchString(name) {
+		name = parts[len(parts)-2]
 	}
 	return name
 }
