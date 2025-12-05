@@ -11,6 +11,8 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // An lvalue represents an assignable location that may appear on the
@@ -25,7 +27,7 @@ type lvalue interface {
 
 // An address is an lvalue represented by a true pointer.
 type address struct {
-	addr Value
+	addr Value     // must have a pointer core type.
 	pos  token.Pos // source position
 	expr ast.Expr  // source syntax of the value (not address) [debug mode]
 }
@@ -52,7 +54,7 @@ func (a *address) address(fn *Function) Value {
 }
 
 func (a *address) typ() types.Type {
-	return deref(a.addr.Type())
+	return typeparams.MustDeref(a.addr.Type())
 }
 
 // An element is an lvalue represented by m[k], the location of an

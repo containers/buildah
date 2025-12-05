@@ -39,8 +39,13 @@ func (a FileGeneratorFunc) Combine(b FileGeneratorFunc) FileGeneratorFunc {
 	}
 }
 
-func GoFilesInPathsGenerator(paths []string) FileGeneratorFunc {
-	return FilesInPathsGenerator(paths, isGoFile)
+func GoFilesInPathsGenerator(paths []string, skipVendor bool) FileGeneratorFunc {
+	checkFunc := isGoFile
+	if skipVendor {
+		checkFunc = checkChains(isGoFile, isOutsideVendorDir)
+	}
+
+	return FilesInPathsGenerator(paths, checkFunc)
 }
 
 func FilesInPathsGenerator(paths []string, fileCheckFun fileCheckFunction) FileGeneratorFunc {

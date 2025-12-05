@@ -1,12 +1,13 @@
 package printers
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
+
+	"golang.org/x/exp/maps"
 
 	"github.com/golangci/golangci-lint/pkg/result"
 )
@@ -45,7 +46,7 @@ func NewJunitXML(w io.Writer) *JunitXML {
 	return &JunitXML{w: w}
 }
 
-func (p JunitXML) Print(ctx context.Context, issues []result.Issue) error {
+func (p JunitXML) Print(issues []result.Issue) error {
 	suites := make(map[string]testSuiteXML) // use a map to group by file
 
 	for ind := range issues {
@@ -72,9 +73,7 @@ func (p JunitXML) Print(ctx context.Context, issues []result.Issue) error {
 	}
 
 	var res testSuitesXML
-	for _, val := range suites {
-		res.TestSuites = append(res.TestSuites, val)
-	}
+	res.TestSuites = maps.Values(suites)
 
 	sort.Slice(res.TestSuites, func(i, j int) bool {
 		return res.TestSuites[i].Suite < res.TestSuites[j].Suite

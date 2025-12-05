@@ -4,13 +4,13 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "defaultCaseOrder"
-	info.Tags = []string{"style"}
+	info.Tags = []string{linter.StyleTag}
 	info.Summary = "Detects when default case in switch isn't on 1st or last position"
 	info.Before = `
 switch {
