@@ -2,7 +2,6 @@ package syntax
 
 import (
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -111,7 +110,7 @@ func (l *lexer) Peek() token {
 func (l *lexer) scan() {
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
-		if ch > unicode.MaxASCII {
+		if ch >= utf8.RuneSelf {
 			_, size := utf8.DecodeRuneInString(l.input[l.pos:])
 			l.pushTok(tokChar, size)
 			l.maybeInsertConcat()
@@ -161,7 +160,7 @@ func (l *lexer) scan() {
 					} else if l.tryScanGroupName(l.pos + 2) {
 					} else if l.tryScanGroupFlags(l.pos + 2) {
 					} else {
-						throwErrorf(l.pos, l.pos+1, "group token is incomplete")
+						throw(newPos(l.pos, l.pos+1), "group token is incomplete")
 					}
 				}
 			} else {
@@ -190,7 +189,7 @@ func (l *lexer) scanCharClass() {
 
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
-		if ch > unicode.MaxASCII {
+		if ch >= utf8.RuneSelf {
 			_, size := utf8.DecodeRuneInString(l.input[l.pos:])
 			l.pushTok(tokChar, size)
 			continue
@@ -224,17 +223,17 @@ func (l *lexer) scanCharClass() {
 func (l *lexer) scanEscape(insideCharClass bool) {
 	s := l.input
 	if l.pos+1 >= len(s) {
-		throwErrorf(l.pos, l.pos+1, `unexpected end of pattern: trailing '\'`)
+		throw(newPos(l.pos, l.pos+1), `unexpected end of pattern: trailing '\'`)
 	}
 	switch {
 	case s[l.pos+1] == 'p' || s[l.pos+1] == 'P':
 		if l.pos+2 >= len(s) {
-			throwErrorf(l.pos, l.pos+2, "unexpected end of pattern: expected uni-class-short or '{'")
+			throw(newPos(l.pos, l.pos+2), "unexpected end of pattern: expected uni-class-short or '{'")
 		}
 		if s[l.pos+2] == '{' {
 			j := strings.IndexByte(s[l.pos+2:], '}')
 			if j < 0 {
-				throwErrorf(l.pos, l.pos+2, "can't find closing '}'")
+				throw(newPos(l.pos, l.pos+2), "can't find closing '}'")
 			}
 			l.pushTok(tokEscapeUniFull, len(`\p{`)+j)
 		} else {
@@ -242,12 +241,12 @@ func (l *lexer) scanEscape(insideCharClass bool) {
 		}
 	case s[l.pos+1] == 'x':
 		if l.pos+2 >= len(s) {
-			throwErrorf(l.pos, l.pos+2, "unexpected end of pattern: expected hex-digit or '{'")
+			throw(newPos(l.pos, l.pos+2), "unexpected end of pattern: expected hex-digit or '{'")
 		}
 		if s[l.pos+2] == '{' {
 			j := strings.IndexByte(s[l.pos+2:], '}')
 			if j < 0 {
-				throwErrorf(l.pos, l.pos+2, "can't find closing '}'")
+				throw(newPos(l.pos, l.pos+2), "can't find closing '}'")
 			}
 			l.pushTok(tokEscapeHexFull, len(`\x{`)+j)
 		} else {
@@ -277,7 +276,7 @@ func (l *lexer) scanEscape(insideCharClass bool) {
 
 	default:
 		ch := l.byteAt(l.pos + 1)
-		if ch > unicode.MaxASCII {
+		if ch >= utf8.RuneSelf {
 			_, size := utf8.DecodeRuneInString(l.input[l.pos+1:])
 			l.pushTok(tokEscapeChar, len(`\`)+size)
 			return

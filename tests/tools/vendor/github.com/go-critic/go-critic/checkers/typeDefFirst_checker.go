@@ -5,14 +5,13 @@ import (
 	"go/token"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
-	"golang.org/x/exp/typeparams"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "typeDefFirst"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects method declarations preceding the type definition itself"
 	info.Before = `
 func (r rec) Method() {}
@@ -81,7 +80,7 @@ func (c *typeDefFirstChecker) receiverType(e ast.Expr) string {
 		return e.Name
 	case *ast.IndexExpr:
 		return c.receiverType(e.X)
-	case *typeparams.IndexListExpr:
+	case *ast.IndexListExpr:
 		return c.receiverType(e.X)
 	default:
 		panic("unreachable")

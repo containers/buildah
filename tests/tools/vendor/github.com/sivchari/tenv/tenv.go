@@ -81,6 +81,8 @@ func checkStmts(pass *analysis.Pass, stmts []ast.Stmt, funcName, argName string)
 			if !checkAssignStmt(pass, stmt, funcName, argName) {
 				continue
 			}
+		case *ast.ForStmt:
+			checkForStmt(pass, stmt, funcName, argName)
 		}
 	}
 }
@@ -90,6 +92,7 @@ func checkExprStmt(pass *analysis.Pass, stmt *ast.ExprStmt, funcName, argName st
 	if !ok {
 		return false
 	}
+	checkArgs(pass, callExpr.Args, funcName, argName)
 	fun, ok := callExpr.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
@@ -106,6 +109,30 @@ func checkExprStmt(pass *analysis.Pass, stmt *ast.ExprStmt, funcName, argName st
 		pass.Reportf(stmt.Pos(), "os.Setenv() can be replaced by `%s.Setenv()` in %s", argName, funcName)
 	}
 	return true
+}
+
+func checkArgs(pass *analysis.Pass, args []ast.Expr, funcName, argName string) {
+	for _, arg := range args {
+		callExpr, ok := arg.(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		fun, ok := callExpr.Fun.(*ast.SelectorExpr)
+		if !ok {
+			continue
+		}
+		x, ok := fun.X.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		targetName := x.Name + "." + fun.Sel.Name
+		if targetName == "os.Setenv" {
+			if argName == "" {
+				argName = "testing"
+			}
+			pass.Reportf(arg.Pos(), "os.Setenv() can be replaced by `%s.Setenv()` in %s", argName, funcName)
+		}
+	}
 }
 
 func checkIfStmt(pass *analysis.Pass, stmt *ast.IfStmt, funcName, argName string) bool {
@@ -158,6 +185,10 @@ func checkAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, funcName, argNam
 	return true
 }
 
+func checkForStmt(pass *analysis.Pass, stmt *ast.ForStmt, funcName, argName string) {
+	checkStmts(pass, stmt.Body.List, funcName, argName)
+}
+
 func targetRunner(params []*ast.Field, fileName string) (string, bool) {
 	for _, p := range params {
 		switch typ := p.Type.(type) {
@@ -196,7 +227,7 @@ func checkStarExprTarget(typ *ast.StarExpr) bool {
 	}
 	targetName := x.Name + "." + selector.Sel.Name
 	switch targetName {
-	case "testing.T", "testing.B", "testing.F":
+	case "testing.T", "testing.B":
 		return true
 	default:
 		return false

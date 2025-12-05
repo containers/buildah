@@ -1,9 +1,7 @@
 package rule
 
 import (
-	"go/ast"
-	"go/token"
-
+	"github.com/mgechev/revive/internal/ifelse"
 	"github.com/mgechev/revive/lint"
 )
 
@@ -11,16 +9,8 @@ import (
 type IndentErrorFlowRule struct{}
 
 // Apply applies the rule to given file.
-func (*IndentErrorFlowRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
-	var failures []lint.Failure
-
-	onFailure := func(failure lint.Failure) {
-		failures = append(failures, failure)
-	}
-
-	w := lintElse{make(map[*ast.IfStmt]bool), onFailure}
-	ast.Walk(w, file.AST)
-	return failures
+func (e *IndentErrorFlowRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+	return ifelse.Apply(e, file.AST, ifelse.TargetElse, args)
 }
 
 // Name returns the rule name.
@@ -28,51 +18,28 @@ func (*IndentErrorFlowRule) Name() string {
 	return "indent-error-flow"
 }
 
-type lintElse struct {
-	ignore    map[*ast.IfStmt]bool
-	onFailure func(lint.Failure)
-}
+// CheckIfElse evaluates the rule against an ifelse.Chain.
+func (*IndentErrorFlowRule) CheckIfElse(chain ifelse.Chain, args ifelse.Args) (failMsg string) {
+	if !chain.If.Deviates() {
+		// this rule only applies if the if-block deviates control flow
+		return
+	}
 
-func (w lintElse) Visit(node ast.Node) ast.Visitor {
-	ifStmt, ok := node.(*ast.IfStmt)
-	if !ok || ifStmt.Else == nil {
-		return w
+	if chain.HasPriorNonDeviating {
+		// if we de-indent the "else" block then a previous branch
+		// might flow into it, affecting program behaviour
+		return
 	}
-	if w.ignore[ifStmt] {
-		if elseif, ok := ifStmt.Else.(*ast.IfStmt); ok {
-			w.ignore[elseif] = true
-		}
-		return w
+
+	if !chain.If.Returns() {
+		// avoid overlapping with superfluous-else
+		return
 	}
-	if elseif, ok := ifStmt.Else.(*ast.IfStmt); ok {
-		w.ignore[elseif] = true
-		return w
+
+	if args.PreserveScope && !chain.AtBlockEnd && (chain.HasInitializer || chain.Else.HasDecls) {
+		// avoid increasing variable scope
+		return
 	}
-	if _, ok := ifStmt.Else.(*ast.BlockStmt); !ok {
-		// only care about elses without conditions
-		return w
-	}
-	if len(ifStmt.Body.List) == 0 {
-		return w
-	}
-	shortDecl := false // does the if statement have a ":=" initialization statement?
-	if ifStmt.Init != nil {
-		if as, ok := ifStmt.Init.(*ast.AssignStmt); ok && as.Tok == token.DEFINE {
-			shortDecl = true
-		}
-	}
-	lastStmt := ifStmt.Body.List[len(ifStmt.Body.List)-1]
-	if _, ok := lastStmt.(*ast.ReturnStmt); ok {
-		extra := ""
-		if shortDecl {
-			extra = " (move short variable declaration to its own line if necessary)"
-		}
-		w.onFailure(lint.Failure{
-			Confidence: 1,
-			Node:       ifStmt.Else,
-			Category:   "indent",
-			Failure:    "if block ends with a return statement, so drop this else and outdent its block" + extra,
-		})
-	}
-	return w
+
+	return "if block ends with a return statement, so drop this else and outdent its block"
 }

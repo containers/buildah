@@ -16,3 +16,5 @@
 
 .idea
 .DS_Store
+
+/contextcheck
