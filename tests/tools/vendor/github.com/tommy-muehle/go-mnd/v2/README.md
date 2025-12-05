@@ -63,7 +63,7 @@ go:lint:mnd:
   needs: []
   image: golang:latest
   before_script:
-    - go get -u github.com/tommy-muehle/go-mnd/cmd/mnd
+    - go get -u github.com/tommy-muehle/go-mnd/v2/cmd/mnd
     - go mod tidy
     - go mod vendor
   script:

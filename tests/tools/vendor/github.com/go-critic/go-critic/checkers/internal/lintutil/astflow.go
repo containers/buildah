@@ -18,7 +18,7 @@ import (
 //
 // If proven really useful, can be moved to go-toolsmith library.
 
-// IsImmutable reports whether n can be midified through any operation.
+// IsImmutable reports whether n can be modified through any operation.
 func IsImmutable(info *types.Info, n ast.Expr) bool {
 	if astp.IsBasicLit(n) {
 		return true

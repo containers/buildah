@@ -1,78 +1,51 @@
 package rule
 
 import (
-	"go/ast"
+	"fmt"
 
+	"github.com/mgechev/revive/internal/ifelse"
 	"github.com/mgechev/revive/lint"
 )
 
-// EarlyReturnRule lints given else constructs.
+// EarlyReturnRule finds opportunities to reduce nesting by inverting
+// the condition of an "if" block.
 type EarlyReturnRule struct{}
 
 // Apply applies the rule to given file.
-func (r *EarlyReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
-	var failures []lint.Failure
-
-	onFailure := func(failure lint.Failure) {
-		failures = append(failures, failure)
-	}
-
-	w := lintEarlyReturnRule{onFailure: onFailure}
-	ast.Walk(w, file.AST)
-	return failures
+func (e *EarlyReturnRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+	return ifelse.Apply(e, file.AST, ifelse.TargetIf, args)
 }
 
 // Name returns the rule name.
-func (r *EarlyReturnRule) Name() string {
+func (*EarlyReturnRule) Name() string {
 	return "early-return"
 }
 
-type lintEarlyReturnRule struct {
-	onFailure func(lint.Failure)
-}
-
-func (w lintEarlyReturnRule) Visit(node ast.Node) ast.Visitor {
-	switch n := node.(type) {
-	case *ast.IfStmt:
-		if n.Else == nil {
-			// no else branch
-			return w
-		}
-
-		elseBlock, ok := n.Else.(*ast.BlockStmt)
-		if !ok {
-			// is if-else-if
-			return w
-		}
-
-		lenElseBlock := len(elseBlock.List)
-		if lenElseBlock < 1 {
-			// empty else block, continue (there is another rule that warns on empty blocks)
-			return w
-		}
-
-		lenThenBlock := len(n.Body.List)
-		if lenThenBlock < 1 {
-			// then block is empty thus the stmt can be simplified
-			w.onFailure(lint.Failure{
-				Confidence: 1,
-				Node:       n,
-				Failure:    "if c { } else {... return} can be simplified to if !c { ... return }",
-			})
-
-			return w
-		}
-
-		_, lastThenStmtIsReturn := n.Body.List[lenThenBlock-1].(*ast.ReturnStmt)
-		_, lastElseStmtIsReturn := elseBlock.List[lenElseBlock-1].(*ast.ReturnStmt)
-		if lastElseStmtIsReturn && !lastThenStmtIsReturn {
-			w.onFailure(lint.Failure{
-				Confidence: 1,
-				Node:       n,
-				Failure:    "if c {...} else {... return } can be simplified to if !c { ... return } ...",
-			})
-		}
+// CheckIfElse evaluates the rule against an ifelse.Chain.
+func (*EarlyReturnRule) CheckIfElse(chain ifelse.Chain, args ifelse.Args) (failMsg string) {
+	if !chain.Else.Deviates() {
+		// this rule only applies if the else-block deviates control flow
+		return
 	}
 
-	return w
+	if chain.HasPriorNonDeviating && !chain.If.IsEmpty() {
+		// if we de-indent this block then a previous branch
+		// might flow into it, affecting program behaviour
+		return
+	}
+
+	if chain.If.Deviates() {
+		// avoid overlapping with superfluous-else
+		return
+	}
+
+	if args.PreserveScope && !chain.AtBlockEnd && (chain.HasInitializer || chain.If.HasDecls) {
+		// avoid increasing variable scope
+		return
+	}
+
+	if chain.If.IsEmpty() {
+		return fmt.Sprintf("if c { } else { %[1]v } can be simplified to if !c { %[1]v }", chain.Else)
+	}
+	return fmt.Sprintf("if c { ... } else { %[1]v } can be simplified to if !c { %[1]v } ...", chain.Else)
 }

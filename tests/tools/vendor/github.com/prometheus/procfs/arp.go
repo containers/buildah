@@ -36,7 +36,7 @@ type ARPEntry struct {
 func (fs FS) GatherARPEntries() ([]ARPEntry, error) {
 	data, err := ioutil.ReadFile(fs.proc.Path("net/arp"))
 	if err != nil {
-		return nil, fmt.Errorf("reading arp %q: %w", fs.proc.Path("net/arp"), err)
+		return nil, fmt.Errorf("error reading arp %q: %w", fs.proc.Path("net/arp"), err)
 	}
 
 	return parseARPEntries(data)

@@ -34,16 +34,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return
 			}
 			for _, field := range structTyp.Fields.List {
-				selectorExpr, ok := field.Type.(*ast.SelectorExpr)
-				if !ok {
-					continue
-				}
-				xname, ok := selectorExpr.X.(*ast.Ident)
-				if !ok {
-					continue
-				}
-				selname := selectorExpr.Sel.Name
-				if xname.Name+"."+selname == "context.Context" {
+				if pass.TypesInfo.TypeOf(field.Type).String() == "context.Context" {
 					pass.Reportf(field.Pos(), "found a struct that contains a context.Context field")
 				}
 			}

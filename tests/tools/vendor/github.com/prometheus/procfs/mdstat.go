@@ -70,7 +70,7 @@ func (fs FS) MDStat() ([]MDStat, error) {
 	}
 	mdstat, err := parseMDStat(data)
 	if err != nil {
-		return nil, fmt.Errorf("parsing mdstat %q: %w", fs.proc.Path("mdstat"), err)
+		return nil, fmt.Errorf("error parsing mdstat %q: %w", fs.proc.Path("mdstat"), err)
 	}
 	return mdstat, nil
 }
@@ -96,7 +96,7 @@ func parseMDStat(mdStatData []byte) ([]MDStat, error) {
 		state := deviceFields[2]  // active or inactive
 
 		if len(lines) <= i+3 {
-			return nil, fmt.Errorf("parsing %q: too few lines for md device", mdName)
+			return nil, fmt.Errorf("error parsing %q: too few lines for md device", mdName)
 		}
 
 		// Failed disks have the suffix (F) & Spare disks have the suffix (S).
@@ -105,7 +105,7 @@ func parseMDStat(mdStatData []byte) ([]MDStat, error) {
 		active, total, down, size, err := evalStatusLine(lines[i], lines[i+1])
 
 		if err != nil {
-			return nil, fmt.Errorf("parsing md device lines: %w", err)
+			return nil, fmt.Errorf("error parsing md device lines: %w", err)
 		}
 
 		syncLineIdx := i + 2
@@ -140,7 +140,7 @@ func parseMDStat(mdStatData []byte) ([]MDStat, error) {
 			} else {
 				syncedBlocks, pct, finish, speed, err = evalRecoveryLine(lines[syncLineIdx])
 				if err != nil {
-					return nil, fmt.Errorf("parsing sync line in md device %q: %w", mdName, err)
+					return nil, fmt.Errorf("error parsing sync line in md device %q: %w", mdName, err)
 				}
 			}
 		}
@@ -210,7 +210,7 @@ func evalRecoveryLine(recoveryLine string) (syncedBlocks int64, pct float64, fin
 
 	syncedBlocks, err = strconv.ParseInt(matches[1], 10, 64)
 	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("parsing int from recoveryLine %q: %w", recoveryLine, err)
+		return 0, 0, 0, 0, fmt.Errorf("error parsing int from recoveryLine %q: %w", recoveryLine, err)
 	}
 
 	// Get percentage complete
@@ -220,7 +220,7 @@ func evalRecoveryLine(recoveryLine string) (syncedBlocks int64, pct float64, fin
 	}
 	pct, err = strconv.ParseFloat(strings.TrimSpace(matches[1]), 64)
 	if err != nil {
-		return syncedBlocks, 0, 0, 0, fmt.Errorf("parsing float from recoveryLine %q: %w", recoveryLine, err)
+		return syncedBlocks, 0, 0, 0, fmt.Errorf("error parsing float from recoveryLine %q: %w", recoveryLine, err)
 	}
 
 	// Get time expected left to complete
@@ -230,7 +230,7 @@ func evalRecoveryLine(recoveryLine string) (syncedBlocks int64, pct float64, fin
 	}
 	finish, err = strconv.ParseFloat(matches[1], 64)
 	if err != nil {
-		return syncedBlocks, pct, 0, 0, fmt.Errorf("parsing float from recoveryLine %q: %w", recoveryLine, err)
+		return syncedBlocks, pct, 0, 0, fmt.Errorf("error parsing float from recoveryLine %q: %w", recoveryLine, err)
 	}
 
 	// Get recovery speed
@@ -240,7 +240,7 @@ func evalRecoveryLine(recoveryLine string) (syncedBlocks int64, pct float64, fin
 	}
 	speed, err = strconv.ParseFloat(matches[1], 64)
 	if err != nil {
-		return syncedBlocks, pct, finish, 0, fmt.Errorf("parsing float from recoveryLine %q: %w", recoveryLine, err)
+		return syncedBlocks, pct, finish, 0, fmt.Errorf("error parsing float from recoveryLine %q: %w", recoveryLine, err)
 	}
 
 	return syncedBlocks, pct, finish, speed, nil

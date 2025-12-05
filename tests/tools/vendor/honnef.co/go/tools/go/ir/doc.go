@@ -10,9 +10,9 @@
 // THIS INTERFACE IS EXPERIMENTAL AND IS LIKELY TO CHANGE.
 //
 // For an introduction to SSA form, upon which SSI builds, see
-// http://en.wikipedia.org/wiki/Static_single_assignment_form.
+// https://en.wikipedia.org/wiki/Static_single_assignment_form.
 // This page provides a broader reading list:
-// http://www.dcs.gla.ac.uk/~jsinger/ssa.html.
+// https://www.dcs.gla.ac.uk/~jsinger/ssa.html.
 //
 // For an introduction to SSI form, see The static single information
 // form by C. Scott Ananian.
@@ -39,66 +39,68 @@
 //
 // The primary interfaces of this package are:
 //
-//    - Member: a named member of a Go package.
-//    - Value: an expression that yields a value.
-//    - Instruction: a statement that consumes values and performs computation.
-//    - Node: a Value or Instruction (emphasizing its membership in the IR value graph)
+//   - Member: a named member of a Go package.
+//   - Value: an expression that yields a value.
+//   - Instruction: a statement that consumes values and performs computation.
+//   - Node: a Value or Instruction (emphasizing its membership in the IR value graph)
 //
 // A computation that yields a result implements both the Value and
 // Instruction interfaces.  The following table shows for each
 // concrete type which of these interfaces it implements.
 //
-//                      Value?          Instruction?    Member?
-//   *Alloc                ✔               ✔
-//   *BinOp                ✔               ✔
-//   *BlankStore                           ✔
-//   *Builtin              ✔
-//   *Call                 ✔               ✔
-//   *ChangeInterface      ✔               ✔
-//   *ChangeType           ✔               ✔
-//   *Const                ✔               ✔
-//   *Convert              ✔               ✔
-//   *DebugRef                             ✔
-//   *Defer                ✔               ✔
-//   *Extract              ✔               ✔
-//   *Field                ✔               ✔
-//   *FieldAddr            ✔               ✔
-//   *FreeVar              ✔
-//   *Function             ✔                               ✔ (func)
-//   *Global               ✔                               ✔ (var)
-//   *Go                   ✔               ✔
-//   *If                                   ✔
-//   *Index                ✔               ✔
-//   *IndexAddr            ✔               ✔
-//   *Jump                                 ✔
-//   *Load                 ✔               ✔
-//   *MakeChan             ✔               ✔
-//   *MakeClosure          ✔               ✔
-//   *MakeInterface        ✔               ✔
-//   *MakeMap              ✔               ✔
-//   *MakeSlice            ✔               ✔
-//   *MapLookup            ✔               ✔
-//   *MapUpdate            ✔               ✔
-//   *NamedConst                                           ✔ (const)
-//   *Next                 ✔               ✔
-//   *Panic                                ✔
-//   *Parameter            ✔               ✔
-//   *Phi                  ✔               ✔
-//   *Range                ✔               ✔
-//   *Recv                 ✔               ✔
-//   *Return                               ✔
-//   *RunDefers                            ✔
-//   *Select               ✔               ✔
-//   *Send                 ✔               ✔
-//   *Sigma                ✔               ✔
-//   *Slice                ✔               ✔
-//   *SliceToArrayPointer  ✔               ✔
-//   *Store                ✔               ✔
-//   *StringLookup         ✔               ✔
-//   *Type                                                 ✔ (type)
-//   *TypeAssert           ✔               ✔
-//   *UnOp                 ✔               ✔
-//   *Unreachable                          ✔
+//	                   Value?          Instruction?    Member?
+//	*Alloc                ✔               ✔
+//	*BinOp                ✔               ✔
+//	*BlankStore                           ✔
+//	*Builtin              ✔
+//	*Call                 ✔               ✔
+//	*ChangeInterface      ✔               ✔
+//	*ChangeType           ✔               ✔
+//	*Const                ✔               ✔
+//	*Convert              ✔               ✔
+//	*DebugRef                             ✔
+//	*Defer                ✔               ✔
+//	*Extract              ✔               ✔
+//	*Field                ✔               ✔
+//	*FieldAddr            ✔               ✔
+//	*FreeVar              ✔
+//	*Function             ✔                               ✔ (func)
+//	*Global               ✔                               ✔ (var)
+//	*Go                   ✔               ✔
+//	*If                                   ✔
+//	*Index                ✔               ✔
+//	*IndexAddr            ✔               ✔
+//	*Jump                                 ✔
+//	*Load                 ✔               ✔
+//	*MakeChan             ✔               ✔
+//	*MakeClosure          ✔               ✔
+//	*MakeInterface        ✔               ✔
+//	*MakeMap              ✔               ✔
+//	*MakeSlice            ✔               ✔
+//	*MapLookup            ✔               ✔
+//	*MapUpdate            ✔               ✔
+//	*MultiConvert         ✔               ✔
+//	*NamedConst                                           ✔ (const)
+//	*Next                 ✔               ✔
+//	*Panic                                ✔
+//	*Parameter            ✔               ✔
+//	*Phi                  ✔               ✔
+//	*Range                ✔               ✔
+//	*Recv                 ✔               ✔
+//	*Return                               ✔
+//	*RunDefers                            ✔
+//	*Select               ✔               ✔
+//	*Send                 ✔               ✔
+//	*Sigma                ✔               ✔
+//	*Slice                ✔               ✔
+//	*SliceToArrayPointer  ✔               ✔
+//	*SliceToArray         ✔               ✔
+//	*Store                ✔               ✔
+//	*StringLookup         ✔               ✔
+//	*Type                                                 ✔ (type)
+//	*TypeAssert           ✔               ✔
+//	*UnOp                 ✔               ✔
+//	*Unreachable                          ✔
 //
 // Other key types in this package include: Program, Package, Function
 // and BasicBlock.
@@ -126,5 +128,4 @@
 // of trying to determine corresponding elements across the four
 // domains of source locations, ast.Nodes, types.Objects,
 // ir.Values/Instructions.
-//
 package ir

@@ -25,9 +25,9 @@ func (s SectionParsingError) Is(err error) bool {
 	return ok
 }
 
-var MissingParameterClosingBracketsError = fmt.Errorf("section parameter is missing closing %q", utils.ParameterClosingBrackets)
+var MissingParameterClosingBracketsError = fmt.Errorf("section parameter is missing closing %q", utils.RightParenthesis)
 
-var MoreThanOneOpeningQuotesError = fmt.Errorf("found more than one %q parameter start sequences", utils.ParameterClosingBrackets)
+var MoreThanOneOpeningQuotesError = fmt.Errorf("found more than one %q parameter start sequences", utils.RightParenthesis)
 
 var SectionTypeDoesNotAcceptParametersError = errors.New("section type does not accept a parameter")
 

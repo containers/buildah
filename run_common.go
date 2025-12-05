@@ -61,8 +61,8 @@ func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServe
 		return "", fmt.Errorf("failed to get config: %w", err)
 	}
 
-	nameservers := make([]string, 0, len(defaultConfig.Containers.DNSServers)+len(dnsServers))
-	nameservers = append(nameservers, defaultConfig.Containers.DNSServers...)
+	nameservers := make([]string, 0, len(defaultConfig.Containers.DNSServers.Get())+len(dnsServers))
+	nameservers = append(nameservers, defaultConfig.Containers.DNSServers.Get()...)
 	nameservers = append(nameservers, dnsServers...)
 
 	keepHostServers := false
@@ -78,12 +78,12 @@ func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServe
 		}
 	}
 
-	searches := make([]string, 0, len(defaultConfig.Containers.DNSSearches)+len(dnsSearch))
-	searches = append(searches, defaultConfig.Containers.DNSSearches...)
+	searches := make([]string, 0, len(defaultConfig.Containers.DNSSearches.Get())+len(dnsSearch))
+	searches = append(searches, defaultConfig.Containers.DNSSearches.Get()...)
 	searches = append(searches, dnsSearch...)
 
-	options := make([]string, 0, len(defaultConfig.Containers.DNSOptions)+len(dnsOptions))
-	options = append(options, defaultConfig.Containers.DNSOptions...)
+	options := make([]string, 0, len(defaultConfig.Containers.DNSOptions.Get())+len(dnsOptions))
+	options = append(options, defaultConfig.Containers.DNSOptions.Get()...)
 	options = append(options, dnsOptions...)
 
 	cfile := filepath.Join(rdir, "resolv.conf")
@@ -321,7 +321,7 @@ func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) 
 	}
 	if len(cniPluginPath) > 0 {
 		plugins := strings.Split(cniPluginPath, string(os.PathListSeparator))
-		newconf.Network.CNIPluginDirs = plugins
+		newconf.Network.CNIPluginDirs.Set(plugins)
 	}
 
 	_, netInt, err := network.NetworkBackend(store, &newconf, false)
@@ -660,8 +660,9 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 			return 1, fmt.Errorf("parsing container state %q from %s: %w", string(stateOutput), runtime, err)
 		}
 		switch state.Status {
-		case "running":
-		case "stopped":
+		case specs.StateCreating, specs.StateCreated, specs.StateRunning:
+			// all fine
+		case specs.StateStopped:
 			atomic.StoreUint32(&stopped, 1)
 		default:
 			return 1, fmt.Errorf("container status unexpectedly changed to %q", state.Status)
@@ -1893,7 +1894,7 @@ func (b *Builder) cleanupTempVolumes() {
 	for tempVolume, val := range b.TempVolumes {
 		if val {
 			if err := overlay.RemoveTemp(tempVolume); err != nil {
-				b.Logger.Errorf(err.Error())
+				b.Logger.Errorf("%v", err)
 			}
 			b.TempVolumes[tempVolume] = false
 		}
@@ -1951,4 +1952,14 @@ func (b *Builder) cleanupRunMounts(mountpoint string, artifacts *runMountArtifac
 	// unlock if any locked files from this RUN statement
 	internalParse.UnlockLockArray(artifacts.TargetLocks)
 	return prevErr
+}
+
+func relabel(path, mountLabel string, shared bool) error {
+	if err := label.Relabel(path, mountLabel, shared); err != nil {
+		if !errors.Is(err, syscall.ENOTSUP) {
+			return err
+		}
+		logrus.Debugf("Labeling not supported on %q", path)
+	}
+	return nil
 }

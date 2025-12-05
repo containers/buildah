@@ -51,6 +51,7 @@ type Rule struct {
 
 	ReportTemplate  string
 	SuggestTemplate string
+	DoFuncName      string
 
 	WhereExpr FilterExpr
 
