@@ -9,8 +9,126 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 )
+
+// enumTypeAndMembers combines an enumType and its members set.
+type enumTypeAndMembers struct {
+	typ     enumType
+	members enumMembers
+}
+
+func fromNamed(pass *analysis.Pass, t *types.Named, typeparam bool) (result []enumTypeAndMembers, ok bool) {
+	if tpkg := t.Obj().Pkg(); tpkg == nil {
+		// go/types documentation says: nil for labels and
+		// objects in the Universe scope. This happens for the built-in
+		// error type for example.
+		return nil, false // not a valid enum type, so ok == false
+	}
+
+	et := enumType{t.Obj()}
+	if em, ok := importFact(pass, et); ok {
+		return []enumTypeAndMembers{{et, em}}, true
+	}
+
+	if typeparam {
+		// is it a named interface?
+		if intf, ok := t.Underlying().(*types.Interface); ok {
+			return fromInterface(pass, intf, typeparam)
+		}
+	}
+
+	return nil, false // not a valid enum type, so ok == false
+}
+
+func fromInterface(pass *analysis.Pass, intf *types.Interface, typeparam bool) (result []enumTypeAndMembers, ok bool) {
+	allOk := true
+	for i := 0; i < intf.NumEmbeddeds(); i++ {
+		r, ok := fromType(pass, intf.EmbeddedType(i), typeparam)
+		result = append(result, r...)
+		allOk = allOk && ok
+	}
+	return result, allOk
+}
+
+func fromUnion(pass *analysis.Pass, union *types.Union, typeparam bool) (result []enumTypeAndMembers, ok bool) {
+	allOk := true
+	// gather from each term in the union.
+	for i := 0; i < union.Len(); i++ {
+		r, ok := fromType(pass, union.Term(i).Type(), typeparam)
+		result = append(result, r...)
+		allOk = allOk && ok
+	}
+	return result, allOk
+}
+
+func fromTypeParam(pass *analysis.Pass, tp *types.TypeParam, typeparam bool) (result []enumTypeAndMembers, ok bool) {
+	// Does not appear to be explicitly documented, but based on Go language
+	// spec (see section Type constraints) and Go standard library source code,
+	// we can expect constraints to have underlying type *types.Interface
+	// Regardless it will be handled in fromType.
+	return fromType(pass, tp.Constraint().Underlying(), typeparam)
+}
+
+func fromType(pass *analysis.Pass, t types.Type, typeparam bool) (result []enumTypeAndMembers, ok bool) {
+	switch t := t.(type) {
+	case *types.Named:
+		return fromNamed(pass, t, typeparam)
+
+	case *types.Union:
+		return fromUnion(pass, t, typeparam)
+
+	case *types.TypeParam:
+		return fromTypeParam(pass, t, typeparam)
+
+	case *types.Interface:
+		if !typeparam {
+			return nil, true
+		}
+		// anonymous interface.
+		// e.g. func foo[T interface { M } | interface { N }](v T) {}
+		return fromInterface(pass, t, typeparam)
+
+	default:
+		// ignore these.
+		return nil, true
+	}
+}
+
+func composingEnumTypes(pass *analysis.Pass, t types.Type) (result []enumTypeAndMembers, ok bool) {
+	_, typeparam := t.(*types.TypeParam)
+	result, ok = fromType(pass, t, typeparam)
+
+	if typeparam {
+		var kind types.BasicKind
+		var kindSet bool
+
+		// sameBasicKind reports whether each type t that the function is called
+		// with has the same underlying basic kind.
+		sameBasicKind := func(t types.Type) (ok bool) {
+			basic, ok := t.Underlying().(*types.Basic)
+			if !ok {
+				return false
+			}
+			if kindSet && kind != basic.Kind() {
+				return false
+			}
+			kind = basic.Kind()
+			kindSet = true
+			return true
+		}
+
+		for _, rr := range result {
+			if !sameBasicKind(rr.typ.TypeName.Type()) {
+				ok = false
+				break
+			}
+		}
+	}
+
+	return result, ok
+}
 
 func denotesPackage(ident *ast.Ident, info *types.Info) bool {
 	obj := info.ObjectOf(ident)
@@ -37,19 +155,18 @@ func exprConstVal(e ast.Expr, info *types.Info) (constantValue, bool) {
 		// There are two scenarios.
 		// See related test cases in typealias/quux/quux.go.
 		//
-		// Scenario 1
+		// # Scenario 1
 		//
 		// Tag package and constant package are the same. This is
 		// simple; we just use fs.ModeDir's value.
-		//
 		// Example:
 		//
-		//   var mode fs.FileMode
-		//   switch mode {
-		//   case fs.ModeDir:
-		//   }
+		//	var mode fs.FileMode
+		//	switch mode {
+		//	case fs.ModeDir:
+		//	}
 		//
-		// Scenario 2
+		// # Scenario 2
 		//
 		// Tag package and constant package are different. In this
 		// scenario, too, we accept the case clause expr constant value,
@@ -58,19 +175,19 @@ func exprConstVal(e ast.Expr, info *types.Info) (constantValue, bool) {
 		//
 		// Example:
 		//
-		//   var mode fs.FileMode
-		//   switch mode {
-		//   case os.ModeDir:
-		//   }
+		//	var mode fs.FileMode
+		//	switch mode {
+		//	case os.ModeDir:
+		//	}
 		//
 		// Or equivalently:
 		//
-		//   // The type of mode is effectively fs.FileMode,
-		//   // due to type alias.
-		//   var mode os.FileMode
-		//   switch mode {
-		//   case os.ModeDir:
-		//   }
+		//	// The type of mode is effectively fs.FileMode,
+		//	// due to type alias.
+		//	var mode os.FileMode
+		//	switch mode {
+		//	case os.ModeDir:
+		//	}
 		return determineConstVal(ident, info), true
 	}
 
@@ -134,12 +251,6 @@ type member struct {
 	typ  enumType
 	name string
 	val  constantValue
-}
-
-// typeAndMembers combines an enumType and its members set.
-type typeAndMembers struct {
-	et enumType
-	em enumMembers
 }
 
 type checklist struct {
@@ -227,7 +338,7 @@ func (c *checklist) remaining() map[member]struct{} {
 // different enum types.
 type group []member
 
-func groupMissing(missing map[member]struct{}, types []enumType) []group {
+func groupify(items map[member]struct{}, types []enumType) []group {
 	// indices maps each element in the input slice to its index.
 	indices := func(vs []enumType) map[enumType]int {
 		ret := make(map[enumType]int, len(vs))
@@ -249,17 +360,17 @@ func groupMissing(missing map[member]struct{}, types []enumType) []group {
 	}
 
 	// byConstVal groups member names by constant value.
-	byConstVal := func(members map[member]struct{}) map[constantValue][]member {
+	byConstVal := func(items map[member]struct{}) map[constantValue][]member {
 		ret := make(map[constantValue][]member)
-		for m := range members {
+		for m := range items {
 			ret[m.val] = append(ret[m.val], m)
 		}
 		return ret
 	}
 
 	var groups []group
-	for _, members := range byConstVal(missing) {
-		groups = append(groups, group(members))
+	for _, ms := range byConstVal(items) {
+		groups = append(groups, group(ms))
 	}
 
 	// sort members within each group in AST order.
@@ -310,17 +421,15 @@ func diagnosticGroups(gs []group) string {
 	return strings.Join(out, ", ")
 }
 
-func toEnumTypes(es []typeAndMembers) []enumType {
+func toEnumTypes(es []enumTypeAndMembers) []enumType {
 	out := make([]enumType, len(es))
 	for i := range es {
-		out[i] = es[i].et
+		out[i] = es[i].typ
 	}
 	return out
 }
 
 func dedupEnumTypes(types []enumType) []enumType {
-	// TODO(nishanths) this function is a candidate to use generics.
-
 	m := make(map[enumType]struct{})
 	var ret []enumType
 	for _, t := range types {
@@ -334,35 +443,32 @@ func dedupEnumTypes(types []enumType) []enumType {
 	return ret
 }
 
-// TODO(nishanths) If dropping pre-go1.18 support, the following
-// types and functions are candidates to use generics.
-
 type boolCache struct {
-	m     map[*ast.File]bool
-	value func(*ast.File) bool
+	m       map[*ast.File]bool
+	compute func(*ast.File) bool
 }
 
-func (c boolCache) get(file *ast.File) bool {
-	if c.m == nil {
-		c.m = make(map[*ast.File]bool)
-	}
+func (c *boolCache) get(file *ast.File) bool {
 	if _, ok := c.m[file]; !ok {
-		c.m[file] = c.value(file)
+		if c.m == nil {
+			c.m = make(map[*ast.File]bool)
+		}
+		c.m[file] = c.compute(file)
 	}
 	return c.m[file]
 }
 
 type commentCache struct {
-	m     map[*ast.File]ast.CommentMap
-	value func(*token.FileSet, *ast.File) ast.CommentMap
+	m       map[*ast.File]ast.CommentMap
+	compute func(*token.FileSet, *ast.File) ast.CommentMap
 }
 
-func (c commentCache) get(fset *token.FileSet, file *ast.File) ast.CommentMap {
-	if c.m == nil {
-		c.m = make(map[*ast.File]ast.CommentMap)
-	}
+func (c *commentCache) get(fset *token.FileSet, file *ast.File) ast.CommentMap {
 	if _, ok := c.m[file]; !ok {
-		c.m[file] = c.value(fset, file)
+		if c.m == nil {
+			c.m = make(map[*ast.File]ast.CommentMap)
+		}
+		c.m[file] = c.compute(fset, file)
 	}
 	return c.m[file]
 }

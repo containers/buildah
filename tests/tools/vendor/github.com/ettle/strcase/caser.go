@@ -10,17 +10,17 @@ type Caser struct {
 //
 // A Caser should be created when you want fine grained control over how the words are split.
 //
-//  Notes on function arguments
+//	Notes on function arguments
 //
-//  goInitialisms: Whether to use Golint's intialisms
+//	goInitialisms: Whether to use Golint's intialisms
 //
-//  initialismOverrides: A mapping of extra initialisms
-//  Keys must be in ALL CAPS. Merged with Golint's if goInitialisms is set.
-//  Setting a key to false will override Golint's.
+//	initialismOverrides: A mapping of extra initialisms
+//	Keys must be in ALL CAPS. Merged with Golint's if goInitialisms is set.
+//	Setting a key to false will override Golint's.
 //
-//  splitFn: How to separate words
-//  Override the default split function. Consider using NewSplitFn to
-//  configure one instead of writing your own.
+//	splitFn: How to separate words
+//	Override the default split function. Consider using NewSplitFn to
+//	configure one instead of writing your own.
 func NewCaser(goInitialisms bool, initialismOverrides map[string]bool, splitFn SplitFn) *Caser {
 	c := &Caser{
 		initialisms: golintInitialisms,

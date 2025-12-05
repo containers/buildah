@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package stringintconv defines an Analyzer that flags type conversions
-// from integers to strings.
 package stringintconv
 
 import (
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -14,26 +13,19 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
-const Doc = `check for string(int) conversions
-
-This checker flags conversions of the form string(x) where x is an integer
-(but not byte or rune) type. Such conversions are discouraged because they
-return the UTF-8 representation of the Unicode code point x, and not a decimal
-string representation of x as one might expect. Furthermore, if x denotes an
-invalid code point, the conversion cannot be statically rejected.
-
-For conversions that intend on using the code point, consider replacing them
-with string(rune(x)). Otherwise, strconv.Itoa and its equivalents return the
-string representation of the value in the desired base.
-`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "stringintconv",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "stringintconv"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stringintconv",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -67,12 +59,13 @@ func describe(typ, inType types.Type, inName string) string {
 	return name
 }
 
-func typeName(typ types.Type) string {
-	if v, _ := typ.(interface{ Name() string }); v != nil {
-		return v.Name()
-	}
-	if v, _ := typ.(interface{ Obj() *types.TypeName }); v != nil {
-		return v.Obj().Name()
+func typeName(t types.Type) string {
+	type hasTypeName interface{ Obj() *types.TypeName } // Alias, Named, TypeParam
+	switch t := t.(type) {
+	case *types.Basic:
+		return t.Name()
+	case hasTypeName:
+		return t.Obj().Name()
 	}
 	return ""
 }
@@ -80,9 +73,15 @@ func typeName(typ types.Type) string {
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
 		(*ast.CallExpr)(nil),
 	}
+	var file *ast.File
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		if n, ok := n.(*ast.File); ok {
+			file = n
+			return
+		}
 		call := n.(*ast.CallExpr)
 
 		if len(call.Args) != 1 {
@@ -174,27 +173,72 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		diag := analysis.Diagnostic{
 			Pos:     n.Pos(),
-			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune, not a string of digits (did you mean fmt.Sprint(x)?)", source, target),
+			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune, not a string of digits", source, target),
+		}
+		addFix := func(message string, edits []analysis.TextEdit) {
+			diag.SuggestedFixes = append(diag.SuggestedFixes, analysis.SuggestedFix{
+				Message:   message,
+				TextEdits: edits,
+			})
 		}
 
-		if convertibleToRune {
-			diag.SuggestedFixes = []analysis.SuggestedFix{
-				{
-					Message: "Did you mean to convert a rune to a string?",
-					TextEdits: []analysis.TextEdit{
-						{
-							Pos:     arg.Pos(),
-							End:     arg.Pos(),
-							NewText: []byte("rune("),
-						},
-						{
-							Pos:     arg.End(),
-							End:     arg.End(),
-							NewText: []byte(")"),
-						},
+		// Fix 1: use fmt.Sprint(x)
+		//
+		// Prefer fmt.Sprint over strconv.Itoa, FormatInt,
+		// or FormatUint, as it works for any type.
+		// Add an import of "fmt" as needed.
+		//
+		// Unless the type is exactly string, we must retain the conversion.
+		//
+		// Do not offer this fix if type parameters are involved,
+		// as there are too many combinations and subtleties.
+		// Consider x = rune | int16 | []byte: in all cases,
+		// string(x) is legal, but the appropriate diagnostic
+		// and fix differs. Similarly, don't offer the fix if
+		// the type has methods, as some {String,GoString,Format}
+		// may change the behavior of fmt.Sprint.
+		if len(ttypes) == 1 && len(vtypes) == 1 && types.NewMethodSet(V0).Len() == 0 {
+			fmtName, importEdits := analysisinternal.AddImport(pass.TypesInfo, file, arg.Pos(), "fmt", "fmt")
+			if types.Identical(T0, types.Typ[types.String]) {
+				// string(x) -> fmt.Sprint(x)
+				addFix("Format the number as a decimal", append(importEdits,
+					analysis.TextEdit{
+						Pos:     call.Fun.Pos(),
+						End:     call.Fun.End(),
+						NewText: []byte(fmtName + ".Sprint"),
+					}),
+				)
+			} else {
+				// mystring(x) -> mystring(fmt.Sprint(x))
+				addFix("Format the number as a decimal", append(importEdits,
+					analysis.TextEdit{
+						Pos:     call.Lparen + 1,
+						End:     call.Lparen + 1,
+						NewText: []byte(fmtName + ".Sprint("),
 					},
-				},
+					analysis.TextEdit{
+						Pos:     call.Rparen,
+						End:     call.Rparen,
+						NewText: []byte(")"),
+					}),
+				)
 			}
+		}
+
+		// Fix 2: use string(rune(x))
+		if convertibleToRune {
+			addFix("Convert a single rune to a string", []analysis.TextEdit{
+				{
+					Pos:     arg.Pos(),
+					End:     arg.Pos(),
+					NewText: []byte("rune("),
+				},
+				{
+					Pos:     arg.End(),
+					End:     arg.End(),
+					NewText: []byte(")"),
+				},
+			})
 		}
 		pass.Report(diag)
 	})
@@ -203,16 +247,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 func structuralTypes(t types.Type) ([]types.Type, error) {
 	var structuralTypes []types.Type
-	switch t := t.(type) {
-	case *typeparams.TypeParam:
-		terms, err := typeparams.StructuralTerms(t)
+	if tp, ok := types.Unalias(t).(*types.TypeParam); ok {
+		terms, err := typeparams.StructuralTerms(tp)
 		if err != nil {
 			return nil, err
 		}
 		for _, term := range terms {
 			structuralTypes = append(structuralTypes, term.Type())
 		}
-	default:
+	} else {
 		structuralTypes = append(structuralTypes, t)
 	}
 	return structuralTypes, nil
