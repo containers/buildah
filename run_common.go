@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -555,7 +554,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	}()
 
 	// Make sure we read the container's exit status when it exits.
-	pidValue, err := ioutil.ReadFile(pidFile)
+	pidValue, err := os.ReadFile(pidFile)
 	if err != nil {
 		return 1, err
 	}
@@ -1185,7 +1184,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 			logrus.Errorf("did not get container create message from subprocess: %v", err)
 		} else {
 			pidFile := filepath.Join(bundlePath, "pid")
-			pidValue, err := ioutil.ReadFile(pidFile)
+			pidValue, err := os.ReadFile(pidFile)
 			if err != nil {
 				return err
 			}
@@ -1704,7 +1703,7 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	switch secr.SourceType {
 	case "env":
 		data = []byte(os.Getenv(secr.Source))
-		tmpFile, err := ioutil.TempFile(define.TempDir, "buildah*")
+		tmpFile, err := os.CreateTemp(define.TempDir, "buildah*")
 		if err != nil {
 			return nil, "", err
 		}
@@ -1715,7 +1714,7 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 		if err != nil {
 			return nil, "", err
 		}
-		data, err = ioutil.ReadFile(secr.Source)
+		data, err = os.ReadFile(secr.Source)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1729,7 +1728,7 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0755); err != nil {
 		return nil, "", err
 	}
-	if err := ioutil.WriteFile(ctrFileOnHost, data, 0644); err != nil {
+	if err := os.WriteFile(ctrFileOnHost, data, 0644); err != nil {
 		return nil, "", err
 	}
 
@@ -1872,7 +1871,7 @@ func (b *Builder) cleanupTempVolumes() {
 	for tempVolume, val := range b.TempVolumes {
 		if val {
 			if err := overlay.RemoveTemp(tempVolume); err != nil {
-				b.Logger.Errorf(err.Error())
+				b.Logger.Errorf("%v", err)
 			}
 			b.TempVolumes[tempVolume] = false
 		}
@@ -1938,7 +1937,7 @@ func (b *Builder) cleanupRunMounts(mountpoint string, artifacts *runMountArtifac
 			logrus.Warnf("Lockfile %q was expected here, stat failed with %v", path, err)
 			continue
 		}
-		lockfile, err := lockfile.GetLockfile(path)
+		lockfile, err := lockfile.GetLockfile(path) //nolint:staticcheck
 		if err != nil {
 			// unable to get lockfile
 			// lets log error and continue

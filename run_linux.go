@@ -5,13 +5,11 @@ package buildah
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -68,7 +66,7 @@ func setChildProcess() error {
 
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
-	p, err := ioutil.TempDir("", define.Package)
+	p, err := os.MkdirTemp("", define.Package)
 	if err != nil {
 		return err
 	}
@@ -475,7 +473,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	defer rootlessSlirpSyncR.Close()
 
 	// Be sure there are no fds inherited to slirp4netns except the sync pipe
-	files, err := ioutil.ReadDir("/proc/self/fd")
+	files, err := os.ReadDir("/proc/self/fd")
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot list open fds")
 	}
@@ -1024,18 +1022,6 @@ func setupCapabilities(g *generate.Generator, defaultCapabilities, adds, drops [
 	return setupCapDrop(g, drops...)
 }
 
-func getDNSIP(dnsServers []string) (dns []net.IP, err error) {
-	for _, i := range dnsServers {
-		result := net.ParseIP(i)
-		if result == nil {
-			return dns, errors.Errorf("invalid IP address %s", i)
-		}
-		dns = append(dns, result)
-	}
-	return dns, nil
-}
-
-
 func addOrReplaceMount(moutns []specs.Mount, mount specs.Mount) []spec.Mount {
 	for i := range moutns {
 		if moutns[i].Destination == mount.Destination {
@@ -1208,122 +1194,6 @@ func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]int
 	succeeded = true
 	return &volumes[0], intermediateMount, lockedTargets, nil
 }
-
-func getSecretMount(tokens []string, secrets map[string]define.Secret, mountlabel string, containerWorkingDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping) (*spec.Mount, string, error) {
-	errInvalidSyntax := errors.New("secret should have syntax id=id[,target=path,required=bool,mode=uint,uid=uint,gid=uint")
-	if len(tokens) == 0 {
-		return nil, "", errInvalidSyntax
-	}
-	var err error
-	var id, target string
-	var required bool
-	var uid, gid uint32
-	var mode uint32 = 0400
-	for _, val := range tokens {
-		kv := strings.SplitN(val, "=", 2)
-		switch kv[0] {
-		case "id":
-			id = kv[1]
-		case "target", "dst", "destination":
-			target = kv[1]
-		case "required":
-			required, err = strconv.ParseBool(kv[1])
-			if err != nil {
-				return nil, "", errInvalidSyntax
-			}
-		case "mode":
-			mode64, err := strconv.ParseUint(kv[1], 8, 32)
-			if err != nil {
-				return nil, "", errInvalidSyntax
-			}
-			mode = uint32(mode64)
-		case "uid":
-			uid64, err := strconv.ParseUint(kv[1], 10, 32)
-			if err != nil {
-				return nil, "", errInvalidSyntax
-			}
-			uid = uint32(uid64)
-		case "gid":
-			gid64, err := strconv.ParseUint(kv[1], 10, 32)
-			if err != nil {
-				return nil, "", errInvalidSyntax
-			}
-			gid = uint32(gid64)
-		default:
-			return nil, "", errInvalidSyntax
-		}
-	}
-
-	if id == "" {
-		return nil, "", errInvalidSyntax
-	}
-	// Default location for secretis is /run/secrets/id
-	if target == "" {
-		target = "/run/secrets/" + id
-	}
-
-	secr, ok := secrets[id]
-	if !ok {
-		if required {
-			return nil, "", errors.Errorf("secret required but no secret with id %s found", id)
-		}
-		return nil, "", nil
-	}
-	var data []byte
-	var envFile string
-	var ctrFileOnHost string
-
-	switch secr.SourceType {
-	case "env":
-		data = []byte(os.Getenv(secr.Source))
-		tmpFile, err := ioutil.TempFile("/dev/shm", "buildah*")
-		if err != nil {
-			return nil, "", err
-		}
-		envFile = tmpFile.Name()
-		ctrFileOnHost = tmpFile.Name()
-	case "file":
-		data, err = ioutil.ReadFile(secr.Source)
-		if err != nil {
-			return nil, "", err
-		}
-		ctrFileOnHost = filepath.Join(containerWorkingDir, "secrets", id)
-	default:
-		return nil, "", errors.New("invalid source secret type")
-	}
-
-	// Copy secrets to container working dir (or tmp dir if it's an env), since we need to chmod,
-	// chown and relabel it for the container user and we don't want to mess with the original file
-	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0755); err != nil {
-		return nil, "", err
-	}
-	if err := ioutil.WriteFile(ctrFileOnHost, data, 0644); err != nil {
-		return nil, "", err
-	}
-
-	if err := label.Relabel(ctrFileOnHost, mountlabel, false); err != nil {
-		return nil, "", err
-	}
-	hostUID, hostGID, err := util.GetHostIDs(uidmap, gidmap, uid, gid)
-	if err != nil {
-		return nil, "", err
-	}
-	if err := os.Lchown(ctrFileOnHost, int(hostUID), int(hostGID)); err != nil {
-		return nil, "", err
-	}
-	if err := os.Chmod(ctrFileOnHost, os.FileMode(mode)); err != nil {
-		return nil, "", err
-	}
-	newMount := specs.Mount{
-		Destination: target,
-		Type:        "bind",
-		Source:      ctrFileOnHost,
-		Options:     []string{"bind", "rprivate", "ro"},
-	}
-	return &newMount, envFile, nil
-}
-
-
 
 // setPdeathsig sets a parent-death signal for the process
 func setPdeathsig(cmd *exec.Cmd) {

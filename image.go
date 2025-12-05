@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -309,7 +308,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	logrus.Debugf("layer list: %q", layers)
 
 	// Make a temporary directory to hold blobs.
-	path, err := ioutil.TempDir(os.TempDir(), define.Package)
+	path, err := os.MkdirTemp(os.TempDir(), define.Package)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating temporary directory to hold layer blobs")
 	}

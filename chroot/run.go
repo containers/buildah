@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -275,7 +274,7 @@ func runUsingChrootMain() {
 			}
 		}
 		if winsize.Row != 0 && winsize.Col != 0 {
-			if err = unix.IoctlSetWinsize(int(ptyFd), unix.TIOCSWINSZ, winsize); err != nil {
+			if err = unix.IoctlSetWinsize(ptyFd, unix.TIOCSWINSZ, winsize); err != nil {
 				logrus.Warnf("error setting terminal size for pty")
 			}
 			// FIXME - if we're connected to a terminal, we should
@@ -287,7 +286,7 @@ func runUsingChrootMain() {
 		// Set ownership for the PTY.
 		if err = ctty.Chown(rootUID, rootGID); err != nil {
 			var cttyInfo unix.Stat_t
-			err2 := unix.Fstat(int(ptyFd), &cttyInfo)
+			err2 := unix.Fstat(ptyFd, &cttyInfo)
 			from := ""
 			op := "setting"
 			if err2 == nil {
@@ -754,7 +753,7 @@ func runUsingChrootExecMain() {
 			os.Exit(1)
 		}
 	} else {
-		setgroups, _ := ioutil.ReadFile("/proc/self/setgroups")
+		setgroups, _ := os.ReadFile("/proc/self/setgroups")
 		if strings.Trim(string(setgroups), "\n") != "deny" {
 			logrus.Debugf("clearing supplemental groups")
 			if err = syscall.Setgroups([]int{}); err != nil {
@@ -1125,9 +1124,9 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		if err := unix.Mount(m.Mountpoint, subSys, "bind", sysFlags, ""); err != nil {
 			msg := fmt.Sprintf("could not bind mount %q, skipping: %v", m.Mountpoint, err)
 			if strings.HasPrefix(m.Mountpoint, "/sys") {
-				logrus.Infof(msg)
+				logrus.Infof("%s", msg)
 			} else {
-				logrus.Warningf(msg)
+				logrus.Warningf("%s", msg)
 			}
 			continue
 		}

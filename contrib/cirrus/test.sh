@@ -56,7 +56,7 @@ else
                 export GITVALIDATE_EPOCH="$CIRRUS_LAST_GREEN_CHANGE"
             fi
             echo "Linting & Validating from ${GITVALIDATE_EPOCH:-default EPOCH}"
-            showrun make lint LINTFLAGS="--timeout=20m --color=always -j1"
+            showrun make lint LINTFLAGS="--timeout=20m --color=never -j1"
             showrun make validate
             ;;
         unit)

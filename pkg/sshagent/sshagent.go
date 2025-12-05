@@ -2,7 +2,6 @@ package sshagent
 
 import (
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -71,7 +70,7 @@ func (a *AgentServer) Serve(processLabel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	serveDir, err := ioutil.TempDir("", ".buildah-ssh-sock")
+	serveDir, err := os.MkdirTemp("", ".buildah-ssh-sock")
 	if err != nil {
 		return "", err
 	}
@@ -209,7 +208,7 @@ func NewSource(paths []string) (*Source, error) {
 		if err != nil {
 			return nil, err
 		}
-		dt, err := ioutil.ReadAll(&io.LimitedReader{R: f, N: 100 * 1024})
+		dt, err := io.ReadAll(&io.LimitedReader{R: f, N: 100 * 1024})
 		if err != nil {
 			return nil, err
 		}

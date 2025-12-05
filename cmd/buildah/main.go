@@ -68,7 +68,7 @@ func init() {
 	)
 	storageOptions, err := storage.DefaultStoreOptions(false, 0)
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Errorf("%v", err)
 		os.Exit(1)
 
 	}
@@ -80,7 +80,7 @@ func init() {
 
 	containerConfig, err := config.Default()
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Errorf("%v", err)
 		os.Exit(1)
 	}
 	containerConfig.CheckCgroupsAndAdjustConfig()

@@ -1,7 +1,6 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,12 +21,12 @@ func MirrorToTempFileIfPathIsDescriptor(file string) (string, bool) {
 	if !strings.HasPrefix(file, "/dev/fd") {
 		return file, false
 	}
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		// if anything goes wrong return original path
 		return file, false
 	}
-	tmpfile, err := ioutil.TempFile(os.TempDir(), "buildah-temp-file")
+	tmpfile, err := os.CreateTemp(os.TempDir(), "buildah-temp-file")
 	if err != nil {
 		return file, false
 	}

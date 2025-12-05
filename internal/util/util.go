@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -8,6 +9,8 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/common/libimage"
 	"github.com/containers/image/v5/types"
+	encconfig "github.com/containers/ocicrypt/config"
+	enchelpers "github.com/containers/ocicrypt/helpers"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
@@ -86,4 +89,32 @@ func ExportFromReader(input io.Reader, opts define.BuildOutputOption) error {
 		}
 	}
 	return nil
+}
+
+// DecryptConfig translates decryptionKeys into a DescriptionConfig structure
+func DecryptConfig(decryptionKeys []string) (*encconfig.DecryptConfig, error) {
+	decryptConfig := &encconfig.DecryptConfig{}
+	if len(decryptionKeys) > 0 {
+		// decryption
+		dcc, err := enchelpers.CreateCryptoConfig([]string{}, decryptionKeys)
+		if err != nil {
+			return nil, fmt.Errorf("invalid decryption keys: %w", err)
+		}
+		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{dcc})
+		decryptConfig = cc.DecryptConfig
+	}
+
+	return decryptConfig, nil
+}
+
+// GetFormat translates format string into either docker or OCI format constant
+func GetFormat(format string) (string, error) {
+	switch format {
+	case define.OCI:
+		return define.OCIv1ImageManifest, nil
+	case define.DOCKER:
+		return define.Dockerv2ImageManifest, nil
+	default:
+		return "", fmt.Errorf("unrecognized image type %q", format)
+	}
 }

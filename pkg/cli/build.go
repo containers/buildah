@@ -1,6 +1,11 @@
-package main
+package cli
+
+// the cli package contains urfave/cli related structs that help make up
+// the command line for buildah commands. it resides here so other projects
+// that vendor in this code can use them too.
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,104 +14,36 @@ import (
 	"time"
 
 	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/imagebuildah"
-	buildahcli "github.com/containers/buildah/pkg/cli"
+	iutil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
-	buildahutil "github.com/containers/buildah/pkg/util"
-	"github.com/containers/buildah/util"
+	"github.com/containers/buildah/pkg/util"
 	"github.com/containers/common/pkg/auth"
-	"github.com/pkg/errors"
+	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/types"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-type buildOptions struct {
-	*buildahcli.LayerResults
-	*buildahcli.BudResults
-	*buildahcli.UserNSResults
-	*buildahcli.FromAndBudResults
-	*buildahcli.NameSpaceResults
+type BuildOptions struct {
+	*LayerResults
+	*BudResults
+	*UserNSResults
+	*FromAndBudResults
+	*NameSpaceResults
+	Logwriter *os.File
 }
 
-func init() {
-	buildDescription := `
-  Builds an OCI image using instructions in one or more Containerfiles.
+const (
+	MaxPullPushRetries = 3
+	PullPushRetryDelay = 2 * time.Second
+)
 
-  If no arguments are specified, Buildah will use the current working directory
-  as the build context and look for a Containerfile. The build fails if no
-  Containerfile nor Dockerfile is present.`
+// GenBuildOptions translates command line flags into a BuildOptions structure
+func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (define.BuildOptions, []string, []string, error) {
+	options := define.BuildOptions{}
 
-	layerFlagsResults := buildahcli.LayerResults{}
-	buildFlagResults := buildahcli.BudResults{}
-	fromAndBudResults := buildahcli.FromAndBudResults{}
-	userNSResults := buildahcli.UserNSResults{}
-	namespaceResults := buildahcli.NameSpaceResults{}
+	var removeAll []string
 
-	buildCommand := &cobra.Command{
-		Use:     "build [CONTEXT]",
-		Aliases: []string{"build-using-dockerfile", "bud"},
-		Short:   "Build an image using instructions in a Containerfile",
-		Long:    buildDescription,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			br := buildOptions{
-				&layerFlagsResults,
-				&buildFlagResults,
-				&userNSResults,
-				&fromAndBudResults,
-				&namespaceResults,
-			}
-			return buildCmd(cmd, args, br)
-		},
-		Args: cobra.MaximumNArgs(1),
-		Example: `buildah build
-  buildah bud -f Containerfile.simple .
-  buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
-  buildah bud -f Containerfile.simple -f Containerfile.notsosimple .`,
-	}
-	buildCommand.SetUsageTemplate(UsageTemplate())
-
-	flags := buildCommand.Flags()
-	flags.SetInterspersed(false)
-
-	// build is a all common flags
-	buildFlags := buildahcli.GetBudFlags(&buildFlagResults)
-	buildFlags.StringVar(&buildFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
-
-	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
-	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
-	if err != nil {
-		logrus.Errorf("failed to setup From and Build flags: %v", err)
-		os.Exit(1)
-	}
-
-	flags.AddFlagSet(&buildFlags)
-	flags.AddFlagSet(&layerFlags)
-	flags.AddFlagSet(&fromAndBudFlags)
-	flags.SetNormalizeFunc(buildahcli.AliasFlags)
-
-	if err := flags.MarkHidden("userns-uid-map"); err != nil {
-		logrus.Errorf("unable to mark userns-uid-map flag as hidden: %v", err)
-	}
-	if err := flags.MarkHidden("userns-gid-map"); err != nil {
-		logrus.Errorf("unable to mark userns-gid-map flag as hidden: %v", err)
-	}
-
-	rootCmd.AddCommand(buildCommand)
-}
-
-func getContainerfiles(files []string) []string {
-	var containerfiles []string
-	for _, f := range files {
-		if f == "-" {
-			containerfiles = append(containerfiles, "/dev/stdin")
-		} else {
-			containerfiles = append(containerfiles, f)
-		}
-	}
-	return containerfiles
-}
-
-func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	output := ""
 	cleanTmpFile := false
 	tags := []string{}
@@ -119,17 +56,24 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		if c.Flag("manifest").Changed {
 			for _, tag := range tags {
 				if tag == iopts.Manifest {
-					return errors.New("the same name must not be specified for both '--tag' and '--manifest'")
+					return options, nil, nil, errors.New("the same name must not be specified for both '--tag' and '--manifest'")
 				}
 			}
 		}
 	}
 	if err := auth.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
-		return err
+		return options, nil, nil, err
 	}
-	iopts.BudResults.Authfile, cleanTmpFile = buildahutil.MirrorToTempFileIfPathIsDescriptor(iopts.BudResults.Authfile)
+
+	if c.Flag("logsplit").Changed {
+		if !c.Flag("logfile").Changed {
+			return options, nil, nil, errors.New("cannot use --logsplit without --logfile")
+		}
+	}
+
+	iopts.BudResults.Authfile, cleanTmpFile = util.MirrorToTempFileIfPathIsDescriptor(iopts.BudResults.Authfile)
 	if cleanTmpFile {
-		defer os.Remove(iopts.BudResults.Authfile)
+		removeAll = append(removeAll, iopts.BudResults.Authfile)
 	}
 
 	// Allow for --pull, --pull=true, --pull=false, --pull=never, --pull=always
@@ -171,21 +115,21 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 			if len(av) > 1 {
 				parseAdditionalBuildContext, err := parse.GetAdditionalBuildContext(av[1])
 				if err != nil {
-					return errors.Wrapf(err, "while parsing additional build context")
+					return options, nil, nil, fmt.Errorf("while parsing additional build context: %w", err)
 				}
 				additionalBuildContext[av[0]] = &parseAdditionalBuildContext
 			} else {
-				return fmt.Errorf("while parsing additional build context: %q, accepts value in the form of key=value", av)
+				return options, nil, nil, fmt.Errorf("while parsing additional build context: %q, accepts value in the form of key=value", av)
 			}
 		}
 	}
 
 	containerfiles := getContainerfiles(iopts.File)
-	format, err := getFormat(iopts.Format)
+	format, err := iutil.GetFormat(iopts.Format)
 	if err != nil {
-		return err
+		return options, nil, nil, err
 	}
-	layers := buildahcli.UseLayers()
+	layers := UseLayers()
 	if c.Flag("layers").Changed {
 		layers = iopts.Layers
 	}
@@ -197,28 +141,24 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	if len(cliArgs) == 0 {
 		contextDir, err = os.Getwd()
 		if err != nil {
-			return errors.Wrapf(err, "unable to choose current working directory as build context")
+			return options, nil, nil, fmt.Errorf("unable to choose current working directory as build context: %w", err)
 		}
 	} else {
 		// The context directory could be a URL.  Try to handle that.
 		tempDir, subDir, err := define.TempDirForURL("", "buildah", cliArgs[0])
 		if err != nil {
-			return errors.Wrapf(err, "error prepping temporary context directory")
+			return options, nil, nil, fmt.Errorf("error prepping temporary context directory: %w", err)
 		}
 		if tempDir != "" {
 			// We had to download it to a temporary directory.
 			// Delete it later.
-			defer func() {
-				if err = os.RemoveAll(tempDir); err != nil {
-					logrus.Errorf("error removing temporary directory: %v", err)
-				}
-			}()
+			removeAll = append(removeAll, tempDir)
 			contextDir = filepath.Join(tempDir, subDir)
 		} else {
 			// Nope, it was local.  Use it as is.
 			absDir, err := filepath.Abs(cliArgs[0])
 			if err != nil {
-				return errors.Wrapf(err, "error determining path to directory")
+				return options, nil, nil, fmt.Errorf("error determining path to directory: %w", err)
 			}
 			contextDir = absDir
 		}
@@ -226,9 +166,9 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 
 	if len(containerfiles) == 0 {
 		// Try to find the Containerfile/Dockerfile within the contextDir
-		containerfile, err := buildahutil.DiscoverContainerfile(contextDir)
+		containerfile, err := util.DiscoverContainerfile(contextDir)
 		if err != nil {
-			return err
+			return options, nil, nil, err
 		}
 		containerfiles = append(containerfiles, containerfile)
 		contextDir = filepath.Dir(containerfile)
@@ -236,48 +176,33 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 
 	contextDir, err = filepath.EvalSymlinks(contextDir)
 	if err != nil {
-		return errors.Wrapf(err, "error evaluating symlinks in build context path")
+		return options, nil, nil, fmt.Errorf("error evaluating symlinks in build context path: %w", err)
 	}
 
 	var stdin io.Reader
 	if iopts.Stdin {
 		stdin = os.Stdin
 	}
+
 	var stdout, stderr, reporter *os.File
 	stdout = os.Stdout
 	stderr = os.Stderr
 	reporter = os.Stderr
-	if c.Flag("logfile").Changed {
-		f, err := os.OpenFile(iopts.Logfile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-		if err != nil {
-			return errors.Errorf("error opening logfile %q: %v", iopts.Logfile, err)
-		}
-		defer f.Close()
-		logrus.SetOutput(f)
-		stdout = f
-		stderr = f
-		reporter = f
-	}
-
-	if c.Flag("logsplit").Changed {
-		if !c.Flag("logfile").Changed {
-			return errors.Errorf("cannot use --logsplit without --logfile")
-		}
-	}
-
-	store, err := getStore(c)
-	if err != nil {
-		return err
+	if iopts.Logwriter != nil {
+		logrus.SetOutput(iopts.Logwriter)
+		stdout = iopts.Logwriter
+		stderr = iopts.Logwriter
+		reporter = iopts.Logwriter
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return options, nil, nil, fmt.Errorf("error building system context: %w", err)
 	}
 
 	isolation, err := parse.IsolationOption(iopts.Isolation)
 	if err != nil {
-		return err
+		return options, nil, nil, err
 	}
 
 	runtimeFlags := []string{}
@@ -287,7 +212,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 
 	commonOpts, err := parse.CommonBuildOptions(c)
 	if err != nil {
-		return err
+		return options, nil, nil, err
 	}
 
 	pullFlagsCount := 0
@@ -302,15 +227,11 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	}
 
 	if pullFlagsCount > 1 {
-		return errors.Errorf("can only set one of 'pull' or 'pull-always' or 'pull-never'")
+		return options, nil, nil, errors.New("can only set one of 'pull' or 'pull-always' or 'pull-never'")
 	}
 
 	if (c.Flag("rm").Changed || c.Flag("force-rm").Changed) && (!c.Flag("layers").Changed && !c.Flag("no-cache").Changed) {
-		return errors.Errorf("'rm' and 'force-rm' can only be set with either 'layers' or 'no-cache'")
-	}
-
-	if c.Flag("cache-from").Changed {
-		logrus.Debugf("build --cache-from not enabled, has no effect")
+		return options, nil, nil, errors.New("'rm' and 'force-rm' can only be set with either 'layers' or 'no-cache'")
 	}
 
 	if c.Flag("compress").Changed {
@@ -328,28 +249,28 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
-		return err
+		return options, nil, nil, err
 	}
 	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c, isolation)
 	if err != nil {
-		return errors.Wrapf(err, "error parsing ID mapping options")
+		return options, nil, nil, fmt.Errorf("error parsing ID mapping options: %w", err)
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
 	platforms, err := parse.PlatformsFromOptions(c)
 	if err != nil {
-		return err
+		return options, nil, nil, err
 	}
 
-	decConfig, err := getDecryptConfig(iopts.DecryptionKeys)
+	decryptConfig, err := iutil.DecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
-		return errors.Wrapf(err, "unable to obtain decrypt config")
+		return options, nil, nil, fmt.Errorf("unable to obtain decrypt config: %w", err)
 	}
 
 	var excludes []string
 	if iopts.IgnoreFile != "" {
 		if excludes, _, err = parse.ContainerIgnoreFile(contextDir, iopts.IgnoreFile); err != nil {
-			return err
+			return options, nil, nil, err
 		}
 	}
 	var timestamp *time.Time
@@ -360,55 +281,87 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	if c.Flag("output").Changed {
 		buildOption, err := parse.GetBuildOutput(iopts.BuildOutput)
 		if err != nil {
-			return err
+			return options, nil, nil, err
 		}
 		if buildOption.IsStdout {
 			iopts.Quiet = true
 		}
 	}
-	options := define.BuildOptions{
+	var cacheTo reference.Named
+	var cacheFrom reference.Named
+	cacheTo = nil
+	cacheFrom = nil
+	if c.Flag("cache-to").Changed {
+		cacheTo, err = parse.RepoNameToNamedReference(iopts.CacheTo)
+		if err != nil {
+			return options, nil, nil, fmt.Errorf("unable to parse value provided `%s` to --cache-to: %w", iopts.CacheTo, err)
+		}
+	}
+	if c.Flag("cache-from").Changed {
+		cacheFrom, err = parse.RepoNameToNamedReference(iopts.CacheFrom)
+		if err != nil {
+			return options, nil, nil, fmt.Errorf("unable to parse value provided `%s` to --cache-from: %w", iopts.CacheTo, err)
+		}
+	}
+	var cacheTTL time.Duration
+	if c.Flag("cache-ttl").Changed {
+		cacheTTL, err = time.ParseDuration(iopts.CacheTTL)
+		if err != nil {
+			return options, nil, nil, fmt.Errorf("unable to parse value provided %q as --cache-ttl: %w", iopts.CacheTTL, err)
+		}
+	}
+	options = define.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,
+		AdditionalBuildContexts: additionalBuildContext,
 		AdditionalTags:          tags,
 		AllPlatforms:            iopts.AllPlatforms,
 		Annotations:             iopts.Annotation,
 		Architecture:            systemContext.ArchitectureChoice,
 		Args:                    args,
-		AdditionalBuildContexts: additionalBuildContext,
 		BlobDirectory:           iopts.BlobCache,
+		BuildOutput:             iopts.BuildOutput,
+		CacheFrom:               cacheFrom,
+		CacheTo:                 cacheTo,
+		CacheTTL:                cacheTTL,
 		CNIConfigDir:            iopts.CNIConfigDir,
 		CNIPluginPath:           iopts.CNIPlugInPath,
+		CPPFlags:                iopts.CPPFlags,
 		CommonBuildOpts:         commonOpts,
 		Compression:             compression,
 		ConfigureNetwork:        networkPolicy,
 		ContextDirectory:        contextDir,
-		CPPFlags:                iopts.CPPFlags,
-		DefaultMountsFilePath:   globalFlagResults.DefaultMountsFile,
 		Devices:                 iopts.Devices,
 		DropCapabilities:        iopts.CapDrop,
+		Envs:                    iopts.Envs,
 		Err:                     stderr,
+		Excludes:                excludes,
 		ForceRmIntermediateCtrs: iopts.ForceRm,
 		From:                    iopts.From,
 		IDMappingOptions:        idmappingOptions,
 		IIDFile:                 iopts.Iidfile,
+		IgnoreFile:              iopts.IgnoreFile,
 		In:                      stdin,
 		Isolation:               isolation,
-		IgnoreFile:              iopts.IgnoreFile,
+		Jobs:                    &iopts.Jobs,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
 		LogFile:                 iopts.Logfile,
-		LogSplitByPlatform:      iopts.LogSplitByPlatform,
 		LogRusage:               iopts.LogRusage,
+		LogSplitByPlatform:      iopts.LogSplitByPlatform,
 		Manifest:                iopts.Manifest,
-		MaxPullPushRetries:      maxPullPushRetries,
+		MaxPullPushRetries:      MaxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,
 		OS:                      systemContext.OSChoice,
+		OSFeatures:              iopts.OSFeatures,
+		OSVersion:               iopts.OSVersion,
+		OciDecryptConfig:        decryptConfig,
 		Out:                     stdout,
 		Output:                  output,
-		BuildOutput:             iopts.BuildOutput,
 		OutputFormat:            format,
+		Platforms:               platforms,
 		PullPolicy:              pullPolicy,
-		PullPushRetryDelay:      pullPushRetryDelay,
+		PullPushRetryDelay:      PullPushRetryDelay,
 		Quiet:                   iopts.Quiet,
 		RemoveIntermediateCtrs:  iopts.Rm,
 		ReportWriter:            reporter,
@@ -417,27 +370,28 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		RusageLogFile:           iopts.RusageLogFile,
 		SignBy:                  iopts.SignBy,
 		SignaturePolicyPath:     iopts.SignaturePolicy,
+		SkipUnusedStages:        types.NewOptionalBool(iopts.SkipUnusedStages),
 		Squash:                  iopts.Squash,
 		SystemContext:           systemContext,
 		Target:                  iopts.Target,
-		TransientMounts:         iopts.Volumes,
-		OciDecryptConfig:        decConfig,
-		Jobs:                    &iopts.Jobs,
-		Excludes:                excludes,
 		Timestamp:               timestamp,
-		Platforms:               platforms,
+		TransientMounts:         iopts.Volumes,
 		UnsetEnvs:               iopts.UnsetEnvs,
-		Envs:                    iopts.Envs,
-		OSFeatures:              iopts.OSFeatures,
-		OSVersion:               iopts.OSVersion,
 	}
 	if iopts.Quiet {
 		options.ReportWriter = io.Discard
 	}
+	return options, containerfiles, removeAll, nil
+}
 
-	id, ref, err := imagebuildah.BuildDockerfiles(getContext(), store, options, containerfiles...)
-	if err == nil && options.Manifest != "" {
-		logrus.Debugf("manifest list id = %q, ref = %q", id, ref.String())
+func getContainerfiles(files []string) []string {
+	var containerfiles []string
+	for _, f := range files {
+		if f == "-" {
+			containerfiles = append(containerfiles, "/dev/stdin")
+		} else {
+			containerfiles = append(containerfiles, f)
+		}
 	}
-	return err
+	return containerfiles
 }

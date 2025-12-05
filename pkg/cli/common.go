@@ -55,6 +55,8 @@ type BudResults struct {
 	BuildArg            []string
 	BuildContext        []string
 	CacheFrom           string
+	CacheTo             string
+	CacheTTL            string
 	CertDir             string
 	Compress            bool
 	Creds               string
@@ -74,6 +76,7 @@ type BudResults struct {
 	NoCache             bool
 	Timestamp           int64
 	OmitHistory         bool
+	OCIHooksDir         []string
 	Pull                string
 	PullAlways          bool
 	PullNever           bool
@@ -87,6 +90,7 @@ type BudResults struct {
 	SignaturePolicy     string
 	SignBy              string
 	Squash              bool
+	SkipUnusedStages    bool
 	Stdin               bool
 	Tag                 []string
 	BuildOutput         string
