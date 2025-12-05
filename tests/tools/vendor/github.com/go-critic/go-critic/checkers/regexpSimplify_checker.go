@@ -9,14 +9,15 @@ import (
 	"unicode/utf8"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/quasilyte/regex/syntax"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "regexpSimplify"
-	info.Tags = []string{"style", "experimental", "opinionated"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag, linter.OpinionatedTag}
 	info.Summary = "Detects regexp patterns that can be simplified"
 	info.Before = "regexp.MustCompile(`(?:a|b|c)   [a-z][a-z]*`)"
 	info.After = "regexp.MustCompile(`[abc] {3}[a-z]+`)"
@@ -497,9 +498,9 @@ func (c *regexpSimplifyChecker) simplifyCharRange(rng syntax.Expr) string {
 		case 0:
 			return lo
 		case 1:
-			return fmt.Sprintf("%s%s", lo, hi)
+			return lo + hi
 		case 2:
-			return fmt.Sprintf("%s%s%s", lo, string(lo[0]+1), hi)
+			return lo + string(lo[0]+1) + hi
 		}
 	}
 

@@ -1,6 +1,7 @@
 package gogrep
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -10,7 +11,7 @@ import (
 )
 
 func IsEmptyNodeSlice(n ast.Node) bool {
-	if list, ok := n.(NodeSlice); ok {
+	if list, ok := n.(*NodeSlice); ok {
 		return list.Len() == 0
 	}
 	return false
@@ -34,19 +35,45 @@ func (data MatchData) CapturedByName(name string) (ast.Node, bool) {
 	return findNamed(data.Capture, name)
 }
 
+type PartialNode struct {
+	X ast.Node
+
+	from token.Pos
+	to   token.Pos
+}
+
+func (p *PartialNode) Pos() token.Pos { return p.from }
+func (p *PartialNode) End() token.Pos { return p.to }
+
 type MatcherState struct {
 	Types *types.Info
+
+	// CapturePreset is a key-value pairs to use in the next match calls
+	// as predefined variables.
+	// For example, if the pattern is `$x = f()` and CapturePreset contains
+	// a pair with Name=x and value of `obj.x`, then the above mentioned
+	// pattern will only match `obj.x = f()` statements.
+	//
+	// If nil, the default behavior will be used. A first syntax element
+	// matching the matcher var will be captured.
+	CapturePreset []CapturedNode
 
 	// node values recorded by name, excluding "_" (used only by the
 	// actual matching phase)
 	capture []CapturedNode
 
+	nodeSlices     []NodeSlice
+	nodeSlicesUsed int
+
 	pc int
+
+	partial PartialNode
 }
 
 func NewMatcherState() MatcherState {
 	return MatcherState{
-		capture: make([]CapturedNode, 0, 8),
+		capture:    make([]CapturedNode, 0, 8),
+		nodeSlices: make([]NodeSlice, 16),
 	}
 }
 
@@ -106,6 +133,9 @@ func Compile(config CompileConfig) (*Pattern, PatternInfo, error) {
 	if err != nil {
 		return nil, info, err
 	}
+	if n == nil {
+		return nil, info, errors.New("invalid pattern syntax")
+	}
 	var c compiler
 	c.config = config
 	prog, err := c.Compile(n, &info)
@@ -114,6 +144,40 @@ func Compile(config CompileConfig) (*Pattern, PatternInfo, error) {
 	}
 	m := newMatcher(prog)
 	return &Pattern{m: m}, info, nil
+}
+
+func Walk(root ast.Node, fn func(n ast.Node) bool) {
+	if root, ok := root.(*NodeSlice); ok {
+		switch root.Kind {
+		case ExprNodeSlice:
+			for _, e := range root.exprSlice {
+				ast.Inspect(e, fn)
+			}
+		case StmtNodeSlice:
+			for _, e := range root.stmtSlice {
+				ast.Inspect(e, fn)
+			}
+		case FieldNodeSlice:
+			for _, e := range root.fieldSlice {
+				ast.Inspect(e, fn)
+			}
+		case IdentNodeSlice:
+			for _, e := range root.identSlice {
+				ast.Inspect(e, fn)
+			}
+		case SpecNodeSlice:
+			for _, e := range root.specSlice {
+				ast.Inspect(e, fn)
+			}
+		default:
+			for _, e := range root.declSlice {
+				ast.Inspect(e, fn)
+			}
+		}
+		return
+	}
+
+	ast.Inspect(root, fn)
 }
 
 func newPatternInfo() PatternInfo {

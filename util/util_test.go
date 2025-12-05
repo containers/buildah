@@ -7,6 +7,7 @@ import (
 
 	"github.com/containers/common/pkg/config"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMergeEnv(t *testing.T) {
@@ -93,45 +94,20 @@ func TestMountsSort(t *testing.T) {
 			Destination: "/aa/b/c",
 		},
 	}
-	mounts1b := []specs.Mount{
-		{
-			Source:      "/xyz",
-			Destination: "/",
-		},
-		{
-			Source:      "/a",
-			Destination: "/a",
-		},
-		{
-			Source:      "/b",
-			Destination: "/b",
-		},
-		{
-			Source:      "/a/b",
-			Destination: "/a/b",
-		},
-		{
-			Source:      "/d/e",
-			Destination: "/a/c",
-		},
-		{
-			Source:      "/a/b/c",
-			Destination: "/a/b/c",
-		},
-		{
-			Source:      "/a/bb/c",
-			Destination: "/a/bb/c",
-		},
-		{
-			Source:      "/a/b/c",
-			Destination: "/aa/b/c",
-		},
+	mounts1b := []string{
+		"/",
+		"/a",
+		"/b",
+		"/a/b",
+		"/a/c",
+		"/a/b/c",
+		"/a/bb/c",
+		"/aa/b/c",
 	}
 	sorted := SortMounts(mounts1a)
+	sortedDests := make([]string, len(mounts1a))
 	for i := range sorted {
-		if sorted[i].Destination != mounts1b[i].Destination {
-			t.Fatalf("failed sort \n%+v\n%+v", mounts1b, sorted)
-		}
+		sortedDests[i] = sorted[i].Destination
 	}
-
+	assert.Equalf(t, mounts1b, sortedDests, "sort returned results in unexpected by-destination order")
 }

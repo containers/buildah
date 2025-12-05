@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 const (
@@ -30,7 +29,14 @@ const (
 	ExcludeRules GlobalOption = "exclude"
 	// IncludeRules global option for  should be load
 	IncludeRules GlobalOption = "include"
+	// SSA global option to enable go analysis framework with SSA support
+	SSA GlobalOption = "ssa"
 )
+
+// NoSecTag returns the tag used to disable gosec for a line of code.
+func NoSecTag(tag string) string {
+	return fmt.Sprintf("%s%s", "#", tag)
+}
 
 // Config is used to provide configuration and customization to each of the rules.
 type Config map[string]interface{}
@@ -64,7 +70,7 @@ func (c Config) convertGlobals() {
 // should be used with io.Reader to load configuration from
 // file or from string etc.
 func (c Config) ReadFrom(r io.Reader) (int64, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return int64(len(data)), err
 	}

@@ -3,8 +3,9 @@ package formatter
 import (
 	"bytes"
 	"encoding/xml"
+	plain "text/template"
+
 	"github.com/mgechev/revive/lint"
-	plainTemplate "text/template"
 )
 
 // Checkstyle is an implementation of the Formatter interface
@@ -14,7 +15,7 @@ type Checkstyle struct {
 }
 
 // Name returns the name of the formatter
-func (f *Checkstyle) Name() string {
+func (*Checkstyle) Name() string {
 	return "checkstyle"
 }
 
@@ -28,8 +29,8 @@ type issue struct {
 }
 
 // Format formats the failures gotten from the lint.
-func (f *Checkstyle) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
-	var issues = map[string][]issue{}
+func (*Checkstyle) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
+	issues := map[string][]issue{}
 	for failure := range failures {
 		buf := new(bytes.Buffer)
 		xml.Escape(buf, []byte(failure.Failure))
@@ -49,7 +50,7 @@ func (f *Checkstyle) Format(failures <-chan lint.Failure, config lint.Config) (s
 		issues[fn] = append(issues[fn], iss)
 	}
 
-	t, err := plainTemplate.New("revive").Parse(checkstyleTemplate)
+	t, err := plain.New("revive").Parse(checkstyleTemplate)
 	if err != nil {
 		return "", err
 	}

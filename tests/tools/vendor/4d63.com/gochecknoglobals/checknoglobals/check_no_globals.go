@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -48,12 +49,12 @@ func flags() flag.FlagSet {
 	return *flags
 }
 
-func isAllowed(cm ast.CommentMap, v ast.Node) bool {
+func isAllowed(cm ast.CommentMap, v ast.Node, ti *types.Info) bool {
 	switch i := v.(type) {
 	case *ast.GenDecl:
 		return hasEmbedComment(cm, i)
 	case *ast.Ident:
-		return i.Name == "_" || i.Name == "version" || looksLikeError(i) || identHasEmbedComment(cm, i)
+		return i.Name == "_" || i.Name == "version" || isError(i, ti) || identHasEmbedComment(cm, i)
 	case *ast.CallExpr:
 		if expr, ok := i.Fun.(*ast.SelectorExpr); ok {
 			return isAllowedSelectorExpression(expr)
@@ -86,16 +87,28 @@ func isAllowedSelectorExpression(v *ast.SelectorExpr) bool {
 	return false
 }
 
+// isError reports whether the AST identifier looks like
+// an error and implements the error interface.
+func isError(i *ast.Ident, ti *types.Info) bool {
+	return looksLikeError(i) && implementsError(i, ti)
+}
+
 // looksLikeError returns true if the AST identifier starts
 // with 'err' or 'Err', or false otherwise.
-//
-// TODO: https://github.com/leighmcculloch/gochecknoglobals/issues/5
 func looksLikeError(i *ast.Ident) bool {
 	prefix := "err"
 	if i.IsExported() {
 		prefix = "Err"
 	}
 	return strings.HasPrefix(i.Name, prefix)
+}
+
+// implementsError reports whether the AST identifier
+// implements the error interface.
+func implementsError(i *ast.Ident, ti *types.Info) bool {
+	t := ti.TypeOf(i)
+	et := types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+	return types.Implements(t, et)
 }
 
 func identHasEmbedComment(cm ast.CommentMap, i *ast.Ident) bool {
@@ -146,7 +159,7 @@ func checkNoGlobals(pass *analysis.Pass) (interface{}, error) {
 			if genDecl.Tok != token.VAR {
 				continue
 			}
-			if isAllowed(fileCommentMap, genDecl) {
+			if isAllowed(fileCommentMap, genDecl, pass.TypesInfo) {
 				continue
 			}
 			for _, spec := range genDecl.Specs {
@@ -154,7 +167,7 @@ func checkNoGlobals(pass *analysis.Pass) (interface{}, error) {
 				onlyAllowedValues := false
 
 				for _, vn := range valueSpec.Values {
-					if isAllowed(fileCommentMap, vn) {
+					if isAllowed(fileCommentMap, vn, pass.TypesInfo) {
 						onlyAllowedValues = true
 						continue
 					}
@@ -168,7 +181,7 @@ func checkNoGlobals(pass *analysis.Pass) (interface{}, error) {
 				}
 
 				for _, vn := range valueSpec.Names {
-					if isAllowed(fileCommentMap, vn) {
+					if isAllowed(fileCommentMap, vn, pass.TypesInfo) {
 						continue
 					}
 

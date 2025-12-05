@@ -8,6 +8,9 @@ import (
 	"io"
 
 	"github.com/quasilyte/go-ruleguard/ruleguard/ir"
+	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
+	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
+	"github.com/quasilyte/gogrep"
 )
 
 // Engine is the main ruleguard package API object.
@@ -75,7 +78,7 @@ func (e *Engine) Run(ctx *RunContext, f *ast.File) error {
 }
 
 type LoadContext struct {
-	DebugFilter  string
+	DebugFunc    string
 	DebugImports bool
 	DebugPrint   func(string)
 
@@ -83,9 +86,24 @@ type LoadContext struct {
 	// If function returns false, that group will not be included
 	// in the resulting rules set.
 	// Nil filter accepts all rule groups.
-	GroupFilter func(string) bool
+	GroupFilter func(*GoRuleGroup) bool
 
 	Fset *token.FileSet
+}
+
+type RunnerState struct {
+	gogrepState    gogrep.MatcherState
+	gogrepSubState gogrep.MatcherState
+	nodePath       *nodePath
+	evalEnv        *quasigo.EvalEnv
+	typematchState *typematch.MatcherState
+
+	object *rulesRunner
+}
+
+// NewRunnerState creates a state object that can be used with RunContext.
+func NewRunnerState(e *Engine) *RunnerState {
+	return newRunnerState(e.impl.state)
 }
 
 type RunContext struct {
@@ -104,6 +122,31 @@ type RunContext struct {
 	Report func(*ReportData)
 
 	GoVersion GoVersion
+
+	// TruncateLen is a length threshold (in bytes) for interpolated vars in Report() templates.
+	//
+	// Truncation removes the part of the string in the middle and replaces it with <...>
+	// so it meets the max length constraint.
+	//
+	// The default value is 60 (implied if value is 0).
+	//
+	// Note that this value is ignored for Suggest templates.
+	// Ruleguard doesn't truncate suggested replacement candidates.
+	TruncateLen int
+
+	// State is an object that contains reusable resources needed for the rules to be executed.
+	//
+	// If nil, a new state will be allocated.
+	//
+	// The State object access is not synchronized.
+	// State should not be shared between multiple goroutines.
+	// There are 3 patterns that are safe:
+	// 1. For single-threaded programs, you can use a single state.
+	// 2. For controlled concurrency with workers, you can use a per-worker state.
+	// 3. For uncontrolled concurrency you can use a sync.Pool of states.
+	//
+	// Reusing the state properly can increase the performance significantly.
+	State *RunnerState
 }
 
 type ReportData struct {

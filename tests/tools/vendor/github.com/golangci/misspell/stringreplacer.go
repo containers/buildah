@@ -6,7 +6,6 @@ package misspell
 
 import (
 	"io"
-	//	"log"
 	"strings"
 )
 
@@ -38,7 +37,7 @@ func (r *StringReplacer) Replace(s string) string {
 }
 
 // WriteString writes s to w with all replacements performed.
-func (r *StringReplacer) WriteString(w io.Writer, s string) (n int, err error) {
+func (r *StringReplacer) WriteString(w io.Writer, s string) (int, error) {
 	return r.r.WriteString(w, s)
 }
 
@@ -46,14 +45,14 @@ func (r *StringReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 // and values may be empty. For example, the trie containing keys "ax", "ay",
 // "bcbc", "x" and "xy" could have eight nodes:
 //
-//  n0  -
-//  n1  a-
-//  n2  .x+
-//  n3  .y+
-//  n4  b-
-//  n5  .cbc+
-//  n6  x+
-//  n7  .y+
+//	n0  -
+//	n1  a-
+//	n2  .x+
+//	n3  .y+
+//	n4  b-
+//	n5  .cbc+
+//	n6  x+
+//	n7  .y+
 //
 // n0 is the root node, and its children are n1, n4 and n6; n1's children are
 // n2 and n3; n4's child is n5; n6's child is n7. Nodes n0, n1 and n4 (marked
@@ -111,9 +110,10 @@ func (t *trieNode) add(key, val string, priority int, r *genericReplacer) {
 				break
 			}
 		}
-		if n == len(t.prefix) {
+		switch n {
+		case len(t.prefix):
 			t.next.add(key[n:], val, priority, r)
-		} else if n == 0 {
+		case 0:
 			// First byte differs, start a new lookup table here. Looking up
 			// what is currently t.prefix[0] will lead to prefixNode, and
 			// looking up key[0] will lead to keyNode.
@@ -133,7 +133,7 @@ func (t *trieNode) add(key, val string, priority int, r *genericReplacer) {
 			t.prefix = ""
 			t.next = nil
 			keyNode.add(key[1:], val, priority, r)
-		} else {
+		default:
 			// Insert new node after the common section of the prefix.
 			next := &trieNode{
 				prefix: t.prefix[n:],
@@ -143,54 +143,22 @@ func (t *trieNode) add(key, val string, priority int, r *genericReplacer) {
 			t.next = next
 			next.add(key[n:], val, priority, r)
 		}
-	} else if t.table != nil {
+		return
+	}
+
+	if t.table != nil {
 		// Insert into existing table.
 		m := r.mapping[key[0]]
 		if t.table[m] == nil {
 			t.table[m] = new(trieNode)
 		}
 		t.table[m].add(key[1:], val, priority, r)
-	} else {
-		t.prefix = key
-		t.next = new(trieNode)
-		t.next.add("", val, priority, r)
+		return
 	}
-}
 
-func (r *genericReplacer) lookup(s string, ignoreRoot bool) (val string, keylen int, found bool) {
-	// Iterate down the trie to the end, and grab the value and keylen with
-	// the highest priority.
-	bestPriority := 0
-	node := &r.root
-	n := 0
-	for node != nil {
-		if node.priority > bestPriority && !(ignoreRoot && node == &r.root) {
-			bestPriority = node.priority
-			val = node.value
-			keylen = n
-			found = true
-		}
-
-		if s == "" {
-			break
-		}
-		if node.table != nil {
-			index := r.mapping[ByteToLower(s[0])]
-			if int(index) == r.tableSize {
-				break
-			}
-			node = node.table[index]
-			s = s[1:]
-			n++
-		} else if node.prefix != "" && StringHasPrefixFold(s, node.prefix) {
-			n += len(node.prefix)
-			s = s[len(node.prefix):]
-			node = node.next
-		} else {
-			break
-		}
-	}
-	return
+	t.prefix = key
+	t.next = new(trieNode)
+	t.next.add("", val, priority, r)
 }
 
 // genericReplacer is the fully generic algorithm.
@@ -236,38 +204,40 @@ func makeGenericReplacer(oldnew []string) *genericReplacer {
 	return r
 }
 
-type appendSliceWriter []byte
+func (r *genericReplacer) lookup(s string, ignoreRoot bool) (val string, keylen int, found bool) {
+	// Iterate down the trie to the end, and grab the value and keylen with
+	// the highest priority.
+	bestPriority := 0
+	node := &r.root
+	n := 0
+	for node != nil {
+		if node.priority > bestPriority && !(ignoreRoot && node == &r.root) {
+			bestPriority = node.priority
+			val = node.value
+			keylen = n
+			found = true
+		}
 
-// Write writes to the buffer to satisfy io.Writer.
-func (w *appendSliceWriter) Write(p []byte) (int, error) {
-	*w = append(*w, p...)
-	return len(p), nil
-}
-
-// WriteString writes to the buffer without string->[]byte->string allocations.
-func (w *appendSliceWriter) WriteString(s string) (int, error) {
-	*w = append(*w, s...)
-	return len(s), nil
-}
-
-type stringWriterIface interface {
-	WriteString(string) (int, error)
-}
-
-type stringWriter struct {
-	w io.Writer
-}
-
-func (w stringWriter) WriteString(s string) (int, error) {
-	return w.w.Write([]byte(s))
-}
-
-func getStringWriter(w io.Writer) stringWriterIface {
-	sw, ok := w.(stringWriterIface)
-	if !ok {
-		sw = stringWriter{w}
+		if s == "" {
+			break
+		}
+		if node.table != nil {
+			index := r.mapping[ByteToLower(s[0])]
+			if int(index) == r.tableSize {
+				break
+			}
+			node = node.table[index]
+			s = s[1:]
+			n++
+		} else if node.prefix != "" && StringHasPrefixFold(s, node.prefix) {
+			n += len(node.prefix)
+			s = s[len(node.prefix):]
+			node = node.next
+		} else {
+			break
+		}
 	}
-	return sw
+	return
 }
 
 func (r *genericReplacer) Replace(s string) string {
@@ -316,7 +286,7 @@ func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) 
 			if err != nil {
 				return
 			}
-			//log.Printf("%d: Going to correct %q with %q", i, s[i:i+keylen], val)
+			// debug helper: log.Printf("%d: Going to correct %q with %q", i, s[i:i+keylen], val)
 			wn, err = sw.WriteString(val)
 			n += wn
 			if err != nil {
@@ -333,4 +303,34 @@ func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) 
 		n += wn
 	}
 	return
+}
+
+type appendSliceWriter []byte
+
+// Write writes to the buffer to satisfy io.Writer.
+func (w *appendSliceWriter) Write(p []byte) (int, error) {
+	*w = append(*w, p...)
+	return len(p), nil
+}
+
+// WriteString writes to the buffer without string->[]byte->string allocations.
+func (w *appendSliceWriter) WriteString(s string) (int, error) {
+	*w = append(*w, s...)
+	return len(s), nil
+}
+
+type stringWriter struct {
+	w io.Writer
+}
+
+func (w stringWriter) WriteString(s string) (int, error) {
+	return w.w.Write([]byte(s))
+}
+
+func getStringWriter(w io.Writer) io.StringWriter {
+	sw, ok := w.(io.StringWriter)
+	if !ok {
+		sw = stringWriter{w}
+	}
+	return sw
 }

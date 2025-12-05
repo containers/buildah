@@ -1,16 +1,17 @@
 package rule
 
 import (
-	"github.com/mgechev/revive/lint"
 	"go/ast"
 	"go/token"
+
+	"github.com/mgechev/revive/lint"
 )
 
 // ConstantLogicalExprRule warns on constant logical expressions.
 type ConstantLogicalExprRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ConstantLogicalExprRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ConstantLogicalExprRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -24,7 +25,7 @@ func (r *ConstantLogicalExprRule) Apply(file *lint.File, _ lint.Arguments) []lin
 }
 
 // Name returns the rule name.
-func (r *ConstantLogicalExprRule) Name() string {
+func (*ConstantLogicalExprRule) Name() string {
 	return "constant-logical-expr"
 }
 
@@ -44,11 +45,13 @@ func (w *lintConstantLogicalExpr) Visit(node ast.Node) ast.Visitor {
 			return w
 		}
 
-		if n.Op == token.EQL {
+		// Handles cases like: a <= a, a == a, a >= a
+		if w.isEqualityOperator(n.Op) {
 			w.newFailure(n, "expression always evaluates to true")
 			return w
 		}
 
+		// Handles cases like: a < a, a > a, a != a
 		if w.isInequalityOperator(n.Op) {
 			w.newFailure(n, "expression always evaluates to false")
 			return w
@@ -60,7 +63,7 @@ func (w *lintConstantLogicalExpr) Visit(node ast.Node) ast.Visitor {
 	return w
 }
 
-func (w *lintConstantLogicalExpr) isOperatorWithLogicalResult(t token.Token) bool {
+func (*lintConstantLogicalExpr) isOperatorWithLogicalResult(t token.Token) bool {
 	switch t {
 	case token.LAND, token.LOR, token.EQL, token.LSS, token.GTR, token.NEQ, token.LEQ, token.GEQ:
 		return true
@@ -69,9 +72,18 @@ func (w *lintConstantLogicalExpr) isOperatorWithLogicalResult(t token.Token) boo
 	return false
 }
 
-func (w *lintConstantLogicalExpr) isInequalityOperator(t token.Token) bool {
+func (*lintConstantLogicalExpr) isEqualityOperator(t token.Token) bool {
 	switch t {
-	case token.LSS, token.GTR, token.NEQ, token.LEQ, token.GEQ:
+	case token.EQL, token.LEQ, token.GEQ:
+		return true
+	}
+
+	return false
+}
+
+func (*lintConstantLogicalExpr) isInequalityOperator(t token.Token) bool {
+	switch t {
+	case token.LSS, token.GTR, token.NEQ:
 		return true
 	}
 

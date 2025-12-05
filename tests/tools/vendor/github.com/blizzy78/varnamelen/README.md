@@ -4,13 +4,14 @@
 varnamelen
 ==========
 
-A Go Analyzer checking that the length of a variable's name matches its usage scope.
+A Go Analyzer that checks that the length of a variable's name matches its usage scope:
 
-A variable with a short name can be hard to use if the variable is used over a longer span of lines of code.
+Variables with short names can be hard to use if the variable is used over a longer span of lines of code.
 A longer variable name may be easier to comprehend.
 
-The analyzer can check variable names, method receiver names, as well as named return values.
+The analyzer also checks method receiver names, named return values, and type parameter names.
 
+Arbitrary declarations such as `f *foo` can be ignored, as well as idiomatic `ok` variables.
 Conventional Go parameters such as `ctx context.Context` or `t *testing.T` will always be ignored.
 
 **Example output**
@@ -41,10 +42,12 @@ linters-settings:
     # The minimum length of a variable's name that is considered "long." (defaults to 3)
     # Variable names that are at least this long will be ignored.
     min-name-length: 3
-    # Check method receiver names. (defaults to false)
+    # Check method receiver. (defaults to false)
     check-receiver: false
     # Check named return values. (defaults to false)
     check-return: false
+    # Check type parameters. (defaults to false)
+    check-type-param: false
     # Ignore "ok" variables that hold the bool return value of a type assertion. (defaults to false)
     ignore-type-assert-ok: false
     # Ignore "ok" variables that hold the bool return value of a map index. (defaults to false)
@@ -55,8 +58,14 @@ linters-settings:
     ignore-names:
       - err
     # Optional list of variable declarations that should be ignored completely. (defaults to empty list)
-    # Entries must be in the form of "<variable name> <type>" or "<variable name> *<type>" for
-    # variables, or "const <name>" for constants.
+    # Entries must be in one of the following forms (see below for examples):
+    # - for variables, parameters, or named return values:
+    #   - <name> <type>
+    #   - <name> *<type>
+    # - for type parameters:
+    #   - <name> <type>
+    # - for constants:
+    #   - const <name>
     ignore-decls:
       - c echo.Context
       - t testing.T
@@ -64,6 +73,7 @@ linters-settings:
       - e error
       - i int
       - const C
+      - T any
 ```
 
 
@@ -97,6 +107,8 @@ Flags:
     	check method receiver names
   -checkReturn
     	check named return values
+  -checkTypeParam
+    	check type parameter names
   -cpuprofile string
     	write CPU profile to this file
   -debug string

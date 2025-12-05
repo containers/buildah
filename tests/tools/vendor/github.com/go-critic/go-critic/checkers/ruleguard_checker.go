@@ -12,15 +12,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/quasilyte/go-ruleguard/ruleguard"
+	"github.com/go-critic/go-critic/linter"
 
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/quasilyte/go-ruleguard/ruleguard"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "ruleguard"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Params = linter.CheckerParams{
 		"rules": {
 			Value: "",
@@ -84,7 +84,7 @@ func newErrorHandler(failOnErrorFlag string) (*parseErrorHandler, error) {
 	h := parseErrorHandler{
 		failureConditions: make(map[string]func(err error) bool),
 	}
-	var failOnErrorPredicates = map[string]func(error) bool{
+	failOnErrorPredicates := map[string]func(error) bool{
 		"dsl":    func(err error) bool { var e *ruleguard.ImportError; return !errors.As(err, &e) },
 		"import": func(err error) bool { var e *ruleguard.ImportError; return errors.As(err, &e) },
 		"all":    func(err error) bool { return true },
@@ -135,38 +135,77 @@ func newRuleguardChecker(info *linter.CheckerInfo, ctx *linter.CheckerContext) (
 
 	enabledGroups := make(map[string]bool)
 	disabledGroups := make(map[string]bool)
+	enabledTags := make(map[string]bool)
+	disabledTags := make(map[string]bool)
 
 	for _, g := range strings.Split(info.Params.String("disable"), ",") {
 		g = strings.TrimSpace(g)
+		if strings.HasPrefix(g, "#") {
+			disabledTags[strings.TrimPrefix(g, "#")] = true
+			continue
+		}
+
 		disabledGroups[g] = true
 	}
 	flagEnable := info.Params.String("enable")
 	if flagEnable != "<all>" {
 		for _, g := range strings.Split(flagEnable, ",") {
 			g = strings.TrimSpace(g)
+			if strings.HasPrefix(g, "#") {
+				enabledTags[strings.TrimPrefix(g, "#")] = true
+				continue
+			}
+
 			enabledGroups[g] = true
 		}
 	}
+
+	if !enabledTags[linter.ExperimentalTag] {
+		disabledTags[linter.ExperimentalTag] = true
+	}
 	ruleguardDebug := os.Getenv("GOCRITIC_RULEGUARD_DEBUG") != ""
+
+	inEnabledTags := func(g *ruleguard.GoRuleGroup) bool {
+		for _, t := range g.DocTags {
+			if enabledTags[t] {
+				return true
+			}
+		}
+		return false
+	}
+	inDisabledTags := func(g *ruleguard.GoRuleGroup) string {
+		for _, t := range g.DocTags {
+			if disabledTags[t] {
+				return t
+			}
+		}
+		return ""
+	}
 
 	loadContext := &ruleguard.LoadContext{
 		Fset:         fset,
 		DebugImports: ruleguardDebug,
 		DebugPrint:   debugPrint,
-		GroupFilter: func(g string) bool {
+		GroupFilter: func(g *ruleguard.GoRuleGroup) bool {
+			enabled := flagEnable == "<all>" || enabledGroups[g.Name] || inEnabledTags(g)
 			whyDisabled := ""
-			enabled := flagEnable == "<all>" || enabledGroups[g]
+
 			switch {
 			case !enabled:
-				whyDisabled = "not enabled by -enabled flag"
-			case disabledGroups[g]:
-				whyDisabled = "disabled by -disable flag"
+				whyDisabled = "not enabled by name or tag (-enable flag)"
+			case disabledGroups[g.Name]:
+				whyDisabled = "disabled by name (-disable flag)"
+			default:
+				if tag := inDisabledTags(g); tag != "" {
+					whyDisabled = fmt.Sprintf("disabled by %s tag (-disable flag)", tag)
+				}
 			}
+
 			if ruleguardDebug {
 				if whyDisabled != "" {
-					debugPrint(fmt.Sprintf("(-) %s is %s", g, whyDisabled))
+					debugPrint(fmt.Sprintf("(-) %s is %s", g.Name, whyDisabled))
 				} else {
-					debugPrint(fmt.Sprintf("(+) %s is enabled", g))
+					debugPrint(fmt.Sprintf("(+) %s is enabled", g.Name))
 				}
 			}
 			return whyDisabled == ""
@@ -225,16 +264,17 @@ func (c *ruleguardChecker) WalkFile(f *ast.File) {
 		DebugPrint: func(s string) {
 			fmt.Fprintln(os.Stderr, s)
 		},
-		Pkg:   c.ctx.Pkg,
-		Types: c.ctx.TypesInfo,
-		Sizes: c.ctx.SizesInfo,
-		Fset:  c.ctx.FileSet,
+		Pkg:         c.ctx.Pkg,
+		Types:       c.ctx.TypesInfo,
+		Sizes:       c.ctx.SizesInfo,
+		Fset:        c.ctx.FileSet,
+		TruncateLen: 100,
 	})
 }
 
 func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.Engine, runCtx *ruleguard.RunContext) {
 	type ruleguardReport struct {
-		node    ast.Node
+		pos     token.Pos
 		message string
 		fix     linter.QuickFix
 	}
@@ -244,7 +284,7 @@ func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.En
 		// TODO(quasilyte): investigate whether we should add a rule name as
 		// a message prefix here.
 		r := ruleguardReport{
-			node:    data.Node,
+			pos:     data.Node.Pos(),
 			message: data.Message,
 		}
 		fix := data.Suggestion
@@ -270,9 +310,9 @@ func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.En
 	})
 	for _, report := range reports {
 		if report.fix.Replacement != nil {
-			ctx.WarnFixable(report.node, report.fix, "%s", report.message)
+			ctx.WarnFixableWithPos(report.pos, report.fix, "%s", report.message)
 		} else {
-			ctx.Warn(report.node, "%s", report.message)
+			ctx.WarnWithPos(report.pos, "%s", report.message)
 		}
 	}
 }

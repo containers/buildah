@@ -21,8 +21,7 @@ func exportFact(pass *analysis.Pass, enumTyp enumType, members enumMembers) {
 // An (_, false) return indicates that the enum type is not a known one.
 func importFact(pass *analysis.Pass, possibleEnumType enumType) (enumMembers, bool) {
 	var f enumMembersFact
-	ok := pass.ImportObjectFact(possibleEnumType.factObject(), &f)
-	if !ok {
+	if !pass.ImportObjectFact(possibleEnumType.factObject(), &f) {
 		return enumMembers{}, false
 	}
 	return f.Members, true

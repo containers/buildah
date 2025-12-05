@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-toolsmith/astequal"
+	"golang.org/x/exp/typeparams"
 )
 
 type matcher struct {
@@ -37,8 +38,43 @@ func (m *matcher) ifaceValue(inst instruction) interface{} {
 	return m.prog.ifaces[inst.valueIndex]
 }
 
+func (m *matcher) resetCapture(state *MatcherState) {
+	state.capture = state.capture[:0]
+	if state.CapturePreset != nil {
+		state.capture = append(state.capture, state.CapturePreset...)
+	}
+}
+
+func (m *matcher) toStmtSlice(state *MatcherState, nodes ...ast.Node) *NodeSlice {
+	slice := m.allocNodeSlice(state)
+	var stmts []ast.Stmt
+	for _, node := range nodes {
+		switch x := node.(type) {
+		case nil:
+		case ast.Stmt:
+			stmts = append(stmts, x)
+		case ast.Expr:
+			stmts = append(stmts, &ast.ExprStmt{X: x})
+		default:
+			panic(fmt.Sprintf("unexpected node type: %T", x))
+		}
+	}
+	slice.assignStmtSlice(stmts)
+	return slice
+}
+
+func (m *matcher) allocNodeSlice(state *MatcherState) *NodeSlice {
+	if state.nodeSlicesUsed < len(state.nodeSlices) {
+		i := state.nodeSlicesUsed
+		state.nodeSlicesUsed++
+		return &state.nodeSlices[i]
+	}
+	return &NodeSlice{}
+}
+
 func (m *matcher) MatchNode(state *MatcherState, n ast.Node, accept func(MatchData)) {
 	state.pc = 0
+	state.nodeSlicesUsed = 0
 	inst := m.nextInst(state)
 	switch inst.op {
 	case opMultiStmt:
@@ -63,8 +99,16 @@ func (m *matcher) MatchNode(state *MatcherState, n ast.Node, accept func(MatchDa
 		if n, ok := n.(*ast.File); ok {
 			m.walkDeclSlice(state, n.Decls, accept)
 		}
+	case opRangeClause:
+		m.matchRangeClause(state, n, accept)
+	case opRangeHeader:
+		m.matchRangeHeader(state, n, accept)
+	case opRangeKeyHeader:
+		m.matchRangeKeyHeader(state, inst, n, accept)
+	case opRangeKeyValueHeader:
+		m.matchRangeKeyValueHeader(state, inst, n, accept)
 	default:
-		state.capture = state.capture[:0]
+		m.resetCapture(state)
 		if m.matchNodeWithInst(state, inst, n) {
 			accept(MatchData{
 				Capture: state.capture,
@@ -75,24 +119,32 @@ func (m *matcher) MatchNode(state *MatcherState, n ast.Node, accept func(MatchDa
 }
 
 func (m *matcher) walkDeclSlice(state *MatcherState, decls []ast.Decl, accept func(MatchData)) {
-	m.walkNodeSlice(state, declSlice(decls), accept)
+	slice := m.allocNodeSlice(state)
+	slice.assignDeclSlice(decls)
+	m.walkNodeSlice(state, slice, accept)
 }
 
 func (m *matcher) walkExprSlice(state *MatcherState, exprs []ast.Expr, accept func(MatchData)) {
-	m.walkNodeSlice(state, ExprSlice(exprs), accept)
+	slice := m.allocNodeSlice(state)
+	slice.assignExprSlice(exprs)
+	m.walkNodeSlice(state, slice, accept)
 }
 
 func (m *matcher) walkStmtSlice(state *MatcherState, stmts []ast.Stmt, accept func(MatchData)) {
-	m.walkNodeSlice(state, stmtSlice(stmts), accept)
+	slice := m.allocNodeSlice(state)
+	slice.assignStmtSlice(stmts)
+	m.walkNodeSlice(state, slice, accept)
 }
 
-func (m *matcher) walkNodeSlice(state *MatcherState, nodes NodeSlice, accept func(MatchData)) {
+func (m *matcher) walkNodeSlice(state *MatcherState, nodes *NodeSlice, accept func(MatchData)) {
 	sliceLen := nodes.Len()
 	from := 0
+	tmpSlice := m.allocNodeSlice(state)
 	for {
 		state.pc = 1 // FIXME: this is a kludge
-		state.capture = state.capture[:0]
-		matched, offset := m.matchNodeList(state, nodes.slice(from, sliceLen), true)
+		m.resetCapture(state)
+		nodes.SliceInto(tmpSlice, from, sliceLen)
+		matched, offset := m.matchNodeList(state, tmpSlice, true)
 		if matched == nil {
 			break
 		}
@@ -114,6 +166,7 @@ func (m *matcher) matchNamed(state *MatcherState, name string, n ast.Node) bool 
 		state.capture = append(state.capture, CapturedNode{Name: name, Node: n})
 		return true
 	}
+
 	return equalNodes(prev, n)
 }
 
@@ -216,6 +269,15 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 	case opNonVariadicCallExpr:
 		n, ok := n.(*ast.CallExpr)
 		return ok && !n.Ellipsis.IsValid() && m.matchNode(state, n.Fun) && m.matchArgList(state, n.Args)
+	case opMaybeVariadicCallExpr:
+		n, ok := n.(*ast.CallExpr)
+		if !ok {
+			return false
+		}
+		if n.Ellipsis.IsValid() && len(n.Args) <= int(inst.value) {
+			return false
+		}
+		return m.matchNode(state, n.Fun) && m.matchArgList(state, n.Args)
 	case opCallExpr:
 		n, ok := n.(*ast.CallExpr)
 		return ok && m.matchNode(state, n.Fun) && m.matchArgList(state, n.Args)
@@ -261,6 +323,10 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 		n, ok := n.(*ast.IndexExpr)
 		return ok && m.matchNode(state, n.X) && m.matchNode(state, n.Index)
 
+	case opIndexListExpr:
+		n, ok := n.(*typeparams.IndexListExpr)
+		return ok && m.matchNode(state, n.X) && m.matchExprSlice(state, n.Indices)
+
 	case opKeyValueExpr:
 		n, ok := n.(*ast.KeyValueExpr)
 		return ok && m.matchNode(state, n.Key) && m.matchNode(state, n.Value)
@@ -291,15 +357,30 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 	case opVoidFuncType:
 		n, ok := n.(*ast.FuncType)
 		return ok && n.Results == nil && m.matchNode(state, n.Params)
+	case opGenericVoidFuncType:
+		n, ok := n.(*ast.FuncType)
+		return ok && n.Results == nil && m.matchNode(state, typeparams.ForFuncType(n)) && m.matchNode(state, n.Params)
 	case opFuncType:
 		n, ok := n.(*ast.FuncType)
 		return ok && m.matchNode(state, n.Params) && m.matchNode(state, n.Results)
+	case opGenericFuncType:
+		n, ok := n.(*ast.FuncType)
+		return ok && m.matchNode(state, typeparams.ForFuncType(n)) && m.matchNode(state, n.Params) && m.matchNode(state, n.Results)
 	case opStructType:
 		n, ok := n.(*ast.StructType)
 		return ok && m.matchNode(state, n.Fields)
 	case opInterfaceType:
 		n, ok := n.(*ast.InterfaceType)
 		return ok && m.matchNode(state, n.Methods)
+	case opEfaceType:
+		switch n := n.(type) {
+		case *ast.InterfaceType:
+			return len(n.Methods.List) == 0
+		case *ast.Ident:
+			return n.Name == "any"
+		default:
+			return false
+		}
 
 	case opCompositeLit:
 		n, ok := n.(*ast.CompositeLit)
@@ -377,11 +458,11 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 	case opIfNamedOptStmt:
 		n, ok := n.(*ast.IfStmt)
 		return ok && n.Else == nil && m.matchNode(state, n.Body) &&
-			m.matchNamed(state, m.stringValue(inst), toStmtSlice(n.Cond, n.Init))
+			m.matchNamed(state, m.stringValue(inst), m.toStmtSlice(state, n.Cond, n.Init))
 	case opIfNamedOptElseStmt:
 		n, ok := n.(*ast.IfStmt)
 		return ok && n.Else != nil && m.matchNode(state, n.Body) && m.matchNode(state, n.Else) &&
-			m.matchNamed(state, m.stringValue(inst), toStmtSlice(n.Cond, n.Init))
+			m.matchNamed(state, m.stringValue(inst), m.toStmtSlice(state, n.Cond, n.Init))
 
 	case opCaseClause:
 		n, ok := n.(*ast.CaseClause)
@@ -495,13 +576,17 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 		_, ok := n.(*ast.EmptyStmt)
 		return ok
 
+	case opSimpleFuncDecl:
+		n, ok := n.(*ast.FuncDecl)
+		return ok && n.Recv == nil && n.Body != nil && typeparams.ForFuncType(n.Type) == nil &&
+			n.Name.Name == m.stringValue(inst) && m.matchNode(state, n.Type) && m.matchNode(state, n.Body)
 	case opFuncDecl:
 		n, ok := n.(*ast.FuncDecl)
 		return ok && n.Recv == nil && n.Body != nil &&
 			m.matchNode(state, n.Name) && m.matchNode(state, n.Type) && m.matchNode(state, n.Body)
 	case opFuncProtoDecl:
 		n, ok := n.(*ast.FuncDecl)
-		return ok && n.Recv == nil && n.Body == nil &&
+		return ok && n.Recv == nil && n.Body == nil && typeparams.ForFuncType(n.Type) == nil &&
 			m.matchNode(state, n.Name) && m.matchNode(state, n.Type)
 	case opMethodDecl:
 		n, ok := n.(*ast.FuncDecl)
@@ -529,9 +614,15 @@ func (m *matcher) matchNodeWithInst(state *MatcherState, inst instruction, n ast
 		return ok && len(n.Values) != 0 &&
 			m.matchIdentSlice(state, n.Names) && m.matchNode(state, n.Type) && m.matchExprSlice(state, n.Values)
 
+	case opSimpleTypeSpec:
+		n, ok := n.(*ast.TypeSpec)
+		return ok && !n.Assign.IsValid() && typeparams.ForTypeSpec(n) == nil && n.Name.Name == m.stringValue(inst) && m.matchNode(state, n.Type)
 	case opTypeSpec:
 		n, ok := n.(*ast.TypeSpec)
 		return ok && !n.Assign.IsValid() && m.matchNode(state, n.Name) && m.matchNode(state, n.Type)
+	case opGenericTypeSpec:
+		n, ok := n.(*ast.TypeSpec)
+		return ok && !n.Assign.IsValid() && m.matchNode(state, n.Name) && m.matchNode(state, typeparams.ForTypeSpec(n)) && m.matchNode(state, n.Type)
 	case opTypeAliasSpec:
 		n, ok := n.(*ast.TypeSpec)
 		return ok && n.Assign.IsValid() && m.matchNode(state, n.Name) && m.matchNode(state, n.Type)
@@ -586,33 +677,43 @@ func (m *matcher) matchArgList(state *MatcherState, exprs []ast.Expr) bool {
 }
 
 func (m *matcher) matchStmtSlice(state *MatcherState, stmts []ast.Stmt) bool {
-	matched, _ := m.matchNodeList(state, stmtSlice(stmts), false)
+	slice := m.allocNodeSlice(state)
+	slice.assignStmtSlice(stmts)
+	matched, _ := m.matchNodeList(state, slice, false)
 	return matched != nil
 }
 
 func (m *matcher) matchExprSlice(state *MatcherState, exprs []ast.Expr) bool {
-	matched, _ := m.matchNodeList(state, ExprSlice(exprs), false)
+	slice := m.allocNodeSlice(state)
+	slice.assignExprSlice(exprs)
+	matched, _ := m.matchNodeList(state, slice, false)
 	return matched != nil
 }
 
 func (m *matcher) matchFieldSlice(state *MatcherState, fields []*ast.Field) bool {
-	matched, _ := m.matchNodeList(state, fieldSlice(fields), false)
+	slice := m.allocNodeSlice(state)
+	slice.assignFieldSlice(fields)
+	matched, _ := m.matchNodeList(state, slice, false)
 	return matched != nil
 }
 
 func (m *matcher) matchIdentSlice(state *MatcherState, idents []*ast.Ident) bool {
-	matched, _ := m.matchNodeList(state, identSlice(idents), false)
+	slice := m.allocNodeSlice(state)
+	slice.assignIdentSlice(idents)
+	matched, _ := m.matchNodeList(state, slice, false)
 	return matched != nil
 }
 
 func (m *matcher) matchSpecSlice(state *MatcherState, specs []ast.Spec) bool {
-	matched, _ := m.matchNodeList(state, specSlice(specs), false)
+	slice := m.allocNodeSlice(state)
+	slice.assignSpecSlice(specs)
+	matched, _ := m.matchNodeList(state, slice, false)
 	return matched != nil
 }
 
 // matchNodeList matches two lists of nodes. It uses a common algorithm to match
 // wildcard patterns with any number of nodes without recursion.
-func (m *matcher) matchNodeList(state *MatcherState, nodes NodeSlice, partial bool) (matched ast.Node, offset int) {
+func (m *matcher) matchNodeList(state *MatcherState, nodes *NodeSlice, partial bool) (matched ast.Node, offset int) {
 	sliceLen := nodes.Len()
 	inst := m.nextInst(state)
 	if inst.op == opEnd {
@@ -672,7 +773,9 @@ func (m *matcher) matchNodeList(state *MatcherState, nodes NodeSlice, partial bo
 		case "", "_":
 			return true
 		}
-		return m.matchNamed(state, wildName, nodes.slice(wildStart, j))
+		slice := m.allocNodeSlice(state)
+		nodes.SliceInto(slice, wildStart, j)
+		return m.matchNamed(state, wildName, slice)
 	}
 	for ; inst.op != opEnd || j < sliceLen; inst = m.nextInst(state) {
 		if inst.op != opEnd {
@@ -721,7 +824,101 @@ func (m *matcher) matchNodeList(state *MatcherState, nodes NodeSlice, partial bo
 	if !wouldMatch() {
 		return nil, -1
 	}
-	return nodes.slice(partialStart, partialEnd), partialEnd + 1
+	slice := m.allocNodeSlice(state)
+	nodes.SliceInto(slice, partialStart, partialEnd)
+	return slice, partialEnd + 1
+}
+
+func (m *matcher) matchRangeClause(state *MatcherState, n ast.Node, accept func(MatchData)) {
+	rng, ok := n.(*ast.RangeStmt)
+	if !ok {
+		return
+	}
+	m.resetCapture(state)
+	if !m.matchNode(state, rng.X) {
+		return
+	}
+
+	// Now the fun begins: there is no Range pos in RangeStmt, so we need
+	// to make our best guess to find it.
+	// See https://github.com/golang/go/issues/50429
+	//
+	// In gogrep we don't have []byte sources available, and
+	// it would be cumbersome to walk bytes manually to find the "range" keyword.
+	// What we can do is to hope that code is:
+	// 1. Properly gofmt-ed.
+	// 2. There are no some freefloating artifacts between TokPos and "range".
+	var from int
+	if rng.TokPos != token.NoPos {
+		// Start from the end of the '=' or ':=' token.
+		from = int(rng.TokPos + 1)
+		if rng.Tok == token.DEFINE {
+			from++ // ':=' is 1 byte longer that '='
+		}
+		// Now suppose we have 'for _, x := range xs {...}'
+		// If this is true, then `xs.Pos.Offset - len(" range ")` would
+		// lead us to the current 'from' value.
+		// It's syntactically correct to have `:=range`, so we don't
+		// unconditionally add a space here.
+		if int(rng.X.Pos())-len(" range ") == from {
+			// This means that there is exactly one space between Tok and "range".
+			// There are some afwul cases where this might break, but let's
+			// not think about them too much.
+			from += len(" ")
+		}
+	} else {
+		// `for range xs {...}` form.
+		// There should be at least 1 space between "for" and "range".
+		from = int(rng.For) + len("for ")
+	}
+
+	state.partial.X = rng
+	state.partial.from = token.Pos(from)
+	state.partial.to = rng.X.End()
+
+	accept(MatchData{
+		Capture: state.capture,
+		Node:    &state.partial,
+	})
+}
+
+func (m *matcher) matchRangeHeader(state *MatcherState, n ast.Node, accept func(MatchData)) {
+	rng, ok := n.(*ast.RangeStmt)
+	if ok && rng.Key == nil && rng.Value == nil && m.matchNode(state, rng.X) {
+		m.setRangeHeaderPos(state, rng)
+		accept(MatchData{
+			Capture: state.capture,
+			Node:    &state.partial,
+		})
+	}
+}
+
+func (m *matcher) matchRangeKeyHeader(state *MatcherState, inst instruction, n ast.Node, accept func(MatchData)) {
+	rng, ok := n.(*ast.RangeStmt)
+	if ok && rng.Key != nil && rng.Value == nil && token.Token(inst.value) == rng.Tok && m.matchNode(state, rng.Key) && m.matchNode(state, rng.X) {
+		m.setRangeHeaderPos(state, rng)
+		accept(MatchData{
+			Capture: state.capture,
+			Node:    &state.partial,
+		})
+	}
+}
+
+func (m *matcher) matchRangeKeyValueHeader(state *MatcherState, inst instruction, n ast.Node, accept func(MatchData)) {
+	rng, ok := n.(*ast.RangeStmt)
+	if ok && rng.Key != nil && rng.Value != nil && token.Token(inst.value) == rng.Tok && m.matchNode(state, rng.Key) && m.matchNode(state, rng.Value) && m.matchNode(state, rng.X) {
+		m.setRangeHeaderPos(state, rng)
+		accept(MatchData{
+			Capture: state.capture,
+			Node:    &state.partial,
+		})
+	}
+}
+
+func (m *matcher) setRangeHeaderPos(state *MatcherState, rng *ast.RangeStmt) {
+	state.partial.X = rng
+	state.partial.from = rng.Pos()
+	state.partial.to = rng.Body.Pos() - 1
 }
 
 func findNamed(capture []CapturedNode, name string) (ast.Node, bool) {
@@ -772,58 +969,56 @@ func equalNodes(x, y ast.Node) bool {
 	if x == nil || y == nil {
 		return x == y
 	}
-	switch x := x.(type) {
-	case stmtSlice:
-		y, ok := y.(stmtSlice)
-		if !ok || len(x) != len(y) {
+	if x, ok := x.(*NodeSlice); ok {
+		y, ok := y.(*NodeSlice)
+		if !ok || x.Kind != y.Kind || x.Len() != y.Len() {
 			return false
 		}
-		for i := range x {
-			if !astequal.Stmt(x[i], y[i]) {
-				return false
+		switch x.Kind {
+		case ExprNodeSlice:
+			for i, n1 := range x.exprSlice {
+				n2 := y.exprSlice[i]
+				if !astequal.Expr(n1, n2) {
+					return false
+				}
+			}
+		case StmtNodeSlice:
+			for i, n1 := range x.stmtSlice {
+				n2 := y.stmtSlice[i]
+				if !astequal.Stmt(n1, n2) {
+					return false
+				}
+			}
+		case FieldNodeSlice:
+			for i, n1 := range x.fieldSlice {
+				n2 := y.fieldSlice[i]
+				if !astequal.Node(n1, n2) {
+					return false
+				}
+			}
+		case IdentNodeSlice:
+			for i, n1 := range x.identSlice {
+				n2 := y.identSlice[i]
+				if n1.Name != n2.Name {
+					return false
+				}
+			}
+		case SpecNodeSlice:
+			for i, n1 := range x.specSlice {
+				n2 := y.specSlice[i]
+				if !astequal.Node(n1, n2) {
+					return false
+				}
+			}
+		case DeclNodeSlice:
+			for i, n1 := range x.declSlice {
+				n2 := y.declSlice[i]
+				if !astequal.Decl(n1, n2) {
+					return false
+				}
 			}
 		}
 		return true
-	case ExprSlice:
-		y, ok := y.(ExprSlice)
-		if !ok || len(x) != len(y) {
-			return false
-		}
-		for i := range x {
-			if !astequal.Expr(x[i], y[i]) {
-				return false
-			}
-		}
-		return true
-	case declSlice:
-		y, ok := y.(declSlice)
-		if !ok || len(x) != len(y) {
-			return false
-		}
-		for i := range x {
-			if !astequal.Decl(x[i], y[i]) {
-				return false
-			}
-		}
-		return true
-
-	default:
-		return astequal.Node(x, y)
 	}
-}
-
-func toStmtSlice(nodes ...ast.Node) stmtSlice {
-	var stmts []ast.Stmt
-	for _, node := range nodes {
-		switch x := node.(type) {
-		case nil:
-		case ast.Stmt:
-			stmts = append(stmts, x)
-		case ast.Expr:
-			stmts = append(stmts, &ast.ExprStmt{X: x})
-		default:
-			panic(fmt.Sprintf("unexpected node type: %T", x))
-		}
-	}
-	return stmtSlice(stmts)
+	return astequal.Node(x, y)
 }

@@ -13,6 +13,7 @@ var astTypes = map[string]reflect.Type{
 	"RangeStmt":      reflect.TypeOf(ast.RangeStmt{}),
 	"AssignStmt":     reflect.TypeOf(ast.AssignStmt{}),
 	"IndexExpr":      reflect.TypeOf(ast.IndexExpr{}),
+	"IndexListExpr":  reflect.TypeOf(ast.IndexListExpr{}),
 	"Ident":          reflect.TypeOf(ast.Ident{}),
 	"ValueSpec":      reflect.TypeOf(ast.ValueSpec{}),
 	"GenDecl":        reflect.TypeOf(ast.GenDecl{}),
@@ -145,7 +146,7 @@ func NodeToAST(node Node, state State) interface{} {
 		default:
 			return v
 		}
-	case Builtin, Any, Object, Function, Not, Or:
+	case Builtin, Any, Object, Symbol, Not, Or:
 		panic("XXX")
 	case List:
 		if (node == List{}) {
