@@ -1,13 +1,15 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/go-toolsmith/astp)](https://goreportcard.com/report/github.com/go-toolsmith/astp)
-[![GoDoc](https://godoc.org/github.com/go-toolsmith/astp?status.svg)](https://godoc.org/github.com/go-toolsmith/astp)
-[![Build Status](https://travis-ci.org/go-toolsmith/astp.svg?branch=master)](https://travis-ci.org/go-toolsmith/astp)
-
-
 # astp
 
-Package astp provides AST predicates.
+[![build-img]][build-url]
+[![pkg-img]][pkg-url]
+[![reportcard-img]][reportcard-url]
+[![version-img]][version-url]
+
+Package `astp` provides AST predicates.
 
 ## Installation:
+
+Go version 1.16+
 
 ```bash
 go get github.com/go-toolsmith/astp
@@ -37,3 +39,16 @@ func main() {
 	}
 }
 ```
+
+## License
+
+[MIT License](LICENSE).
+
+[build-img]: https://github.com/go-toolsmith/astp/workflows/build/badge.svg
+[build-url]: https://github.com/go-toolsmith/astp/actions
+[pkg-img]: https://pkg.go.dev/badge/go-toolsmith/astp
+[pkg-url]: https://pkg.go.dev/github.com/go-toolsmith/astp
+[reportcard-img]: https://goreportcard.com/badge/go-toolsmith/astp
+[reportcard-url]: https://goreportcard.com/report/go-toolsmith/astp
+[version-img]: https://img.shields.io/github/v/release/go-toolsmith/astp
+[version-url]: https://github.com/go-toolsmith/astp/releases

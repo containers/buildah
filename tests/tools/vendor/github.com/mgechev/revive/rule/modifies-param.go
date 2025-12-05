@@ -11,7 +11,7 @@ import (
 type ModifiesParamRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ModifiesParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ModifiesParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -24,7 +24,7 @@ func (r *ModifiesParamRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fail
 }
 
 // Name returns the rule name.
-func (r *ModifiesParamRule) Name() string {
+func (*ModifiesParamRule) Name() string {
 	return "modifies-parameter"
 }
 

@@ -1,11 +1,7 @@
-# goreleaser.yml
-# https://github.com/goreleaser/goreleaser 
-
 project_name: misspell
 
 builds:
-  -
-    main: cmd/misspell/main.go
+  - main: cmd/misspell/main.go
     binary: misspell
     ldflags: -s -w -X main.version={{.Version}}
     goos:
@@ -14,22 +10,19 @@ builds:
       - windows
     goarch:
       - amd64
+      - arm64
     env:
       - CGO_ENABLED=0
-    ignore:
-      - goos: darwin
-        goarch: 386
-      - goos: windows
-        goarch: 386
 
-archive:
-  name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  replacements:
-    amd64: 64bit
-    386: 32bit
-    darwin: mac
-  files:
-    - none*
+archives:
+  - format: tar.gz
+    wrap_in_directory: true
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: '{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - LICENSE
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"

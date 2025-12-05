@@ -11,8 +11,6 @@ import (
 	"go/types"
 
 	"honnef.co/go/tools/analysis/lint"
-
-	"golang.org/x/exp/typeparams"
 )
 
 // MethodValue returns the Function implementing method sel, building
@@ -24,13 +22,12 @@ import (
 // Thread-safe.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
 func (prog *Program) MethodValue(sel *types.Selection) *Function {
 	if sel.Kind() != types.MethodVal {
 		panic(fmt.Sprintf("MethodValue(%s) kind != MethodVal", sel))
 	}
 	T := sel.Recv()
-	if isInterface(T) {
+	if types.IsInterface(T) {
 		return nil // abstract method
 	}
 	if prog.mode&LogSource != 0 {
@@ -46,7 +43,6 @@ func (prog *Program) MethodValue(sel *types.Selection) *Function {
 // LookupMethod returns the implementation of the method of type T
 // identified by (pkg, name).  It returns nil if the method exists but
 // is abstract, and panics if T has no such method.
-//
 func (prog *Program) LookupMethod(T types.Type, pkg *types.Package, name string) *Function {
 	sel := prog.MethodSets.MethodSet(T).Lookup(pkg, name)
 	if sel == nil {
@@ -64,7 +60,7 @@ type methodSet struct {
 // Precondition: !isInterface(T).
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 func (prog *Program) createMethodSet(T types.Type) *methodSet {
-	mset, ok := prog.methodSets.At(T).(*methodSet)
+	mset, ok := prog.methodSets.At(T)
 	if !ok {
 		mset = &methodSet{mapping: make(map[string]*Function)}
 		prog.methodSets.Set(T, mset)
@@ -104,14 +100,13 @@ func (prog *Program) addMethod(mset *methodSet, sel *types.Selection) *Function 
 // Thread-safe.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
 func (prog *Program) RuntimeTypes() []types.Type {
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
 
 	var res []types.Type
-	prog.methodSets.Iterate(func(T types.Type, v interface{}) {
-		if v.(*methodSet).complete {
+	prog.methodSets.Iterate(func(T types.Type, v *methodSet) {
+		if v.complete {
 			res = append(res, T)
 		}
 	})
@@ -121,7 +116,7 @@ func (prog *Program) RuntimeTypes() []types.Type {
 // declaredFunc returns the concrete function/method denoted by obj.
 // Panic ensues if there is none.
 func (prog *Program) declaredFunc(obj *types.Func) *Function {
-	if origin := typeparams.OriginMethod(obj); origin != obj {
+	if origin := obj.Origin(); origin != obj {
 		// Calling method on instantiated type, create a wrapper that calls the generic type's method
 		base := prog.packageLevelValue(origin)
 		return makeInstance(prog, base.(*Function), obj.Type().(*types.Signature), nil)
@@ -148,7 +143,6 @@ func (prog *Program) declaredFunc(obj *types.Func) *Function {
 // TODO(adonovan): make this faster.  It accounts for 20% of SSA build time.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
 func (prog *Program) needMethodsOf(T types.Type) {
 	prog.methodsMu.Lock()
 	prog.needMethods(T, false)
@@ -159,10 +153,9 @@ func (prog *Program) needMethodsOf(T types.Type) {
 // Recursive case: skip => don't create methods for T.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
-//
 func (prog *Program) needMethods(T types.Type, skip bool) {
 	// Each package maintains its own set of types it has visited.
-	if prevSkip, ok := prog.runtimeTypes.At(T).(bool); ok {
+	if prevSkip, ok := prog.runtimeTypes.At(T); ok {
 		// needMethods(T) was previously called
 		if !prevSkip || skip {
 			return // already seen, with same or false 'skip' value
@@ -172,7 +165,7 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 
 	tmset := prog.MethodSets.MethodSet(T)
 
-	if !skip && !isInterface(T) && tmset.Len() > 0 {
+	if !skip && !types.IsInterface(T) && tmset.Len() > 0 {
 		// Create methods of T.
 		mset := prog.createMethodSet(T)
 		if !mset.complete {
@@ -195,7 +188,7 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 	case *types.Basic:
 		// nop
 
-	case *types.Interface, *typeparams.TypeParam:
+	case *types.Interface, *types.TypeParam:
 		// nop---handled by recursion over method set.
 
 	case *types.Pointer:
@@ -241,6 +234,9 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 		for i, n := 0, t.Len(); i < n; i++ {
 			prog.needMethods(t.At(i).Type(), false)
 		}
+
+	case *types.Alias:
+		prog.needMethods(types.Unalias(t), false)
 
 	default:
 		lint.ExhaustiveTypeSwitch(T)

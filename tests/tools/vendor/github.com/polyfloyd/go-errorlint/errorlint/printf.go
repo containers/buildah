@@ -7,27 +7,15 @@ import (
 	"strings"
 )
 
-func verbOrder(verbs []verb, numArgs int) [][]verb {
-	orderedVerbs := make([][]verb, numArgs)
-	i := 0
-	for _, v := range verbs {
-		if v.index != -1 {
-			i = v.index - 1
-		}
-		orderedVerbs[i] = append(orderedVerbs[i], v)
-		verbs = verbs[1:]
-		i++
-	}
-	return orderedVerbs
-}
-
 type verb struct {
-	format string
-	index  int
+	format       string
+	formatOffset int
+	index        int
 }
 
 type printfParser struct {
 	str string
+	at  int
 }
 
 func (pp *printfParser) ParseAllVerbs() ([]verb, error) {
@@ -53,27 +41,31 @@ func (pp *printfParser) parseVerb() (*verb, error) {
 	}
 
 	index := -1
-	switch pp.peek() {
-	case '%':
-		pp.next()
-		return pp.parseVerb()
-	case '+', '#':
-		pp.next()
-	case '[':
-		var err error
-		index, err = pp.parseIndex()
-		if err != nil {
-			return nil, err
+	for {
+		switch pp.peek() {
+		case '%':
+			pp.next()
+			return pp.parseVerb()
+		case '+', '#':
+			pp.next()
+			continue
+		case '[':
+			var err error
+			index, err = pp.parseIndex()
+			if err != nil {
+				return nil, err
+			}
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.':
+			pp.parsePrecision()
+		case 0:
+			return nil, io.EOF
 		}
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.':
-		pp.parsePrecision()
-	case 0:
-		return nil, io.EOF
+		break
 	}
 
 	format := pp.next()
 
-	return &verb{format: string(format), index: index}, nil
+	return &verb{format: string(format), formatOffset: pp.at - 1, index: index}, nil
 }
 
 func (pp *printfParser) parseIndex() (int, error) {
@@ -89,6 +81,7 @@ func (pp *printfParser) parseIndex() (int, error) {
 		return -1, err
 	}
 	pp.str = pp.str[end+1:]
+	pp.at += end + 1
 	return index, nil
 }
 
@@ -107,6 +100,7 @@ func (pp *printfParser) skipToPercent() error {
 		return io.EOF
 	}
 	pp.str = pp.str[i:]
+	pp.at += i
 	return nil
 }
 
@@ -123,5 +117,6 @@ func (pp *printfParser) next() rune {
 	}
 	r := rune(pp.str[0])
 	pp.str = pp.str[1:]
+	pp.at++
 	return r
 }

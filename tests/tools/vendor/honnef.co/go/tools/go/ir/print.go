@@ -14,6 +14,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 
 	"honnef.co/go/tools/go/types/typeutil"
 )
@@ -23,7 +24,6 @@ import (
 // Functions (including methods) and Globals use RelString and
 // all types are displayed with relType, so that only cross-package
 // references are package-qualified.
-//
 func relName(v Value, i Instruction) string {
 	if v == nil {
 		return "<nil>"
@@ -41,6 +41,14 @@ func relName(v Value, i Instruction) string {
 
 func relType(t types.Type, from *types.Package) string {
 	return types.TypeString(t, types.RelativeTo(from))
+}
+
+func relTerm(term *types.Term, from *types.Package) string {
+	s := relType(term.Type(), from)
+	if term.Tilde() {
+		return "~" + s
+	}
+	return s
 }
 
 func relString(m Member, from *types.Package) string {
@@ -174,6 +182,7 @@ func (v *ChangeType) String() string          { return printConv("ChangeType", v
 func (v *Convert) String() string             { return printConv("Convert", v, v.X) }
 func (v *ChangeInterface) String() string     { return printConv("ChangeInterface", v, v.X) }
 func (v *SliceToArrayPointer) String() string { return printConv("SliceToArrayPointer", v, v.X) }
+func (v *SliceToArray) String() string        { return printConv("SliceToArray", v, v.X) }
 func (v *MakeInterface) String() string       { return printConv("MakeInterface", v, v.X) }
 
 func (v *MakeClosure) String() string {
@@ -288,8 +297,8 @@ func (s *Jump) String() string {
 		block = s.block.Succs[0].Index
 	}
 	str := fmt.Sprintf("Jump → b%d", block)
-	if s.Comment != "" {
-		str = fmt.Sprintf("%s # %s", str, s.Comment)
+	if s.Comment() != "" {
+		str = fmt.Sprintf("%s # %s", str, s.Comment())
 	}
 	return str
 }
@@ -322,6 +331,31 @@ func (s *ConstantSwitch) String() string {
 	fmt.Fprint(&b, " →")
 	for _, succ := range s.block.Succs {
 		fmt.Fprintf(&b, " b%d", succ.Index)
+	}
+	return b.String()
+}
+
+func (v *CompositeValue) String() string {
+	var b bytes.Buffer
+	from := v.Parent().pkg()
+	fmt.Fprintf(&b, "CompositeValue <%s>", relType(v.Type(), from))
+	if v.NumSet >= len(v.Values) {
+		// All values provided
+		fmt.Fprint(&b, " [all]")
+	} else if v.Bitmap.BitLen() == 0 {
+		// No values provided
+		fmt.Fprint(&b, " [none]")
+	} else {
+		// Some values provided
+		bits := []byte(fmt.Sprintf("%0*b", len(v.Values), &v.Bitmap))
+		for i := 0; i < len(bits)/2; i++ {
+			o := len(bits) - 1 - i
+			bits[i], bits[o] = bits[o], bits[i]
+		}
+		fmt.Fprintf(&b, " [%s]", bits)
+	}
+	for _, vv := range v.Values {
+		fmt.Fprintf(&b, " %s", relName(vv, v))
 	}
 	return b.String()
 }
@@ -373,7 +407,12 @@ func (recv *Recv) String() string {
 }
 
 func (s *Defer) String() string {
-	return printCall(&s.Call, "Defer", s)
+	prefix := "Defer "
+	if s._DeferStack != nil {
+		prefix += "[" + relName(s._DeferStack, s) + "] "
+	}
+	c := printCall(&s.Call, prefix, s)
+	return c
 }
 
 func (s *Select) String() string {
@@ -479,4 +518,22 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 	}
 
 	fmt.Fprintf(buf, "\n")
+}
+
+func (v *MultiConvert) String() string {
+	from := v.Parent().Pkg.Pkg
+
+	var b strings.Builder
+	b.WriteString(printConv("MultiConvert", v, v.X))
+	b.WriteString(" [")
+	for i, s := range v.from.Terms {
+		for j, d := range v.to.Terms {
+			if i != 0 || j != 0 {
+				b.WriteString(" | ")
+			}
+			fmt.Fprintf(&b, "%s -> %s", relTerm(s, from), relTerm(d, from))
+		}
+	}
+	b.WriteString("]")
+	return b.String()
 }

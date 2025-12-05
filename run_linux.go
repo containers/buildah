@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -41,7 +42,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -309,7 +309,7 @@ rootless=%d
 		if err = ioutils.AtomicWriteFile(containerenvPath, []byte(containerenv), 0755); err != nil {
 			return err
 		}
-		if err := label.Relabel(containerenvPath, b.MountLabel, false); err != nil {
+		if err := relabel(containerenvPath, b.MountLabel, false); err != nil {
 			return err
 		}
 
@@ -354,6 +354,33 @@ rootless=%d
 	}()
 
 	defer b.cleanupTempVolumes()
+
+	// Handle mount flags that request that the source locations for "bind" mountpoints be
+	// relabeled, and filter those flags out of the list of mount options we pass to the
+	// runtime.
+	for i := range spec.Mounts {
+		switch spec.Mounts[i].Type {
+		default:
+			continue
+		case "bind", "rbind":
+			// all good, keep going
+		}
+		zflag := ""
+		for _, opt := range spec.Mounts[i].Options {
+			if opt == "z" || opt == "Z" {
+				zflag = opt
+			}
+		}
+		if zflag == "" {
+			continue
+		}
+		spec.Mounts[i].Options = slices.DeleteFunc(spec.Mounts[i].Options, func(opt string) bool {
+			return opt == "z" || opt == "Z"
+		})
+		if err := relabel(spec.Mounts[i].Source, b.MountLabel, zflag == "z"); err != nil {
+			return fmt.Errorf("setting file label %q on %q: %w", b.MountLabel, spec.Mounts[i].Source, err)
+		}
+	}
 
 	switch isolation {
 	case define.IsolationOCI:
@@ -882,19 +909,22 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			options = append(options, "rw")
 		}
 		if foundz {
-			if err := label.Relabel(host, mountLabel, true); err != nil {
+			if err := relabel(host, mountLabel, true); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "z" })
 		}
 		if foundZ {
-			if err := label.Relabel(host, mountLabel, false); err != nil {
+			if err := relabel(host, mountLabel, false); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "Z" })
 		}
 		if foundU {
 			if err := chown.ChangeHostPathOwnership(host, true, idMaps.processUID, idMaps.processGID); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "U" })
 		}
 		if foundO {
 			if (upperDir != "" && workDir == "") || (workDir != "" && upperDir == "") {
@@ -922,7 +952,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 				// Backport note: Cannot use `GraphOpts: slices.Clone(b.store.GraphOptions()),`
 				// here because "golang.org/x/exp/slices" requires golang 1.18+ which is not
 				// compatible with the targets of this release branch.
-				GraphOpts:              graphOptsCopy,
+				GraphOpts: graphOptsCopy,
 			}
 
 			overlayMount, err := overlay.MountWithOptions(contentDir, host, container, &overlayOpts)
@@ -1023,9 +1053,6 @@ func setupCapAdd(g *generate.Generator, caps ...string) error {
 		if err := g.AddProcessCapabilityPermitted(cap); err != nil {
 			return fmt.Errorf("adding %q to the permitted capability set: %w", cap, err)
 		}
-		if err := g.AddProcessCapabilityAmbient(cap); err != nil {
-			return fmt.Errorf("adding %q to the ambient capability set: %w", cap, err)
-		}
 	}
 	return nil
 }
@@ -1040,9 +1067,6 @@ func setupCapDrop(g *generate.Generator, caps ...string) error {
 		}
 		if err := g.DropProcessCapabilityPermitted(cap); err != nil {
 			return fmt.Errorf("removing %q from the permitted capability set: %w", cap, err)
-		}
-		if err := g.DropProcessCapabilityAmbient(cap); err != nil {
-			return fmt.Errorf("removing %q from the ambient capability set: %w", cap, err)
 		}
 	}
 	return nil

@@ -1,7 +1,7 @@
 /*
 Package pattern implements a simple language for pattern matching Go ASTs.
 
-Design decisions and trade-offs
+# Design decisions and trade-offs
 
 The language is designed specifically for the task of filtering ASTs
 to simplify the implementation of analyses in staticcheck.
@@ -14,7 +14,7 @@ Furthermore, it is fully expected that the majority of analyses will still requi
 to further process the filtered AST, to make use of type information and to enforce complex invariants.
 It is not our goal to design a scripting language for writing entire checks in.
 
-The language
+# The language
 
 At its core, patterns are a representation of Go ASTs, allowing for the use of placeholders to enable pattern matching.
 Their syntax is inspired by LISP and Haskell, but unlike LISP, the core unit of patterns isn't the list, but the node.
@@ -60,13 +60,13 @@ Thus, the two following forms have identical matching behavior:
 This section serves as an overview of the language's syntax.
 More in-depth explanations of the matching behavior as well as an exhaustive list of node types follows in the coming sections.
 
-Pattern matching
+# Pattern matching
 
-TODO write about pattern matching
+# TODO write about pattern matching
 
 - inspired by haskell syntax, but much, much simpler and naive
 
-Node types
+# Node types
 
 The language contains two kinds of nodes: those that map to nodes in the AST, and those that implement additional logic.
 
@@ -246,7 +246,7 @@ The Not node negates a match. For example, (Not (Ident _)) will match all nodes 
 
 ChanDir(0)
 
-Automatic unnesting of AST nodes
+# Automatic unnesting of AST nodes
 
 The Go AST has several types of nodes that wrap other nodes.
 To simplify matching, we automatically unwrap some of these nodes.
@@ -268,6 +268,5 @@ On the flip-side, there is no way to specifically match these wrapper nodes.
 For example, there is no way of searching for unnecessary parentheses, like in the following piece of Go code:
 
 	((x)) += 2
-
 */
 package pattern

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 
+	"github.com/mgechev/revive/internal/typeparams"
 	"github.com/mgechev/revive/lint"
 )
 
@@ -11,7 +12,7 @@ import (
 type ReceiverNamingRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ReceiverNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ReceiverNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -28,7 +29,7 @@ func (r *ReceiverNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fai
 }
 
 // Name returns the rule name.
-func (r *ReceiverNamingRule) Name() string {
+func (*ReceiverNamingRule) Name() string {
 	return "receiver-naming"
 }
 
@@ -47,7 +48,6 @@ func (w lintReceiverName) Visit(n ast.Node) ast.Visitor {
 		return w
 	}
 	name := names[0].Name
-	const ref = styleGuideBase + "#receiver-names"
 	if name == "_" {
 		w.onFailure(lint.Failure{
 			Node:       n,
@@ -66,7 +66,7 @@ func (w lintReceiverName) Visit(n ast.Node) ast.Visitor {
 		})
 		return w
 	}
-	recv := receiverType(fn)
+	recv := typeparams.ReceiverType(fn)
 	if prev, ok := w.typeReceiver[recv]; ok && prev != name {
 		w.onFailure(lint.Failure{
 			Node:       n,

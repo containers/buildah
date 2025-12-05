@@ -37,3 +37,4 @@ _testmain.go
 
 # SBOMs generated during CI
 /bom.json
+1

@@ -2,6 +2,8 @@ package xtypes
 
 import (
 	"go/types"
+
+	"golang.org/x/exp/typeparams"
 )
 
 // Implements reports whether type v implements iface.
@@ -63,9 +65,6 @@ func typeIdentical(x, y types.Type, p *ifacePair) bool {
 	}
 
 	switch x := x.(type) {
-	case nil:
-		return false
-
 	case *types.Basic:
 		// Basic types are singletons except for the rune and byte
 		// aliases, thus we cannot solely rely on the x == y check
@@ -142,6 +141,11 @@ func typeIdentical(x, y types.Type, p *ifacePair) bool {
 				typeIdentical(x.Results(), y.Results(), p)
 		}
 
+	case *typeparams.Union:
+		// TODO(quasilyte): do we want to match generic union types too?
+		// It would require copying a lot of code from the go/types.
+		return false
+
 	case *types.Interface:
 		// Two interface types are identical if they have the same set of methods with
 		// the same names and identical function types. Lower-case method names from
@@ -213,6 +217,12 @@ func typeIdentical(x, y types.Type, p *ifacePair) bool {
 			return true
 		}
 		return sameID(x.Obj(), y.Obj().Pkg(), y.Obj().Name())
+
+	case *typeparams.TypeParam:
+		// nothing to do (x and y being equal is caught in the very beginning of this function)
+
+	case nil:
+		// avoid a crash in case of nil type
 
 	default:
 		panic("unreachable")

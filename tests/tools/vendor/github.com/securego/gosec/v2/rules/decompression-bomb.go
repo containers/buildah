@@ -19,10 +19,11 @@ import (
 	"go/ast"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type decompressionBombCheck struct {
-	gosec.MetaData
+	issue.MetaData
 	readerCalls gosec.CallList
 	copyCalls   gosec.CallList
 }
@@ -40,7 +41,7 @@ func containsReaderCall(node ast.Node, ctx *gosec.Context, list gosec.CallList) 
 	return list.Contains(s, idt)
 }
 
-func (d *decompressionBombCheck) Match(node ast.Node, ctx *gosec.Context) (*gosec.Issue, error) {
+func (d *decompressionBombCheck) Match(node ast.Node, ctx *gosec.Context) (*issue.Issue, error) {
 	var readerVarObj map[*ast.Object]struct{}
 
 	// To check multiple lines, ctx.PassedValues is used to store temporary data.
@@ -72,7 +73,7 @@ func (d *decompressionBombCheck) Match(node ast.Node, ctx *gosec.Context) (*gose
 			if idt, ok := n.Args[1].(*ast.Ident); ok {
 				if _, ok := readerVarObj[idt.Obj]; ok {
 					// Detect io.Copy(x, r)
-					return gosec.NewIssue(ctx, n, d.ID(), d.What, d.Severity, d.Confidence), nil
+					return ctx.NewIssue(n, d.ID(), d.What, d.Severity, d.Confidence), nil
 				}
 			}
 		}
@@ -82,7 +83,7 @@ func (d *decompressionBombCheck) Match(node ast.Node, ctx *gosec.Context) (*gose
 }
 
 // NewDecompressionBombCheck detects if there is potential DoS vulnerability via decompression bomb
-func NewDecompressionBombCheck(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewDecompressionBombCheck(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	readerCalls := gosec.NewCallList()
 	readerCalls.Add("compress/gzip", "NewReader")
 	readerCalls.AddAll("compress/zlib", "NewReader", "NewReaderDict")
@@ -98,10 +99,10 @@ func NewDecompressionBombCheck(id string, conf gosec.Config) (gosec.Rule, []ast.
 	copyCalls.Add("io", "CopyBuffer")
 
 	return &decompressionBombCheck{
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.Medium,
+			Severity:   issue.Medium,
+			Confidence: issue.Medium,
 			What:       "Potential DoS vulnerability via decompression bomb",
 		},
 		readerCalls: readerCalls,

@@ -1,6 +1,8 @@
 # exportloopref
 
 An analyzer that finds exporting pointers for loop variables.
+![](https://repository-images.githubusercontent.com/256768552/a1c5bb80-dd73-11eb-9453-e520f517e730)
+Pin them all!
 
 [![PkgGoDev](https://pkg.go.dev/badge/kyoh86/exportloopref)](https://pkg.go.dev/kyoh86/exportloopref)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kyoh86/exportloopref)](https://goreportcard.com/report/github.com/kyoh86/exportloopref)
@@ -9,7 +11,7 @@ An analyzer that finds exporting pointers for loop variables.
 
 ## What's this?
 
-Sample problem code from: https://github.com/kyoh86/exportloopref/blob/master/testdata/src/simple/simple.go
+Sample problem code from: https://github.com/kyoh86/exportloopref/blob/main/testdata/src/simple/simple.go
 
 ```go
 package main
@@ -109,7 +111,7 @@ func printp(p *int) {
 }
 ```
 
-ref: https://github.com/kyoh86/exportloopref/blob/master/testdata/src/fixed/fixed.go
+ref: https://github.com/kyoh86/exportloopref/blob/main/testdata/src/fixed/fixed.go
 
 ## Sensing policy
 
@@ -120,7 +122,7 @@ e.g.
 
 ```go
 var s Foo
-for _, p := []int{10, 11, 12, 13} {
+for _, p := range []int{10, 11, 12, 13} {
   s.Bar(&p) // If s stores the pointer, it will be bug.
 }
 ```

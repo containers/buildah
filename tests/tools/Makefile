@@ -1,6 +1,9 @@
 GO := go
 GO_BUILD=$(GO) build
 
+GOPROXY ?= https://proxy.golang.org,direct
+export GOPROXY
+
 BUILDDIR := build
 
 all: $(BUILDDIR)

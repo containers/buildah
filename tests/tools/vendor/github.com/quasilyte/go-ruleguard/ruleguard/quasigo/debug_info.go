@@ -5,8 +5,9 @@ type debugInfo struct {
 }
 
 type funcDebugInfo struct {
-	paramNames []string
-	localNames []string
+	paramNames    []string
+	intParamNames []string
+	localNames    []string
 }
 
 func newDebugInfo() *debugInfo {

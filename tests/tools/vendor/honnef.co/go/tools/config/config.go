@@ -67,7 +67,7 @@ var Analyzer = &analysis.Analyzer{
 		}
 		cfg, err := Load(dir)
 		if err != nil {
-			return nil, fmt.Errorf("loading staticcheck.conf: %s", err)
+			return nil, fmt.Errorf("error loading staticcheck.conf: %s", err)
 		}
 		return &cfg, nil
 	},
@@ -206,7 +206,7 @@ func parseConfigs(dir string) ([]Config, error) {
 			return nil, err
 		}
 		var cfg Config
-		_, err = toml.DecodeReader(f, &cfg)
+		_, err = toml.NewDecoder(f).Decode(&cfg)
 		f.Close()
 		if err != nil {
 			if err, ok := err.(toml.ParseError); ok {

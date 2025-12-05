@@ -146,7 +146,7 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, error) {
 	}
 	if strings.HasPrefix(src, "for ") && !strings.HasSuffix(src, "}") {
 		asStmts := execTmpl(tmplStmts, src+"{}")
-		f, err := parser.ParseFile(fset, "", asStmts, 0)
+		f, err := parser.ParseFile(fset, "", asStmts, parser.SkipObjectResolution)
 		if err == nil && noBadNodes(f) {
 			bl := f.Decls[0].(*ast.FuncDecl).Body
 			if len(bl.List) == 1 {
@@ -156,9 +156,9 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, error) {
 	}
 
 	// try as a block; otherwise blocks might be mistaken for composite
-	// literals further below
+	// literals further below\
 	asBlock := execTmpl(tmplBlock, src)
-	if f, err := parser.ParseFile(fset, "", asBlock, 0); err == nil && noBadNodes(f) {
+	if f, err := parser.ParseFile(fset, "", asBlock, parser.SkipObjectResolution); err == nil && noBadNodes(f) {
 		bl := f.Decls[0].(*ast.FuncDecl).Body
 		if len(bl.List) == 1 {
 			ifs := bl.List[0].(*ast.IfStmt)
@@ -168,24 +168,28 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, error) {
 
 	// then as value expressions
 	asExprs := execTmpl(tmplExprs, src)
-	if f, err := parser.ParseFile(fset, "", asExprs, 0); err == nil && noBadNodes(f) {
+	if f, err := parser.ParseFile(fset, "", asExprs, parser.SkipObjectResolution); err == nil && noBadNodes(f) {
 		vs := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
 		cl := vs.Values[0].(*ast.CompositeLit)
 		if len(cl.Elts) == 1 {
 			return cl.Elts[0], nil
 		}
-		return ExprSlice(cl.Elts), nil
+		slice := &NodeSlice{}
+		slice.assignExprSlice(cl.Elts)
+		return slice, nil
 	}
 
 	// then try as statements
 	asStmts := execTmpl(tmplStmts, src)
-	f, err := parser.ParseFile(fset, "", asStmts, 0)
+	f, err := parser.ParseFile(fset, "", asStmts, parser.SkipObjectResolution)
 	if err == nil && noBadNodes(f) {
 		bl := f.Decls[0].(*ast.FuncDecl).Body
 		if len(bl.List) == 1 {
 			return bl.List[0], nil
 		}
-		return stmtSlice(bl.List), nil
+		slice := &NodeSlice{}
+		slice.assignStmtSlice(bl.List)
+		return slice, nil
 	}
 	// Statements is what covers most cases, so it will give
 	// the best overall error message. Show positions
@@ -199,7 +203,9 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, error) {
 		if len(f.Decls) == 1 {
 			return f.Decls[0], nil
 		}
-		return declSlice(f.Decls), nil
+		slice := &NodeSlice{}
+		slice.assignDeclSlice(f.Decls)
+		return slice, nil
 	}
 
 	// try as a whole file

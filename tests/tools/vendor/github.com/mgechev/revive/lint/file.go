@@ -77,7 +77,7 @@ func (f *File) IsUntypedConst(expr ast.Expr) (defType string, ok bool) {
 	// Re-evaluate expr outside its context to see if it's untyped.
 	// (An expr evaluated within, for example, an assignment context will get the type of the LHS.)
 	exprStr := f.Render(expr)
-	tv, err := types.Eval(f.Pkg.fset, f.Pkg.TypesPkg, expr.Pos(), exprStr)
+	tv, err := types.Eval(f.Pkg.fset, f.Pkg.TypesPkg(), expr.Pos(), exprStr)
 	if err != nil {
 		return "", false
 	}
@@ -102,6 +102,9 @@ func (f *File) lint(rules []Rule, config Config, failures chan Failure) {
 	disabledIntervals := f.disabledIntervals(rules, mustSpecifyDisableReason, failures)
 	for _, currentRule := range rules {
 		ruleConfig := rulesConfig[currentRule.Name()]
+		if ruleConfig.MustExclude(f.Name) {
+			continue
+		}
 		currentFailures := currentRule.Apply(f, ruleConfig.Arguments)
 		for idx, failure := range currentFailures {
 			if failure.RuleName == "" {
@@ -249,7 +252,7 @@ func (f *File) disabledIntervals(rules []Rule, mustSpecifyDisableReason bool, fa
 	return getEnabledDisabledIntervals()
 }
 
-func (f *File) filterFailures(failures []Failure, disabledIntervals disabledIntervalsMap) []Failure {
+func (File) filterFailures(failures []Failure, disabledIntervals disabledIntervalsMap) []Failure {
 	result := []Failure{}
 	for _, failure := range failures {
 		fStart := failure.Position.Start.Line

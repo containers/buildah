@@ -5,14 +5,15 @@ import (
 	"go/token"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"golang.org/x/tools/go/ast/astutil"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "singleCaseSwitch"
-	info.Tags = []string{"style"}
+	info.Tags = []string{linter.StyleTag}
 	info.Summary = "Detects switch statements that could be better written as if statement"
 	info.Before = `
 switch x := x.(type) {

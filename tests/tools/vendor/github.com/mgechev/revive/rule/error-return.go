@@ -10,7 +10,7 @@ import (
 type ErrorReturnRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ErrorReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ErrorReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -28,7 +28,7 @@ func (r *ErrorReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failur
 }
 
 // Name returns the rule name.
-func (r *ErrorReturnRule) Name() string {
+func (*ErrorReturnRule) Name() string {
 	return "error-return"
 }
 
