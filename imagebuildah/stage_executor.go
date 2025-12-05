@@ -669,20 +669,20 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 	errStr := fmt.Sprintf("Build error: Unknown instruction: %q ", strings.ToUpper(step.Command))
 	err := fmt.Sprintf(errStr+"%#v", step)
 	if s.executor.ignoreUnrecognizedInstructions {
-		logrus.Debugf(err)
+		logrus.Debugf("%s", err)
 		return nil
 	}
 
 	switch logrus.GetLevel() {
 	case logrus.ErrorLevel:
-		s.executor.logger.Errorf(errStr)
+		s.executor.logger.Errorf("%s", errStr)
 	case logrus.DebugLevel:
-		logrus.Debugf(err)
+		logrus.Debugf("%s", err)
 	default:
 		s.executor.logger.Errorf("+(UNHANDLED LOGLEVEL) %#v", step)
 	}
 
-	return errors.Errorf(err)
+	return errors.Errorf("%s", err)
 }
 
 // prepare creates a working container based on the specified image, or if one
@@ -955,7 +955,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		if output != "" {
 			commitMessage = fmt.Sprintf("%s %s", commitMessage, output)
 		}
-		logrus.Debugf(commitMessage)
+		logrus.Debugf("%s", commitMessage)
 		if !s.executor.quiet {
 			s.log(commitMessage)
 		}
