@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -433,7 +432,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		OSVersion:               iopts.OSVersion,
 	}
 	if iopts.Quiet {
-		options.ReportWriter = ioutil.Discard
+		options.ReportWriter = io.Discard
 	}
 
 	id, ref, err := imagebuildah.BuildDockerfiles(getContext(), store, options, containerfiles...)

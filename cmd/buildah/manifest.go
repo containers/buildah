@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -832,7 +831,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 	}
 
 	if opts.digestfile != "" {
-		if err = ioutil.WriteFile(opts.digestfile, []byte(digest.String()), 0644); err != nil {
+		if err = os.WriteFile(opts.digestfile, []byte(digest.String()), 0644); err != nil {
 			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", opts.digestfile))
 		}
 	}

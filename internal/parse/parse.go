@@ -148,22 +148,22 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			newMount.Options = append(newMount.Options, kv[0])
 		case "from":
 			if len(kv) == 1 {
-				return newMount, "", "", "", errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", "", "", errors.Wrap(errBadOptionArg, kv[0])
 			}
 			fromImage = kv[1]
 		case "bind-propagation":
 			if len(kv) == 1 {
-				return newMount, "", "", "", errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", "", "", errors.Wrap(errBadOptionArg, kv[0])
 			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "src", "source":
 			if len(kv) == 1 {
-				return newMount, "", "", "", errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", "", "", errors.Wrap(errBadOptionArg, kv[0])
 			}
 			newMount.Source = kv[1]
 		case "target", "dst", "destination":
 			if len(kv) == 1 {
-				return newMount, "", "", "", errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", "", "", errors.Wrap(errBadOptionArg, kv[0])
 			}
 			setDest = kv[1]
 			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
@@ -175,7 +175,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 			// and can thus be safely ignored.
 			// See also the handling of the equivalent "delegated" and "cached" in ValidateVolumeOpts
 		default:
-			return newMount, "", "", "", errors.Wrapf(errBadMntOption, kv[0])
+			return newMount, "", "", "", errors.Wrap(errBadMntOption, kv[0])
 		}
 	}
 
@@ -335,22 +335,22 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 			sharing = kv[1]
 		case "bind-propagation":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "id":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			id = kv[1]
 		case "from":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			fromStage = kv[1]
 		case "target", "dst", "destination":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
 				return newMount, "", nil, err
@@ -359,35 +359,35 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 			setDest = true
 		case "src", "source":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			newMount.Source = kv[1]
 		case "mode":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			mode, err = strconv.ParseUint(kv[1], 8, 32)
 			if err != nil {
-				return newMount, "", nil, errors.Wrapf(err, "Unable to parse cache mode")
+				return newMount, "", nil, errors.Wrap(err, "Unable to parse cache mode")
 			}
 		case "uid":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			uid, err = strconv.Atoi(kv[1])
 			if err != nil {
-				return newMount, "", nil, errors.Wrapf(err, "Unable to parse cache uid")
+				return newMount, "", nil, errors.Wrap(err, "Unable to parse cache uid")
 			}
 		case "gid":
 			if len(kv) == 1 {
-				return newMount, "", nil, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, "", nil, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			gid, err = strconv.Atoi(kv[1])
 			if err != nil {
-				return newMount, "", nil, errors.Wrapf(err, "Unable to parse cache gid")
+				return newMount, "", nil, errors.Wrap(err, "Unable to parse cache gid")
 			}
 		default:
-			return newMount, "", nil, errors.Wrapf(errBadMntOption, kv[0])
+			return newMount, "", nil, errors.Wrap(errBadMntOption, kv[0])
 		}
 	}
 
@@ -460,7 +460,7 @@ func GetCacheMount(args []string, additionalMountPoints map[string]internal.Stag
 	switch sharing {
 	case "locked":
 		// lock parent cache
-		lockfile, err := lockfile.GetLockfile(filepath.Join(newMount.Source, BuildahCacheLockfile))
+		lockfile, err := lockfile.GetLockfile(filepath.Join(newMount.Source, BuildahCacheLockfile)) //nolint:staticcheck
 		if err != nil {
 			return newMount, "", nil, errors.Wrapf(err, "Unable to acquire lock when sharing mode is locked")
 		}
@@ -569,7 +569,7 @@ func getVolumeMounts(volumes []string) (map[string]specs.Mount, error) {
 			return nil, err
 		}
 		if _, ok := finalVolumeMounts[volumeMount.Destination]; ok {
-			return nil, errors.Wrapf(errDuplicateDest, volumeMount.Destination)
+			return nil, errors.Wrap(errDuplicateDest, volumeMount.Destination)
 		}
 		finalVolumeMounts[volumeMount.Destination] = volumeMount
 	}
@@ -649,7 +649,7 @@ func GetVolumes(ctx *types.SystemContext, store storage.Store, mountLabel string
 	}
 	for dest, mount := range volumeMounts {
 		if _, ok := unifiedMounts[dest]; ok {
-			return nil, nil, nil, nil, nil, errors.Wrapf(errDuplicateDest, dest)
+			return nil, nil, nil, nil, nil, errors.Wrap(errDuplicateDest, dest)
 		}
 		unifiedMounts[dest] = mount
 	}
@@ -741,7 +741,7 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string,
 				overlayMounts = append(overlayMounts, overlayMount)
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, nil, nil, nil, nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, nil, nil, nil, nil, errors.Wrap(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 		case TypeCache:
@@ -754,7 +754,7 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string,
 				intermediateMounts = append(intermediateMounts, intermediateMount)
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, nil, nil, nil, nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, nil, nil, nil, nil, errors.Wrap(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 		case TypeTmpfs:
@@ -763,7 +763,7 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mountLabel string,
 				return nil, nil, nil, nil, nil, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, nil, nil, nil, nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, nil, nil, nil, nil, errors.Wrap(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 		default:
@@ -797,19 +797,19 @@ func GetTmpfsMount(args []string) (specs.Mount, error) {
 			newMount.Options = append(newMount.Options, kv[0])
 		case "tmpfs-mode":
 			if len(kv) == 1 {
-				return newMount, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			newMount.Options = append(newMount.Options, fmt.Sprintf("mode=%s", kv[1]))
 		case "tmpfs-size":
 			if len(kv) == 1 {
-				return newMount, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			newMount.Options = append(newMount.Options, fmt.Sprintf("size=%s", kv[1]))
 		case "src", "source":
 			return newMount, errors.Errorf("source is not supported with tmpfs mounts")
 		case "target", "dst", "destination":
 			if len(kv) == 1 {
-				return newMount, errors.Wrapf(errBadOptionArg, kv[0])
+				return newMount, errors.Wrap(errBadOptionArg, kv[0])
 			}
 			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
 				return newMount, err
@@ -817,7 +817,7 @@ func GetTmpfsMount(args []string) (specs.Mount, error) {
 			newMount.Destination = kv[1]
 			setDest = true
 		default:
-			return newMount, errors.Wrapf(errBadMntOption, kv[0])
+			return newMount, errors.Wrap(errBadMntOption, kv[0])
 		}
 	}
 
@@ -839,7 +839,7 @@ func UnlockLockArray(lockedTargets []string) {
 			logrus.Warnf("Lockfile %q was expected here, stat failed with %v", path, err)
 			continue
 		}
-		lockfile, err := lockfile.GetLockfile(path)
+		lockfile, err := lockfile.GetLockfile(path) //nolint:staticcheck
 		if err != nil {
 			// unable to get lockfile
 			// lets log error and continue

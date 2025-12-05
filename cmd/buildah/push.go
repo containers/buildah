@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -232,7 +231,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	logrus.Debugf("Successfully pushed %s with digest %s", transports.ImageName(dest), digest.String())
 
 	if iopts.digestfile != "" {
-		if err = ioutil.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
+		if err = os.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
 			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", iopts.digestfile))
 		}
 	}

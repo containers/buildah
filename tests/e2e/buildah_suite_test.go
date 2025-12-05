@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,7 +87,7 @@ var _ = BeforeSuite(func() {
 
 // CreateTempDirin
 func CreateTempDirInTempDir() (string, error) {
-	return ioutil.TempDir("", "buildah_test")
+	return os.MkdirTemp("", "buildah_test")
 }
 
 // BuildahCreate a BuildAhTest instance for the tests

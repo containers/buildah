@@ -26,7 +26,8 @@ export GO_TEST=$(GO) test
 endif
 RACEFLAGS := $(shell $(GO_TEST) -race ./pkg/dummy > /dev/null 2>&1 && echo -race)
 
-GIT_COMMIT ?= $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
+COMMIT_NO ?= $(shell git rev-parse HEAD 2> /dev/null || true)
+GIT_COMMIT ?= $(if $(shell git status --porcelain --untracked-files=no),${COMMIT_NO}-dirty,${COMMIT_NO})
 SOURCE_DATE_EPOCH ?= $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
 STATIC_STORAGETAGS = "containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
 

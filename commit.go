@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -354,7 +353,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imgID, nil, "", errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -367,7 +366,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 	}
 
-	img, err := is.Transport.GetStoreImage(b.store, dest)
+	img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 	if err != nil && !errors.Is(errors.Cause(err), storage.ErrImageUnknown) {
 		return imgID, nil, "", errors.Wrapf(err, "error locating image %q in local storage", transports.ImageName(dest))
 	}
@@ -391,7 +390,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			dest = dest2
 		}
 		if options.IIDFile != "" {
-			if err = ioutil.WriteFile(options.IIDFile, []byte("sha256:"+img.ID), 0644); err != nil {
+			if err = os.WriteFile(options.IIDFile, []byte("sha256:"+img.ID), 0644); err != nil {
 				return imgID, nil, "", err
 			}
 		}
