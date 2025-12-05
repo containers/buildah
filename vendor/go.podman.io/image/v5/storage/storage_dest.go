@@ -37,6 +37,7 @@ import (
 	"go.podman.io/storage/pkg/chunked"
 	"go.podman.io/storage/pkg/chunked/toc"
 	"go.podman.io/storage/pkg/ioutils"
+	supporteddigests "go.podman.io/storage/pkg/supported-digests"
 )
 
 var (
@@ -288,7 +289,7 @@ func (s *storageImageDestination) putBlobToPendingFile(stream io.Reader, blobinf
 		}
 		defer decompressed.Close()
 
-		diffID := digest.Canonical.Digester()
+		diffID := supporteddigests.TmpDigestForNewObjects().Digester()
 		// Copy the data to the file.
 		// TODO: This can take quite some time, and should ideally be cancellable using context.Context.
 		_, err = io.Copy(diffID.Hash(), decompressed)
@@ -856,7 +857,7 @@ func (s *storageImageDestination) computeID(m manifest.Manifest) (string, error)
 	}
 	// ordinaryImageID is a digest of a config, which is a JSON value.
 	// To avoid the risk of collisions, start the input with @ so that the input is not a valid JSON.
-	tocImageID := digest.FromString("@With TOC:" + tocIDInput).Encoded()
+	tocImageID := supporteddigests.TmpDigestForNewObjects().FromString("@With TOC:" + tocIDInput).String()
 	logrus.Debugf("Ordinary storage image ID %s; a layer was looked up by TOC, so using image ID %s", ordinaryImageID, tocImageID)
 	return tocImageID, nil
 }
@@ -1070,7 +1071,7 @@ func layerID(parentID string, trusted trustedLayerIdentityData) string {
 	if parentID == "" && !mustHash {
 		return component
 	}
-	return digest.Canonical.FromString(parentID + "+" + component).Encoded()
+	return supporteddigests.TmpDigestForNewObjects().FromString(parentID + "+" + component).String()
 }
 
 // createNewLayer creates a new layer newLayerID for (index, trusted) on top of parentLayer (which may be "").
@@ -1488,13 +1489,13 @@ func (s *storageImageDestination) CommitWithOptions(ctx context.Context, options
 		imgOptions.BigData = append(imgOptions.BigData, storage.ImageBigDataOption{
 			Key:    s.lockProtected.configDigest.String(),
 			Data:   v,
-			Digest: digest.Canonical.FromBytes(v),
+			Digest: supporteddigests.TmpDigestForNewObjects().FromBytes(v),
 		})
 	}
 	// Set up to save the options.UnparsedToplevel's manifest if it differs from
 	// the per-platform one, which is saved below.
 	if !bytes.Equal(toplevelManifest, s.manifest) {
-		manifestDigest, err := manifest.Digest(toplevelManifest)
+		manifestDigest, err := manifest.DigestWithAlgorithm(toplevelManifest, supporteddigests.TmpDigestForNewObjects())
 		if err != nil {
 			return fmt.Errorf("digesting top-level manifest: %w", err)
 		}
@@ -1530,7 +1531,7 @@ func (s *storageImageDestination) CommitWithOptions(ctx context.Context, options
 		imgOptions.BigData = append(imgOptions.BigData, storage.ImageBigDataOption{
 			Key:    "signatures",
 			Data:   s.signatures,
-			Digest: digest.Canonical.FromBytes(s.signatures),
+			Digest: supporteddigests.TmpDigestForNewObjects().FromBytes(s.signatures),
 		})
 	}
 	for instanceDigest, signatures := range s.signatureses {
@@ -1541,7 +1542,7 @@ func (s *storageImageDestination) CommitWithOptions(ctx context.Context, options
 		imgOptions.BigData = append(imgOptions.BigData, storage.ImageBigDataOption{
 			Key:    key,
 			Data:   signatures,
-			Digest: digest.Canonical.FromBytes(signatures),
+			Digest: supporteddigests.TmpDigestForNewObjects().FromBytes(signatures),
 		})
 	}
 
@@ -1643,7 +1644,7 @@ func (s *storageImageDestination) CommitWithOptions(ctx context.Context, options
 
 // PutManifest writes the manifest to the destination.
 func (s *storageImageDestination) PutManifest(ctx context.Context, manifestBlob []byte, instanceDigest *digest.Digest) error {
-	digest, err := manifest.Digest(manifestBlob)
+	digest, err := manifest.DigestWithAlgorithm(manifestBlob, supporteddigests.TmpDigestForNewObjects())
 	if err != nil {
 		return err
 	}
