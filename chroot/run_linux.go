@@ -364,9 +364,9 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		if err := unix.Mount(m.Mountpoint, subSys, "bind", sysFlags, ""); err != nil {
 			msg := fmt.Sprintf("could not bind mount %q, skipping: %v", m.Mountpoint, err)
 			if strings.HasPrefix(m.Mountpoint, "/sys") {
-				logrus.Infof(msg)
+				logrus.Infof("%s", msg)
 			} else {
-				logrus.Warningf(msg)
+				logrus.Warningf("%s", msg)
 			}
 			continue
 		}

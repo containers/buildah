@@ -1947,7 +1947,7 @@ func (b *Builder) cleanupTempVolumes() {
 	for tempVolume, val := range b.TempVolumes {
 		if val {
 			if err := overlay.RemoveTemp(tempVolume); err != nil {
-				b.Logger.Errorf(err.Error())
+				b.Logger.Errorf("%v", err)
 			}
 			b.TempVolumes[tempVolume] = false
 		}
