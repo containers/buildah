@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -181,7 +180,7 @@ func getProcessAppArmorProfile(r *types.TestReport) error {
 
 func getProcessOOMScoreAdjust(r *types.TestReport) error {
 	node := "/proc/self/oom_score_adj"
-	score, err := ioutil.ReadFile(node)
+	score, err := os.ReadFile(node)
 	if err != nil {
 		return fmt.Errorf("error reading %q: %w", node, err)
 	}
@@ -313,7 +312,7 @@ func getLinuxSysctl(r *types.TestReport) error {
 		if info.IsDir() {
 			return nil
 		}
-		value, err := ioutil.ReadFile(path)
+		value, err := os.ReadFile(path)
 		if err != nil {
 			if pe, ok := err.(*os.PathError); ok {
 				if errno, ok := pe.Err.(syscall.Errno); ok {

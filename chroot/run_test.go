@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -43,9 +42,9 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 		t.Fatalf("setupSeccomp(%q): %v", "", err)
 	}
 
-	tempDir, err := ioutil.TempDir("", "chroot-test")
+	tempDir, err := os.MkdirTemp("", "chroot-test")
 	if err != nil {
-		t.Fatalf("ioutil.TempDir(%q, %q): %v", "", "chrootTest", err)
+		t.Fatalf("os.MkdirTemp(%q, %q): %v", "", "chrootTest", err)
 	}
 	defer os.RemoveAll(tempDir)
 	info, err := os.Stat(tempDir)
