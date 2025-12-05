@@ -1,21 +1,17 @@
 package config
 
-import "time"
+import (
+	"fmt"
+	"slices"
+	"strings"
+	"time"
+)
 
 // Run encapsulates the config options for running the linter analysis.
 type Run struct {
-	IsVerbose           bool `mapstructure:"verbose"`
-	Silent              bool
-	CPUProfilePath      string
-	MemProfilePath      string
-	TracePath           string
-	Concurrency         int
-	PrintResourcesUsage bool `mapstructure:"print-resources-usage"`
+	Timeout time.Duration `mapstructure:"timeout"`
 
-	Config   string // The path to the golangci config file, as specified with the --config argument.
-	NoConfig bool
-
-	Args []string
+	Concurrency int `mapstructure:"concurrency"`
 
 	Go string `mapstructure:"go"`
 
@@ -25,16 +21,27 @@ type Run struct {
 	ExitCodeIfIssuesFound int  `mapstructure:"issues-exit-code"`
 	AnalyzeTests          bool `mapstructure:"tests"`
 
-	// Deprecated: Deadline exists for historical compatibility
-	// and should not be used. To set run timeout use Timeout instead.
-	Deadline time.Duration
-	Timeout  time.Duration
-
-	PrintVersion       bool
-	SkipFiles          []string `mapstructure:"skip-files"`
-	SkipDirs           []string `mapstructure:"skip-dirs"`
-	UseDefaultSkipDirs bool     `mapstructure:"skip-dirs-use-default"`
-
 	AllowParallelRunners bool `mapstructure:"allow-parallel-runners"`
 	AllowSerialRunners   bool `mapstructure:"allow-serial-runners"`
+
+	// Deprecated: use Issues.ExcludeFiles instead.
+	SkipFiles []string `mapstructure:"skip-files"`
+	// Deprecated: use Issues.ExcludeDirs instead.
+	SkipDirs []string `mapstructure:"skip-dirs"`
+	// Deprecated: use Issues.UseDefaultExcludeDirs instead.
+	UseDefaultSkipDirs bool `mapstructure:"skip-dirs-use-default"`
+
+	// Deprecated: use Output.ShowStats instead.
+	ShowStats bool `mapstructure:"show-stats"`
+}
+
+func (r *Run) Validate() error {
+	// go help modules
+	allowedMods := []string{"mod", "readonly", "vendor"}
+
+	if r.ModulesDownloadMode != "" && !slices.Contains(allowedMods, r.ModulesDownloadMode) {
+		return fmt.Errorf("invalid modules download path %s, only (%s) allowed", r.ModulesDownloadMode, strings.Join(allowedMods, "|"))
+	}
+
+	return nil
 }

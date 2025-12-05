@@ -28,8 +28,8 @@ func Marshal(v types.Type) error {
 type Encoder struct {
 	// TODO we track addressable and non-addressable instances separately out of an abundance of caution. We don't know
 	// if this is actually required for correctness.
-	seenCanAddr  typeutil.Map
-	seenCantAddr typeutil.Map
+	seenCanAddr  typeutil.Map[struct{}]
+	seenCantAddr typeutil.Map[struct{}]
 }
 
 func NewEncoder() *Encoder {
@@ -56,17 +56,17 @@ func implementsMarshaler(v fakereflect.TypeAndCanAddr) bool {
 	if params.Len() != 2 {
 		return false
 	}
-	if !typeutil.IsType(params.At(0).Type(), "*encoding/xml.Encoder") {
+	if !typeutil.IsPointerToTypeWithName(params.At(0).Type(), "encoding/xml.Encoder") {
 		return false
 	}
-	if !typeutil.IsType(params.At(1).Type(), "encoding/xml.StartElement") {
+	if !typeutil.IsTypeWithName(params.At(1).Type(), "encoding/xml.StartElement") {
 		return false
 	}
 	rets := fn.Type().(*types.Signature).Results()
 	if rets.Len() != 1 {
 		return false
 	}
-	if !typeutil.IsType(rets.At(0).Type(), "error") {
+	if !typeutil.IsTypeWithName(rets.At(0).Type(), "error") {
 		return false
 	}
 	return true
@@ -86,17 +86,17 @@ func implementsMarshalerAttr(v fakereflect.TypeAndCanAddr) bool {
 	if params.Len() != 1 {
 		return false
 	}
-	if !typeutil.IsType(params.At(0).Type(), "encoding/xml.Name") {
+	if !typeutil.IsTypeWithName(params.At(0).Type(), "encoding/xml.Name") {
 		return false
 	}
 	rets := fn.Type().(*types.Signature).Results()
 	if rets.Len() != 2 {
 		return false
 	}
-	if !typeutil.IsType(rets.At(0).Type(), "encoding/xml.Attr") {
+	if !typeutil.IsTypeWithName(rets.At(0).Type(), "encoding/xml.Attr") {
 		return false
 	}
-	if !typeutil.IsType(rets.At(1).Type(), "error") {
+	if !typeutil.IsTypeWithName(rets.At(1).Type(), "error") {
 		return false
 	}
 	return true
@@ -114,13 +114,13 @@ func (err *CyclicTypeError) Error() string {
 // marshalValue writes one or more XML elements representing val.
 // If val was obtained from a struct field, finfo must have its details.
 func (e *Encoder) marshalValue(val fakereflect.TypeAndCanAddr, finfo *fieldInfo, startTemplate *StartElement, stack string) error {
-	var m *typeutil.Map
+	var m *typeutil.Map[struct{}]
 	if val.CanAddr() {
 		m = &e.seenCanAddr
 	} else {
 		m = &e.seenCantAddr
 	}
-	if ok := m.At(val.Type); ok != nil {
+	if _, ok := m.At(val.Type); ok {
 		return nil
 	}
 	m.Set(val.Type, struct{}{})
@@ -279,7 +279,7 @@ func (e *Encoder) marshalAttr(start *StartElement, name Name, val fakereflect.Ty
 		return nil
 	}
 
-	if typeutil.IsType(val.Type, "encoding/xml.Attr") {
+	if typeutil.IsTypeWithName(val.Type, "encoding/xml.Attr") {
 		return nil
 	}
 
@@ -350,7 +350,7 @@ func (e *Encoder) marshalStruct(tinfo *typeInfo, val fakereflect.TypeAndCanAddr,
 
 		case fInnerXML:
 			vf = indirect(vf)
-			if typeutil.IsType(vf.Type, "[]byte") || typeutil.IsType(vf.Type, "string") {
+			if t, ok := vf.Type.(*types.Slice); (ok && types.Identical(t.Elem(), types.Typ[types.Byte])) || types.Identical(vf.Type, types.Typ[types.String]) {
 				continue
 			}
 

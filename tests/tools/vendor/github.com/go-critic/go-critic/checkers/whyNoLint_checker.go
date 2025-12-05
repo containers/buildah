@@ -6,17 +6,16 @@ import (
 	"strings"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
-	info := linter.CheckerInfo{
-		Name:    "whyNoLint",
-		Tags:    []string{"style", "experimental"},
-		Summary: "Ensures that `//nolint` comments include an explanation",
-		Before:  `//nolint`,
-		After:   `//nolint // reason`,
-	}
+	var info linter.CheckerInfo
+	info.Name = "whyNoLint"
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
+	info.Summary = "Ensures that `//nolint` comments include an explanation"
+	info.Before = `//nolint`
+	info.After = `//nolint // reason`
 
 	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		return astwalk.WalkerForComment(&whyNoLintChecker{

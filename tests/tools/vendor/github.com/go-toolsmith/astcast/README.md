@@ -1,15 +1,19 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/go-toolsmith/astcast)](https://goreportcard.com/report/github.com/go-toolsmith/astcast)
-[![GoDoc](https://godoc.org/github.com/go-toolsmith/astcast?status.svg)](https://godoc.org/github.com/go-toolsmith/astcast)
-
 # astcast
 
-Package astcast wraps type assertion operations in such way that you don't have
+[![build-img]][build-url]
+[![pkg-img]][pkg-url]
+[![reportcard-img]][reportcard-url]
+[![version-img]][version-url]
+
+Package `astcast` wraps type assertion operations in such way that you don't have
 to worry about nil pointer results anymore.
 
 ## Installation
 
+Go version 1.16+
+
 ```bash
-go get -v github.com/go-toolsmith/astcast
+go get github.com/go-toolsmith/astcast
 ```
 
 ## Example
@@ -84,3 +88,16 @@ func main() {
 	fmt.Printf("%T %s\n", bar, bar.Name)
 }
 ```
+
+## License
+
+[MIT License](LICENSE).
+
+[build-img]: https://github.com/go-toolsmith/astcast/workflows/build/badge.svg
+[build-url]: https://github.com/go-toolsmith/astcast/actions
+[pkg-img]: https://pkg.go.dev/badge/go-toolsmith/astcast
+[pkg-url]: https://pkg.go.dev/github.com/go-toolsmith/astcast
+[reportcard-img]: https://goreportcard.com/badge/go-toolsmith/astcast
+[reportcard-url]: https://goreportcard.com/report/go-toolsmith/astcast
+[version-img]: https://img.shields.io/github/v/release/go-toolsmith/astcast
+[version-url]: https://github.com/go-toolsmith/astcast/releases

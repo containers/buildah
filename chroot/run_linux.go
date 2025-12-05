@@ -20,19 +20,19 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"unsafe"
 
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/internal/pty"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/unshare"
+	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
@@ -247,38 +247,10 @@ func runUsingChrootMain() {
 	var stderr io.Writer
 	fdDesc := make(map[int]string)
 	if options.Spec.Process.Terminal {
-		// Create a pseudo-terminal -- open a copy of the master side.
-		ptyMasterFd, err := unix.Open("/dev/ptmx", os.O_RDWR, 0600)
+		ptyMasterFd, ptyFd, err := pty.GetPtyDescriptors()
 		if err != nil {
-			logrus.Errorf("error opening PTY master using /dev/ptmx: %v", err)
+			logrus.Errorf("error opening PTY descriptors: %v", err)
 			os.Exit(1)
-		}
-		// Set the kernel's lock to "unlocked".
-		locked := 0
-		if result, _, err := unix.Syscall(unix.SYS_IOCTL, uintptr(ptyMasterFd), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&locked))); int(result) == -1 {
-			logrus.Errorf("error unlocking PTY descriptor: %v", err)
-			os.Exit(1)
-		}
-		// Get a handle for the other end.
-		ptyFd, _, err := unix.Syscall(unix.SYS_IOCTL, uintptr(ptyMasterFd), unix.TIOCGPTPEER, unix.O_RDWR|unix.O_NOCTTY)
-		if int(ptyFd) == -1 {
-			if errno, isErrno := err.(syscall.Errno); !isErrno || (errno != syscall.EINVAL && errno != syscall.ENOTTY) {
-				logrus.Errorf("error getting PTY descriptor: %v", err)
-				os.Exit(1)
-			}
-			// EINVAL means the kernel's too old to understand TIOCGPTPEER.  Try TIOCGPTN.
-			ptyN, err := unix.IoctlGetInt(ptyMasterFd, unix.TIOCGPTN)
-			if err != nil {
-				logrus.Errorf("error getting PTY number: %v", err)
-				os.Exit(1)
-			}
-			ptyName := fmt.Sprintf("/dev/pts/%d", ptyN)
-			fd, err := unix.Open(ptyName, unix.O_RDWR|unix.O_NOCTTY, 0620)
-			if err != nil {
-				logrus.Errorf("error opening PTY %q: %v", ptyName, err)
-				os.Exit(1)
-			}
-			ptyFd = uintptr(fd)
 		}
 		// Make notes about what's going where.
 		relays[ptyMasterFd] = unix.Stdout
@@ -312,7 +284,7 @@ func runUsingChrootMain() {
 			// receive a SIGWINCH.
 		}
 		// Open an *os.File object that we can pass to our child.
-		ctty = os.NewFile(ptyFd, "/dev/tty")
+		ctty = os.NewFile(uintptr(ptyFd), "/dev/tty")
 		// Set ownership for the PTY.
 		if err = ctty.Chown(rootUID, rootGID); err != nil {
 			var cttyInfo unix.Stat_t
@@ -945,9 +917,9 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 		capability.EFFECTIVE:   spec.Process.Capabilities.Effective,
 		capability.INHERITABLE: []string{},
 		capability.PERMITTED:   spec.Process.Capabilities.Permitted,
-		capability.AMBIENT:     spec.Process.Capabilities.Ambient,
+		capability.AMBIENT:     {},
 	}
-	knownCaps := capability.List()
+	knownCaps := capability.ListKnown()
 	noCap := capability.Cap(-1)
 	for capType, capList := range capMap {
 		for _, capToSet := range capList {
@@ -1154,9 +1126,9 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		if err := unix.Mount(m.Mountpoint, subSys, "bind", sysFlags, ""); err != nil {
 			msg := fmt.Sprintf("could not bind mount %q, skipping: %v", m.Mountpoint, err)
 			if strings.HasPrefix(m.Mountpoint, "/sys") {
-				logrus.Infof(msg)
+				logrus.Infof("%s", msg)
 			} else {
-				logrus.Warningf(msg)
+				logrus.Warningf("%s", msg)
 			}
 			continue
 		}

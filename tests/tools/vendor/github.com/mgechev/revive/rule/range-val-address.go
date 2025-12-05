@@ -13,8 +13,12 @@ import (
 type RangeValAddress struct{}
 
 // Apply applies the rule to given file.
-func (r *RangeValAddress) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*RangeValAddress) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
+
+	if file.Pkg.IsAtLeastGo122() {
+		return failures
+	}
 
 	walker := rangeValAddress{
 		file: file,
@@ -30,7 +34,7 @@ func (r *RangeValAddress) Apply(file *lint.File, _ lint.Arguments) []lint.Failur
 }
 
 // Name returns the rule name.
-func (r *RangeValAddress) Name() string {
+func (*RangeValAddress) Name() string {
 	return "range-val-address"
 }
 

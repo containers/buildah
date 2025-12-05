@@ -6,7 +6,8 @@ import (
 	"go/types"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astp"
 )
@@ -14,7 +15,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "truncateCmp"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Params = linter.CheckerParams{
 		"skipArchDependent": {
 			Value: true,
@@ -96,8 +97,14 @@ func (c *truncateCmpChecker) checkCmp(cmpX, cmpY ast.Expr) {
 		return
 	}
 
-	xsize := c.ctx.SizesInfo.Sizeof(xtyp)
-	ysize := c.ctx.SizesInfo.Sizeof(ytyp)
+	xsize, ok := c.ctx.SizeOf(xtyp)
+	if !ok {
+		return
+	}
+	ysize, ok := c.ctx.SizeOf(ytyp)
+	if !ok {
+		return
+	}
 	if xsize <= ysize {
 		return
 	}
