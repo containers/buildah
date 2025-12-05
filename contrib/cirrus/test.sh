@@ -68,6 +68,7 @@ else
             # of docker, against images built with buildah. Runtime installs
             # are required to ensure the latest docker version is used.
             [[ "$OS_RELEASE_ID" == "ubuntu" ]] || \
+            [[ "$OS_RELEASE_ID" == "debian" ]] || \
                 bad_os_id_ver
 
             systemctl enable --now docker
