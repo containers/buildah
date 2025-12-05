@@ -11,6 +11,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/imagedestination/impl"
 	"go.podman.io/image/v5/internal/imagedestination/stubs"
 	"go.podman.io/image/v5/internal/private"
@@ -150,7 +151,11 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 		}
 	}()
 
-	digester, stream := putblobdigest.DigestIfUnknown(stream, inputInfo)
+	algorithm, err := options.Digests.Choose(digests.Situation{Preexisting: inputInfo.Digest, CannotChangeAlgorithmReason: options.CannotChangeDigestReason})
+	if err != nil {
+		return private.UploadedBlob{}, err
+	}
+	digester, stream := putblobdigest.DigestIfAlgorithmUnknown(stream, inputInfo, algorithm)
 
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
