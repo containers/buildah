@@ -49,7 +49,7 @@ type ociImageSource struct {
 }
 
 // newImageSource returns an ImageSource for reading from an existing directory.
-func newImageSource(sys *types.SystemContext, ref ociReference) (private.ImageSource, error) {
+func newImageSource(ref ociReference, options private.NewImageSourceOptions) (private.ImageSource, error) {
 	tr := tlsclientconfig.NewTransport()
 	tr.TLSClientConfig = &tls.Config{
 		// As of 2025-08, tlsconfig.ClientDefault() differs from Go 1.23 defaults only in CipherSuites;
@@ -60,11 +60,11 @@ func newImageSource(sys *types.SystemContext, ref ociReference) (private.ImageSo
 		CipherSuites: tlsconfig.ClientDefault().CipherSuites,
 	}
 
-	if sys != nil && sys.OCICertPath != "" {
-		if err := tlsclientconfig.SetupCertificates(sys.OCICertPath, tr.TLSClientConfig); err != nil {
+	if options.Sys != nil && options.Sys.OCICertPath != "" {
+		if err := tlsclientconfig.SetupCertificates(options.Sys.OCICertPath, tr.TLSClientConfig); err != nil {
 			return nil, err
 		}
-		tr.TLSClientConfig.InsecureSkipVerify = sys.OCIInsecureSkipTLSVerify
+		tr.TLSClientConfig.InsecureSkipVerify = options.Sys.OCIInsecureSkipTLSVerify
 	}
 
 	client := &http.Client{}
@@ -88,9 +88,9 @@ func newImageSource(sys *types.SystemContext, ref ociReference) (private.ImageSo
 		descriptor: descriptor,
 		client:     client,
 	}
-	if sys != nil {
+	if options.Sys != nil {
 		// TODO(jonboulle): check dir existence?
-		s.sharedBlobDir = sys.OCISharedBlobDirPath
+		s.sharedBlobDir = options.Sys.OCISharedBlobDirPath
 	}
 	s.Compat = impl.AddCompat(s)
 	return s, nil
