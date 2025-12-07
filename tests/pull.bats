@@ -150,13 +150,30 @@ load helpers
 
 @test "pull-from-oci-directory" {
   run_buildah --retry pull $WITH_POLICY_JSON alpine
-  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest oci:${TEST_SCRATCH_DIR}/alpine
-  run_buildah rmi alpine
-  run_buildah pull $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
-  run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "localhost${TEST_SCRATCH_DIR}/alpine:latest"
+
   run_buildah 125 pull --all-tags $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
   expect_output --substring "pulling all tags is not supported for oci transport"
+
+  # Create on OCI image with reference and one without.  The first is expected
+  # to preserve the reference while the latter should be unnamed.
+  name="foo.com/name"
+  tag="tag"
+  withref="oci:${TEST_SCRATCH_DIR}/withref:$name:$tag"
+  noref="oci:${TEST_SCRATCH_DIR}/noref"
+
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest $withref
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest $noref
+  run_buildah rmi alpine
+
+  # Image without optional reference is unnamed.
+  run_buildah pull -q $WITH_POLICY_JSON $noref
+  run_buildah images --format "{{.Name}}:{{.Tag}}" $output
+  expect_output "<none>:<none>"
+
+  # Image with optional reference is named.
+  run_buildah pull -q $WITH_POLICY_JSON $withref
+  run_buildah images --format "{{.Name}}:{{.Tag}}" $output
+  expect_output "$name:$tag"
 }
 
 @test "pull-denied-by-registry-sources" {
