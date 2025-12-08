@@ -46,10 +46,11 @@ load helpers
   cid=$output
   run_buildah run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   context=$output
-
+  run id -Z
+  crole=$(secon -r $output)
   # Role and Type should always be constant. (We don't check user)
   role=$(awk -F: '{print $2}' <<<$context)
-  expect_output --from="$role" "system_r" "SELinux role"
+  expect_output --from="$role" "${crole}" "SELinux role"
 
   type=$(awk -F: '{print $3}' <<<$context)
   expect_output --from="$type" "spc_t" "SELinux type"
