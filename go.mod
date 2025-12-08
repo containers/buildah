@@ -40,7 +40,7 @@ require (
 	golang.org/x/crypto v0.45.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.39.0
-	golang.org/x/term v0.37.0
+	golang.org/x/term v0.38.0
 	tags.cncf.io/container-device-interface v1.0.2-0.20251120202831-139ffec09210
 )
 
