@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+project_name: exportloopref
+builds:
+  - id: default
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+    main: ./cmd/exportloopref
+    binary: exportloopref
+brews:
+  - install: |
+      bin.install "exportloopref"
+    tap:
+      owner: kyoh86
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://github.com/kyoh86/exportloopref
+    description: An analyzer that finds exporting pointers for loop variables.
+    license: MIT
+nfpms:
+  - builds:
+      - default
+    maintainer: kyoh86 <me@kyoh86.dev>
+    homepage: https://github.com/kyoh86/exportloopref
+    description: An analyzer that finds exporting pointers for loop variables.
+    license: MIT
+    formats:
+      - apk
+      - deb
+      - rpm
+archives:
+  - id: gzip
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - licence*
+      - LICENCE*
+      - license*
+      - LICENSE*
+      - readme*
+      - README*
+      - changelog*
+      - CHANGELOG*

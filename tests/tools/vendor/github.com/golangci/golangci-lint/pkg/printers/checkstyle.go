@@ -1,13 +1,18 @@
 package printers
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
+	"sort"
 
-	"github.com/golangci/golangci-lint/pkg/logutils"
+	"github.com/go-xmlfmt/xmlfmt"
+	"golang.org/x/exp/maps"
+
 	"github.com/golangci/golangci-lint/pkg/result"
 )
+
+const defaultCheckstyleSeverity = "error"
 
 type checkstyleOutput struct {
 	XMLName xml.Name          `xml:"checkstyle"`
@@ -28,22 +33,23 @@ type checkstyleError struct {
 	Source   string `xml:"source,attr"`
 }
 
-const defaultSeverity = "error"
-
-type Checkstyle struct{}
-
-func NewCheckstyle() *Checkstyle {
-	return &Checkstyle{}
+type Checkstyle struct {
+	w io.Writer
 }
 
-func (Checkstyle) Print(ctx context.Context, issues <-chan result.Issue) error {
+func NewCheckstyle(w io.Writer) *Checkstyle {
+	return &Checkstyle{w: w}
+}
+
+func (p Checkstyle) Print(issues []result.Issue) error {
 	out := checkstyleOutput{
 		Version: "5.0",
 	}
 
 	files := map[string]*checkstyleFile{}
 
-	for issue := range issues {
+	for i := range issues {
+		issue := &issues[i]
 		file, ok := files[issue.FilePath()]
 		if !ok {
 			file = &checkstyleFile{
@@ -53,27 +59,37 @@ func (Checkstyle) Print(ctx context.Context, issues <-chan result.Issue) error {
 			files[issue.FilePath()] = file
 		}
 
+		severity := defaultCheckstyleSeverity
+		if issue.Severity != "" {
+			severity = issue.Severity
+		}
+
 		newError := &checkstyleError{
 			Column:   issue.Column(),
 			Line:     issue.Line(),
 			Message:  issue.Text,
 			Source:   issue.FromLinter,
-			Severity: defaultSeverity,
+			Severity: severity,
 		}
 
 		file.Errors = append(file.Errors, newError)
 	}
 
-	out.Files = make([]*checkstyleFile, 0, len(files))
-	for _, file := range files {
-		out.Files = append(out.Files, file)
-	}
+	out.Files = maps.Values(files)
+
+	sort.Slice(out.Files, func(i, j int) bool {
+		return out.Files[i].Name < out.Files[j].Name
+	})
 
 	data, err := xml.Marshal(&out)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(logutils.StdOut, "%s%s\n", xml.Header, data)
+	_, err = fmt.Fprintf(p.w, "%s%s\n", xml.Header, xmlfmt.FormatXML(string(data), "", "  "))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

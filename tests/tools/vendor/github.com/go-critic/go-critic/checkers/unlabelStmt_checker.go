@@ -4,15 +4,15 @@ import (
 	"go/ast"
 	"go/token"
 
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "unlabelStmt"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects redundant statement labels"
 	info.Before = `
 derp:
@@ -28,21 +28,21 @@ for x := range xs {
 	}
 }`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForStmt(&unlabelStmtChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForStmt(&unlabelStmtChecker{ctx: ctx}), nil
 	})
 }
 
 type unlabelStmtChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 }
 
 func (c *unlabelStmtChecker) EnterFunc(fn *ast.FuncDecl) bool {
 	if fn.Body == nil {
 		return false
 	}
-	// TODO(Quasilyte): should not do additional traversal here.
+	// TODO(quasilyte): should not do additional traversal here.
 	// For now, skip all functions that contain goto statement.
 	return !lintutil.ContainsNode(fn.Body, func(n ast.Node) bool {
 		br, ok := n.(*ast.BranchStmt)
@@ -87,6 +87,7 @@ func (c *unlabelStmtChecker) VisitStmt(stmt ast.Stmt) {
 	// Only for loops: if last stmt in list is a loop
 	// that contains labeled "continue" to the outer loop label,
 	// it can be refactored to use "break" instead.
+	// Exceptions: select statements with a labeled "continue" are ignored.
 	if c.isLoop(labeled.Stmt) {
 		body := c.blockStmtOf(labeled.Stmt)
 		if len(body.List) == 0 {
@@ -96,11 +97,21 @@ func (c *unlabelStmtChecker) VisitStmt(stmt ast.Stmt) {
 		if !c.isLoop(last) {
 			return
 		}
-		br := lintutil.FindNode(c.blockStmtOf(last), func(n ast.Node) bool {
-			br, ok := n.(*ast.BranchStmt)
-			return ok && br.Label != nil &&
-				br.Label.Name == name && br.Tok == token.CONTINUE
-		})
+		br := lintutil.FindNode(c.blockStmtOf(last),
+			func(n ast.Node) bool {
+				switch n.(type) {
+				case *ast.SelectStmt:
+					return false
+				default:
+					return true
+				}
+			},
+			func(n ast.Node) bool {
+				br, ok := n.(*ast.BranchStmt)
+				return ok && br.Label != nil &&
+					br.Label.Name == name && br.Tok == token.CONTINUE
+			})
+
 		if br != nil {
 			c.warnLabeledContinue(br, name)
 		}

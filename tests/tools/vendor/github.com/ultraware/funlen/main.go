@@ -7,11 +7,13 @@ import (
 	"reflect"
 )
 
-const defaultLineLimit = 60
-const defaultStmtLimit = 40
+const (
+	defaultLineLimit = 60
+	defaultStmtLimit = 40
+)
 
 // Run runs this linter on the provided code
-func Run(file *ast.File, fset *token.FileSet, lineLimit, stmtLimit int) []Message {
+func Run(file *ast.File, fset *token.FileSet, lineLimit int, stmtLimit int, ignoreComments bool) []Message {
 	if lineLimit == 0 {
 		lineLimit = defaultLineLimit
 	}
@@ -19,20 +21,26 @@ func Run(file *ast.File, fset *token.FileSet, lineLimit, stmtLimit int) []Messag
 		stmtLimit = defaultStmtLimit
 	}
 
+	cmap := ast.NewCommentMap(fset, file, file.Comments)
+
 	var msgs []Message
 	for _, f := range file.Decls {
 		decl, ok := f.(*ast.FuncDecl)
-		if !ok {
+		if !ok || decl.Body == nil { // decl.Body can be nil for e.g. cgo
 			continue
 		}
 
-		if stmts := parseStmts(decl.Body.List); stmts > stmtLimit {
-			msgs = append(msgs, makeStmtMessage(fset, decl.Name, stmts, stmtLimit))
-			continue
+		if stmtLimit > 0 {
+			if stmts := parseStmts(decl.Body.List); stmts > stmtLimit {
+				msgs = append(msgs, makeStmtMessage(fset, decl.Name, stmts, stmtLimit))
+				continue
+			}
 		}
 
-		if lines := getLines(fset, decl); lines > lineLimit {
-			msgs = append(msgs, makeLineMessage(fset, decl.Name, lines, lineLimit))
+		if lineLimit > 0 {
+			if lines := getLines(fset, decl, cmap.Filter(decl), ignoreComments); lines > lineLimit {
+				msgs = append(msgs, makeLineMessage(fset, decl.Name, lines, lineLimit))
+			}
 		}
 	}
 
@@ -59,8 +67,26 @@ func makeStmtMessage(fset *token.FileSet, funcInfo *ast.Ident, stmts, stmtLimit 
 	}
 }
 
-func getLines(fset *token.FileSet, f *ast.FuncDecl) int { // nolint: interfacer
-	return fset.Position(f.End()).Line - fset.Position(f.Pos()).Line - 1
+func getLines(fset *token.FileSet, f *ast.FuncDecl, cmap ast.CommentMap, ignoreComments bool) int { // nolint: interfacer
+	var lineCount int
+	var commentCount int
+
+	lineCount = fset.Position(f.End()).Line - fset.Position(f.Pos()).Line - 1
+
+	if !ignoreComments {
+		return lineCount
+	}
+
+	for _, c := range cmap.Comments() {
+		// If the CommenGroup's lines are inside the function
+		// count how many comments are in the CommentGroup
+		if (fset.Position(c.Pos()).Line > fset.Position(f.Pos()).Line) &&
+			(fset.Position(c.End()).Line < fset.Position(f.End()).Line) {
+			commentCount += len(c.List)
+		}
+	}
+
+	return lineCount - commentCount
 }
 
 func parseStmts(s []ast.Stmt) (total int) {

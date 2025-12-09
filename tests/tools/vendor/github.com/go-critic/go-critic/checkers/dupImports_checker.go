@@ -4,31 +4,31 @@ import (
 	"fmt"
 	"go/ast"
 
-	"github.com/go-lintpack/lintpack"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "dupImport"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects multiple imports of the same package under different aliases"
 	info.Before = `
 import (
 	"fmt"
-	priting "fmt" // Imported the second time
+	printing "fmt" // Imported the second time
 )`
 	info.After = `
 import(
 	"fmt"
 )`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return &dupImportChecker{ctx: ctx}
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return &dupImportChecker{ctx: ctx}, nil
 	})
 }
 
 type dupImportChecker struct {
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 }
 
 func (c *dupImportChecker) WalkFile(f *ast.File) {
