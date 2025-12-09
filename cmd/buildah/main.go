@@ -237,7 +237,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 		exitCode := cli.ExecErrorCodeGeneric
-		if ee, ok := (errors.Cause(err)).(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if errors.As(errors.Cause(err), &ee) {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 				exitCode = w.ExitStatus()
 			}

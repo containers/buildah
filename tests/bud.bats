@@ -4144,7 +4144,7 @@ _EOF
     skip "unable to run arm container, assuming emulation is not available"
   fi
   outputlist=localhost/testlist
-  run_buildah 125 build $WITH_POLICY_JSON --jobs=0 --platform=linux/arm64,linux/amd64 --manifest $outputlist -f $BUDFILES/multiarch/Dockerfile.fail-multistage $BUDFILES/multiarch
+  run_buildah 1 build $WITH_POLICY_JSON --jobs=0 --platform=linux/arm64,linux/amd64 --manifest $outputlist -f $BUDFILES/multiarch/Dockerfile.fail-multistage $BUDFILES/multiarch
   expect_output --substring 'error building at STEP "RUN false"'
 }
 

@@ -217,6 +217,14 @@ func GetFailureCause(err, defaultError error) error {
 	case errcode.Error, *url.Error:
 		return nErr
 	default:
+		var errcodes *errcode.Error
+		var urlError *url.Error
+		if errors.As(errors.Cause(err), &errcodes) {
+			return errcodes
+		}
+		if errors.As(errors.Cause(err), &urlError) {
+			return urlError
+		}
 		return defaultError
 	}
 }

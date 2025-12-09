@@ -603,7 +603,7 @@ func (b *Builder) userForRun(mountPoint string, userspec string) (specs.User, st
 	if !strings.Contains(userspec, ":") {
 		groups, err2 := chrootuser.GetAdditionalGroupsForUser(mountPoint, uint64(u.UID))
 		if err2 != nil {
-			if errors.Cause(err2) != chrootuser.ErrNoSuchUser && err == nil {
+			if !errors.Is(errors.Cause(err2), chrootuser.ErrNoSuchUser) && err == nil {
 				err = err2
 			}
 		} else {

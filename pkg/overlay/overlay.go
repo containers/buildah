@@ -266,7 +266,7 @@ func Unmount(contentDir string) error {
 		// If they fail, fallback to unix.Unmount
 		for _, v := range []string{"fusermount3", "fusermount"} {
 			err := exec.Command(v, "-u", mergeDir).Run()
-			if err != nil && errors.Cause(err) != exec.ErrNotFound {
+			if err != nil && !errors.Is(errors.Cause(err), exec.ErrNotFound) {
 				logrus.Debugf("Error unmounting %s with %s - %v", mergeDir, v, err)
 			}
 			if err == nil {
