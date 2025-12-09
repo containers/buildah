@@ -26,6 +26,8 @@ var defaultHelperBinariesDir = []string{
 	"/usr/local/lib/podman",
 	"/usr/libexec/podman",
 	"/usr/lib/podman",
+	"/usr/libexec",
+	"/usr/local/libexec",
 }
 
 // Capabilities returns the capabilities parses the Add and Drop capability

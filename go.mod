@@ -29,7 +29,7 @@ require (
 	github.com/opencontainers/selinux v1.13.1
 	github.com/openshift/imagebuilder v1.2.19
 	github.com/seccomp/libseccomp-golang v0.11.1
-	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af
+	github.com/sirupsen/logrus v1.9.4-0.20251023124752-b61f268f75b6
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
@@ -85,7 +85,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-runewidth v0.0.19 // indirect
@@ -139,3 +139,9 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.1-0.20251120202831-139ffec09210 // indirect
 )
+
+replace go.podman.io/common => github.com/jakecorrenti/container-libs/common v0.0.0-20251208225238-70deff526914
+
+replace go.podman.io/storage => github.com/jakecorrenti/container-libs/storage v0.0.0-20251208225238-70deff526914
+
+replace go.podman.io/image/v5 => github.com/jakecorrenti/container-libs/image/v5 v5.0.0-20251208225238-70deff526914
