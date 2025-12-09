@@ -6,17 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/moby/sys/capability"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
 
@@ -117,7 +116,7 @@ func TestGetPermissionErrorChroot(t *testing.T) {
 
 func testGetPermissionError(t *testing.T) {
 	dropCaps := []capability.Cap{capability.CAP_DAC_OVERRIDE, capability.CAP_DAC_READ_SEARCH}
-	tmp, err := ioutil.TempDir("", "copier-test-")
+	tmp, err := os.MkdirTemp("", "copier-test-")
 	require.NoErrorf(t, err, "error creating temporary directory")
 	defer os.RemoveAll(tmp)
 	err = os.Mkdir(filepath.Join(tmp, "unreadable-directory"), 0000)
@@ -126,11 +125,11 @@ func testGetPermissionError(t *testing.T) {
 	require.NoError(t, err, "error creating a readable directory")
 	err = os.Mkdir(filepath.Join(tmp, "readable-directory", "unreadable-subdirectory"), 0000)
 	require.NoError(t, err, "error creating an unreadable subdirectory")
-	err = ioutil.WriteFile(filepath.Join(tmp, "unreadable-file"), []byte("hi, i'm a file that you can't read"), 0000)
+	err = os.WriteFile(filepath.Join(tmp, "unreadable-file"), []byte("hi, i'm a file that you can't read"), 0000)
 	require.NoError(t, err, "error creating an unreadable file")
-	err = ioutil.WriteFile(filepath.Join(tmp, "readable-file"), []byte("hi, i'm also a file, and you can read me"), 0644)
+	err = os.WriteFile(filepath.Join(tmp, "readable-file"), []byte("hi, i'm also a file, and you can read me"), 0644)
 	require.NoError(t, err, "error creating a readable file")
-	err = ioutil.WriteFile(filepath.Join(tmp, "readable-directory", "unreadable-file"), []byte("hi, i'm also a file that you can't read"), 0000)
+	err = os.WriteFile(filepath.Join(tmp, "readable-directory", "unreadable-file"), []byte("hi, i'm also a file that you can't read"), 0000)
 	require.NoError(t, err, "error creating an unreadable file in a readable directory")
 	for _, ignore := range []bool{false, true} {
 		t.Run(fmt.Sprintf("ignore=%v", ignore), func(t *testing.T) {
@@ -160,7 +159,7 @@ func TestGetNoCrossDevice(t *testing.T) {
 		t.Skip("test requires root privileges, skipping")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "copier-test-noxdev-")
+	tmpdir, err := os.MkdirTemp("", "copier-test-noxdev-")
 	require.NoError(t, err, "error creating temporary directory")
 	defer os.RemoveAll(tmpdir)
 
@@ -179,7 +178,7 @@ func TestGetNoCrossDevice(t *testing.T) {
 	}()
 
 	skipped := filepath.Join(subdir, "skipped.txt")
-	err = ioutil.WriteFile(skipped, []byte("this file should have been skipped\n"), 0644)
+	err = os.WriteFile(skipped, []byte("this file should have been skipped\n"), 0644)
 	require.NoErrorf(t, err, "error writing file at %q", skipped)
 
 	var buf bytes.Buffer

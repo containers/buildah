@@ -26,6 +26,7 @@ Available checks
 ` + checkTName + `  - check *testing.T param has t name
 
 Also available similar checks for benchmark and TB helpers: ` +
+		checkFBegin + `, ` + checkFFirst + `, ` + checkFName + `,` +
 		checkBBegin + `, ` + checkBFirst + `, ` + checkBName + `,` +
 		checkTBBegin + `, ` + checkTBFirst + `, ` + checkTBName + `
 
@@ -60,6 +61,7 @@ func (m enabledChecksValue) Set(s string) error {
 	for _, v := range ss {
 		switch v {
 		case checkTBegin, checkTFirst, checkTName,
+			checkFBegin, checkFFirst, checkFName,
 			checkBBegin, checkBFirst, checkBName,
 			checkTBBegin, checkTBFirst, checkTBName:
 			m[v] = struct{}{}
@@ -74,6 +76,9 @@ const (
 	checkTBegin  = "t_begin"
 	checkTFirst  = "t_first"
 	checkTName   = "t_name"
+	checkFBegin  = "f_begin"
+	checkFFirst  = "f_first"
+	checkFName   = "f_name"
 	checkBBegin  = "b_begin"
 	checkBFirst  = "b_first"
 	checkBName   = "b_name"
@@ -94,6 +99,9 @@ func NewAnalyzer() *analysis.Analyzer {
 		checkTBegin:  struct{}{},
 		checkTFirst:  struct{}{},
 		checkTName:   struct{}{},
+		checkFBegin:  struct{}{},
+		checkFFirst:  struct{}{},
+		checkFName:   struct{}{},
 		checkBBegin:  struct{}{},
 		checkBFirst:  struct{}{},
 		checkBName:   struct{}{},
@@ -118,13 +126,17 @@ func NewAnalyzer() *analysis.Analyzer {
 }
 
 func (t thelper) run(pass *analysis.Pass) (interface{}, error) {
-	tCheckOpts, bCheckOpts, tbCheckOpts, ok := t.buildCheckFuncOpts(pass)
+	tCheckOpts, fCheckOpts, bCheckOpts, tbCheckOpts, ok := t.buildCheckFuncOpts(pass)
+	if !ok {
+		return nil, nil
+	}
+
+	inspect, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
 		return nil, nil
 	}
 
 	var reports reports
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
 		(*ast.FuncLit)(nil),
@@ -144,13 +156,16 @@ func (t thelper) run(pass *analysis.Pass) (interface{}, error) {
 			fd.Body = n.Body
 			fd.Name = n.Name
 		case *ast.CallExpr:
-			tbRunSubtestExprs := extractSubtestExp(pass, n, tCheckOpts.tbRun, tCheckOpts.tbTestFuncType)
-			if len(tbRunSubtestExprs) == 0 {
-				tbRunSubtestExprs = extractSubtestExp(pass, n, bCheckOpts.tbRun, bCheckOpts.tbTestFuncType)
+			runSubtestExprs := extractSubtestExp(pass, n, tCheckOpts.subRun, tCheckOpts.subTestFuncType)
+			if len(runSubtestExprs) == 0 {
+				runSubtestExprs = extractSubtestExp(pass, n, bCheckOpts.subRun, bCheckOpts.subTestFuncType)
+			}
+			if len(runSubtestExprs) == 0 {
+				runSubtestExprs = extractSubtestFuzzExp(pass, n, fCheckOpts.subRun)
 			}
 
-			if len(tbRunSubtestExprs) > 0 {
-				for _, expr := range tbRunSubtestExprs {
+			if len(runSubtestExprs) > 0 {
+				for _, expr := range runSubtestExprs {
 					reports.Filter(funcDefPosition(pass, expr))
 				}
 			} else {
@@ -162,6 +177,7 @@ func (t thelper) run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		checkFunc(pass, &reports, fd, tCheckOpts)
+		checkFunc(pass, &reports, fd, fCheckOpts)
 		checkFunc(pass, &reports, fd, bCheckOpts)
 		checkFunc(pass, &reports, fd, tbCheckOpts)
 	})
@@ -172,19 +188,19 @@ func (t thelper) run(pass *analysis.Pass) (interface{}, error) {
 }
 
 type checkFuncOpts struct {
-	skipPrefix     string
-	varName        string
-	tbHelper       types.Object
-	tbRun          types.Object
-	tbTestFuncType types.Type
-	tbType         types.Type
-	ctxType        types.Type
-	checkBegin     bool
-	checkFirst     bool
-	checkName      bool
+	skipPrefix      string
+	varName         string
+	fnHelper        types.Object
+	subRun          types.Object
+	subTestFuncType types.Type
+	hpType          types.Type
+	ctxType         types.Type
+	checkBegin      bool
+	checkFirst      bool
+	checkName       bool
 }
 
-func (t thelper) buildCheckFuncOpts(pass *analysis.Pass) (checkFuncOpts, checkFuncOpts, checkFuncOpts, bool) {
+func (t thelper) buildCheckFuncOpts(pass *analysis.Pass) (checkFuncOpts, checkFuncOpts, checkFuncOpts, checkFuncOpts, bool) {
 	var ctxType types.Type
 	ctxObj := analysisutil.ObjectOf(pass, "context", "Context")
 	if ctxObj != nil {
@@ -193,20 +209,25 @@ func (t thelper) buildCheckFuncOpts(pass *analysis.Pass) (checkFuncOpts, checkFu
 
 	tCheckOpts, ok := t.buildTestCheckFuncOpts(pass, ctxType)
 	if !ok {
-		return checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, false
+		return checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, false
+	}
+
+	fCheckOpts, ok := t.buildFuzzCheckFuncOpts(pass, ctxType)
+	if !ok {
+		return checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, false
 	}
 
 	bCheckOpts, ok := t.buildBenchmarkCheckFuncOpts(pass, ctxType)
 	if !ok {
-		return checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, false
+		return checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, false
 	}
 
 	tbCheckOpts, ok := t.buildTBCheckFuncOpts(pass, ctxType)
 	if !ok {
-		return checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, false
+		return checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, checkFuncOpts{}, false
 	}
 
-	return tCheckOpts, bCheckOpts, tbCheckOpts, true
+	return tCheckOpts, fCheckOpts, bCheckOpts, tbCheckOpts, true
 }
 
 func (t thelper) buildTestCheckFuncOpts(pass *analysis.Pass, ctxType types.Type) (checkFuncOpts, bool) {
@@ -225,19 +246,48 @@ func (t thelper) buildTestCheckFuncOpts(pass *analysis.Pass, ctxType types.Type)
 		return checkFuncOpts{}, false
 	}
 
-	tbType := types.NewPointer(tObj.Type())
-	tVar := types.NewVar(token.NoPos, nil, "t", tbType)
+	tType := types.NewPointer(tObj.Type())
+	tVar := types.NewVar(token.NoPos, nil, "t", tType)
 	return checkFuncOpts{
-		skipPrefix:     "Test",
-		varName:        "t",
-		tbHelper:       tHelper,
-		tbRun:          tRun,
-		tbType:         tbType,
-		tbTestFuncType: types.NewSignature(nil, types.NewTuple(tVar), nil, false),
-		ctxType:        ctxType,
-		checkBegin:     t.enabledChecks.Enabled(checkTBegin),
-		checkFirst:     t.enabledChecks.Enabled(checkTFirst),
-		checkName:      t.enabledChecks.Enabled(checkTName),
+		skipPrefix:      "Test",
+		varName:         "t",
+		fnHelper:        tHelper,
+		subRun:          tRun,
+		hpType:          tType,
+		subTestFuncType: types.NewSignature(nil, types.NewTuple(tVar), nil, false),
+		ctxType:         ctxType,
+		checkBegin:      t.enabledChecks.Enabled(checkTBegin),
+		checkFirst:      t.enabledChecks.Enabled(checkTFirst),
+		checkName:       t.enabledChecks.Enabled(checkTName),
+	}, true
+}
+
+func (t thelper) buildFuzzCheckFuncOpts(pass *analysis.Pass, ctxType types.Type) (checkFuncOpts, bool) {
+	fObj := analysisutil.ObjectOf(pass, "testing", "F")
+	if fObj == nil {
+		return checkFuncOpts{}, true // fuzzing supports since go1.18, it's ok, that testig.F is missed.
+	}
+
+	fHelper, _, _ := types.LookupFieldOrMethod(fObj.Type(), true, fObj.Pkg(), "Helper")
+	if fHelper == nil {
+		return checkFuncOpts{}, false
+	}
+
+	tFuzz, _, _ := types.LookupFieldOrMethod(fObj.Type(), true, fObj.Pkg(), "Fuzz")
+	if tFuzz == nil {
+		return checkFuncOpts{}, false
+	}
+
+	return checkFuncOpts{
+		skipPrefix: "Fuzz",
+		varName:    "f",
+		fnHelper:   fHelper,
+		subRun:     tFuzz,
+		hpType:     types.NewPointer(fObj.Type()),
+		ctxType:    ctxType,
+		checkBegin: t.enabledChecks.Enabled(checkFBegin),
+		checkFirst: t.enabledChecks.Enabled(checkFFirst),
+		checkName:  t.enabledChecks.Enabled(checkFName),
 	}, true
 }
 
@@ -257,19 +307,19 @@ func (t thelper) buildBenchmarkCheckFuncOpts(pass *analysis.Pass, ctxType types.
 		return checkFuncOpts{}, false
 	}
 
-	tbType := types.NewPointer(bObj.Type())
-	bVar := types.NewVar(token.NoPos, nil, "b", tbType)
+	bType := types.NewPointer(bObj.Type())
+	bVar := types.NewVar(token.NoPos, nil, "b", bType)
 	return checkFuncOpts{
-		skipPrefix:     "Benchmark",
-		varName:        "b",
-		tbHelper:       bHelper,
-		tbRun:          bRun,
-		tbType:         types.NewPointer(bObj.Type()),
-		tbTestFuncType: types.NewSignature(nil, types.NewTuple(bVar), nil, false),
-		ctxType:        ctxType,
-		checkBegin:     t.enabledChecks.Enabled(checkBBegin),
-		checkFirst:     t.enabledChecks.Enabled(checkBFirst),
-		checkName:      t.enabledChecks.Enabled(checkBName),
+		skipPrefix:      "Benchmark",
+		varName:         "b",
+		fnHelper:        bHelper,
+		subRun:          bRun,
+		hpType:          types.NewPointer(bObj.Type()),
+		subTestFuncType: types.NewSignature(nil, types.NewTuple(bVar), nil, false),
+		ctxType:         ctxType,
+		checkBegin:      t.enabledChecks.Enabled(checkBBegin),
+		checkFirst:      t.enabledChecks.Enabled(checkBFirst),
+		checkName:       t.enabledChecks.Enabled(checkBName),
 	}, true
 }
 
@@ -287,8 +337,8 @@ func (t thelper) buildTBCheckFuncOpts(pass *analysis.Pass, ctxType types.Type) (
 	return checkFuncOpts{
 		skipPrefix: "",
 		varName:    "tb",
-		tbHelper:   tbHelper,
-		tbType:     tbObj.Type(),
+		fnHelper:   tbHelper,
+		hpType:     tbObj.Type(),
 		ctxType:    ctxType,
 		checkBegin: t.enabledChecks.Enabled(checkTBBegin),
 		checkFirst: t.enabledChecks.Enabled(checkTBFirst),
@@ -304,11 +354,15 @@ type funcDecl struct {
 }
 
 func checkFunc(pass *analysis.Pass, reports *reports, funcDecl funcDecl, opts checkFuncOpts) {
+	if !opts.checkFirst && !opts.checkBegin && !opts.checkName {
+		return
+	}
+
 	if opts.skipPrefix != "" && strings.HasPrefix(funcDecl.Name.Name, opts.skipPrefix) {
 		return
 	}
 
-	p, pos, ok := searchFuncParam(pass, funcDecl, opts.tbType)
+	p, pos, ok := searchFuncParam(pass, funcDecl, opts.hpType)
 	if !ok {
 		return
 	}
@@ -322,7 +376,7 @@ func checkFunc(pass *analysis.Pass, reports *reports, funcDecl funcDecl, opts ch
 			}
 
 			if !checkFirstPassed {
-				reports.Reportf(funcDecl.Pos, "parameter %s should be the first or after context.Context", opts.tbType)
+				reports.Reportf(funcDecl.Pos, "parameter %s should be the first or after context.Context", opts.hpType)
 			}
 		}
 	}
@@ -330,12 +384,12 @@ func checkFunc(pass *analysis.Pass, reports *reports, funcDecl funcDecl, opts ch
 	if len(p.Names) > 0 && p.Names[0].Name != "_" {
 		if opts.checkName {
 			if p.Names[0].Name != opts.varName {
-				reports.Reportf(funcDecl.Pos, "parameter %s should have name %s", opts.tbType, opts.varName)
+				reports.Reportf(funcDecl.Pos, "parameter %s should have name %s", opts.hpType, opts.varName)
 			}
 		}
 
 		if opts.checkBegin {
-			if len(funcDecl.Body.List) == 0 || !isTHelperCall(pass, funcDecl.Body.List[0], opts.tbHelper) {
+			if len(funcDecl.Body.List) == 0 || !isTHelperCall(pass, funcDecl.Body.List[0], opts.fnHelper) {
 				reports.Reportf(funcDecl.Pos, "test helper function should start from %s.Helper()", opts.varName)
 			}
 		}
@@ -396,6 +450,27 @@ func extractSubtestExp(
 	}
 
 	return []ast.Expr{e.Args[1]}
+}
+
+// extractSubtestFuzzExp analyzes that call expresion 'e' is f.Fuzz
+// and returns subtest function.
+func extractSubtestFuzzExp(
+	pass *analysis.Pass, e *ast.CallExpr, fuzzRun types.Object,
+) []ast.Expr {
+	selExpr, ok := e.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return nil
+	}
+
+	if !isSelectorCall(pass, selExpr, fuzzRun) {
+		return nil
+	}
+
+	if len(e.Args) != 1 {
+		return nil
+	}
+
+	return []ast.Expr{e.Args[0]}
 }
 
 // unwrapTestingFunctionConstruction checks that expresion is build testing functions

@@ -10,15 +10,10 @@ import (
 type NestedStructs struct{}
 
 // Apply applies the rule to given file.
-func (r *NestedStructs) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (*NestedStructs) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
-	if len(arguments) > 0 {
-		panic(r.Name() + " doesn't take any arguments")
-	}
-
 	walker := &lintNestedStructs{
-		fileAST: file.AST,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
 		},
@@ -30,32 +25,51 @@ func (r *NestedStructs) Apply(file *lint.File, arguments lint.Arguments) []lint.
 }
 
 // Name returns the rule name.
-func (r *NestedStructs) Name() string {
+func (*NestedStructs) Name() string {
 	return "nested-structs"
 }
 
 type lintNestedStructs struct {
-	fileAST   *ast.File
 	onFailure func(lint.Failure)
 }
 
 func (l *lintNestedStructs) Visit(n ast.Node) ast.Visitor {
-	switch v := n.(type) {
-	case *ast.FuncDecl:
-		if v.Body != nil {
-			ast.Walk(l, v.Body)
+	if v, ok := n.(*ast.StructType); ok {
+		ls := &lintStruct{l.onFailure}
+		ast.Walk(ls, v.Fields)
+	}
+
+	return l
+}
+
+type lintStruct struct {
+	onFailure func(lint.Failure)
+}
+
+func (l *lintStruct) Visit(n ast.Node) ast.Visitor {
+	switch s := n.(type) {
+	case *ast.StructType:
+		l.fail(s)
+		return nil
+	case *ast.ArrayType:
+		if _, ok := s.Elt.(*ast.StructType); ok {
+			l.fail(s)
 		}
 		return nil
-	case *ast.Field:
-		if _, ok := v.Type.(*ast.StructType); ok {
-			l.onFailure(lint.Failure{
-				Failure:    "no nested structs are allowed",
-				Category:   "style",
-				Node:       v,
-				Confidence: 1,
-			})
-			break
-		}
+	case *ast.ChanType:
+		return nil
+	case *ast.MapType:
+		return nil
+	default:
+		return l
 	}
-	return l
+}
+
+func (l *lintStruct) fail(n ast.Node) {
+	l.onFailure(lint.Failure{
+		Failure:    "no nested structs are allowed",
+		Category:   "style",
+		Node:       n,
+		Confidence: 1,
+	})
 }

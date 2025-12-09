@@ -10,13 +10,18 @@ import (
 type UnreachableCodeRule struct{}
 
 // Apply applies the rule to given file.
-func (r *UnreachableCodeRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*UnreachableCodeRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 	onFailure := func(failure lint.Failure) {
 		failures = append(failures, failure)
 	}
 
-	var branchingFunctions = map[string]map[string]bool{
+	testingFunctions := map[string]bool{
+		"Fatal":   true,
+		"Fatalf":  true,
+		"FailNow": true,
+	}
+	branchingFunctions := map[string]map[string]bool{
 		"os": {"Exit": true},
 		"log": {
 			"Fatal":   true,
@@ -26,6 +31,9 @@ func (r *UnreachableCodeRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 			"Panicf":  true,
 			"Panicln": true,
 		},
+		"t": testingFunctions,
+		"b": testingFunctions,
+		"f": testingFunctions,
 	}
 
 	w := lintUnreachableCode{onFailure, branchingFunctions}
@@ -34,7 +42,7 @@ func (r *UnreachableCodeRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 }
 
 // Name returns the rule name.
-func (r *UnreachableCodeRule) Name() string {
+func (*UnreachableCodeRule) Name() string {
 	return "unreachable-code"
 }
 

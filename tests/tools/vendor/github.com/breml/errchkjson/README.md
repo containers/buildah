@@ -2,7 +2,7 @@
 
 [![Test Status](https://github.com/breml/errchkjson/actions/workflows/ci.yml/badge.svg)](https://github.com/breml/errchkjson/actions/workflows/ci.yml) [![Go Report Card](https://goreportcard.com/badge/github.com/breml/errchkjson)](https://goreportcard.com/report/github.com/breml/errchkjson) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Checks types passed to the json encoding functions. Reports unsupported types and reports occations, where the check for the returned error can be omited.
+Checks types passed to the json encoding functions. Reports unsupported types and reports occurrences where the check for the returned error can be omitted.
 
 Consider this [http.Handler](https://pkg.go.dev/net/http#Handler):
 
@@ -113,6 +113,12 @@ Forbidden basic types:
 
 Any composed types (struct, map, slice, array) containing a forbidden basic type. Any map
 using a key with a forbidden type (`bool`, `float32`, `float64`, `struct`).
+
+## Accepted edge case
+
+For `encoding/json.MarshalIndent`, there is a (pathological) edge case, where this
+function could [return an error](https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/encoding/json/scanner.go;drc=refs%2Ftags%2Fgo1.18;l=181) for an otherwise safe argument, if the argument has
+a nesting depth larger than [`10000`](https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/encoding/json/scanner.go;drc=refs%2Ftags%2Fgo1.18;l=144) (as of Go 1.18).
 
 ## Bugs found during development
 

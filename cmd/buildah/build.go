@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,6 +83,13 @@ func init() {
 	flags.AddFlagSet(&layerFlags)
 	flags.AddFlagSet(&fromAndBudFlags)
 	flags.SetNormalizeFunc(buildahcli.AliasFlags)
+
+	if err := flags.MarkHidden("userns-uid-map"); err != nil {
+		logrus.Errorf("unable to mark userns-uid-map flag as hidden: %v", err)
+	}
+	if err := flags.MarkHidden("userns-gid-map"); err != nil {
+		logrus.Errorf("unable to mark userns-gid-map flag as hidden: %v", err)
+	}
 
 	rootCmd.AddCommand(buildCommand)
 }
@@ -426,7 +432,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		OSVersion:               iopts.OSVersion,
 	}
 	if iopts.Quiet {
-		options.ReportWriter = ioutil.Discard
+		options.ReportWriter = io.Discard
 	}
 
 	id, ref, err := imagebuildah.BuildDockerfiles(getContext(), store, options, containerfiles...)

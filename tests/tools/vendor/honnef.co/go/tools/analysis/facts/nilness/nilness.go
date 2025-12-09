@@ -133,7 +133,7 @@ func impl(pass *analysis.Pass, fn *ir.Function, seenFns map[*ir.Function]struct{
 		case *ir.Convert:
 			return mightReturnNil(v.X)
 		case *ir.SliceToArrayPointer:
-			if v.Type().Underlying().(*types.Pointer).Elem().Underlying().(*types.Array).Len() == 0 {
+			if typeutil.CoreType(v.Type()).(*types.Pointer).Elem().Underlying().(*types.Array).Len() == 0 {
 				return mightReturnNil(v.X)
 			} else {
 				// converting a slice to an array pointer of length > 0 panics if the slice is nil
@@ -161,7 +161,7 @@ func impl(pass *analysis.Pass, fn *ir.Function, seenFns map[*ir.Function]struct{
 				} else {
 					return nilly
 				}
-			case *ir.TypeAssert, *ir.Next, *ir.Select, *ir.MapLookup, *ir.TypeSwitch, *ir.Recv:
+			case *ir.TypeAssert, *ir.Next, *ir.Select, *ir.MapLookup, *ir.TypeSwitch, *ir.Recv, *ir.Sigma:
 				// we don't need to look at the Extract's index
 				// because we've already checked its type.
 				return nilly
@@ -221,12 +221,16 @@ func impl(pass *analysis.Pass, fn *ir.Function, seenFns map[*ir.Function]struct{
 			return nilly
 		case *ir.ChangeType:
 			return mightReturnNil(v.X)
+		case *ir.MultiConvert:
+			return mightReturnNil(v.X)
 		case *ir.Load:
 			if _, ok := v.X.(*ir.Global); ok {
 				return onlyGlobal
 			}
 			return nilly
-		case *ir.TypeAssert, *ir.ChangeInterface, *ir.Field, *ir.Const, *ir.Index, *ir.MapLookup, *ir.Parameter, *ir.Recv, *ir.TypeSwitch:
+		case *ir.AggregateConst:
+			return neverNil
+		case *ir.TypeAssert, *ir.ChangeInterface, *ir.Field, *ir.Const, *ir.GenericConst, *ir.Index, *ir.MapLookup, *ir.Parameter, *ir.Recv, *ir.TypeSwitch:
 			return nilly
 		default:
 			panic(fmt.Sprintf("internal error: unhandled type %T", v))
@@ -236,6 +240,8 @@ func impl(pass *analysis.Pass, fn *ir.Function, seenFns map[*ir.Function]struct{
 	out := make([]neverNilness, len(ret.Results))
 	export := false
 	for i, v := range ret.Results {
+		// OPT(dh): couldn't we check the result type's pointer-likeness early, and skip
+		// processing the return value altogether?
 		v := mightReturnNil(v)
 		out[i] = v
 		if v != nilly && typeutil.IsPointerLike(fn.Signature.Results().At(i).Type()) {

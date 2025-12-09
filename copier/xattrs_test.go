@@ -2,7 +2,6 @@ package copier
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
@@ -24,14 +23,14 @@ func TestXattrs(t *testing.T) {
 		"user.a": "attribute value a",
 		"user.b": "attribute value b",
 	}
-	tmp, err := ioutil.TempDir("", "copier-xattr-test-")
+	tmp, err := os.MkdirTemp("", "copier-xattr-test-")
 	if !assert.Nil(t, err, "error creating test directory: %v", err) {
 		t.FailNow()
 	}
 	defer os.RemoveAll(tmp)
 	for attribute, value := range testValues {
 		t.Run(fmt.Sprintf("attribute=%s", attribute), func(t *testing.T) {
-			f, err := ioutil.TempFile(tmp, "copier-xattr-test-")
+			f, err := os.CreateTemp(tmp, "copier-xattr-test-")
 			if !assert.Nil(t, err, "error creating test file: %v", err) {
 				t.FailNow()
 			}
@@ -39,7 +38,7 @@ func TestXattrs(t *testing.T) {
 
 			err = Lsetxattrs(f.Name(), map[string]string{attribute: value})
 			if unwrapError(err) == syscall.ENOTSUP {
-				t.Skip(fmt.Sprintf("extended attributes not supported on %q, skipping", tmp))
+				t.Skipf("extended attributes not supported on %q, skipping", tmp)
 			}
 			if !assert.Nil(t, err, "error setting attribute on file: %v", err) {
 				t.FailNow()

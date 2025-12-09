@@ -94,459 +94,518 @@ const (
 	// Args: x expr
 	opIndexExpr operation = 21
 
+	// Tag: IndexListExpr
+	// Args: x exprs...
+	opIndexListExpr operation = 22
+
 	// Tag: SliceExpr
 	// Args: x
-	opSliceExpr operation = 22
+	opSliceExpr operation = 23
 
 	// Tag: SliceExpr
 	// Args: x from
 	// Example: x[from:]
-	opSliceFromExpr operation = 23
+	opSliceFromExpr operation = 24
 
 	// Tag: SliceExpr
 	// Args: x to
 	// Example: x[:to]
-	opSliceToExpr operation = 24
+	opSliceToExpr operation = 25
 
 	// Tag: SliceExpr
 	// Args: x from to
 	// Example: x[from:to]
-	opSliceFromToExpr operation = 25
+	opSliceFromToExpr operation = 26
 
 	// Tag: SliceExpr
 	// Args: x from cap
 	// Example: x[:from:cap]
-	opSliceToCapExpr operation = 26
+	opSliceToCapExpr operation = 27
 
 	// Tag: SliceExpr
 	// Args: x from to cap
 	// Example: x[from:to:cap]
-	opSliceFromToCapExpr operation = 27
+	opSliceFromToCapExpr operation = 28
 
 	// Tag: FuncLit
 	// Args: type block
-	opFuncLit operation = 28
+	opFuncLit operation = 29
 
 	// Tag: CompositeLit
 	// Args: elts...
 	// Example: {elts...}
-	opCompositeLit operation = 29
+	opCompositeLit operation = 30
 
 	// Tag: CompositeLit
 	// Args: typ elts...
 	// Example: typ{elts...}
-	opTypedCompositeLit operation = 30
+	opTypedCompositeLit operation = 31
 
 	// Tag: SelectorExpr
 	// Args: x
 	// ValueIndex: strings | selector name
-	opSimpleSelectorExpr operation = 31
+	opSimpleSelectorExpr operation = 32
 
 	// Tag: SelectorExpr
 	// Args: x sel
-	opSelectorExpr operation = 32
+	opSelectorExpr operation = 33
 
 	// Tag: TypeAssertExpr
 	// Args: x typ
-	opTypeAssertExpr operation = 33
+	opTypeAssertExpr operation = 34
 
 	// Tag: TypeAssertExpr
 	// Args: x
-	opTypeSwitchAssertExpr operation = 34
+	opTypeSwitchAssertExpr operation = 35
 
 	// Tag: StructType
 	// Args: fields
-	opStructType operation = 35
+	opStructType operation = 36
 
-	// Tag: StructType
+	// Tag: InterfaceType
 	// Args: fields
-	opInterfaceType operation = 36
+	opInterfaceType operation = 37
+
+	// Tag: InterfaceType
+	opEfaceType operation = 38
 
 	// Tag: FuncType
 	// Args: params
-	opVoidFuncType operation = 37
+	opVoidFuncType operation = 39
+
+	// Tag: FuncType
+	// Args: typeparams params
+	opGenericVoidFuncType operation = 40
 
 	// Tag: FuncType
 	// Args: params results
-	opFuncType operation = 38
+	opFuncType operation = 41
+
+	// Tag: FuncType
+	// Args: typeparams params results
+	opGenericFuncType operation = 42
 
 	// Tag: ArrayType
 	// Args: length elem
-	opArrayType operation = 39
+	opArrayType operation = 43
 
 	// Tag: ArrayType
 	// Args: elem
-	opSliceType operation = 40
+	opSliceType operation = 44
 
 	// Tag: MapType
 	// Args: key value
-	opMapType operation = 41
+	opMapType operation = 45
 
 	// Tag: ChanType
 	// Args: value
 	// Value: ast.ChanDir | channel direction
-	opChanType operation = 42
+	opChanType operation = 46
 
 	// Tag: KeyValueExpr
 	// Args: key value
-	opKeyValueExpr operation = 43
+	opKeyValueExpr operation = 47
 
 	// Tag: Ellipsis
-	opEllipsis operation = 44
+	opEllipsis operation = 48
 
 	// Tag: Ellipsis
 	// Args: type
-	opTypedEllipsis operation = 45
+	opTypedEllipsis operation = 49
 
 	// Tag: StarExpr
 	// Args: x
-	opStarExpr operation = 46
+	opStarExpr operation = 50
 
 	// Tag: UnaryExpr
 	// Args: x
 	// Value: token.Token | unary operator
-	opUnaryExpr operation = 47
+	opUnaryExpr operation = 51
 
 	// Tag: BinaryExpr
 	// Args: x y
 	// Value: token.Token | binary operator
-	opBinaryExpr operation = 48
+	opBinaryExpr operation = 52
 
 	// Tag: ParenExpr
 	// Args: x
-	opParenExpr operation = 49
+	opParenExpr operation = 53
 
 	// Tag: Unknown
 	// Args: exprs...
 	// Example: 1, 2, 3
-	opArgList operation = 50
+	opArgList operation = 54
 
 	// Tag: Unknown
 	// Like ArgList, but pattern contains no $*
 	// Args: exprs[]
 	// Example: 1, 2, 3
 	// Value: int | slice len
-	opSimpleArgList operation = 51
+	opSimpleArgList operation = 55
 
 	// Tag: CallExpr
 	// Args: fn args
 	// Example: f(1, xs...)
-	opVariadicCallExpr operation = 52
+	opVariadicCallExpr operation = 56
 
 	// Tag: CallExpr
 	// Args: fn args
 	// Example: f(1, xs)
-	opNonVariadicCallExpr operation = 53
+	opNonVariadicCallExpr operation = 57
 
 	// Tag: CallExpr
 	// Args: fn args
 	// Example: f(1, xs) or f(1, xs...)
-	opCallExpr operation = 54
+	// Value: int | can be variadic if len(args)>value
+	opMaybeVariadicCallExpr operation = 58
+
+	// Tag: CallExpr
+	// Args: fn args
+	// Example: f(1, xs) or f(1, xs...)
+	opCallExpr operation = 59
 
 	// Tag: AssignStmt
 	// Args: lhs rhs
 	// Example: lhs := rhs()
 	// Value: token.Token | ':=' or '='
-	opAssignStmt operation = 55
+	opAssignStmt operation = 60
 
 	// Tag: AssignStmt
 	// Args: lhs... rhs...
 	// Example: lhs1, lhs2 := rhs()
 	// Value: token.Token | ':=' or '='
-	opMultiAssignStmt operation = 56
+	opMultiAssignStmt operation = 61
 
 	// Tag: BranchStmt
 	// Args: x
 	// Value: token.Token | branch kind
-	opBranchStmt operation = 57
+	opBranchStmt operation = 62
 
 	// Tag: BranchStmt
 	// Args: x
 	// Value: token.Token | branch kind
 	// ValueIndex: strings | label name
-	opSimpleLabeledBranchStmt operation = 58
+	opSimpleLabeledBranchStmt operation = 63
 
 	// Tag: BranchStmt
 	// Args: label x
 	// Value: token.Token | branch kind
-	opLabeledBranchStmt operation = 59
+	opLabeledBranchStmt operation = 64
 
 	// Tag: LabeledStmt
 	// Args: x
 	// ValueIndex: strings | label name
-	opSimpleLabeledStmt operation = 60
+	opSimpleLabeledStmt operation = 65
 
 	// Tag: LabeledStmt
 	// Args: label x
-	opLabeledStmt operation = 61
+	opLabeledStmt operation = 66
 
 	// Tag: BlockStmt
 	// Args: body...
-	opBlockStmt operation = 62
+	opBlockStmt operation = 67
 
 	// Tag: ExprStmt
 	// Args: x
-	opExprStmt operation = 63
+	opExprStmt operation = 68
 
 	// Tag: GoStmt
 	// Args: x
-	opGoStmt operation = 64
+	opGoStmt operation = 69
 
 	// Tag: DeferStmt
 	// Args: x
-	opDeferStmt operation = 65
+	opDeferStmt operation = 70
 
 	// Tag: SendStmt
 	// Args: ch value
-	opSendStmt operation = 66
+	opSendStmt operation = 71
 
 	// Tag: EmptyStmt
-	opEmptyStmt operation = 67
+	opEmptyStmt operation = 72
 
 	// Tag: IncDecStmt
 	// Args: x
 	// Value: token.Token | '++' or '--'
-	opIncDecStmt operation = 68
+	opIncDecStmt operation = 73
 
 	// Tag: ReturnStmt
 	// Args: results...
-	opReturnStmt operation = 69
+	opReturnStmt operation = 74
 
 	// Tag: IfStmt
 	// Args: cond block
 	// Example: if cond {}
-	opIfStmt operation = 70
+	opIfStmt operation = 75
 
 	// Tag: IfStmt
 	// Args: init cond block
 	// Example: if init; cond {}
-	opIfInitStmt operation = 71
+	opIfInitStmt operation = 76
 
 	// Tag: IfStmt
 	// Args: cond block else
 	// Example: if cond {} else ...
-	opIfElseStmt operation = 72
+	opIfElseStmt operation = 77
 
 	// Tag: IfStmt
 	// Args: init cond block else
 	// Example: if init; cond {} else ...
-	opIfInitElseStmt operation = 73
+	opIfInitElseStmt operation = 78
 
 	// Tag: IfStmt
 	// Args: block
 	// Example: if $*x {}
 	// ValueIndex: strings | wildcard name
-	opIfNamedOptStmt operation = 74
+	opIfNamedOptStmt operation = 79
 
 	// Tag: IfStmt
 	// Args: block else
 	// Example: if $*x {} else ...
 	// ValueIndex: strings | wildcard name
-	opIfNamedOptElseStmt operation = 75
+	opIfNamedOptElseStmt operation = 80
 
 	// Tag: SwitchStmt
 	// Args: body...
 	// Example: switch {}
-	opSwitchStmt operation = 76
+	opSwitchStmt operation = 81
 
 	// Tag: SwitchStmt
 	// Args: tag body...
 	// Example: switch tag {}
-	opSwitchTagStmt operation = 77
+	opSwitchTagStmt operation = 82
 
 	// Tag: SwitchStmt
 	// Args: init body...
 	// Example: switch init; {}
-	opSwitchInitStmt operation = 78
+	opSwitchInitStmt operation = 83
 
 	// Tag: SwitchStmt
 	// Args: init tag body...
 	// Example: switch init; tag {}
-	opSwitchInitTagStmt operation = 79
+	opSwitchInitTagStmt operation = 84
 
 	// Tag: SelectStmt
 	// Args: body...
-	opSelectStmt operation = 80
+	opSelectStmt operation = 85
 
 	// Tag: TypeSwitchStmt
 	// Args: x block
 	// Example: switch x.(type) {}
-	opTypeSwitchStmt operation = 81
+	opTypeSwitchStmt operation = 86
 
 	// Tag: TypeSwitchStmt
 	// Args: init x block
 	// Example: switch init; x.(type) {}
-	opTypeSwitchInitStmt operation = 82
+	opTypeSwitchInitStmt operation = 87
 
 	// Tag: CaseClause
 	// Args: values... body...
-	opCaseClause operation = 83
+	opCaseClause operation = 88
 
 	// Tag: CaseClause
 	// Args: body...
-	opDefaultCaseClause operation = 84
+	opDefaultCaseClause operation = 89
 
 	// Tag: CommClause
 	// Args: comm body...
-	opCommClause operation = 85
+	opCommClause operation = 90
 
 	// Tag: CommClause
 	// Args: body...
-	opDefaultCommClause operation = 86
+	opDefaultCommClause operation = 91
 
 	// Tag: ForStmt
 	// Args: blocl
 	// Example: for {}
-	opForStmt operation = 87
+	opForStmt operation = 92
 
 	// Tag: ForStmt
 	// Args: post block
 	// Example: for ; ; post {}
-	opForPostStmt operation = 88
+	opForPostStmt operation = 93
 
 	// Tag: ForStmt
 	// Args: cond block
 	// Example: for ; cond; {}
-	opForCondStmt operation = 89
+	opForCondStmt operation = 94
 
 	// Tag: ForStmt
 	// Args: cond post block
 	// Example: for ; cond; post {}
-	opForCondPostStmt operation = 90
+	opForCondPostStmt operation = 95
 
 	// Tag: ForStmt
 	// Args: init block
 	// Example: for init; ; {}
-	opForInitStmt operation = 91
+	opForInitStmt operation = 96
 
 	// Tag: ForStmt
 	// Args: init post block
 	// Example: for init; ; post {}
-	opForInitPostStmt operation = 92
+	opForInitPostStmt operation = 97
 
 	// Tag: ForStmt
 	// Args: init cond block
 	// Example: for init; cond; {}
-	opForInitCondStmt operation = 93
+	opForInitCondStmt operation = 98
 
 	// Tag: ForStmt
 	// Args: init cond post block
 	// Example: for init; cond; post {}
-	opForInitCondPostStmt operation = 94
+	opForInitCondPostStmt operation = 99
 
 	// Tag: RangeStmt
 	// Args: x block
 	// Example: for range x {}
-	opRangeStmt operation = 95
+	opRangeStmt operation = 100
 
 	// Tag: RangeStmt
 	// Args: key x block
 	// Example: for key := range x {}
 	// Value: token.Token | ':=' or '='
-	opRangeKeyStmt operation = 96
+	opRangeKeyStmt operation = 101
 
 	// Tag: RangeStmt
 	// Args: key value x block
 	// Example: for key, value := range x {}
 	// Value: token.Token | ':=' or '='
-	opRangeKeyValueStmt operation = 97
+	opRangeKeyValueStmt operation = 102
+
+	// Tag: RangeStmt
+	// Args: x
+	// Example: range x
+	opRangeClause operation = 103
+
+	// Tag: RangeStmt
+	// Args: x
+	// Example: for range x
+	opRangeHeader operation = 104
+
+	// Tag: RangeStmt
+	// Args: key x
+	// Example: for key := range x
+	// Value: token.Token | ':=' or '='
+	opRangeKeyHeader operation = 105
+
+	// Tag: RangeStmt
+	// Args: key value x
+	// Example: for key, value := range x
+	// Value: token.Token | ':=' or '='
+	opRangeKeyValueHeader operation = 106
 
 	// Tag: Unknown
 	// Args: fields...
-	opFieldList operation = 98
+	opFieldList operation = 107
 
 	// Tag: Unknown
 	// Args: typ
 	// Example: type
-	opUnnamedField operation = 99
+	opUnnamedField operation = 108
 
 	// Tag: Unknown
 	// Args: typ
 	// Example: name type
 	// ValueIndex: strings | field name
-	opSimpleField operation = 100
+	opSimpleField operation = 109
 
 	// Tag: Unknown
 	// Args: name typ
 	// Example: $name type
-	opField operation = 101
+	opField operation = 110
 
 	// Tag: Unknown
 	// Args: names... typ
 	// Example: name1, name2 type
-	opMultiField operation = 102
+	opMultiField operation = 111
 
 	// Tag: ValueSpec
 	// Args: value
-	opValueSpec operation = 103
+	opValueSpec operation = 112
 
 	// Tag: ValueSpec
 	// Args: lhs... rhs...
 	// Example: lhs = rhs
-	opValueInitSpec operation = 104
+	opValueInitSpec operation = 113
 
 	// Tag: ValueSpec
 	// Args: lhs... type rhs...
 	// Example: lhs typ = rhs
-	opTypedValueInitSpec operation = 105
+	opTypedValueInitSpec operation = 114
 
 	// Tag: ValueSpec
 	// Args: lhs... type
 	// Example: lhs typ
-	opTypedValueSpec operation = 106
+	opTypedValueSpec operation = 115
+
+	// Tag: TypeSpec
+	// Args: type
+	// Example: name type
+	// ValueIndex: strings | type name
+	opSimpleTypeSpec operation = 116
 
 	// Tag: TypeSpec
 	// Args: name type
 	// Example: name type
-	opTypeSpec operation = 107
+	opTypeSpec operation = 117
+
+	// Tag: TypeSpec
+	// Args: name typeparasm type
+	// Example: name[typeparams] type
+	opGenericTypeSpec operation = 118
 
 	// Tag: TypeSpec
 	// Args: name type
 	// Example: name = type
-	opTypeAliasSpec operation = 108
+	opTypeAliasSpec operation = 119
+
+	// Tag: FuncDecl
+	// Args: type block
+	// ValueIndex: strings | field name
+	opSimpleFuncDecl operation = 120
 
 	// Tag: FuncDecl
 	// Args: name type block
-	opFuncDecl operation = 109
+	opFuncDecl operation = 121
 
 	// Tag: FuncDecl
 	// Args: recv name type block
-	opMethodDecl operation = 110
+	opMethodDecl operation = 122
 
 	// Tag: FuncDecl
 	// Args: name type
-	opFuncProtoDecl operation = 111
+	opFuncProtoDecl operation = 123
 
 	// Tag: FuncDecl
 	// Args: recv name type
-	opMethodProtoDecl operation = 112
+	opMethodProtoDecl operation = 124
 
 	// Tag: DeclStmt
 	// Args: decl
-	opDeclStmt operation = 113
+	opDeclStmt operation = 125
 
 	// Tag: GenDecl
 	// Args: valuespecs...
-	opConstDecl operation = 114
+	opConstDecl operation = 126
 
 	// Tag: GenDecl
 	// Args: valuespecs...
-	opVarDecl operation = 115
+	opVarDecl operation = 127
 
 	// Tag: GenDecl
 	// Args: typespecs...
-	opTypeDecl operation = 116
+	opTypeDecl operation = 128
 
 	// Tag: GenDecl
-	opAnyImportDecl operation = 117
+	opAnyImportDecl operation = 129
 
 	// Tag: GenDecl
 	// Args: importspecs...
-	opImportDecl operation = 118
+	opImportDecl operation = 130
 
 	// Tag: File
 	// Args: name
-	opEmptyPackage operation = 119
+	opEmptyPackage operation = 131
 )
 
 type operationInfo struct {
@@ -729,6 +788,14 @@ var operationInfoTable = [256]operationInfo{
 		VariadicMap:    0, // 0
 		SliceIndex:     -1,
 	},
+	opIndexListExpr: {
+		Tag:            nodetag.IndexListExpr,
+		NumArgs:        2,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    2, // 10
+		SliceIndex:     -1,
+	},
 	opSliceExpr: {
 		Tag:            nodetag.SliceExpr,
 		NumArgs:        1,
@@ -842,8 +909,16 @@ var operationInfoTable = [256]operationInfo{
 		SliceIndex:     -1,
 	},
 	opInterfaceType: {
-		Tag:            nodetag.StructType,
+		Tag:            nodetag.InterfaceType,
 		NumArgs:        1,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opEfaceType: {
+		Tag:            nodetag.InterfaceType,
+		NumArgs:        0,
 		ValueKind:      emptyValue,
 		ExtraValueKind: emptyValue,
 		VariadicMap:    0, // 0
@@ -857,9 +932,25 @@ var operationInfoTable = [256]operationInfo{
 		VariadicMap:    0, // 0
 		SliceIndex:     -1,
 	},
+	opGenericVoidFuncType: {
+		Tag:            nodetag.FuncType,
+		NumArgs:        2,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
 	opFuncType: {
 		Tag:            nodetag.FuncType,
 		NumArgs:        2,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opGenericFuncType: {
+		Tag:            nodetag.FuncType,
+		NumArgs:        3,
 		ValueKind:      emptyValue,
 		ExtraValueKind: emptyValue,
 		VariadicMap:    0, // 0
@@ -981,6 +1072,14 @@ var operationInfoTable = [256]operationInfo{
 		Tag:            nodetag.CallExpr,
 		NumArgs:        2,
 		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opMaybeVariadicCallExpr: {
+		Tag:            nodetag.CallExpr,
+		NumArgs:        2,
+		ValueKind:      intValue,
 		ExtraValueKind: emptyValue,
 		VariadicMap:    0, // 0
 		SliceIndex:     -1,
@@ -1337,6 +1436,38 @@ var operationInfoTable = [256]operationInfo{
 		VariadicMap:    0, // 0
 		SliceIndex:     -1,
 	},
+	opRangeClause: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        1,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opRangeHeader: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        1,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opRangeKeyHeader: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        2,
+		ValueKind:      tokenValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opRangeKeyValueHeader: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        3,
+		ValueKind:      tokenValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
 	opFieldList: {
 		Tag:            nodetag.Unknown,
 		NumArgs:        1,
@@ -1409,9 +1540,25 @@ var operationInfoTable = [256]operationInfo{
 		VariadicMap:    1, // 1
 		SliceIndex:     -1,
 	},
+	opSimpleTypeSpec: {
+		Tag:            nodetag.TypeSpec,
+		NumArgs:        1,
+		ValueKind:      emptyValue,
+		ExtraValueKind: stringValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
 	opTypeSpec: {
 		Tag:            nodetag.TypeSpec,
 		NumArgs:        2,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opGenericTypeSpec: {
+		Tag:            nodetag.TypeSpec,
+		NumArgs:        3,
 		ValueKind:      emptyValue,
 		ExtraValueKind: emptyValue,
 		VariadicMap:    0, // 0
@@ -1422,6 +1569,14 @@ var operationInfoTable = [256]operationInfo{
 		NumArgs:        2,
 		ValueKind:      emptyValue,
 		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opSimpleFuncDecl: {
+		Tag:            nodetag.FuncDecl,
+		NumArgs:        2,
+		ValueKind:      emptyValue,
+		ExtraValueKind: stringValue,
 		VariadicMap:    0, // 0
 		SliceIndex:     -1,
 	},

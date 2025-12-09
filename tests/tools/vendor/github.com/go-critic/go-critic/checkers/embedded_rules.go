@@ -8,13 +8,14 @@ import (
 	"os"
 
 	"github.com/go-critic/go-critic/checkers/rulesdata"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/quasilyte/go-ruleguard/ruleguard"
 )
 
 //go:generate go run ./rules/precompile.go -rules ./rules/rules.go -o ./rulesdata/rulesdata.go
 
-func init() {
+func InitEmbeddedRules() error {
 	filename := "rules/rules.go"
 
 	fset := token.NewFileSet()
@@ -43,7 +44,7 @@ func init() {
 			},
 		}
 		if err := rootEngine.LoadFromIR(loadContext, filename, rulesdata.PrecompiledRules); err != nil {
-			panic(fmt.Sprintf("load embedded ruleguard rules: %v", err))
+			return fmt.Errorf("load embedded ruleguard rules: %w", err)
 		}
 		groups = rootEngine.LoadedGroups()
 	}
@@ -65,8 +66,8 @@ func init() {
 		collection.AddChecker(info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 			parseContext := &ruleguard.LoadContext{
 				Fset: fset,
-				GroupFilter: func(name string) bool {
-					return name == g.Name
+				GroupFilter: func(gr *ruleguard.GoRuleGroup) bool {
+					return gr.Name == g.Name
 				},
 				DebugImports: ruleguardDebug,
 				DebugPrint: func(s string) {
@@ -86,6 +87,8 @@ func init() {
 			return c, nil
 		})
 	}
+
+	return nil
 }
 
 type embeddedRuleguardChecker struct {
@@ -95,9 +98,11 @@ type embeddedRuleguardChecker struct {
 
 func (c *embeddedRuleguardChecker) WalkFile(f *ast.File) {
 	runRuleguardEngine(c.ctx, f, c.engine, &ruleguard.RunContext{
-		Pkg:   c.ctx.Pkg,
-		Types: c.ctx.TypesInfo,
-		Sizes: c.ctx.SizesInfo,
-		Fset:  c.ctx.FileSet,
+		Pkg:         c.ctx.Pkg,
+		Types:       c.ctx.TypesInfo,
+		Sizes:       c.ctx.SizesInfo,
+		GoVersion:   ruleguard.GoVersion(c.ctx.GoVersion),
+		Fset:        c.ctx.FileSet,
+		TruncateLen: 100,
 	})
 }

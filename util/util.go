@@ -217,6 +217,14 @@ func GetFailureCause(err, defaultError error) error {
 	case errcode.Error, *url.Error:
 		return nErr
 	default:
+		var errcodes *errcode.Error
+		var urlError *url.Error
+		if errors.As(errors.Cause(err), &errcodes) {
+			return errcodes
+		}
+		if errors.As(errors.Cause(err), &urlError) {
+			return urlError
+		}
 		return defaultError
 	}
 }
@@ -440,7 +448,14 @@ func (m byDestination) Len() int {
 }
 
 func (m byDestination) Less(i, j int) bool {
-	return m.parts(i) < m.parts(j)
+	iparts, jparts := m.parts(i), m.parts(j)
+	switch {
+	case iparts < jparts:
+		return true
+	case iparts > jparts:
+		return false
+	}
+	return filepath.Clean(m[i].Destination) < filepath.Clean(m[j].Destination)
 }
 
 func (m byDestination) Swap(i, j int) {
@@ -452,7 +467,7 @@ func (m byDestination) parts(i int) int {
 }
 
 func SortMounts(m []specs.Mount) []specs.Mount {
-	sort.Sort(byDestination(m))
+	sort.Stable(byDestination(m))
 	return m
 }
 

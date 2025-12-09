@@ -1,10 +1,13 @@
 package checkers
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
+
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/lintutil"
+	"github.com/go-critic/go-critic/linter"
 
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astcopy"
@@ -12,16 +15,12 @@ import (
 	"github.com/go-toolsmith/astp"
 	"github.com/go-toolsmith/typep"
 	"golang.org/x/tools/go/ast/astutil"
-
-	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-critic/go-critic/framework/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "boolExprSimplify"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects bool expressions that can be simplified"
 	info.Before = `
 a := !(elapsed >= expectElapsedMin)
@@ -295,7 +294,7 @@ func (c *boolExprSimplifyChecker) foldRanges(cur *astutil.Cursor) bool {
 			if match(&comb) {
 				lhs.Op = token.EQL
 				v := c1 + comb.resDelta
-				lhs.Y.(*ast.BasicLit).Value = fmt.Sprint(v)
+				lhs.Y.(*ast.BasicLit).Value = strconv.FormatInt(v, 10)
 				cur.Replace(lhs)
 				return true
 			}
@@ -317,7 +316,7 @@ func (c *boolExprSimplifyChecker) foldRanges(cur *astutil.Cursor) bool {
 			if match(&comb) {
 				lhs.Op = token.NEQ
 				v := c1 + comb.resDelta
-				lhs.Y.(*ast.BasicLit).Value = fmt.Sprint(v)
+				lhs.Y.(*ast.BasicLit).Value = strconv.FormatInt(v, 10)
 				cur.Replace(lhs)
 				return true
 			}

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +20,7 @@ import (
 	"github.com/containers/image/v5/types"
 	sstorage "github.com/containers/storage"
 	"github.com/containers/storage/pkg/reexec"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	"github.com/pkg/errors"
@@ -88,7 +87,7 @@ var _ = BeforeSuite(func() {
 
 // CreateTempDirin
 func CreateTempDirInTempDir() (string, error) {
-	return ioutil.TempDir("", "buildah_test")
+	return os.MkdirTemp("", "buildah_test")
 }
 
 // BuildahCreate a BuildAhTest instance for the tests
