@@ -37,7 +37,7 @@ EOF
             showrun dnf update -y runc
         fi
         ;;
-    ubuntu)
+    ubuntu|debian)
         if [[ "$1" == "conformance" ]]; then
             msg "Installing previously downloaded/cached packages"
             ooe.sh dpkg -i \
