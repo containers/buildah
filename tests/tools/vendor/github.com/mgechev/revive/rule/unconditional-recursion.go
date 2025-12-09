@@ -45,8 +45,9 @@ type funcStatus struct {
 }
 
 type lintUnconditionalRecursionRule struct {
-	onFailure   func(lint.Failure)
-	currentFunc *funcStatus
+	onFailure     func(lint.Failure)
+	currentFunc   *funcStatus
+	inGoStatement bool
 }
 
 // Visit will traverse the file AST.
@@ -68,9 +69,13 @@ func (w lintUnconditionalRecursionRule) Visit(node ast.Node) ast.Visitor {
 		default:
 			rec = n.Recv.List[0].Names[0]
 		}
-
 		w.currentFunc = &funcStatus{&funcDesc{rec, n.Name}, false}
 	case *ast.CallExpr:
+		// check if call arguments has a recursive call
+		for _, arg := range n.Args {
+			ast.Walk(w, arg)
+		}
+
 		var funcID *ast.Ident
 		var selector *ast.Ident
 		switch c := n.Fun.(type) {
@@ -84,6 +89,9 @@ func (w lintUnconditionalRecursionRule) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 			funcID = c.Sel
+		case *ast.FuncLit:
+			ast.Walk(w, c.Body) // analyze the body of the function literal
+			return nil
 		default:
 			return w
 		}
@@ -93,11 +101,12 @@ func (w lintUnconditionalRecursionRule) Visit(node ast.Node) ast.Visitor {
 			w.currentFunc.funcDesc.equal(&funcDesc{selector, funcID}) {
 			w.onFailure(lint.Failure{
 				Category:   "logic",
-				Confidence: 1,
+				Confidence: 0.8,
 				Node:       n,
 				Failure:    "unconditional recursive call",
 			})
 		}
+		return nil
 	case *ast.IfStmt:
 		w.updateFuncStatus(n.Body)
 		w.updateFuncStatus(n.Else)
@@ -115,16 +124,21 @@ func (w lintUnconditionalRecursionRule) Visit(node ast.Node) ast.Visitor {
 		w.updateFuncStatus(n.Body)
 		return nil
 	case *ast.GoStmt:
-		for _, a := range n.Call.Args {
-			ast.Walk(w, a) // check if arguments have a recursive call
-		}
-		return nil // recursive async call is not an issue
+		w.inGoStatement = true
+		ast.Walk(w, n.Call)
+		w.inGoStatement = false
+		return nil
 	case *ast.ForStmt:
 		if n.Cond != nil {
 			return nil
 		}
 		// unconditional loop
 		return w
+	case *ast.FuncLit:
+		if w.inGoStatement {
+			return w
+		}
+		return nil // literal call (closure) is not necessarily an issue
 	}
 
 	return w
@@ -181,5 +195,5 @@ func (lintUnconditionalRecursionRule) hasControlExit(node ast.Node) bool {
 		return false
 	}
 
-	return len(pick(node, isExit, nil)) != 0
+	return len(pick(node, isExit)) != 0
 }

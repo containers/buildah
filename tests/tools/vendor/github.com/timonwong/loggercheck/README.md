@@ -24,7 +24,7 @@ go install github.com/timonwong/loggercheck/cmd/loggercheck
 ## Usage
 
 ```
-loggercheck: Checks key valur pairs for common logger libraries (kitlog,logr,klog,zap).
+loggercheck: Checks key value pairs for common logger libraries (kitlog,logr,klog,zap).
 
 Usage: loggercheck [-flag] [package]
 

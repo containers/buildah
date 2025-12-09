@@ -1,8 +1,10 @@
 package analyzer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strings"
 	"unicode"
 )
@@ -34,15 +36,19 @@ func isMethodError(f *ast.FuncDecl) (typeName string, ok bool) {
 			if i, ok := v.X.(*ast.Ident); ok {
 				return i.Name
 			}
+		case *ast.IndexListExpr:
+			if i, ok := v.X.(*ast.Ident); ok {
+				return i.Name
+			}
 		}
-		return ""
+		panic(fmt.Errorf("unsupported Error() receiver type %q", types.ExprString(e)))
 	}
 
 	switch rt := f.Recv.List[0].Type; v := rt.(type) {
-	case *ast.Ident, *ast.IndexExpr: // SomeError, SomeError[T]
+	case *ast.Ident, *ast.IndexExpr, *ast.IndexListExpr: // SomeError, SomeError[T], SomeError[T1, T2, ...]
 		receiverType = unwrapIdentName(rt)
 
-	case *ast.StarExpr: // *SomeError, *SomeError[T]
+	case *ast.StarExpr: // *SomeError, *SomeError[T], *SomeError[T1, T2, ...]
 		receiverType = unwrapIdentName(v.X)
 	}
 

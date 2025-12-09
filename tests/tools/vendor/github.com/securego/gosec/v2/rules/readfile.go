@@ -19,10 +19,11 @@ import (
 	"go/types"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type readfile struct {
-	gosec.MetaData
+	issue.MetaData
 	gosec.CallList
 	pathJoin   gosec.CallList
 	clean      gosec.CallList
@@ -80,13 +81,17 @@ func (r *readfile) isFilepathClean(n *ast.Ident, c *gosec.Context) bool {
 func (r *readfile) trackFilepathClean(n ast.Node) {
 	if clean, ok := n.(*ast.CallExpr); ok && len(clean.Args) > 0 {
 		if ident, ok := clean.Args[0].(*ast.Ident); ok {
-			r.cleanedVar[ident.Obj.Decl] = n
+			// ident.Obj may be nil if the referenced declaration is in another file. It also may be incorrect.
+			// if it is nil, do not follow it.
+			if ident.Obj != nil {
+				r.cleanedVar[ident.Obj.Decl] = n
+			}
 		}
 	}
 }
 
 // Match inspects AST nodes to determine if the match the methods `os.Open` or `ioutil.ReadFile`
-func (r *readfile) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
+func (r *readfile) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
 	if node := r.clean.ContainsPkgCallExpr(n, c, false); node != nil {
 		r.trackFilepathClean(n)
 		return nil, nil
@@ -96,14 +101,14 @@ func (r *readfile) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 			// eg. os.Open(filepath.Join("/tmp/", file))
 			if callExpr, ok := arg.(*ast.CallExpr); ok {
 				if r.isJoinFunc(callExpr, c) {
-					return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+					return c.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 				}
 			}
 			// handles binary string concatenation eg. ioutil.Readfile("/tmp/" + file + "/blob")
 			if binExp, ok := arg.(*ast.BinaryExpr); ok {
 				// resolve all found identities from the BinaryExpr
 				if _, ok := gosec.FindVarIdentities(binExp, c); ok {
-					return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+					return c.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 				}
 			}
 
@@ -112,7 +117,7 @@ func (r *readfile) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 				if _, ok := obj.(*types.Var); ok &&
 					!gosec.TryResolve(ident, c) &&
 					!r.isFilepathClean(ident, c) {
-					return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+					return c.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 				}
 			}
 		}
@@ -121,16 +126,16 @@ func (r *readfile) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 }
 
 // NewReadFile detects cases where we read files
-func NewReadFile(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewReadFile(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	rule := &readfile{
 		pathJoin: gosec.NewCallList(),
 		clean:    gosec.NewCallList(),
 		CallList: gosec.NewCallList(),
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
 			What:       "Potential file inclusion via variable",
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 		},
 		cleanedVar: map[any]ast.Node{},
 	}
@@ -138,6 +143,7 @@ func NewReadFile(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 	rule.pathJoin.Add("path", "Join")
 	rule.clean.Add("path/filepath", "Clean")
 	rule.clean.Add("path/filepath", "Rel")
+	rule.clean.Add("path/filepath", "EvalSymlinks")
 	rule.Add("io/ioutil", "ReadFile")
 	rule.Add("os", "ReadFile")
 	rule.Add("os", "Open")

@@ -36,12 +36,10 @@ type Program struct {
 	mode       BuilderMode                 // set of mode bits for IR construction
 	MethodSets typeutil.MethodSetCache     // cache of type-checker's method-sets
 
-	methodsMu    sync.Mutex                 // guards the following maps:
-	methodSets   typeutil.Map[*methodSet]   // maps type to its concrete methodSet
-	runtimeTypes typeutil.Map[bool]         // types for which rtypes are needed
-	canon        typeutil.Map[types.Type]   // type canonicalization map
-	bounds       map[*types.Func]*Function  // bounds for curried x.Method closures
-	thunks       map[selectionKey]*Function // thunks for T.Method expressions
+	methodsMu    sync.Mutex               // guards the following maps:
+	methodSets   typeutil.Map[*methodSet] // maps type to its concrete methodSet
+	runtimeTypes typeutil.Map[bool]       // types for which rtypes are needed
+	canon        typeutil.Map[types.Type] // type canonicalization map
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -64,10 +62,11 @@ type Package struct {
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	buildOnce sync.Once   // ensures package building occurs once
-	ninit     int32       // number of init functions
-	info      *types.Info // package type information
-	files     []*ast.File // package ASTs
+	buildOnce   sync.Once           // ensures package building occurs once
+	ninit       int32               // number of init functions
+	info        *types.Info         // package type information
+	files       []*ast.File         // package ASTs
+	initVersion map[ast.Expr]string // goversion to use for each global var init expr
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,
@@ -292,6 +291,7 @@ const (
 	SyntheticWrapper
 	SyntheticBound
 	SyntheticGeneric
+	SyntheticRangeOverFuncYield
 )
 
 func (syn Synthetic) String() string {
@@ -308,6 +308,8 @@ func (syn Synthetic) String() string {
 		return "bound"
 	case SyntheticGeneric:
 		return "generic"
+	case SyntheticRangeOverFuncYield:
+		return "range-over-func yield"
 	default:
 		return fmt.Sprintf("Synthetic(%d)", syn)
 	}
@@ -317,8 +319,8 @@ func (syn Synthetic) String() string {
 // or method.
 //
 // If Blocks is nil, this indicates an external function for which no
-// Go source code is available.  In this case, FreeVars and Locals
-// are nil too.  Clients performing whole-program analysis must
+// Go source code is available.  In this case, FreeVars, Locals, and
+// Params are nil too.  Clients performing whole-program analysis must
 // handle external functions specially.
 //
 // Blocks contains the function's control-flow graph (CFG).
@@ -346,28 +348,50 @@ func (syn Synthetic) String() string {
 // the same position as the function they wrap.
 // Syntax.Pos() always returns the position of the declaring "func" token.
 //
+// When the operand of a range statement is an iterator function,
+// the loop body is transformed into a synthetic anonymous function
+// that is passed as the yield argument in a call to the iterator.
+// In that case, Function.Source() is the ast.RangeStmt.
+//
+// Synthetic functions, for which Synthetic != "", are functions
+// that do not appear in the source AST. These include:
+//   - method wrappers,
+//   - thunks,
+//   - bound functions,
+//   - empty functions built from loaded type information,
+//   - yield functions created from range-over-func loops, and
+//   - package init functions.
+//
 // Type() returns the function's Signature.
 type Function struct {
 	node
 
 	name      string
-	object    types.Object     // a declared *types.Func or one of its wrappers
+	object    *types.Func      // symbol for declared function (nil for FuncLit or synthetic init)
 	method    *types.Selection // info about provenance of synthetic methods
 	Signature *types.Signature
 	generics  instanceWrapperMap
 
-	Synthetic Synthetic
-	parent    *Function     // enclosing function if anon; nil if global
-	Pkg       *Package      // enclosing package; nil for shared funcs (wrappers and error.Error)
-	Prog      *Program      // enclosing program
+	Synthetic Synthetic // provenance of synthetic function; 0 for true source functions
+	parent    *Function // enclosing function if anon; nil if global
+	Pkg       *Package  // enclosing package; nil for shared funcs (wrappers and error.Error)
+	Prog      *Program  // enclosing program
+
+	// These fields are populated only when the function body is built:
+
 	Params    []*Parameter  // function parameters; for methods, includes receiver
 	FreeVars  []*FreeVar    // free variables whose values must be supplied by closure
-	Locals    []*Alloc      // local variables of this function
+	Locals    []*Alloc      // frame-allocated variables of this function
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	Exit      *BasicBlock   // The function's exit block
-	AnonFuncs []*Function   // anonymous functions directly beneath this one
+	AnonFuncs []*Function   // anonymous functions (from FuncLit, RangeStmt) directly beneath this one
 	referrers []Instruction // referring instructions (iff Parent() != nil)
 	NoReturn  NoReturn      // Calling this function will always terminate control flow.
+
+	goversion string // Go version of syntax (NB: init is special)
+
+	// uniq is not stored in functionBody because we need it after function building finishes
+	uniq int64 // source of unique ints within the source tree while building
 
 	*functionBody
 }
@@ -466,12 +490,16 @@ type constValue struct {
 type functionBody struct {
 	// The following fields are set transiently during building,
 	// then cleared.
-	currentBlock    *BasicBlock              // where to emit code
-	objects         map[types.Object]Value   // addresses of local variables
-	namedResults    []*Alloc                 // tuple of named results
-	implicitResults []*Alloc                 // tuple of results
-	targets         *targets                 // linked stack of branch targets
-	lblocks         map[types.Object]*lblock // labelled blocks
+	currentBlock *BasicBlock              // where to emit code
+	vars         map[*types.Var]Value     // addresses of local variables
+	results      []*Alloc                 // result allocations of the current function
+	returnVars   []*types.Var             // variables for a return statement. Either results or for range-over-func a parent's results
+	targets      *targets                 // linked stack of branch targets
+	lblocks      map[*types.Label]*lblock // labelled blocks
+	jump         *types.Var               // synthetic variable for the yield state (non-nil => range-over-func)
+	deferstack   *types.Var               // synthetic variable holding enclosing ssa:deferstack()
+	sourceFn     *Function                // nearest enclosing source function
+	exits        []*exit                  // exits of the function that need to be resolved
 
 	consts          map[constKey]constValue
 	aggregateConsts typeutil.Map[[]*AggregateConst]
@@ -484,13 +512,6 @@ type functionBody struct {
 	// a contiguous block of instructions that will be used by blocks,
 	// to avoid making multiple allocations.
 	scratchInstructions []Instruction
-}
-
-func (fn *Function) results() []*Alloc {
-	if len(fn.namedResults) > 0 {
-		return fn.namedResults
-	}
-	return fn.implicitResults
 }
 
 // BasicBlock represents an IR basic block.
@@ -560,7 +581,7 @@ type Parameter struct {
 	register
 
 	name   string
-	object types.Object // a *types.Var; nil for non-source locals
+	object *types.Var // non-nil
 }
 
 // A Const represents the value of a constant expression.
@@ -683,15 +704,12 @@ type Builtin struct {
 // type of the allocated variable is actually
 // Type().Underlying().(*types.Pointer).Elem().
 //
-// If Heap is false, Alloc allocates space in the function's
-// activation record (frame); we refer to an Alloc(Heap=false) as a
-// "stack" alloc.  Each stack Alloc returns the same address each time
-// it is executed within the same activation; the space is
-// re-initialized to zero.
+// If Heap is false, Alloc zero-initializes the same local variable in
+// the call frame and returns its address; in this case the Alloc must
+// be present in Function.Locals. We call this a "local" alloc.
 //
-// If Heap is true, Alloc allocates space in the heap; we
-// refer to an Alloc(Heap=true) as a "heap" alloc.  Each heap Alloc
-// returns a different address each time it is executed.
+// If Heap is true, Alloc allocates a new zero-initialized variable
+// each time the instruction is executed. We call this a "new" alloc.
 //
 // When Alloc is applied to a channel, map or slice type, it returns
 // the address of an uninitialized (nil) reference of that kind; store
@@ -890,6 +908,26 @@ type ChangeType struct {
 type Convert struct {
 	register
 	X Value
+}
+
+// The MultiConvert instruction yields the conversion of value X to type
+// Type(). Either X.Type() or Type() must be a type parameter. Each
+// type in the type set of X.Type() can be converted to each type in the
+// type set of Type().
+//
+// See the documentation for Convert, ChangeType, SliceToArray, and SliceToArrayPointer
+// for the conversions that are permitted.
+//
+// This operation can fail dynamically (see SliceToArrayPointer).
+//
+// Example printed form:
+//
+//	t1 = multiconvert D <- S (t0) [*[2]rune <- []rune | string <- []rune]
+type MultiConvert struct {
+	register
+	X    Value
+	from typeutil.TypeSet
+	to   typeutil.TypeSet
 }
 
 // ChangeInterface constructs a value of one interface type from a
@@ -1463,6 +1501,12 @@ type Go struct {
 // The Defer instruction pushes the specified call onto a stack of
 // functions to be called by a RunDefers instruction or by a panic.
 //
+// If _DeferStack != nil, it indicates the defer list that the defer is
+// added to. Defer list values come from the Builtin function
+// ssa:deferstack. Calls to ssa:deferstack() produces the defer stack
+// of the current function frame. _DeferStack allows for deferring into an
+// alternative function stack than the current function.
+//
 // See CallCommon for generic function call documentation.
 //
 // Pos() returns the ast.DeferStmt.Defer.
@@ -1474,7 +1518,10 @@ type Go struct {
 //	DeferInvoke t4.Bar t2
 type Defer struct {
 	anInstruction
-	Call CallCommon
+	Call        CallCommon
+	_DeferStack Value // stack (from ssa:deferstack() intrinsic) onto which this function is pushed
+
+	// TODO: Exporting _DeferStack and possibly making _DeferStack != nil awaits proposal https://github.com/golang/go/issues/66601.
 }
 
 // The Send instruction sends X on channel Chan.
@@ -1790,13 +1837,18 @@ func (v *Global) String() string                       { return v.RelString(nil)
 func (v *Global) Package() *Package                    { return v.Pkg }
 func (v *Global) RelString(from *types.Package) string { return relString(v, from) }
 
-func (v *Function) Name() string         { return v.name }
-func (v *Function) Type() types.Type     { return v.Signature }
-func (v *Function) Token() token.Token   { return token.FUNC }
-func (v *Function) Object() types.Object { return v.object }
-func (v *Function) String() string       { return v.RelString(nil) }
-func (v *Function) Package() *Package    { return v.Pkg }
-func (v *Function) Parent() *Function    { return v.parent }
+func (v *Function) Name() string       { return v.name }
+func (v *Function) Type() types.Type   { return v.Signature }
+func (v *Function) Token() token.Token { return token.FUNC }
+func (v *Function) Object() types.Object {
+	if v.object != nil {
+		return types.Object(v.object)
+	}
+	return nil
+}
+func (v *Function) String() string    { return v.RelString(nil) }
+func (v *Function) Package() *Package { return v.Pkg }
+func (v *Function) Parent() *Function { return v.parent }
 func (v *Function) Referrers() *[]Instruction {
 	if v.parent != nil {
 		return &v.referrers
@@ -1894,7 +1946,7 @@ func (s *Call) Operands(rands []*Value) []*Value {
 }
 
 func (s *Defer) Operands(rands []*Value) []*Value {
-	return s.Call.Operands(rands)
+	return append(s.Call.Operands(rands), &s._DeferStack)
 }
 
 func (v *ChangeInterface) Operands(rands []*Value) []*Value {
@@ -1906,6 +1958,10 @@ func (v *ChangeType) Operands(rands []*Value) []*Value {
 }
 
 func (v *Convert) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *MultiConvert) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 

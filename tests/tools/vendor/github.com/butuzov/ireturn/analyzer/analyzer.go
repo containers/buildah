@@ -2,14 +2,14 @@ package analyzer
 
 import (
 	"flag"
-	"fmt"
 	"go/ast"
 	gotypes "go/types"
+	"runtime"
 	"strings"
 	"sync"
 
-	"github.com/butuzov/ireturn/config"
-	"github.com/butuzov/ireturn/types"
+	"github.com/butuzov/ireturn/analyzer/internal/config"
+	"github.com/butuzov/ireturn/analyzer/internal/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -23,9 +23,11 @@ type validator interface {
 }
 
 type analyzer struct {
-	once    sync.Once
-	handler validator
-	err     error
+	once          sync.Once
+	mu            sync.RWMutex
+	handler       validator
+	err           error
+	diabledNolint bool
 
 	found []analysis.Diagnostic
 }
@@ -39,8 +41,18 @@ func (a *analyzer) run(pass *analysis.Pass) (interface{}, error) {
 		return nil, a.err
 	}
 
-	// 01. Running Inspection.
 	ins, _ := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	// 00. does file have dot-imported standard packages?
+	dotImportedStd := make(map[string]struct{})
+	ins.Preorder([]ast.Node{(*ast.ImportSpec)(nil)}, func(node ast.Node) {
+		i, _ := node.(*ast.ImportSpec)
+		if i.Name != nil && i.Name.Name == "." {
+			dotImportedStd[strings.Trim(i.Path.Value, `"`)] = struct{}{}
+		}
+	})
+
+	// 01. Running Inspection.
 	ins.Preorder([]ast.Node{(*ast.FuncDecl)(nil)}, func(node ast.Node) {
 		// 001. Casting to funcdecl
 		f, _ := node.(*ast.FuncDecl)
@@ -51,31 +63,46 @@ func (a *analyzer) run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		// 003. Is it allowed to be checked?
-		// TODO(butuzov): add inline comment
-		if hasDisallowDirective(f.Doc) {
+		if !a.diabledNolint && hasDisallowDirective(f.Doc) {
 			return
 		}
 
-		// 004. Filtering Results.
-		for _, i := range filterInterfaces(pass, f.Type.Results) {
+		seen := make(map[string]bool, 4)
 
-			if a.handler.IsValid(i) {
+		// 004. Filtering Results.
+		for _, issue := range filterInterfaces(pass, f.Type, dotImportedStd) {
+			if a.handler.IsValid(issue) {
 				continue
 			}
 
-			a.found = append(a.found, analysis.Diagnostic{ //nolint: exhaustivestruct
-				Pos:     f.Pos(),
-				Message: fmt.Sprintf("%s returns interface (%s)", f.Name.Name, i.Name),
-			})
+			issue.Enrich(f)
+
+			key := issue.HashString()
+
+			if ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = true
+
+			a.addDiagnostic(issue.ExportDiagnostic())
 		}
 	})
 
 	// 02. Printing reports.
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	for i := range a.found {
 		pass.Report(a.found[i])
 	}
 
 	return nil, nil
+}
+
+func (a *analyzer) addDiagnostic(d analysis.Diagnostic) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.found = append(a.found, d)
 }
 
 func (a *analyzer) readConfiguration(fs *flag.FlagSet) {
@@ -85,6 +112,13 @@ func (a *analyzer) readConfiguration(fs *flag.FlagSet) {
 		return
 	}
 
+	// First: checking nonolint directive
+	val := fs.Lookup("nonolint")
+	if val != nil {
+		a.diabledNolint = fs.Lookup("nonolint").Value.String() == "true"
+	}
+
+	// Second: validators implementation next
 	if validatorImpl, ok := cnf.(validator); ok {
 		a.handler = validatorImpl
 		return
@@ -109,85 +143,135 @@ func flags() flag.FlagSet {
 	set := flag.NewFlagSet("", flag.PanicOnError)
 	set.String("allow", "", "accept-list of the comma-separated interfaces")
 	set.String("reject", "", "reject-list of the comma-separated interfaces")
+	set.Bool("nonolint", false, "disable nolint checks")
 	return *set
 }
 
-func filterInterfaces(pass *analysis.Pass, fl *ast.FieldList) []types.IFace {
+func filterInterfaces(p *analysis.Pass, ft *ast.FuncType, di map[string]struct{}) []types.IFace {
 	var results []types.IFace
 
-	for pos, el := range fl.List {
+	if ft.Results == nil { // this can't happen, but double checking.
+		return results
+	}
+
+	for _, el := range ft.Results.List {
 		switch v := el.Type.(type) {
 		// ----- empty or anonymous interfaces
 		case *ast.InterfaceType:
-
 			if len(v.Methods.List) == 0 {
-				results = append(results, issue("interface{}", pos, types.EmptyInterface))
+				results = append(results, types.NewIssue("interface{}", types.EmptyInterface))
 				continue
 			}
 
-			results = append(results, issue("anonymous interface", pos, types.AnonInterface))
+			results = append(results, types.NewIssue("anonymous interface", types.AnonInterface))
 
 		// ------ Errors and interfaces from same package
 		case *ast.Ident:
 
-			t1 := pass.TypesInfo.TypeOf(el.Type)
-			if !gotypes.IsInterface(t1.Underlying()) {
+			t1 := p.TypesInfo.TypeOf(el.Type)
+			val, ok := t1.Underlying().(*gotypes.Interface)
+			if !ok {
 				continue
 			}
 
-			word := t1.String()
-			// only build in interface is error
-			if obj := gotypes.Universe.Lookup(word); obj != nil {
-				results = append(results, issue(obj.Name(), pos, types.ErrorInterface))
+			var (
+				name    = t1.String()
+				isNamed = strings.Contains(name, ".")
+				isEmpty = val.Empty()
+			)
 
+			// catching any
+			if isEmpty && name == "any" {
+				results = append(results, types.NewIssue(name, types.EmptyInterface))
 				continue
 			}
 
-			results = append(results, issue(word, pos, types.NamedInterface))
+			// NOTE: FIXED!
+			if name == "error" {
+				results = append(results, types.NewIssue(name, types.ErrorInterface))
+				continue
+			}
+
+			if !isNamed {
+
+				typeParams := val.String()
+				prefix, suffix := "interface{", "}"
+				if strings.HasPrefix(typeParams, prefix) { // nolint: gosimple
+					typeParams = typeParams[len(prefix):]
+				}
+				if strings.HasSuffix(typeParams, suffix) {
+					typeParams = typeParams[:len(typeParams)-1]
+				}
+
+				goVersion := runtime.Version()
+				if strings.HasPrefix(goVersion, "go1.18") || strings.HasPrefix(goVersion, "go1.19") {
+					typeParams = strings.ReplaceAll(typeParams, "|", " | ")
+				}
+
+				results = append(results, types.IFace{
+					Name:   name,
+					Type:   types.Generic,
+					OfType: typeParams,
+				})
+				continue
+			}
+
+			// is it dot-imported package?
+			// handling cases when stdlib package imported via "." dot-import
+			if len(di) > 0 {
+				pkgName := stdPkgInterface(name)
+				if _, ok := di[pkgName]; ok {
+					results = append(results, types.NewIssue(name, types.NamedStdInterface))
+
+					continue
+				}
+			}
+
+			results = append(results, types.NewIssue(name, types.NamedInterface))
 
 		// ------- standard library and 3rd party interfaces
 		case *ast.SelectorExpr:
 
-			t1 := pass.TypesInfo.TypeOf(el.Type)
+			t1 := p.TypesInfo.TypeOf(el.Type)
 			if !gotypes.IsInterface(t1.Underlying()) {
 				continue
 			}
 
 			word := t1.String()
-			if isStdLib(word) {
-				results = append(results, issue(word, pos, types.NamedStdInterface))
-
+			if isStdPkgInterface(word) {
+				results = append(results, types.NewIssue(word, types.NamedStdInterface))
 				continue
 			}
 
-			results = append(results, issue(word, pos, types.NamedInterface))
+			results = append(results, types.NewIssue(word, types.NamedInterface))
 		}
 	}
 
 	return results
 }
 
-// isStdLib will run small checks against pkg to find out if  named interface
-// we lookling on comes from a standard library or not.
-func isStdLib(named string) bool {
-	// find last dot index.
+// stdPkgInterface will return package name if tis std lib package
+// or empty string on fail.
+func stdPkgInterface(named string) string {
+	// find last "." index.
 	idx := strings.LastIndex(named, ".")
 	if idx == -1 {
-		return false
+		return ""
 	}
 
-	if _, ok := std[named[0:idx]]; ok {
-		return true
-	}
-
-	return false
+	return stdPkg(named[0:idx])
 }
 
-// issue is shortcut that creates issue for next filtering.
-func issue(name string, pos int, interfaceType types.IType) types.IFace {
-	return types.IFace{
-		Name: name,
-		Pos:  pos,
-		Type: interfaceType,
+// isStdPkgInterface will run small checks against pkg to find out if named
+// interface we looking on - comes from a standard library or not.
+func isStdPkgInterface(namedInterface string) bool {
+	return stdPkgInterface(namedInterface) != ""
+}
+
+func stdPkg(pkg string) string {
+	if _, ok := std[pkg]; ok {
+		return pkg
 	}
+
+	return ""
 }

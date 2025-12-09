@@ -1,4 +1,4 @@
-// forbidigo provides a linter for forbidding the use of specific identifiers
+// Package forbidigo provides a linter for forbidding the use of specific identifiers
 package forbidigo
 
 import (
@@ -11,8 +11,6 @@ import (
 	"log"
 	"regexp"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type Issue interface {
@@ -66,12 +64,13 @@ type config struct {
 	// don't check inside Godoc examples (see https://blog.golang.org/examples)
 	ExcludeGodocExamples   bool `options:",true"`
 	IgnorePermitDirectives bool // don't check for `permit` directives(for example, in favor of `nolint`)
+	AnalyzeTypes           bool // enable to match canonical names for types and interfaces using type info
 }
 
 func NewLinter(patterns []string, options ...Option) (*Linter, error) {
 	cfg, err := newConfig(options...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to process options")
+		return nil, fmt.Errorf("failed to process options: %w", err)
 	}
 
 	if len(patterns) == 0 {
@@ -187,7 +186,40 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		if isGodocExample && v.cfg.ExcludeGodocExamples {
 			return nil
 		}
-		return v
+		ast.Walk(v, node.Type)
+		if node.Body != nil {
+			ast.Walk(v, node.Body)
+		}
+		return nil
+	// Ignore constant and type names
+	case *ast.ValueSpec:
+		// Look at only type and values for const and variable specs, and not names
+		if node.Type != nil {
+			ast.Walk(v, node.Type)
+		}
+		if node.Values != nil {
+			for _, x := range node.Values {
+				ast.Walk(v, x)
+			}
+		}
+		return nil
+	// Ignore import alias names
+	case *ast.ImportSpec:
+		return nil
+	// Ignore type names
+	case *ast.TypeSpec:
+		// Look at only type parameters for type spec
+		if node.TypeParams != nil {
+			ast.Walk(v, node.TypeParams)
+		}
+		ast.Walk(v, node.Type)
+		return nil
+	// Ignore field names
+	case *ast.Field:
+		if node.Type != nil {
+			ast.Walk(v, node.Type)
+		}
+		return nil
 	// The following two are handled below.
 	case *ast.SelectorExpr:
 	case *ast.Ident:
@@ -215,6 +247,14 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 			})
 		}
 	}
+
+	// descend into the left-side of selectors
+	if selector, isSelector := node.(*ast.SelectorExpr); isSelector {
+		if _, leftSideIsIdentifier := selector.X.(*ast.Ident); !leftSideIsIdentifier {
+			return v
+		}
+	}
+
 	return nil
 }
 
@@ -239,33 +279,36 @@ func (v *visitor) textFor(node ast.Node) string {
 func (v *visitor) expandMatchText(node ast.Node, srcText string) (matchTexts []string, pkgText string) {
 	// The text to match against is the literal source code if we cannot
 	// come up with something different.
-	matchText := srcText
+	matchTexts = []string{srcText}
 
-	if v.runConfig.TypesInfo == nil {
-		return []string{matchText}, pkgText
+	if !v.cfg.AnalyzeTypes || v.runConfig.TypesInfo == nil {
+		return matchTexts, pkgText
 	}
 
 	location := v.runConfig.Fset.Position(node.Pos())
 
 	switch node := node.(type) {
 	case *ast.Ident:
-		object, ok := v.runConfig.TypesInfo.Uses[node]
-		if !ok {
+		if object, ok := v.runConfig.TypesInfo.Uses[node]; !ok {
 			// No information about the identifier. Should
 			// not happen, but perhaps there were compile
 			// errors?
 			v.runConfig.DebugLog("%s: unknown identifier %q", location, srcText)
-			return []string{matchText}, pkgText
-		}
-		if pkg := object.Pkg(); pkg != nil {
+		} else if pkg := object.Pkg(); pkg != nil {
 			pkgText = pkg.Path()
-			v.runConfig.DebugLog("%s: identifier: %q -> %q in package %q", location, srcText, matchText, pkgText)
+			// if this is a method, don't include the package name
+			isMethod := false
+			if signature, ok := object.Type().(*types.Signature); ok && signature.Recv() != nil {
+				isMethod = true
+			}
+			v.runConfig.DebugLog("%s: identifier: %q -> %q in package %q", location, srcText, matchTexts, pkgText)
 			// match either with or without package name
-			return []string{pkg.Name() + "." + srcText, srcText}, pkgText
+			if !isMethod {
+				matchTexts = []string{pkg.Name() + "." + srcText, srcText}
+			}
 		} else {
-			v.runConfig.DebugLog("%s: identifier: %q -> %q without package", location, srcText, matchText)
+			v.runConfig.DebugLog("%s: identifier: %q -> %q without package", location, srcText, matchTexts)
 		}
-		return []string{matchText}, pkgText
 	case *ast.SelectorExpr:
 		selector := node.X
 		field := node.Sel.Name
@@ -274,58 +317,54 @@ func (v *visitor) expandMatchText(node ast.Node, srcText string) (matchTexts []s
 		// type. We don't care about the value.
 		selectorText := v.textFor(node)
 		if typeAndValue, ok := v.runConfig.TypesInfo.Types[selector]; ok {
-			m, p, ok := pkgFromType(typeAndValue.Type)
+			m, p, ok := typeNameWithPackage(typeAndValue.Type)
 			if !ok {
 				v.runConfig.DebugLog("%s: selector %q with supported type %T", location, selectorText, typeAndValue.Type)
 			}
-			matchText = m + "." + field
+			matchTexts = []string{m + "." + field}
 			pkgText = p
-			v.runConfig.DebugLog("%s: selector %q with supported type %q: %q -> %q, package %q", location, selectorText, typeAndValue.Type.String(), srcText, matchText, pkgText)
-			return []string{matchText}, pkgText
+			v.runConfig.DebugLog("%s: selector %q with supported type %q: %q -> %q, package %q", location, selectorText, typeAndValue.Type.String(), srcText, matchTexts, pkgText)
 		}
 		// Some expressions need special treatment.
 		switch selector := selector.(type) {
 		case *ast.Ident:
-			object, ok := v.runConfig.TypesInfo.Uses[selector]
-			if !ok {
+			if object, hasUses := v.runConfig.TypesInfo.Uses[selector]; hasUses {
+				switch object := object.(type) {
+				case *types.PkgName:
+					pkgText = object.Imported().Path()
+					matchTexts = []string{object.Imported().Name() + "." + field}
+					v.runConfig.DebugLog("%s: selector %q is package: %q -> %q, package %q", location, selectorText, srcText, matchTexts, pkgText)
+				case *types.Var:
+					if typeName, packageName, ok := typeNameWithPackage(object.Type()); ok {
+						matchTexts = []string{typeName + "." + field}
+						pkgText = packageName
+						v.runConfig.DebugLog("%s: selector %q is variable of type %q: %q -> %q, package %q", location, selectorText, object.Type().String(), srcText, matchTexts, pkgText)
+					} else {
+						v.runConfig.DebugLog("%s: selector %q is variable with unsupported type %T", location, selectorText, object.Type())
+					}
+				default:
+					// Something else?
+					v.runConfig.DebugLog("%s: selector %q is identifier with unsupported type %T", location, selectorText, object)
+				}
+			} else {
 				// No information about the identifier. Should
 				// not happen, but perhaps there were compile
 				// errors?
 				v.runConfig.DebugLog("%s: unknown selector identifier %q", location, selectorText)
-				return []string{matchText}, pkgText
-			}
-			switch object := object.(type) {
-			case *types.PkgName:
-				pkgText = object.Imported().Path()
-				matchText = object.Imported().Name() + "." + field
-				v.runConfig.DebugLog("%s: selector %q is package: %q -> %q, package %q", location, selectorText, srcText, matchText, pkgText)
-				return []string{matchText}, pkgText
-			case *types.Var:
-				m, p, ok := pkgFromType(object.Type())
-				if !ok {
-					v.runConfig.DebugLog("%s: selector %q is variable with unsupported type %T", location, selectorText, object.Type())
-				}
-				matchText = m + "." + field
-				pkgText = p
-				v.runConfig.DebugLog("%s: selector %q is variable of type %q: %q -> %q, package %q", location, selectorText, object.Type().String(), srcText, matchText, pkgText)
-			default:
-				// Something else?
-				v.runConfig.DebugLog("%s: selector %q is identifier with unsupported type %T", location, selectorText, object)
 			}
 		default:
 			v.runConfig.DebugLog("%s: selector %q of unsupported type %T", location, selectorText, selector)
 		}
-		return []string{matchText}, pkgText
 	default:
 		v.runConfig.DebugLog("%s: unsupported type %T", location, node)
-		return []string{matchText}, pkgText
 	}
+	return matchTexts, pkgText
 }
 
-// pkgFromType tries to determine `<package name>.<type name>` and the full
+// typeNameWithPackage tries to determine `<package name>.<type name>` and the full
 // package path. This only needs to work for types of a selector in a selector
 // expression.
-func pkgFromType(t types.Type) (typeStr, pkgStr string, ok bool) {
+func typeNameWithPackage(t types.Type) (typeName, packagePath string, ok bool) {
 	if ptr, ok := t.(*types.Pointer); ok {
 		t = ptr.Elem()
 	}

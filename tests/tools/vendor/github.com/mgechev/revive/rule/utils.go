@@ -93,21 +93,15 @@ func srcLine(src []byte, p token.Position) string {
 
 // pick yields a list of nodes by picking them from a sub-ast with root node n.
 // Nodes are selected by applying the fselect function
-// f function is applied to each selected node before inserting it in the final result.
-// If f==nil then it defaults to the identity function (ie it returns the node itself)
-func pick(n ast.Node, fselect func(n ast.Node) bool, f func(n ast.Node) []ast.Node) []ast.Node {
+func pick(n ast.Node, fselect func(n ast.Node) bool) []ast.Node {
 	var result []ast.Node
 
 	if n == nil {
 		return result
 	}
 
-	if f == nil {
-		f = func(n ast.Node) []ast.Node { return []ast.Node{n} }
-	}
-
 	onSelect := func(n ast.Node) {
-		result = append(result, f(n)...)
+		result = append(result, n)
 	}
 	p := picker{fselect: fselect, onSelect: onSelect}
 	ast.Walk(p, n)
@@ -158,7 +152,7 @@ func isExprABooleanLit(n ast.Node) (lexeme string, ok bool) {
 }
 
 // gofmt returns a string representation of an AST subtree.
-func gofmt(x interface{}) string {
+func gofmt(x any) string {
 	buf := bytes.Buffer{}
 	fs := token.NewFileSet()
 	printer.Fprint(&buf, fs, x)
@@ -170,4 +164,10 @@ func checkNumberOfArguments(expected int, args lint.Arguments, ruleName string) 
 	if len(args) < expected {
 		panic(fmt.Sprintf("not enough arguments for %s rule, expected %d, got %d. Please check the rule's documentation", ruleName, expected, len(args)))
 	}
+}
+
+var directiveCommentRE = regexp.MustCompile("^//(line |extern |export |[a-z0-9]+:[a-z0-9])") // see https://go-review.googlesource.com/c/website/+/442516/1..2/_content/doc/comment.md#494
+
+func isDirectiveComment(line string) bool {
+	return directiveCommentRE.MatchString(line)
 }

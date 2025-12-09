@@ -4,7 +4,8 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcopy"
 	"github.com/go-toolsmith/astequal"
 )
@@ -12,7 +13,7 @@ import (
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "paramTypeCombine"
-	info.Tags = []string{"style", "opinionated"}
+	info.Tags = []string{linter.StyleTag, linter.OpinionatedTag}
 	info.Summary = "Detects if function parameters could be combined by type and suggest the way to do it"
 	info.Before = `func foo(a, b int, c, d int, e, f int, g int) {}`
 	info.After = `func foo(a, b, c, d, e, f, g int) {}`
@@ -46,6 +47,7 @@ func (c *paramTypeCombineChecker) optimizeFuncType(f *ast.FuncType) *ast.FuncTyp
 
 	return optimizedParamFunc
 }
+
 func (c *paramTypeCombineChecker) optimizeParams(params *ast.FieldList) *ast.FieldList {
 	// To avoid false positives, skip unnamed param lists.
 	//
@@ -71,8 +73,7 @@ func (c *paramTypeCombineChecker) optimizeParams(params *ast.FieldList) *ast.Fie
 		names = make([]*ast.Ident, len(p.Names))
 		copy(names, p.Names)
 		if astequal.Expr(p.Type, params.List[i].Type) {
-			list[len(list)-1].Names =
-				append(list[len(list)-1].Names, names...)
+			list[len(list)-1].Names = append(list[len(list)-1].Names, names...)
 		} else {
 			list = append(list, &ast.Field{
 				Names: names,

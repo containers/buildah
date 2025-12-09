@@ -111,6 +111,9 @@ func ParseFile(src []byte, filename string) (ImportList, int, int, int, int, err
 					headEnd = int(decl.Pos()) - 1
 				}
 				tailStart = int(decl.End())
+				if tailStart > len(src) {
+					tailStart = len(src)
+				}
 
 				for _, spec := range genDecl.Specs {
 					imp := spec.(*ast.ImportSpec)

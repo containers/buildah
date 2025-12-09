@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/mgechev/revive/lint"
@@ -8,7 +9,8 @@ import (
 
 // Unix is an implementation of the Formatter interface
 // which formats the errors to a simple line based error format
-//  main.go:24:9: [errorf] should replace errors.New(fmt.Sprintf(...)) with fmt.Errorf(...)
+//
+//	main.go:24:9: [errorf] should replace errors.New(fmt.Sprintf(...)) with fmt.Errorf(...)
 type Unix struct {
 	Metadata lint.FormatterMetadata
 }
@@ -20,8 +22,9 @@ func (*Unix) Name() string {
 
 // Format formats the failures gotten from the lint.
 func (*Unix) Format(failures <-chan lint.Failure, _ lint.Config) (string, error) {
+	var buf bytes.Buffer
 	for failure := range failures {
-		fmt.Printf("%v: [%s] %s\n", failure.Position.Start, failure.RuleName, failure.Failure)
+		fmt.Fprintf(&buf, "%v: [%s] %s\n", failure.Position.Start, failure.RuleName, failure.Failure)
 	}
-	return "", nil
+	return buf.String(), nil
 }
