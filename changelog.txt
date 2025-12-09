@@ -1,3 +1,36 @@
+- Changelog for v1.29.6 (2025-12-09)
+  * [release-1.29] Bump runc to v1.2.9 - CVE-2025-52881
+  * [release-1.29] Bump CI environment to match release-1.39
+  * [release-1.29] Proxy module access
+  * [release-1.29] switch to moby/sys/capability
+  * [release-1.29] Bump to Go 1.22
+  * [release-1.29] Bump x/tools to v0.26.0
+  * [release-1.29] finish switching to moby/sys/capability
+  * [release-1.29] tests/tools: bump golangci-lint and golang.org/x/tools
+  * [release-1.29] Silence new linter warnings
+  * Don't set ambient capabilities
+  * test start_git_server(): chown the sample repo we'll serve
+  * CI: switch to debian for testing there
+  * CI: run integration tests on Fedora with both crun and runc
+  * run: handle relabeling bind mounts ourselves
+  * Ignore errors if label.Relabel returns ENOSUP
+  * Update github.com/containers/image/v5 to get updated docker-daemon:
+  * Add support for --compat-auth-file in login/logout
+  * container.conf: support attributed string slices
+  * Stop setting "parent" in docker format
+  * commit: set "parent" for docker format only when requested
+  * Builder.SetWorkDir(): trim off a path separator suffix, if there is one
+  * Backport test fix from #5016
+  * Update tests to compensate for changed error messages
+  * Update a push test
+  * Update the selinux spc test
+  * .cirrus: run -race only on non-PR branch
+  * Makefile: run unit and conformance tests without -cover
+  * Add a dummy "runtime" that just dumps its config file
+  * runUsingRuntime: use named constants for runtime states
+  * Temporarily hard-skip bud-multiple-platform-values test
+  * [release-1.29] Bump to v1.29.6
+
 - Changelog for v1.29.5 (2025-02-06)
   * Backport testing of CVE-2024-9407 fix
   * Changes based on review feedback

@@ -507,9 +507,14 @@ func (p *Pattern) matchIdentical(state *MatcherState, sub *pattern, typ types.Ty
 		}
 		pkgPath := sub.value.([2]string)[0]
 		typeName := sub.value.([2]string)[1]
-		// obj.Pkg().Path() may be in a vendor directory.
-		path := strings.SplitAfter(obj.Pkg().Path(), "/vendor/")
-		return path[len(path)-1] == pkgPath && typeName == obj.Name()
+		if typeName != obj.Name() {
+			return false
+		}
+		objPath := obj.Pkg().Path()
+		if vendorPos := strings.Index(objPath, "/vendor/"); vendorPos != -1 {
+			objPath = objPath[vendorPos+len("/vendor/"):]
+		}
+		return objPath == pkgPath
 
 	case opFuncNoSeq:
 		typ, ok := typ.(*types.Signature)

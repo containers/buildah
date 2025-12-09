@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -17,6 +16,9 @@ import (
 	"github.com/quasilyte/go-ruleguard/internal/goenv"
 	"github.com/quasilyte/go-ruleguard/ruleguard/ir"
 	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
+	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo/stdlib/qfmt"
+	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo/stdlib/qstrconv"
+	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo/stdlib/qstrings"
 	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
 	"github.com/quasilyte/stdinfo"
 )
@@ -45,7 +47,7 @@ func (e *engine) LoadedGroups() []GoRuleGroup {
 }
 
 func (e *engine) Load(ctx *LoadContext, buildContext *build.Context, filename string, r io.Reader) error {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
@@ -128,6 +130,7 @@ func (e *engine) Run(ctx *RunContext, buildContext *build.Context, f *ast.File) 
 }
 
 // engineState is a shared state inside the engine.
+// Its access is synchronized, unlike the RunnerState which should be thread-local.
 type engineState struct {
 	env *quasigo.Env
 
@@ -141,6 +144,9 @@ type engineState struct {
 
 func newEngineState() *engineState {
 	env := quasigo.NewEnv()
+	qstrings.ImportAll(env)
+	qstrconv.ImportAll(env)
+	qfmt.ImportAll(env)
 	state := &engineState{
 		env:       env,
 		pkgCache:  make(map[string]*types.Package),

@@ -19,10 +19,11 @@ import (
 	"go/types"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type noErrorCheck struct {
-	gosec.MetaData
+	issue.MetaData
 	whitelist gosec.CallList
 }
 
@@ -49,7 +50,7 @@ func returnsError(callExpr *ast.CallExpr, ctx *gosec.Context) int {
 	return -1
 }
 
-func (r *noErrorCheck) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, error) {
+func (r *noErrorCheck) Match(n ast.Node, ctx *gosec.Context) (*issue.Issue, error) {
 	switch stmt := n.(type) {
 	case *ast.AssignStmt:
 		cfg := ctx.Config
@@ -61,7 +62,7 @@ func (r *noErrorCheck) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, erro
 						return nil, nil
 					}
 					if id, ok := stmt.Lhs[pos].(*ast.Ident); ok && id.Name == "_" {
-						return gosec.NewIssue(ctx, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+						return ctx.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 					}
 				}
 			}
@@ -70,7 +71,7 @@ func (r *noErrorCheck) Match(n ast.Node, ctx *gosec.Context) (*gosec.Issue, erro
 		if callExpr, ok := stmt.X.(*ast.CallExpr); ok && r.whitelist.ContainsCallExpr(stmt.X, ctx) == nil {
 			pos := returnsError(callExpr, ctx)
 			if pos >= 0 {
-				return gosec.NewIssue(ctx, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+				return ctx.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 			}
 		}
 	}
@@ -100,10 +101,10 @@ func NewNoErrorCheck(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 	}
 
 	return &noErrorCheck{
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Low,
-			Confidence: gosec.High,
+			Severity:   issue.Low,
+			Confidence: issue.High,
 			What:       "Errors unhandled.",
 		},
 		whitelist: whitelist,

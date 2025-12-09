@@ -245,6 +245,8 @@ type SendStmt struct {
 type Binding struct {
 	Name string
 	Node Node
+
+	idx int
 }
 
 type RangeStmt struct {
