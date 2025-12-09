@@ -4,13 +4,13 @@ import (
 	"go/ast"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "rangeValCopy"
-	info.Tags = []string{"performance"}
+	info.Tags = []string{linter.PerformanceTag}
 	info.Params = linter.CheckerParams{
 		"sizeThreshold": {
 			Value: 128,
@@ -65,7 +65,8 @@ func (c *rangeValCopyChecker) VisitStmt(stmt ast.Stmt) {
 	if typ == nil {
 		return
 	}
-	if size := c.ctx.SizesInfo.Sizeof(typ); size >= c.sizeThreshold {
+	size, ok := c.ctx.SizeOf(typ)
+	if ok && size >= c.sizeThreshold {
 		c.warn(rng, size)
 	}
 }

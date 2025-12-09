@@ -18,39 +18,38 @@ import (
 	"go/ast"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
-type usesWeakCryptography struct {
-	gosec.MetaData
+type usesWeakCryptographyEncryption struct {
+	issue.MetaData
 	blocklist map[string][]string
 }
 
-func (r *usesWeakCryptography) ID() string {
+func (r *usesWeakCryptographyEncryption) ID() string {
 	return r.MetaData.ID
 }
 
-func (r *usesWeakCryptography) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
+func (r *usesWeakCryptographyEncryption) Match(n ast.Node, c *gosec.Context) (*issue.Issue, error) {
 	for pkg, funcs := range r.blocklist {
 		if _, matched := gosec.MatchCallByPackage(n, c, pkg, funcs...); matched {
-			return gosec.NewIssue(c, n, r.ID(), r.What, r.Severity, r.Confidence), nil
+			return c.NewIssue(n, r.ID(), r.What, r.Severity, r.Confidence), nil
 		}
 	}
 	return nil, nil
 }
 
-// NewUsesWeakCryptography detects uses of des.* md5.* or rc4.*
-func NewUsesWeakCryptography(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+// NewUsesWeakCryptographyEncryption detects uses of des.*, rc4.*
+func NewUsesWeakCryptographyEncryption(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	calls := make(map[string][]string)
 	calls["crypto/des"] = []string{"NewCipher", "NewTripleDESCipher"}
-	calls["crypto/md5"] = []string{"New", "Sum"}
-	calls["crypto/sha1"] = []string{"New", "Sum"}
 	calls["crypto/rc4"] = []string{"NewCipher"}
-	rule := &usesWeakCryptography{
+	rule := &usesWeakCryptographyEncryption{
 		blocklist: calls,
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 			What:       "Use of weak cryptographic primitive",
 		},
 	}

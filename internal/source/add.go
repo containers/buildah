@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +115,7 @@ func updateIndexWithNewManifestDescriptor(manifest *specV1.Descriptor, sourcePat
 	index := specV1.Index{}
 	indexPath := filepath.Join(sourcePath, "index.json")
 
-	rawData, err := ioutil.ReadFile(indexPath)
+	rawData, err := os.ReadFile(indexPath)
 	if err != nil {
 		return err
 	}
@@ -130,5 +129,5 @@ func updateIndexWithNewManifestDescriptor(manifest *specV1.Descriptor, sourcePat
 		return err
 	}
 
-	return ioutil.WriteFile(indexPath, rawData, 0644)
+	return os.WriteFile(indexPath, rawData, 0644)
 }

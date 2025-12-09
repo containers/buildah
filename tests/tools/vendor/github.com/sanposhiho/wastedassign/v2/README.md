@@ -39,8 +39,17 @@ $ go vet -vettool=`which wastedassign` sample.go
 
 ## Installation
 
+
+### Go version < 1.16
+
 ```
 go get -u github.com/sanposhiho/wastedassign/v2/cmd/wastedassign
+```
+
+### Go version 1.16+
+
+```
+go install github.com/sanposhiho/wastedassign/v2/cmd/wastedassign@latest
 ```
 
 ## Usage

@@ -2,6 +2,40 @@
 
 # Changelog
 
+## v1.27.7 (2025-12-09)
+
+    Bump minimum to golang 1.22.6
+    Bump CI environment to match release-1.39
+    Bump x/tools to v0.26.0
+    Proxy module access
+    util.SortMounts(): make the returned order more stable
+    Bump runc to v1.2.9
+    Handle Cobra v1.5 -> v1.8 behavior changes
+    vendor: switch to moby/sys/capability
+    finish switching to moby/sys/capability
+    Don't set ambient capabilities
+    Integration tests: run git daemon on a random-but-bind()able port
+    run: handle relabeling bind mounts ourselves
+    Add a dummy "runtime" that just dumps its config file
+    runUsingRuntime: use named constants for runtime states
+    buildah-build(1): clarify that --cgroup-parent affects RUN instructions
+    CI: run integration tests on Fedora with both crun and runc
+    CI: switch to debian for testing there, re-enable some tests
+    Adjust tests for new CI environment
+    Temporarily hard-skip bud-multiple-platform-values test
+    Skip bud with --cpu-shares test on runc/cgroupsv2
+    Adjust supportability date to match RHEL 8.6
+    Remove -cover flag from test-unit target
+    tests/tools: update ginkgo and golangci-lint
+    .cirrus: run -race only on non-PR branch
+    Makefile: run unit and conformance tests without -cover
+    Fix linter errors
+    cross-compile: drop windows as a target GOOS
+    Stop setting "parent" in docker format
+    commit: set "parent" for docker format only when requested
+    Builder.SetWorkDir(): trim off a path separator suffix, if there is one
+    conformance test: ignore file type bits when comparing layers
+
 ## v1.27.6 (2025-01-30)
 
     Fix cache locks with multiple mounts

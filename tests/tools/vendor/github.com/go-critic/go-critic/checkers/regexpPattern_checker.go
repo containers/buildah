@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
 	var info linter.CheckerInfo
 	info.Name = "regexpPattern"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Summary = "Detects suspicious regexp patterns"
 	info.Before = "regexp.MustCompile(`google.com|yandex.ru`)"
 	info.After = "regexp.MustCompile(`google\\.com|yandex\\.ru`)"

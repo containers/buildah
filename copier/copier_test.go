@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -125,7 +124,7 @@ func makeArchive(headers []tar.Header, contents map[string][]byte) io.ReadCloser
 // inside of it, from an archive and returns its location.  It can be removed
 // once it's no longer needed.
 func makeContextFromArchive(archive io.ReadCloser, subdir string) (string, error) {
-	tmp, err := ioutil.TempDir("", "copier-test-")
+	tmp, err := os.MkdirTemp("", "copier-test-")
 	if err != nil {
 		return "", err
 	}
@@ -505,7 +504,7 @@ func testPut(t *testing.T) {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
 
-				tmp, err := ioutil.TempDir("", "copier-test-")
+				tmp, err := os.MkdirTemp("", "copier-test-")
 				require.NoErrorf(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 
@@ -551,7 +550,7 @@ func testPut(t *testing.T) {
 					{Name: "test/content", Typeflag: tar.TypeReg, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
+				tmp, err := os.MkdirTemp("", "copier-test-")
 				require.NoErrorf(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
@@ -579,7 +578,7 @@ func testPut(t *testing.T) {
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test/content", Typeflag: tar.TypeReg, Size: 0, Mode: 0755, ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
+				tmp, err := os.MkdirTemp("", "copier-test-")
 				require.NoErrorf(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteNonDirDir: !overwrite}, bytes.NewReader(archive))
@@ -604,7 +603,7 @@ func testPut(t *testing.T) {
 					{Name: "link", Typeflag: tar.TypeLink, Size: 0, Mode: 0600, ModTime: testDate, Linkname: "test"},
 					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
+				tmp, err := os.MkdirTemp("", "copier-test-")
 				require.NoErrorf(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
@@ -628,7 +627,7 @@ func testPut(t *testing.T) {
 					archive := makeArchiveSlice([]tar.Header{
 						{Name: "test", Typeflag: tar.TypeReg, Size: 0, Mode: mode, ModTime: testDate},
 					})
-					tmp, err := ioutil.TempDir("", "copier-test-")
+					tmp, err := os.MkdirTemp("", "copier-test-")
 					require.NoErrorf(t, err, "error creating temporary directory")
 					defer os.RemoveAll(tmp)
 					putOptions := PutOptions{
@@ -728,7 +727,7 @@ func testStat(t *testing.T) {
 								result := st.Results[glob]
 
 								switch testItem.Typeflag {
-								case tar.TypeReg, tar.TypeRegA:
+								case tar.TypeReg, tar.TypeRegA: //nolint:staticcheck
 									if actualContent, ok := testArchive.contents[testItem.Name]; ok {
 										testItem.Size = int64(len(actualContent))
 									}
@@ -797,7 +796,7 @@ func testGetSingle(t *testing.T) {
 					}
 					t.Run(fmt.Sprintf("absolute=%t,topdir=%s,archive=%s,item=%s", absolute, topdir, testArchive.name, name), func(t *testing.T) {
 						// check if we can get this one item
-						err := Get(root, topdir, getOptions, []string{name}, ioutil.Discard)
+						err := Get(root, topdir, getOptions, []string{name}, io.Discard)
 						// if we couldn't read that content, check if it's one of the expected failures
 						if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testItem.Name, testArchive.expectedGetErrors) {
 							return
@@ -1423,7 +1422,7 @@ func testGetMultiple(t *testing.T) {
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {
 					// ensure that we can get stuff using this spec
-					err := Get(root, topdir, getOptions, []string{testCase.pattern}, ioutil.Discard)
+					err := Get(root, topdir, getOptions, []string{testCase.pattern}, io.Discard)
 					if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testCase.pattern, testArchive.expectedGetErrors) {
 						return
 					}
@@ -1471,7 +1470,7 @@ func TestEvalNoChroot(t *testing.T) {
 }
 
 func testEval(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "copier-test-")
+	tmp, err := os.MkdirTemp("", "copier-test-")
 	if err != nil {
 		require.NoError(t, err, "error creating temporary directory")
 	}

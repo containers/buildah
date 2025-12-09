@@ -16,7 +16,7 @@ type Stylish struct {
 }
 
 // Name returns the name of the formatter
-func (f *Stylish) Name() string {
+func (*Stylish) Name() string {
 	return "stylish"
 }
 
@@ -32,7 +32,7 @@ func formatFailure(failure lint.Failure, severity lint.Severity) []string {
 }
 
 // Format formats the failures gotten from the lint.
-func (f *Stylish) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
+func (*Stylish) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
 	var result [][]string
 	totalErrors := 0
 	total := 0
