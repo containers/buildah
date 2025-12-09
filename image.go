@@ -59,6 +59,34 @@ const (
 	// create uniquely-named files, but we don't want to try to use their
 	// contents until after they've been written to
 	containerExcludesSubstring = ".tmp"
+
+	// Windows-specific PAX record keys
+	keyFileAttr     = "MSWINDOWS.fileattr"
+	keySDRaw        = "MSWINDOWS.rawsd"
+	keyCreationTime = "LIBARCHIVE.creationtime"
+
+	// Windows Security Descriptors (base64-encoded)
+	// SDDL: O:BAG:SYD:(A;OICI;FA;;;BA)(A;OICI;FA;;;SY)(A;;FA;;;BA)(A;OICIIO;GA;;;CO)(A;OICI;0x1200a9;;;BU)(A;CI;LC;;;BU)(A;CI;DC;;;BU)
+	// Owner: Built-in Administrators (BA)
+	// Group: Local System (SY)
+	// DACL:
+	//   - Allow OBJECT_INHERIT+CONTAINER_INHERIT Full Access to Built-in Administrators (BA)
+	//   - Allow OBJECT_INHERIT+CONTAINER_INHERIT Full Access to Local System (SY)
+	//   - Allow Full Access to Built-in Administrators (BA)
+	//   - Allow OBJECT_INHERIT+CONTAINER_INHERIT+INHERIT_ONLY Generic All to Creator Owner (CO)
+	//   - Allow OBJECT_INHERIT+CONTAINER_INHERIT Read/Execute permissions to Built-in Users (BU)
+	//   - Allow CONTAINER_INHERIT List Contents to Built-in Users (BU)
+	//   - Allow CONTAINER_INHERIT Delete Child to Built-in Users (BU)
+	winSecurityDescriptorDirectory = "AQAEgBQAAAAkAAAAAAAAADAAAAABAgAAAAAABSAAAAAgAgAAAQEAAAAAAAUSAAAAAgCoAAcAAAAAAxgA/wEfAAECAAAAAAAFIAAAACACAAAAAxQA/wEfAAEBAAAAAAAFEgAAAAAAGAD/AR8AAQIAAAAAAAUgAAAAIAIAAAALFAAAAAAQAQEAAAAAAAMAAAAAAAMYAKkAEgABAgAAAAAABSAAAAAhAgAAAAIYAAQAAAABAgAAAAAABSAAAAAhAgAAAAIYAAIAAAABAgAAAAAABSAAAAAhAgAA"
+
+	// SDDL: O:BAG:SYD:(A;;FA;;;BA)(A;;FA;;;SY)(A;;0x1200a9;;;BU)
+	// Owner: Built-in Administrators (BA)
+	// Group: Local System (SY)
+	// DACL:
+	//   - Allow Full Access to Built-in Administrators (BA)
+	//   - Allow Full Access to Local System (SY)
+	//   - Allow Read/Execute permissions to Built-in Users (BU)
+	winSecurityDescriptorFile = "AQAEgBQAAAAkAAAAAAAAADAAAAABAgAAAAAABSAAAAAgAgAAAQEAAAAAAAUSAAAAAgBMAAMAAAAAABgA/wEfAAECAAAAAAAFIAAAACACAAAAABQA/wEfAAEBAAAAAAAFEgAAAAAAGACpABIAAQIAAAAAAAUgAAAAIQIAAA=="
 )
 
 // ExtractRootfsOptions is consumed by ExtractRootfs() which allows users to
@@ -112,6 +140,7 @@ type containerImageRef struct {
 	unsetAnnotations      []string
 	setAnnotations        []string
 	createdAnnotation     types.OptionalBool
+	os                    string
 }
 
 type blobLayerInfo struct {
@@ -1075,7 +1104,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 			return nil, fmt.Errorf("opening file for %s: %w", what, err)
 		}
 
-		layerFileWriter, err := newLayerWriter(layerFile, i.compression, i.layerModTime, i.layerLatestModTime, layerExclusions)
+		layerFileWriter, err := newLayerWriter(layerFile, i.compression, i.layerModTime, i.layerLatestModTime, layerExclusions, i.os == "windows")
 		if err != nil {
 			layerFile.Close()
 			rc.Close()
@@ -1097,7 +1126,9 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 				return nil, fmt.Errorf("extracting container rootfs: %w", err)
 			}
 		}
-		if layerFileWriter.SourceDigest() != layerFileWriter.DestDigest() {
+		// If the stream was transformed (compression or Windows mutation), use TotalWritten()
+		// Otherwise verify that io.Copy size matches TotalWritten()
+		if layerFileWriter.SourceDigest() != layerFileWriter.DestDigest() || i.os == "windows" {
 			size = layerFileWriter.TotalWritten()
 		} else {
 			if size != layerFileWriter.TotalWritten() {
@@ -1141,6 +1172,113 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 		blobLayers:    blobLayers,
 	}
 	return src, nil
+}
+
+func prepareWinHeader(h *tar.Header) {
+	if h.PAXRecords == nil {
+		h.PAXRecords = map[string]string{}
+	}
+	if h.Typeflag == tar.TypeDir {
+		h.Mode |= 1 << 14
+		h.PAXRecords[keyFileAttr] = "16"
+	}
+
+	if h.Typeflag == tar.TypeReg {
+		h.Mode |= 1 << 15
+		h.PAXRecords[keyFileAttr] = "32"
+	}
+
+	if !h.ModTime.IsZero() {
+		h.PAXRecords[keyCreationTime] = fmt.Sprintf("%d.%d", h.ModTime.Unix(), h.ModTime.Nanosecond())
+	}
+
+	h.Format = tar.FormatPAX
+}
+
+func addSecurityDescriptor(h *tar.Header) {
+	if h.Typeflag == tar.TypeDir {
+		h.PAXRecords[keySDRaw] = winSecurityDescriptorDirectory
+	}
+
+	if h.Typeflag == tar.TypeReg {
+		h.PAXRecords[keySDRaw] = winSecurityDescriptorFile
+	}
+}
+
+// winMutator implements io.WriteCloser and transforms an incoming tar stream to fit the expected format of a Windows
+// container image
+type winMutator struct {
+	pw   *io.PipeWriter
+	done chan error
+}
+
+func (w *winMutator) Write(b []byte) (int, error) {
+	return w.pw.Write(b)
+}
+
+func (w *winMutator) Close() error {
+	if err := w.pw.Close(); err != nil {
+		return fmt.Errorf("error closing pipewriter")
+	}
+	return <-w.done
+}
+
+func newWindowsMutator(outStream io.WriteCloser) *winMutator {
+	pr, pw := io.Pipe()
+	done := make(chan error)
+	go func() {
+		tarReader := tar.NewReader(pr)
+		tarWriter := tar.NewWriter(outStream)
+
+		err := func() error {
+			h := &tar.Header{
+				Name:     "Hives",
+				Typeflag: tar.TypeDir,
+				ModTime:  time.Now(),
+			}
+			prepareWinHeader(h)
+			if err := tarWriter.WriteHeader(h); err != nil {
+				return err
+			}
+
+			h = &tar.Header{
+				Name:     "Files",
+				Typeflag: tar.TypeDir,
+				ModTime:  time.Now(),
+			}
+			prepareWinHeader(h)
+			if err := tarWriter.WriteHeader(h); err != nil {
+				return err
+			}
+
+			for {
+				h, err := tarReader.Next()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return err
+				}
+				h.Name = filepath.Join("Files", h.Name)
+				if h.Linkname != "" {
+					h.Linkname = filepath.Join("Files", h.Linkname)
+				}
+				prepareWinHeader(h)
+				addSecurityDescriptor(h)
+				if err := tarWriter.WriteHeader(h); err != nil {
+					return err
+				}
+				if h.Size > 0 {
+					if _, err := io.Copy(tarWriter, tarReader); err != nil {
+						return err
+					}
+				}
+			}
+			return tarWriter.Close()
+		}()
+		done <- err
+	}()
+	return &winMutator{pw: pw, done: done}
 }
 
 // layerWriter represents a pipeline of writers
@@ -1189,7 +1327,7 @@ func (l *layerWriter) TotalWritten() int64 {
 // newLayerWriter creates a writer pipeline which processes an input stream and ultimately writes to the given destination.
 // The write stream pipeline is as follows:
 // input -> filter ->  compressor ->  destination
-func newLayerWriter(destination io.Writer, compression archive.Compression, layerModTime, layerLatestModTime *time.Time, layerExclusions []copier.ConditionalRemovePath) (*layerWriter, error) {
+func newLayerWriter(destination io.Writer, compression archive.Compression, layerModTime, layerLatestModTime *time.Time, layerExclusions []copier.ConditionalRemovePath, windows bool) (*layerWriter, error) {
 	layerWriteCounter := ioutils.NewWriteCounter(destination)
 	var multiWriter io.Writer
 	var destHasher digest.Digester
@@ -1197,7 +1335,7 @@ func newLayerWriter(destination io.Writer, compression archive.Compression, laye
 	var closers []func() error
 
 	// If the input stream will not be different from the output stream, avoid rehashing
-	if compression != archive.Uncompressed || layerModTime != nil || layerLatestModTime != nil || len(layerExclusions) != 0 {
+	if windows || compression != archive.Uncompressed || layerModTime != nil || layerLatestModTime != nil || len(layerExclusions) != 0 {
 		destHasher = digest.Canonical.Digester()
 		multiWriter = io.MultiWriter(layerWriteCounter, destHasher.Hash())
 	} else {
@@ -1212,9 +1350,17 @@ func newLayerWriter(destination io.Writer, compression archive.Compression, laye
 	closers = append(closers, compressor.Close)
 	compressorHasher := io.MultiWriter(compressor, srcHasher.Hash())
 
+	// Apply Windows layer mutation if needed, before calculating the uncompressed hash
+	preCompressor := ioutils.NopWriteCloser(compressorHasher)
+	if windows {
+		// preCompressor.Close is owned by makeFilteredLayerWriteCloser
+		preCompressor = newWindowsMutator(preCompressor)
+	}
+
 	// Use specified timestamps in the layer, if we're doing that for history entries.
-	filter := makeFilteredLayerWriteCloser(ioutils.NopWriteCloser(compressorHasher), layerModTime, layerLatestModTime, layerExclusions)
+	filter := makeFilteredLayerWriteCloser(preCompressor, layerModTime, layerLatestModTime, layerExclusions)
 	closers = append(closers, filter.Close)
+
 	return &layerWriter{
 		outputCounter:  &layerWriteCounter.Count,
 		inputDigester:  srcHasher,
@@ -1720,6 +1866,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		layerMountTargets:     layerMountTargets,
 		layerPullUps:          layerPullUps,
 		createdAnnotation:     options.CreatedAnnotation,
+		os:                    b.OCIv1.OS,
 	}
 	if ref.created != nil {
 		for i := range ref.preEmptyLayers {

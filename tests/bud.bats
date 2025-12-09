@@ -2,6 +2,8 @@
 
 load helpers
 
+# do not merge
+
 @test "bud with a path to a Dockerfile (-f) containing a non-directory entry" {
   run_buildah 125 build -f $BUDFILES/non-directory-in-path/non-directory/Dockerfile
   expect_output --substring "non-directory/Dockerfile: not a directory"
