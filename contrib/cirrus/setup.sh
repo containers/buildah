@@ -26,7 +26,7 @@ EOF
             showrun setsebool -P container_manage_cgroup true
         fi
         ;;
-    ubuntu)
+    ubuntu|debian)
         ;;
     *)
         bad_os_id_ver
