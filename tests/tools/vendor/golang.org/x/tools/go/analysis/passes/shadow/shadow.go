@@ -5,46 +5,26 @@
 package shadow
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
 // NOTE: Experimental. Not part of the vet suite.
 
-const Doc = `check for possible unintended shadowing of variables
-
-This analyzer check for shadowed variables.
-A shadowed variable is a variable declared in an inner scope
-with the same name and type as a variable in an outer scope,
-and where the outer variable is mentioned after the inner one
-is declared.
-
-(This definition can be refined; the module generates too many
-false positives and is not yet enabled by default.)
-
-For example:
-
-	func BadRead(f *os.File, buf []byte) error {
-		var err error
-		for {
-			n, err := f.Read(buf) // shadows the function variable 'err'
-			if err != nil {
-				break // causes return of wrong value
-			}
-			foo(buf)
-		}
-		return err
-	}
-`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "shadow",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "shadow"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shadow",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -119,7 +99,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 // the block, we should complain about it but don't.
 // - A variable declared inside a function literal can falsely be identified
 // as shadowing a variable in the outer function.
-//
 type span struct {
 	min token.Pos
 	max token.Pos
@@ -160,7 +139,7 @@ func checkShadowAssignment(pass *analysis.Pass, spans map[types.Object]span, a *
 	for _, expr := range a.Lhs {
 		ident, ok := expr.(*ast.Ident)
 		if !ok {
-			pass.Reportf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
+			pass.ReportRangef(expr, "invalid AST: short variable declaration of non-identifier")
 			return
 		}
 		checkShadowing(pass, spans, ident)
@@ -182,7 +161,7 @@ func idiomaticShortRedecl(pass *analysis.Pass, a *ast.AssignStmt) bool {
 	for i, expr := range a.Lhs {
 		lhs, ok := expr.(*ast.Ident)
 		if !ok {
-			pass.Reportf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
+			pass.ReportRangef(expr, "invalid AST: short variable declaration of non-identifier")
 			return true // Don't do any more processing.
 		}
 		switch rhs := a.Rhs[i].(type) {
@@ -208,14 +187,15 @@ func idiomaticShortRedecl(pass *analysis.Pass, a *ast.AssignStmt) bool {
 func idiomaticRedecl(d *ast.ValueSpec) bool {
 	// Don't complain about deliberate redeclarations of the form
 	//	var i, j = i, j
+	// Don't ignore redeclarations of the form
+	//	var i = 3
 	if len(d.Names) != len(d.Values) {
 		return false
 	}
 	for i, lhs := range d.Names {
-		if rhs, ok := d.Values[i].(*ast.Ident); ok {
-			if lhs.Name != rhs.Name {
-				return false
-			}
+		rhs, ok := d.Values[i].(*ast.Ident)
+		if !ok || lhs.Name != rhs.Name {
+			return false
 		}
 	}
 	return true
@@ -229,7 +209,7 @@ func checkShadowDecl(pass *analysis.Pass, spans map[types.Object]span, d *ast.Ge
 	for _, spec := range d.Specs {
 		valueSpec, ok := spec.(*ast.ValueSpec)
 		if !ok {
-			pass.Reportf(spec.Pos(), "invalid AST: var GenDecl not ValueSpec")
+			pass.ReportRangef(spec, "invalid AST: var GenDecl not ValueSpec")
 			return
 		}
 		// Don't complain about deliberate redeclarations of the form
@@ -273,7 +253,7 @@ func checkShadowing(pass *analysis.Pass, spans map[types.Object]span, ident *ast
 		// the shadowing identifier.
 		span, ok := spans[shadowed]
 		if !ok {
-			pass.Reportf(ident.Pos(), "internal error: no range for %q", ident.Name)
+			pass.ReportRangef(ident, "internal error: no range for %q", ident.Name)
 			return
 		}
 		if !span.contains(ident.Pos()) {
@@ -283,6 +263,6 @@ func checkShadowing(pass *analysis.Pass, spans map[types.Object]span, ident *ast
 	// Don't complain if the types differ: that implies the programmer really wants two different things.
 	if types.Identical(obj.Type(), shadowed.Type()) {
 		line := pass.Fset.Position(shadowed.Pos()).Line
-		pass.Reportf(ident.Pos(), "declaration of %q shadows declaration at line %d", obj.Name(), line)
+		pass.ReportRangef(ident, "declaration of %q shadows declaration at line %d", obj.Name(), line)
 	}
 }

@@ -2,44 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package stdmethods defines an Analyzer that checks for misspellings
-// in the signatures of methods similar to well-known interfaces.
 package stdmethods
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const Doc = `check signature of methods of well-known interfaces
-
-Sometimes a type may be intended to satisfy an interface but may fail to
-do so because of a mistake in its method signature.
-For example, the result of this WriteTo method should be (int64, error),
-not error, to satisfy io.WriterTo:
-
-	type myWriterTo struct{...}
-        func (myWriterTo) WriteTo(w io.Writer) error { ... }
-
-This check ensures that each method whose name matches one of several
-well-known interface methods from the standard library has the correct
-signature for that interface.
-
-Checked method names include:
-	Format GobEncode GobDecode MarshalJSON MarshalXML
-	Peek ReadByte ReadFrom ReadRune Scan Seek
-	UnmarshalJSON UnreadByte UnreadRune WriteByte
-	WriteTo
-`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "stdmethods",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "stdmethods"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -61,10 +44,12 @@ var Analyzer = &analysis.Analyzer{
 // we let it go. But if it does have a fmt.ScanState, then the
 // rest has to match.
 var canonicalMethods = map[string]struct{ args, results []string }{
+	"As": {[]string{"any"}, []string{"bool"}}, // errors.As
 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
 	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},                      // fmt.Formatter
 	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                           // gob.GobDecoder
 	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},                         // gob.GobEncoder
+	"Is":            {[]string{"error"}, []string{"bool"}},                             // errors.Is
 	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},                         // json.Marshaler
 	"MarshalXML":    {[]string{"*xml.Encoder", "xml.StartElement"}, []string{"error"}}, // xml.Marshaler
 	"ReadByte":      {[]string{}, []string{"byte", "error"}},                           // io.ByteReader
@@ -76,6 +61,7 @@ var canonicalMethods = map[string]struct{ args, results []string }{
 	"UnmarshalXML":  {[]string{"*xml.Decoder", "xml.StartElement"}, []string{"error"}}, // xml.Unmarshaler
 	"UnreadByte":    {[]string{}, []string{"error"}},
 	"UnreadRune":    {[]string{}, []string{"error"}},
+	"Unwrap":        {[]string{}, []string{"error"}},                      // errors.Unwrap
 	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
 	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
 }
@@ -123,6 +109,27 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		return
 	}
 
+	// Special case: Is, As and Unwrap only apply when type
+	// implements error.
+	if id.Name == "Is" || id.Name == "As" || id.Name == "Unwrap" {
+		if recv := sign.Recv(); recv == nil || !implementsError(recv.Type()) {
+			return
+		}
+	}
+
+	// Special case: Unwrap has two possible signatures.
+	// Check for Unwrap() []error here.
+	if id.Name == "Unwrap" {
+		if args.Len() == 0 && results.Len() == 1 {
+			t := typeString(results.At(0).Type())
+			if t == "error" || t == "[]error" {
+				return
+			}
+		}
+		pass.ReportRangef(id, "method Unwrap() should have signature Unwrap() error or Unwrap() []error")
+		return
+	}
+
 	// Do the =s (if any) all match?
 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
 		return
@@ -141,7 +148,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		actual = strings.TrimPrefix(actual, "func")
 		actual = id.Name + actual
 
-		pass.Reportf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+		pass.ReportRangef(id, "method %s should have signature %s", actual, expectFmt)
 	}
 }
 
@@ -183,5 +190,13 @@ func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, pref
 func matchParamType(expect string, actual types.Type) bool {
 	expect = strings.TrimPrefix(expect, "=")
 	// Overkill but easy.
-	return typeString(actual) == expect
+	t := typeString(actual)
+	return t == expect ||
+		(t == "any" || t == "interface{}") && (expect == "any" || expect == "interface{}")
+}
+
+var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+func implementsError(actual types.Type) bool {
+	return types.Implements(actual, errorType)
 }

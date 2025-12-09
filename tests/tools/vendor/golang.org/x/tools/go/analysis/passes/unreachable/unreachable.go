@@ -2,30 +2,29 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package unreachable defines an Analyzer that checks for unreachable code.
 package unreachable
 
 // TODO(adonovan): use the new cfg package, which is more precise.
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"log"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const Doc = `check for unreachable code
-
-The unreachable analyzer finds statements that execution can never reach
-because they are preceded by an return statement, a call to panic, an
-infinite loop, or similar constructs.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "unreachable",
-	Doc:              Doc,
+	Doc:              analysisutil.MustExtractDoc(doc, "unreachable"),
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unreachable",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,
@@ -189,7 +188,18 @@ func (d *deadState) findDead(stmt ast.Stmt) {
 		case *ast.EmptyStmt:
 			// do not warn about unreachable empty statements
 		default:
-			d.pass.Reportf(stmt.Pos(), "unreachable code")
+			d.pass.Report(analysis.Diagnostic{
+				Pos:     stmt.Pos(),
+				End:     stmt.End(),
+				Message: "unreachable code",
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message: "Remove",
+					TextEdits: []analysis.TextEdit{{
+						Pos: stmt.Pos(),
+						End: stmt.End(),
+					}},
+				}},
+			})
 			d.reachable = true // silence error about next statement
 		}
 	}

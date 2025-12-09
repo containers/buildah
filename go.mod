@@ -1,6 +1,6 @@
 module github.com/containers/buildah
 
-go 1.22
+go 1.22.0
 
 require (
 	github.com/containernetworking/cni v0.8.1

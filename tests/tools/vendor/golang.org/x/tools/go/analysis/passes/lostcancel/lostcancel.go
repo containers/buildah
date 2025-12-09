@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package lostcancel defines an Analyzer that checks for failure to
-// call a context cancelation function.
 package lostcancel
 
 import (
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -14,20 +13,18 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/ctrlflow"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
 )
 
-const Doc = `check cancel func returned by context.WithCancel is called
-
-The cancelation function returned by context.WithCancel, WithTimeout,
-and WithDeadline must be called or the new context will remain live
-until its parent context is cancelled.
-(The background context is never cancelled.)`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name: "lostcancel",
-	Doc:  Doc,
+	Doc:  analysisutil.MustExtractDoc(doc, "lostcancel"),
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/lostcancel",
 	Run:  run,
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,
@@ -51,7 +48,7 @@ var contextPackage = "context"
 // checkLostCancel analyzes a single named or literal function.
 func run(pass *analysis.Pass) (interface{}, error) {
 	// Fast path: bypass check if file doesn't use context.WithCancel.
-	if !hasImport(pass.Pkg, contextPackage) {
+	if !analysisutil.Imports(pass.Pkg, contextPackage) {
 		return nil, nil
 	}
 
@@ -121,7 +118,7 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 		}
 		if id != nil {
 			if id.Name == "_" {
-				pass.Reportf(id.Pos(),
+				pass.ReportRangef(id,
 					"the cancel function returned by context.%s should be called, not discarded, to avoid a context leak",
 					n.(*ast.SelectorExpr).Sel.Name)
 			} else if v, ok := pass.TypesInfo.Uses[id].(*types.Var); ok {
@@ -174,22 +171,24 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 	for v, stmt := range cancelvars {
 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
 			lineno := pass.Fset.Position(stmt.Pos()).Line
-			pass.Reportf(stmt.Pos(), "the %s function is not used on all paths (possible context leak)", v.Name())
-			pass.Reportf(ret.Pos(), "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
+			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
+
+			pos, end := ret.Pos(), ret.End()
+			// golang/go#64547: cfg.Block.Return may return a synthetic
+			// ReturnStmt that overflows the file.
+			if pass.Fset.File(pos) != pass.Fset.File(end) {
+				end = pos
+			}
+			pass.Report(analysis.Diagnostic{
+				Pos:     pos,
+				End:     end,
+				Message: fmt.Sprintf("this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno),
+			})
 		}
 	}
 }
 
 func isCall(n ast.Node) bool { _, ok := n.(*ast.CallExpr); return ok }
-
-func hasImport(pkg *types.Package, path string) bool {
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return true
-		}
-	}
-	return false
-}
 
 // isContextWithCancel reports whether n is one of the qualified identifiers
 // context.With{Cancel,Timeout,Deadline}.
