@@ -11,6 +11,8 @@ import (
 	"go.podman.io/image/v5/directory/explicitfilepath"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/internal/image"
+	"go.podman.io/image/v5/internal/imagereference/impl"
+	"go.podman.io/image/v5/internal/private"
 	"go.podman.io/image/v5/internal/tmpdir"
 	"go.podman.io/image/v5/oci/internal"
 	ocilayout "go.podman.io/image/v5/oci/layout"
@@ -126,10 +128,16 @@ func (ref ociArchiveReference) NewImage(ctx context.Context, sys *types.SystemCo
 	return image.FromReference(ctx, sys, ref)
 }
 
+// NewImageSourceWithOptions returns a types.ImageSource for this reference.
+// The caller must call .Close() on the returned ImageSource.
+func (ref ociArchiveReference) NewImageSourceWithOptions(ctx context.Context, options private.NewImageSourceOptions) (private.ImageSource, error) {
+	return newImageSource(ctx, ref, options)
+}
+
 // NewImageSource returns a types.ImageSource for this reference.
 // The caller must call .Close() on the returned ImageSource.
 func (ref ociArchiveReference) NewImageSource(ctx context.Context, sys *types.SystemContext) (types.ImageSource, error) {
-	return newImageSource(ctx, sys, ref)
+	return impl.NewImageSource(ref, ctx, sys)
 }
 
 // NewImageDestination returns a types.ImageDestination for this reference.
@@ -146,7 +154,7 @@ func (ref ociArchiveReference) DeleteImage(ctx context.Context, sys *types.Syste
 // struct to store the ociReference and temporary directory returned by createOCIRef
 type tempDirOCIRef struct {
 	tempDirectory   string
-	ociRefExtracted types.ImageReference
+	ociRefExtracted private.ImageReference
 }
 
 // deletes the temporary directory created
@@ -161,13 +169,24 @@ func createOCIRef(sys *types.SystemContext, image string) (tempDirOCIRef, error)
 	if err != nil {
 		return tempDirOCIRef{}, fmt.Errorf("creating temp directory: %w", err)
 	}
-	ociRef, err := ocilayout.NewReference(dir, image)
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			_ = os.RemoveAll(dir)
+		}
+	}()
+
+	ociRef_, err := ocilayout.NewReference(dir, image)
 	if err != nil {
 		return tempDirOCIRef{}, err
 	}
+	ociRef, ok := ociRef_.(private.ImageReference)
+	if !ok {
+		return tempDirOCIRef{}, errors.New("internal error: oci/layout does not implement private.ImageReference")
+	}
 
-	tempDirRef := tempDirOCIRef{tempDirectory: dir, ociRefExtracted: ociRef}
-	return tempDirRef, nil
+	succeeded = true
+	return tempDirOCIRef{tempDirectory: dir, ociRefExtracted: ociRef}, nil
 }
 
 // creates the temporary directory and copies the tarred content to it
