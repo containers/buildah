@@ -39,7 +39,7 @@ func (stub NoSignaturesInitialize) PutSignaturesWithFormat(ctx context.Context, 
 	return nil
 }
 
-// SupportsSignatures implements SupportsSignatures() that returns nil.
+// AlwaysSupportsSignatures implements SupportsSignatures() that returns nil.
 // Note that it might be even more useful to return a value dynamically detected based on
 type AlwaysSupportsSignatures struct{}
 

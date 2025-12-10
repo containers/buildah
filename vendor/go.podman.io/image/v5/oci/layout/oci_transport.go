@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,8 @@ import (
 	"go.podman.io/image/v5/directory/explicitfilepath"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/internal/image"
-	"go.podman.io/image/v5/internal/manifest"
+	"go.podman.io/image/v5/internal/iolimits"
+	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/oci/internal"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
@@ -27,6 +29,9 @@ func init() {
 var (
 	// Transport is an ImageTransport for OCI directories.
 	Transport = ociTransport{}
+
+	// ErrEmptyIndex is an error returned when the index includes no image.
+	ErrEmptyIndex = errors.New("no image in oci")
 
 	// ErrMoreThanOneImage is an error returned when the manifest includes
 	// more than one image and the user should choose which one to use.
@@ -248,11 +253,33 @@ func (ref ociReference) getManifestDescriptor() (imgspecv1.Descriptor, int, erro
 
 	default:
 		// return manifest if only one image is in the oci directory
-		if len(index.Manifests) != 1 {
-			// ask user to choose image when more than one image in the oci directory
+		if len(index.Manifests) == 0 {
+			return imgspecv1.Descriptor{}, -1, ErrEmptyIndex
+		}
+		// if there's one image return it, even if it is a signature
+		if len(index.Manifests) == 1 {
+			return index.Manifests[0], 0, nil
+		}
+		// when there's more than one image, try to get a non-signature image
+		var desc imgspecv1.Descriptor
+		idx := -1
+		for i, md := range index.Manifests {
+			if isSigstoreTag(md.Annotations[imgspecv1.AnnotationRefName]) {
+				continue
+			}
+			// More than one non-signature image was found
+			if idx != -1 {
+				// ask user to choose image when more than one image in the oci directory
+				return imgspecv1.Descriptor{}, -1, ErrMoreThanOneImage
+			}
+			desc = md
+			idx = i
+		}
+		// there's only multiple signature images
+		if idx == -1 {
 			return imgspecv1.Descriptor{}, -1, ErrMoreThanOneImage
 		}
-		return index.Manifests[0], 0, nil
+		return desc, idx, nil
 	}
 }
 
@@ -301,4 +328,102 @@ func (ref ociReference) blobPath(digest digest.Digest, sharedBlobDir string) (st
 		blobDir = filepath.Join(ref.dir, imgspecv1.ImageBlobsDir)
 	}
 	return filepath.Join(blobDir, digest.Algorithm().String(), digest.Encoded()), nil
+}
+
+// sigstoreAttachmentTag returns a sigstore attachment tag for the specified digest.
+func sigstoreAttachmentTag(d digest.Digest) (string, error) {
+	if err := d.Validate(); err != nil { // Make sure d.String() doesn’t contain any unexpected characters
+		return "", err
+	}
+	return strings.Replace(d.String(), ":", "-", 1) + ".sig", nil
+}
+
+func (ref ociReference) getSigstoreAttachmentManifest(d digest.Digest, idx *imgspecv1.Index, sharedBlobDir string) (*manifest.OCI1, *imgspecv1.Descriptor, error) {
+	signTag, err := sigstoreAttachmentTag(d)
+	if err != nil {
+		return nil, nil, err
+	}
+	var signDesc *imgspecv1.Descriptor
+	for _, m := range idx.Manifests {
+		if m.Annotations[imgspecv1.AnnotationRefName] == signTag {
+			signDesc = &m
+			break
+		}
+	}
+	if signDesc == nil {
+		// No signature found
+		return nil, nil, nil
+	}
+	if signDesc.MediaType != imgspecv1.MediaTypeImageManifest {
+		return nil, nil, fmt.Errorf("unexpected MIME type for sigstore attachment manifest %s: %q",
+			signTag, signDesc.MediaType)
+	}
+	blobReader, _, err := ref.getBlob(signDesc.Digest, sharedBlobDir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get Blob %s: %w", signTag, err)
+	}
+	defer blobReader.Close()
+	signBlob, err := iolimits.ReadAtMost(blobReader, iolimits.MaxManifestBodySize)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read blob: %w", err)
+	}
+	res, err := manifest.OCI1FromManifest(signBlob)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing manifest %s: %w", signDesc.Digest, err)
+	}
+	return res, signDesc, nil
+}
+
+func (ref ociReference) getBlob(d digest.Digest, sharedBlobDir string) (io.ReadCloser, int64, error) {
+	path, err := ref.blobPath(d, sharedBlobDir)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	r, err := os.Open(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	fi, err := r.Stat()
+	if err != nil {
+		_ = r.Close() // Avoid leak r.
+		return nil, 0, err
+	}
+	return r, fi.Size(), nil
+}
+
+func (ref ociReference) getOCIDescriptorContents(dgst digest.Digest, maxSize int, sharedBlobDir string) ([]byte, error) {
+	if err := dgst.Validate(); err != nil { // .Algorithm() might panic without this check
+		return nil, fmt.Errorf("invalid digest %q: %w", dgst.String(), err)
+	}
+	digestAlgorithm := dgst.Algorithm()
+	if !digestAlgorithm.Available() {
+		return nil, fmt.Errorf("invalid digest %q: unsupported digest algorithm %q", dgst.String(), digestAlgorithm.String())
+	}
+
+	reader, _, err := ref.getBlob(dgst, sharedBlobDir)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	payload, err := iolimits.ReadAtMost(reader, maxSize)
+	if err != nil {
+		return nil, fmt.Errorf("reading blob %s in %s: %w", dgst.String(), ref.image, err)
+	}
+	actualDigest := digestAlgorithm.FromBytes(payload)
+	if actualDigest != dgst {
+		return nil, fmt.Errorf("digest mismatch, expected %q, got %q", dgst.String(), actualDigest.String())
+	}
+	return payload, nil
+}
+
+// isSigstoreTag returns true if the tag is sigstore signature tag.
+func isSigstoreTag(tag string) bool {
+	digestPart, found := strings.CutSuffix(tag, ".sig")
+	if !found {
+		return false
+	}
+	digestPart = strings.Replace(digestPart, "-", ":", 1)
+	_, err := digest.Parse(digestPart)
+	return err == nil
 }
