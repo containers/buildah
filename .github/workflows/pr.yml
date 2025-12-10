@@ -1,6 +1,8 @@
 name: validate
 on:
   pull_request:
+    branches:
+      - main
 
 jobs:
   commit:
