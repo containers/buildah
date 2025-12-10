@@ -9018,6 +9018,74 @@ EOF
   done
 }
 
+@test "bud with --iidfile-raw" {
+  target=scratch-image
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Dockerfile <<-EOF
+  FROM scratch
+  COPY . .
+EOF
+  for layers in "--layers=true" "--layers=false" ; do
+    for destination in "dir:${TEST_SCRATCH_DIR}/dir" "oci-archive:${TEST_SCRATCH_DIR}/oci-archive" "docker-archive:${TEST_SCRATCH_DIR}/docker-archive" "oci:${TEST_SCRATCH_DIR}/oci-layout" "local" ; do
+      rm -f "${TEST_SCRATCH_DIR}"/iidfile-raw
+      fsname="${destination#*:}" # assume : is used in a non-containers-storage name rather than a repository name + tag combination
+      if test "${fsname}" != "${destination}" ; then
+        rm -fr "${fsname}"
+      fi
+      run_buildah build --iidfile-raw "${TEST_SCRATCH_DIR}"/iidfile-raw --no-cache "${layers}" -t "${destination}" "${contextdir}"
+      local iid_raw=$(cat "${TEST_SCRATCH_DIR}"/iidfile-raw)
+      # iidfile-raw should contain just the hash without sha256: prefix
+      assert "${iid_raw}" != ""
+      assert "${iid_raw}" =~ "^[0-9a-f]{64}$"
+      # Verify it doesn't contain sha256: prefix
+      assert "${iid_raw}" !~ "sha256:"
+      if test "${fsname}" != "${destination}" ; then
+        test -e "${fsname}"
+      fi
+    done
+  done
+}
+
+@test "bud with --iidfile and --iidfile-raw comparison" {
+  target=scratch-image
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Dockerfile <<-EOF
+  FROM scratch
+  COPY . .
+EOF
+  # Build with both --iidfile and --iidfile-raw to verify they write the same image ID
+  run_buildah build --iidfile "${TEST_SCRATCH_DIR}"/iidfile --iidfile-raw "${TEST_SCRATCH_DIR}"/iidfile-raw -t "${target}" "${contextdir}"
+  local iid=$(cat "${TEST_SCRATCH_DIR}"/iidfile)
+  local iid_raw=$(cat "${TEST_SCRATCH_DIR}"/iidfile-raw)
+
+  # iid should have sha256: prefix, iid_raw should not
+  assert "${iid}" =~ "^sha256:[0-9a-f]{64}$"
+  assert "${iid_raw}" =~ "^[0-9a-f]{64}$"
+
+  # The hash portion should be identical
+  assert "${iid#sha256:}" == "${iid_raw}"
+}
+
+@test "bud with --raw-iidfile alias" {
+  target=scratch-image
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Dockerfile <<-EOF
+  FROM scratch
+  COPY . .
+EOF
+  # Test that --raw-iidfile works as an alias for --iidfile-raw
+  run_buildah build --raw-iidfile "${TEST_SCRATCH_DIR}"/iidfile-alias -t "${target}" "${contextdir}"
+  local iid_alias=$(cat "${TEST_SCRATCH_DIR}"/iidfile-alias)
+
+  # Should contain just the hash without sha256: prefix
+  assert "${iid_alias}" != ""
+  assert "${iid_alias}" =~ "^[0-9a-f]{64}$"
+  assert "${iid_alias}" !~ "sha256:"
+}
+
 @test "build-oci-archive-switch" {
   local base=busybox
   _prefetch $base
