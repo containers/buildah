@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Denis Tingaikin
+// Copyright (c) 2020-2024 Denis Tingaikin
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -52,15 +52,31 @@ type Analyzer struct {
 	template string
 }
 
-func (a *Analyzer) Analyze(target *Target) Issue {
+func (a *Analyzer) processPerTargetValues(target *Target) error {
+	a.values["mod-year"] = a.values["year"]
+	a.values["mod-year-range"] = a.values["year-range"]
+	if t, err := target.ModTime(); err == nil {
+		a.values["mod-year"] = &ConstValue{RawValue: fmt.Sprint(t.Year())}
+		a.values["mod-year-range"] = &RegexpValue{RawValue: `((20\d\d\-{{mod-year}})|({{mod-year}}))`}
+	}
+
+	for _, v := range a.values {
+		if err := v.Calculate(a.values); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *Analyzer) Analyze(target *Target) (i Issue) {
 	if a.template == "" {
 		return NewIssue("Missed template for check")
 	}
-	if t, err := target.ModTime(); err == nil {
-		if t.Year() != time.Now().Year() {
-			return nil
-		}
+
+	if err := a.processPerTargetValues(target); err != nil {
+		return &issue{msg: err.Error()}
 	}
+
 	file := target.File
 	var header string
 	var offset = Location{
@@ -74,6 +90,16 @@ func (a *Analyzer) Analyze(target *Target) Issue {
 			offset.Position += 3
 		}
 	}
+	defer func() {
+		if i == nil {
+			return
+		}
+		fix, ok := a.generateFix(i, file, header)
+		if !ok {
+			return
+		}
+		i = NewIssueWithFix(i.Message(), i.Location(), fix)
+	}()
 	header = strings.TrimSpace(header)
 	if header == "" {
 		return NewIssue("Missed header for check")
@@ -132,15 +158,99 @@ func (a *Analyzer) readField(reader *Reader) string {
 }
 
 func New(options ...Option) *Analyzer {
-	a := &Analyzer{}
+	a := &Analyzer{values: make(map[string]Value)}
 	for _, o := range options {
 		o.apply(a)
 	}
-	for _, v := range a.values {
-		err := v.Calculate(a.values)
-		if err != nil {
-			panic(err.Error())
+	return a
+}
+
+func (a *Analyzer) generateFix(i Issue, file *ast.File, header string) (Fix, bool) {
+	var expect string
+	t := NewReader(a.template)
+	for !t.Done() {
+		ch := t.Peek()
+		if ch == '{' {
+			f := a.values[a.readField(t)]
+			if f == nil {
+				return Fix{}, false
+			}
+			if f.Calculate(a.values) != nil {
+				return Fix{}, false
+			}
+			expect += f.Get()
+			continue
+		}
+
+		expect += string(ch)
+		t.Next()
+	}
+
+	fix := Fix{Expected: strings.Split(expect, "\n")}
+	if !(len(file.Comments) > 0 && file.Comments[0].Pos() < file.Package) {
+		for i := range fix.Expected {
+			fix.Expected[i] = "// " + fix.Expected[i]
+		}
+		return fix, true
+	}
+
+	actual := file.Comments[0].List[0].Text
+	if !strings.HasPrefix(actual, "/*") {
+		for i := range fix.Expected {
+			fix.Expected[i] = "// " + fix.Expected[i]
+		}
+		for _, c := range file.Comments[0].List {
+			fix.Actual = append(fix.Actual, c.Text)
+		}
+		i = NewIssueWithFix(i.Message(), i.Location(), fix)
+		return fix, true
+	}
+
+	gets := func(i int, end bool) string {
+		if i < 0 {
+			return header
+		}
+		if end {
+			return header[i+1:]
+		}
+		return header[:i]
+	}
+	start := strings.Index(actual, gets(strings.IndexByte(header, '\n'), false))
+	if start < 0 {
+		return Fix{}, false // Should be impossible
+	}
+	nl := strings.LastIndexByte(actual[:start], '\n')
+	if nl >= 0 {
+		fix.Actual = strings.Split(actual[:nl], "\n")
+		fix.Expected = append(fix.Actual, fix.Expected...)
+		actual = actual[nl+1:]
+		start -= nl + 1
+	}
+
+	prefix := actual[:start]
+	if nl < 0 {
+		fix.Expected[0] = prefix + fix.Expected[0]
+	} else {
+		n := len(fix.Actual)
+		for i := range fix.Expected[n:] {
+			fix.Expected[n+i] = prefix + fix.Expected[n+i]
 		}
 	}
-	return a
+
+	last := gets(strings.LastIndexByte(header, '\n'), true)
+	end := strings.Index(actual, last)
+	if end < 0 {
+		return Fix{}, false // Should be impossible
+	}
+
+	trailing := actual[end+len(last):]
+	if i := strings.IndexRune(trailing, '\n'); i < 0 {
+		fix.Expected[len(fix.Expected)-1] += trailing
+	} else {
+		fix.Expected[len(fix.Expected)-1] += trailing[:i]
+		fix.Expected = append(fix.Expected, strings.Split(trailing[i+1:], "\n")...)
+	}
+
+	fix.Actual = append(fix.Actual, strings.Split(actual, "\n")...)
+	return fix, true
 }

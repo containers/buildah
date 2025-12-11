@@ -458,7 +458,7 @@ func (d *Decoder) decode(name string, input interface{}, outVal reflect.Value) e
 		var err error
 		input, err = DecodeHookExec(d.config.DecodeHook, inputVal, outVal)
 		if err != nil {
-			return fmt.Errorf("decoding '%s': %s", name, err)
+			return fmt.Errorf("error decoding '%s': %s", name, err)
 		}
 	}
 

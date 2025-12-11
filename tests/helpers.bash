@@ -7,6 +7,7 @@ BUILDAH_BINARY=${BUILDAH_BINARY:-$TEST_SOURCES/../bin/buildah}
 IMGTYPE_BINARY=${IMGTYPE_BINARY:-$TEST_SOURCES/../bin/imgtype}
 COPY_BINARY=${COPY_BINARY:-$TEST_SOURCES/../bin/copy}
 TUTORIAL_BINARY=${TUTORIAL_BINARY:-$TEST_SOURCES/../bin/tutorial}
+DUMPSPEC_BINARY=${DUMPSPEC_BINARY:-$TEST_SOURCES/../bin/dumpspec}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)
@@ -625,6 +626,13 @@ function start_git_daemon() {
   daemondir=${TEST_SCRATCH_DIR}/git-daemon
   mkdir -p ${daemondir}/repo
   gzip -dc < ${1:-${TEST_SOURCES}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
+
+  # git >=2.45 aborts with "dubious ownership" error if serving other user's files as root
+  # guess this is marginally more portable than using the GNU --no-same-user flag
+  if ! is_rootless; then
+      chown -R root:root ${daemondir}/repo
+  fi
+
   GITPORT=$(($RANDOM + 32768))
   git daemon --detach --pid-file=${TEST_SCRATCH_DIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
 }

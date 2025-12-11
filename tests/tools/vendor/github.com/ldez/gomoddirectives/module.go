@@ -24,7 +24,7 @@ func GetModuleFile() (*modfile.File, error) {
 	// https://github.com/golang/go/issues/44753#issuecomment-790089020
 	cmd := exec.Command("go", "list", "-m", "-json")
 
-	raw, err := cmd.CombinedOutput()
+	raw, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("command go list: %w: %s", err, string(raw))
 	}
