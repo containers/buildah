@@ -28,7 +28,7 @@ import (
 
 // UnusedParams returns a list of human-readable issues that point out unused
 // function parameters.
-func UnusedParams(tests bool, exported, debug bool, args ...string) ([]string, error) {
+func UnusedParams(tests, exported, debug bool, args ...string) ([]string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func UnusedParams(tests bool, exported, debug bool, args ...string) ([]string, e
 	return c.lines(args...)
 }
 
-// Checker finds unused parameterss in a program. You probably want to use
+// Checker finds unused parameters in a program. You probably want to use
 // UnusedParams instead, unless you want to use a *loader.Program and
 // *ssa.Program directly.
 type Checker struct {
@@ -581,6 +581,8 @@ resLoop:
 		c.addIssue(fn, res.Pos(), "result %s is never used", name)
 	}
 
+	fnIsGeneric := fn.TypeParams().Len() > 0
+
 	for i, par := range fn.Params {
 		if paramsBy != "" {
 			continue // we can't change the params
@@ -589,14 +591,19 @@ resLoop:
 			continue
 		}
 		c.debug("%s\n", par.String())
-		switch par.Object().Name() {
-		case "", "_": // unnamed
-			c.debug("  skip - unnamed\n")
+		if name := par.Object().Name(); name == "" || name[0] == '_' {
+			c.debug("  skip - no name or underscore name\n")
 			continue
 		}
-		if stdSizes.Sizeof(par.Type()) == 0 {
-			c.debug("  skip - zero size\n")
-			continue
+		t := par.Type()
+		// asking for the size of a type param would panic, as it is unknowable
+		if !fnIsGeneric || !containsTypeParam(t) {
+			if stdSizes.Sizeof(par.Type()) == 0 {
+				c.debug("  skip - zero size\n")
+				continue
+			}
+		} else {
+			c.debug("  examine - type parameter\n")
 		}
 		reason := "is unused"
 		constStr := c.alwaysReceivedConst(callSites, par, i)
@@ -608,6 +615,30 @@ resLoop:
 		}
 		c.addIssue(fn, par.Pos(), "%s %s", par.Name(), reason)
 	}
+}
+
+func containsTypeParam(t types.Type) bool {
+	switch t := t.(type) {
+	case *types.TypeParam, *types.Union:
+		return true
+	case *types.Struct:
+		nf := t.NumFields()
+		for i := 0; i < nf; i++ {
+			if containsTypeParam(t.Field(nf).Type()) {
+				return true
+			}
+		}
+	case *types.Array:
+		return containsTypeParam(t.Elem())
+	case *types.Named:
+		args := t.TypeArgs()
+		for i := 0; i < args.Len(); i++ {
+			if containsTypeParam(args.At(i)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // nodeStr stringifies a syntax tree node. It is only meant for simple nodes,
@@ -823,7 +854,7 @@ func dummyImpl(blk *ssa.BasicBlock) bool {
 //
 // Since this function parses all of the package's Go source files on disk, its
 // results are cached.
-func (c *Checker) declCounts(pkgDir string, pkgName string) map[string]int {
+func (c *Checker) declCounts(pkgDir, pkgName string) map[string]int {
 	key := pkgDir + ":" + pkgName
 	if m, ok := c.cachedDeclCounts[key]; ok {
 		return m
@@ -877,8 +908,23 @@ func recvPrefix(recv *ast.FieldList) string {
 		}
 		expr = star.X
 	}
-	id := expr.(*ast.Ident)
-	return id.Name + "."
+
+	return identName(expr)
+}
+
+func identName(expr ast.Expr) string {
+	switch expr := expr.(type) {
+	case *ast.Ident:
+		return expr.Name + "."
+	case *ast.IndexExpr:
+		return identName(expr.X)
+	case *ast.ParenExpr:
+		return identName(expr.X)
+	case *ast.IndexListExpr:
+		return identName(expr.X)
+	default:
+		panic(fmt.Sprintf("unexpected receiver AST node: %T", expr))
+	}
 }
 
 // multipleImpls reports whether a function has multiple implementations in the

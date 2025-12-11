@@ -1,11 +1,10 @@
 package lockfile
 
 import (
+	"fmt"
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // A Locker represents a file lock where the file is used to cache an
@@ -17,10 +16,6 @@ type Locker interface {
 	// - opening the lockfile failed
 	// - tried to lock a read-only lock-file
 	Lock()
-
-	// Acquire a writer lock recursively, allowing for recursive acquisitions
-	// within the same process space.
-	RecursiveLock()
 
 	// Unlock the lock.
 	// The default unix implementation panics if:
@@ -45,8 +40,13 @@ type Locker interface {
 	// IsReadWrite() checks if the lock file is read-write
 	IsReadWrite() bool
 
-	// Locked() checks if lock is locked for writing by a thread in this process
-	Locked() bool
+	// AssertLocked() can be used by callers that _know_ that they hold the lock (for reading or writing), for sanity checking.
+	// It might do nothing at all, or it may panic if the caller is not the owner of this lock.
+	AssertLocked()
+
+	// AssertLocked() can be used by callers that _know_ that they hold the lock locked for writing, for sanity checking.
+	// It might do nothing at all, or it may panic if the caller is not the owner of this lock for writing.
+	AssertLockedForWriting()
 }
 
 var (
@@ -87,14 +87,14 @@ func getLockfile(path string, ro bool) (Locker, error) {
 	}
 	cleanPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error ensuring that path %q is an absolute path", path)
+		return nil, fmt.Errorf("ensuring that path %q is an absolute path: %w", path, err)
 	}
 	if locker, ok := lockfiles[cleanPath]; ok {
 		if ro && locker.IsReadWrite() {
-			return nil, errors.Errorf("lock %q is not a read-only lock", cleanPath)
+			return nil, fmt.Errorf("lock %q is not a read-only lock", cleanPath)
 		}
 		if !ro && !locker.IsReadWrite() {
-			return nil, errors.Errorf("lock %q is not a read-write lock", cleanPath)
+			return nil, fmt.Errorf("lock %q is not a read-write lock", cleanPath)
 		}
 		return locker, nil
 	}

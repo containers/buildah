@@ -1,13 +1,15 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/go-toolsmith/astequal)](https://goreportcard.com/report/github.com/go-toolsmith/astequal)
-[![GoDoc](https://godoc.org/github.com/go-toolsmith/astequal?status.svg)](https://godoc.org/github.com/go-toolsmith/astequal)
-[![Build Status](https://travis-ci.org/go-toolsmith/astequal.svg?branch=master)](https://travis-ci.org/go-toolsmith/astequal)
-
-
 # astequal
 
-Package astequal provides AST (deep) equallity check operations.
+[![build-img]][build-url]
+[![pkg-img]][pkg-url]
+[![reportcard-img]][reportcard-url]
+[![version-img]][version-url]
+
+Package `astequal` provides AST (deep) equallity check operations.
 
 ## Installation:
+
+Go version 1.16+
 
 ```bash
 go get github.com/go-toolsmith/astequal
@@ -65,3 +67,16 @@ BenchmarkEqualExpr/astequal.Expr-8       5000000     298 ns/op       0 B/op   0 
 BenchmarkEqualExpr/astequal.Node-8       3000000     409 ns/op       0 B/op   0 allocs/op
 BenchmarkEqualExpr/reflect.DeepEqual-8     50000   38898 ns/op   10185 B/op   156 allocs/op
 ```
+
+## License
+
+[MIT License](LICENSE).
+
+[build-img]: https://github.com/go-toolsmith/astequal/workflows/build/badge.svg
+[build-url]: https://github.com/go-toolsmith/astequal/actions
+[pkg-img]: https://pkg.go.dev/badge/go-toolsmith/astequal
+[pkg-url]: https://pkg.go.dev/github.com/go-toolsmith/astequal
+[reportcard-img]: https://goreportcard.com/badge/go-toolsmith/astequal
+[reportcard-url]: https://goreportcard.com/report/go-toolsmith/astequal
+[version-img]: https://img.shields.io/github/v/release/go-toolsmith/astequal
+[version-url]: https://github.com/go-toolsmith/astequal/releases

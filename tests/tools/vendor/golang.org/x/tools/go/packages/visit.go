@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package packages
 
 import (
@@ -45,9 +49,18 @@ func Visit(pkgs []*Package, pre func(*Package) bool, post func(*Package)) {
 // PrintErrors returns the number of errors printed.
 func PrintErrors(pkgs []*Package) int {
 	var n int
+	errModules := make(map[*Module]bool)
 	Visit(pkgs, nil, func(pkg *Package) {
 		for _, err := range pkg.Errors {
 			fmt.Fprintln(os.Stderr, err)
+			n++
+		}
+
+		// Print pkg.Module.Error once if present.
+		mod := pkg.Module
+		if mod != nil && mod.Error != nil && !errModules[mod] {
+			errModules[mod] = true
+			fmt.Fprintln(os.Stderr, mod.Error.Err)
 			n++
 		}
 	})

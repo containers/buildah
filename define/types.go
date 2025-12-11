@@ -28,7 +28,7 @@ const (
 	Package = "buildah"
 	// Version for the Package.  Bump version in contrib/rpm/buildah.spec
 	// too.
-	Version = "1.21.5"
+	Version = "1.21.6"
 
 	// DefaultRuntime if containers.conf fails.
 	DefaultRuntime = "runc"
@@ -51,6 +51,9 @@ const (
 	// DOCKER used to define the "docker" image format
 	DOCKER = "docker"
 )
+
+// DefaultRlimitValue is the value set by default for nofile and nproc
+const RLimitDefaultValue = uint64(1048576)
 
 var (
 	// DefaultCapabilities is the list of capabilities which we grant by

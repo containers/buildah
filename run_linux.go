@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package buildah
@@ -46,6 +47,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
 )
@@ -167,6 +169,23 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	spec := g.Config
 	g = nil
 
+	// Override a buggy resource limit default that containers/common could supply before
+	// https://github.com/containers/common/pull/2199 fixed it.
+	if kernelPidMaxBytes, err := os.ReadFile("/proc/sys/kernel/pid_max"); err == nil {
+		kernelPidMaxString := strings.TrimSpace(string(kernelPidMaxBytes))
+		if kernelPidMaxValue, err := strconv.ParseUint(kernelPidMaxString, 10, 64); err == nil {
+			var filteredLimits []specs.POSIXRlimit
+			for _, rlimit := range spec.Process.Rlimits {
+				if rlimit.Type == "RLIMIT_NPROC" && rlimit.Soft == kernelPidMaxValue && rlimit.Hard == kernelPidMaxValue {
+					rlimit.Soft, rlimit.Hard = define.RLimitDefaultValue, define.RLimitDefaultValue
+					logrus.Debugf("overrode RLIMIT_NPROC set to kernel system-wide process limit with %d", define.RLimitDefaultValue)
+				}
+				filteredLimits = append(filteredLimits, rlimit)
+			}
+			spec.Process.Rlimits = filteredLimits
+		}
+	}
+
 	// Set the seccomp configuration using the specified profile name.  Some syscalls are
 	// allowed if certain capabilities are to be granted (example: CAP_SYS_CHROOT and chroot),
 	// so we sorted out the capabilities lists first.
@@ -269,6 +288,33 @@ rootless=%d
 		options.CNIPluginPath = b.CNIPluginPath
 		if b.CNIPluginPath == "" {
 			options.CNIPluginPath = define.DefaultCNIPluginPath
+		}
+	}
+
+	// Handle mount flags that request that the source locations for "bind" mountpoints be
+	// relabeled, and filter those flags out of the list of mount options we pass to the
+	// runtime.
+	for i := range spec.Mounts {
+		switch spec.Mounts[i].Type {
+		default:
+			continue
+		case "bind", "rbind":
+			// all good, keep going
+		}
+		zflag := ""
+		for _, opt := range spec.Mounts[i].Options {
+			if opt == "z" || opt == "Z" {
+				zflag = opt
+			}
+		}
+		if zflag == "" {
+			continue
+		}
+		spec.Mounts[i].Options = slices.DeleteFunc(spec.Mounts[i].Options, func(opt string) bool {
+			return opt == "z" || opt == "Z"
+		})
+		if err := label.Relabel(spec.Mounts[i].Source, b.MountLabel, zflag == "z"); err != nil {
+			return fmt.Errorf("setting file label %q on %q: %w", b.MountLabel, spec.Mounts[i].Source, err)
 		}
 	}
 
@@ -922,8 +968,9 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 			return 1, errors.Wrapf(err, "error parsing container state %q from %s", string(stateOutput), runtime)
 		}
 		switch state.Status {
-		case "running":
-		case "stopped":
+		case specs.StateCreating, specs.StateCreated, specs.StateRunning:
+			// all fine
+		case specs.StateStopped:
 			stopped = true
 		default:
 			return 1, errors.Errorf("container status unexpectedly changed to %q", state.Status)
@@ -1697,6 +1744,9 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 	var (
 		ul  *units.Ulimit
 		err error
+		// setup rlimits
+		nofileSet bool
+		nprocSet  bool
 	)
 
 	ulimit = append(defaultUlimits, ulimit...)
@@ -1705,8 +1755,39 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 			return errors.Wrapf(err, "ulimit option %q requires name=SOFT:HARD, failed to be parsed", u)
 		}
 
+		if strings.ToUpper(ul.Name) == "NOFILE" {
+			nofileSet = true
+		}
+		if strings.ToUpper(ul.Name) == "NPROC" {
+			nprocSet = true
+		}
 		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
 	}
+	if !nofileSet {
+		max := define.RLimitDefaultValue
+		var rlimit unix.Rlimit
+		if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
+			if max < rlimit.Max || unshare.IsRootless() {
+				max = rlimit.Max
+			}
+		} else {
+			logrus.Warnf("Failed to return RLIMIT_NOFILE ulimit %q", err)
+		}
+		g.AddProcessRlimits("RLIMIT_NOFILE", max, max)
+	}
+	if !nprocSet {
+		max := define.RLimitDefaultValue
+		var rlimit unix.Rlimit
+		if err := unix.Getrlimit(unix.RLIMIT_NPROC, &rlimit); err == nil {
+			if max < rlimit.Max || unshare.IsRootless() {
+				max = rlimit.Max
+			}
+		} else {
+			logrus.Warnf("Failed to return RLIMIT_NPROC ulimit %q", err)
+		}
+		g.AddProcessRlimits("RLIMIT_NPROC", max, max)
+	}
+
 	return nil
 }
 
@@ -1760,16 +1841,19 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			if err := label.Relabel(host, mountLabel, true); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "z" })
 		}
 		if foundZ {
 			if err := label.Relabel(host, mountLabel, false); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "Z" })
 		}
 		if foundU {
 			if err := chown.ChangeHostPathOwnership(host, true, processUID, processGID); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "U" })
 		}
 		if foundO {
 			containerDir, err := b.store.ContainerDirectory(b.ContainerID)
@@ -1880,9 +1964,6 @@ func setupCapAdd(g *generate.Generator, caps ...string) error {
 		if err := g.AddProcessCapabilityPermitted(cap); err != nil {
 			return errors.Wrapf(err, "error adding %q to the permitted capability set", cap)
 		}
-		if err := g.AddProcessCapabilityAmbient(cap); err != nil {
-			return errors.Wrapf(err, "error adding %q to the ambient capability set", cap)
-		}
 	}
 	return nil
 }
@@ -1897,9 +1978,6 @@ func setupCapDrop(g *generate.Generator, caps ...string) error {
 		}
 		if err := g.DropProcessCapabilityPermitted(cap); err != nil {
 			return errors.Wrapf(err, "error removing %q from the permitted capability set", cap)
-		}
-		if err := g.DropProcessCapabilityAmbient(cap); err != nil {
-			return errors.Wrapf(err, "error removing %q from the ambient capability set", cap)
 		}
 	}
 	return nil

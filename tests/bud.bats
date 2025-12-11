@@ -2948,7 +2948,6 @@ _EOF
 }
 
 @test "bud with --cgroup-parent" {
-  skip_if_no_runtime
   skip_if_chroot
 
   _prefetch alpine
@@ -2956,25 +2955,19 @@ _EOF
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
   cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run cat /proc/self/cgroup
+FROM alpine
+RUN .linux.cgroupsPath
 _EOF
 
   # with cgroup-parent
   run_buildah bud --cgroup-parent test-cgroup -t with-flag \
-                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  if is_cgroupsv2; then
-    expect_output --from="${lines[2]}" "0::/test-cgroup"
-  else
-    expect_output --substring "/test-cgroup"
-  fi
+                  --runtime ${DUMPSPEC_BINARY} --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --substring "test-cgroup"
 
   # without cgroup-parent
   run_buildah bud -t without-flag \
-                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
-    die "Unexpected cgroup."
-  fi
+                  --runtime ${DUMPSPEC_BINARY} --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  assert "$output" !~ test-cgroup
 }
 
 @test "bud with --cpu-period and --cpu-quota" {
@@ -3238,4 +3231,19 @@ _EOF
 
   run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json  -t secretreq -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret-required ${TESTSDIR}/bud/run-mounts
   expect_output --substring "secret required but no secret with id mysecret found"
+}
+
+@test "build test default ulimits" {
+  skip_if_no_runtime
+  _prefetch alpine
+
+  run podman run --rm alpine sh -c "echo -n Files=; awk '/open files/{print \$4 \"/\" \$5}' /proc/self/limits"
+  podman_files=$output
+
+  run podman run --rm alpine sh -c "echo -n Processes=; awk '/processes/{print \$3 \"/\" \$4}' /proc/self/limits"
+  podman_processes=$output
+
+  CONTAINERS_CONF=/dev/null run_buildah build --no-cache --pull=false $WITH_POLICY_JSON -t foo/bar $BUDFILES/bud.limits
+  expect_output --substring "$podman_files"
+  expect_output --substring "$podman_processes"
 }

@@ -3,14 +3,20 @@ package checkers
 import (
 	"go/ast"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "ifElseChain"
-	info.Tags = []string{"style"}
+	info.Tags = []string{linter.StyleTag}
+	info.Params = linter.CheckerParams{
+		"minThreshold": {
+			Value: 2,
+			Usage: "min number of if-else blocks that makes the warning trigger",
+		},
+	}
 	info.Summary = "Detects repeated if-else statements and suggests to replace them with switch statement"
 	info.Before = `
 if cond1 {
@@ -34,17 +40,22 @@ Permits single else or else-if; repeated else-if or else + else-if
 will trigger suggestion to use switch statement.
 See [EffectiveGo#switch](https://golang.org/doc/effective_go.html#switch).`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForStmt(&ifElseChainChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForStmt(&ifElseChainChecker{
+			ctx:          ctx,
+			minThreshold: info.Params.Int("minThreshold"),
+		}), nil
 	})
 }
 
 type ifElseChainChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	cause   *ast.IfStmt
 	visited map[*ast.IfStmt]bool
+
+	minThreshold int
 }
 
 func (c *ifElseChainChecker) EnterFunc(fn *ast.FuncDecl) bool {
@@ -66,8 +77,7 @@ func (c *ifElseChainChecker) VisitStmt(stmt ast.Stmt) {
 }
 
 func (c *ifElseChainChecker) checkIfStmt(stmt *ast.IfStmt) {
-	const minThreshold = 2
-	if c.countIfelseLen(stmt) >= minThreshold {
+	if c.countIfelseLen(stmt) >= c.minThreshold {
 		c.warn()
 	}
 }
@@ -75,11 +85,12 @@ func (c *ifElseChainChecker) checkIfStmt(stmt *ast.IfStmt) {
 func (c *ifElseChainChecker) countIfelseLen(stmt *ast.IfStmt) int {
 	count := 0
 	for {
+		if stmt.Init != nil {
+			return 0 // Give up
+		}
+
 		switch e := stmt.Else.(type) {
 		case *ast.IfStmt:
-			if e.Init != nil {
-				return 0 // Give up
-			}
 			// Else if.
 			stmt = e
 			count++

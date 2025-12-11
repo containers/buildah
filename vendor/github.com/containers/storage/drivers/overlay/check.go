@@ -1,21 +1,22 @@
+//go:build linux
 // +build linux
 
 package overlay
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"syscall"
 
 	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/system"
 	"github.com/containers/storage/pkg/unshare"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -25,7 +26,7 @@ import (
 // directory or the kernel enable CONFIG_OVERLAY_FS_REDIRECT_DIR.
 // When these exist naive diff should be used.
 func doesSupportNativeDiff(d, mountOpts string) error {
-	td, err := ioutil.TempDir(d, "opaque-bug-check")
+	td, err := os.MkdirTemp(d, "opaque-bug-check")
 	if err != nil {
 		return err
 	}
@@ -57,16 +58,21 @@ func doesSupportNativeDiff(d, mountOpts string) error {
 
 	// Mark l2/d as opaque
 	if err := system.Lsetxattr(filepath.Join(td, "l2", "d"), archive.GetOverlayXattrName("opaque"), []byte("y"), 0); err != nil {
-		return errors.Wrap(err, "failed to set opaque flag on middle layer")
+		return fmt.Errorf("failed to set opaque flag on middle layer: %w", err)
 	}
 
-	opts := fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, "work"))
+	mountFlags := "lowerdir=%s:%s,upperdir=%s,workdir=%s"
+	if unshare.IsRootless() {
+		mountFlags = mountFlags + ",userxattr"
+	}
+
+	opts := fmt.Sprintf(mountFlags, path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, "work"))
 	flags, data := mount.ParseOptions(mountOpts)
 	if data != "" {
 		opts = fmt.Sprintf("%s,%s", opts, data)
 	}
 	if err := unix.Mount("overlay", filepath.Join(td, "merged"), "overlay", uintptr(flags), opts); err != nil {
-		return errors.Wrap(err, "failed to mount overlay")
+		return fmt.Errorf("failed to mount overlay: %w", err)
 	}
 	defer func() {
 		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
@@ -75,14 +81,14 @@ func doesSupportNativeDiff(d, mountOpts string) error {
 	}()
 
 	// Touch file in d to force copy up of opaque directory "d" from "l2" to "l3"
-	if err := ioutil.WriteFile(filepath.Join(td, "merged", "d", "f"), []byte{}, 0644); err != nil {
-		return errors.Wrap(err, "failed to write to merged directory")
+	if err := os.WriteFile(filepath.Join(td, "merged", "d", "f"), []byte{}, 0644); err != nil {
+		return fmt.Errorf("failed to write to merged directory: %w", err)
 	}
 
 	// Check l3/d does not have opaque flag
 	xattrOpaque, err := system.Lgetxattr(filepath.Join(td, "l3", "d"), archive.GetOverlayXattrName("opaque"))
 	if err != nil {
-		return errors.Wrap(err, "failed to read opaque flag on upper layer")
+		return fmt.Errorf("failed to read opaque flag on upper layer: %w", err)
 	}
 	if string(xattrOpaque) == "y" {
 		return errors.New("opaque flag erroneously copied up, consider update to kernel 4.8 or later to fix")
@@ -94,12 +100,12 @@ func doesSupportNativeDiff(d, mountOpts string) error {
 		if err.(*os.LinkError).Err == syscall.EXDEV {
 			return nil
 		}
-		return errors.Wrap(err, "failed to rename dir in merged directory")
+		return fmt.Errorf("failed to rename dir in merged directory: %w", err)
 	}
 	// get the xattr of "d2"
 	xattrRedirect, err := system.Lgetxattr(filepath.Join(td, "l3", "d2"), archive.GetOverlayXattrName("redirect"))
 	if err != nil {
-		return errors.Wrap(err, "failed to read redirect flag on upper layer")
+		return fmt.Errorf("failed to read redirect flag on upper layer: %w", err)
 	}
 
 	if string(xattrRedirect) == "d1" {
@@ -114,7 +120,7 @@ func doesSupportNativeDiff(d, mountOpts string) error {
 // copying up a file from a lower layer unless/until its contents are being
 // modified
 func doesMetacopy(d, mountOpts string) (bool, error) {
-	td, err := ioutil.TempDir(d, "metacopy-check")
+	td, err := os.MkdirTemp(d, "metacopy-check")
 	if err != nil {
 		return false, err
 	}
@@ -150,11 +156,11 @@ func doesMetacopy(d, mountOpts string) (bool, error) {
 		opts = fmt.Sprintf("%s,%s", opts, data)
 	}
 	if err := unix.Mount("overlay", filepath.Join(td, "merged"), "overlay", uintptr(flags), opts); err != nil {
-		if errors.Cause(err) == unix.EINVAL {
-			logrus.Info("metacopy option not supported on this kernel", mountOpts)
+		if errors.Is(err, unix.EINVAL) {
+			logrus.Infof("overlay: metacopy option not supported on this kernel, checked using options %q", mountOpts)
 			return false, nil
 		}
-		return false, errors.Wrapf(err, "failed to mount overlay for metacopy check with %q options", mountOpts)
+		return false, fmt.Errorf("failed to mount overlay for metacopy check with %q options: %w", mountOpts, err)
 	}
 	defer func() {
 		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
@@ -164,7 +170,7 @@ func doesMetacopy(d, mountOpts string) (bool, error) {
 	// Make a change that only impacts the inode, and check if the pulled-up copy is marked
 	// as a metadata-only copy
 	if err := os.Chmod(filepath.Join(td, "merged", "f"), 0600); err != nil {
-		return false, errors.Wrap(err, "error changing permissions on file for metacopy check")
+		return false, fmt.Errorf("changing permissions on file for metacopy check: %w", err)
 	}
 	metacopy, err := system.Lgetxattr(filepath.Join(td, "l2", "f"), archive.GetOverlayXattrName("metacopy"))
 	if err != nil {
@@ -172,14 +178,14 @@ func doesMetacopy(d, mountOpts string) (bool, error) {
 			logrus.Info("metacopy option not supported")
 			return false, nil
 		}
-		return false, errors.Wrap(err, "metacopy flag was not set on file in upper layer")
+		return false, fmt.Errorf("metacopy flag was not set on file in upper layer: %w", err)
 	}
 	return metacopy != nil, nil
 }
 
 // doesVolatile checks if the filesystem supports the "volatile" mount option
 func doesVolatile(d string) (bool, error) {
-	td, err := ioutil.TempDir(d, "volatile-check")
+	td, err := os.MkdirTemp(d, "volatile-check")
 	if err != nil {
 		return false, err
 	}
@@ -204,12 +210,64 @@ func doesVolatile(d string) (bool, error) {
 	// Mount using the mandatory options and configured options
 	opts := fmt.Sprintf("volatile,lowerdir=%s,upperdir=%s,workdir=%s", path.Join(td, "lower"), path.Join(td, "upper"), path.Join(td, "work"))
 	if err := unix.Mount("overlay", filepath.Join(td, "merged"), "overlay", 0, opts); err != nil {
-		return false, errors.Wrapf(err, "failed to mount overlay for volatile check")
+		return false, fmt.Errorf("failed to mount overlay for volatile check: %w", err)
 	}
 	defer func() {
 		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
 			logrus.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
 		}
+	}()
+	return true, nil
+}
+
+// supportsIdmappedLowerLayers checks if the kernel supports mounting overlay on top of
+// a idmapped lower layer.
+func supportsIdmappedLowerLayers(home string) (bool, error) {
+	layerDir, err := os.MkdirTemp(home, "compat")
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		_ = os.RemoveAll(layerDir)
+	}()
+
+	mergedDir := filepath.Join(layerDir, "merged")
+	lowerDir := filepath.Join(layerDir, "lower")
+	lowerMappedDir := filepath.Join(layerDir, "lower-mapped")
+	upperDir := filepath.Join(layerDir, "upper")
+	workDir := filepath.Join(layerDir, "work")
+
+	_ = idtools.MkdirAs(mergedDir, 0700, 0, 0)
+	_ = idtools.MkdirAs(lowerDir, 0700, 0, 0)
+	_ = idtools.MkdirAs(lowerMappedDir, 0700, 0, 0)
+	_ = idtools.MkdirAs(upperDir, 0700, 0, 0)
+	_ = idtools.MkdirAs(workDir, 0700, 0, 0)
+
+	idmap := []idtools.IDMap{
+		{
+			ContainerID: 0,
+			HostID:      0,
+			Size:        1,
+		},
+	}
+	pid, cleanupFunc, err := createUsernsProcess(idmap, idmap)
+	if err != nil {
+		return false, err
+	}
+	defer cleanupFunc()
+
+	if err := createIDMappedMount(lowerDir, lowerMappedDir, int(pid)); err != nil {
+		return false, fmt.Errorf("create mapped mount: %w", err)
+	}
+	defer unix.Unmount(lowerMappedDir, unix.MNT_DETACH)
+
+	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerMappedDir, upperDir, workDir)
+	flags := uintptr(0)
+	if err := unix.Mount("overlay", mergedDir, "overlay", flags, opts); err != nil {
+		return false, err
+	}
+	defer func() {
+		_ = unix.Unmount(mergedDir, unix.MNT_DETACH)
 	}()
 	return true, nil
 }
