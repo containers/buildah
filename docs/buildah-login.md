@@ -22,6 +22,10 @@ is not set, the default is /run/containers/$UID/auth.json.
 
 ## OPTIONS
 
+**--compat-auth-file**=*path*
+
+Instead of updating the default credentials file, update the one at *path*, and use a Docker-compatible format.
+
 **--password**, **-p**
 
 Password for registry
@@ -56,6 +60,10 @@ Require HTTPS and verification of certificates when talking to container registr
 then TLS verification will be used. If set to false, then TLS verification will not be used. If not specified,
 TLS verification will be used unless the target registry is listed as an insecure registry in registries.conf.
 TLS verification cannot be used when talking to an insecure registry.
+
+**--verbose**, **-v**
+
+print detailed information about credential store
 
 **--help**, **-h**
 

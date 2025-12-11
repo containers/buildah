@@ -79,6 +79,8 @@ func init() {
 	}
 
 	cobra.OnInitialize(initConfig)
+	// Hide the implicit `completion` command in cobra.
+	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	//rootCmd.TraverseChildren = true
 	rootCmd.Version = fmt.Sprintf("%s (image-spec %s, runtime-spec %s)", define.Version, ispecs.Version, rspecs.Version)
 	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.Debug, "debug", false, "print debugging information")
