@@ -1,6 +1,6 @@
 module github.com/containers/buildah/tests/tools
 
-go 1.22.1
+go 1.24.0
 
 require github.com/cpuguy83/go-md2man/v2 v2.0.4
 

@@ -16,9 +16,9 @@ vendor:
 
 vendor-in-container:
 	if test -d `go env GOCACHE` && test -w `go env GOCACHE` ; then \
-		podman run --privileged --rm --env HOME=/root -v `go env GOCACHE`:/root/.cache/go-build --env GOCACHE=/root/.cache/go-build -v `pwd`:/src -w /src docker.io/library/golang:1.21 make vendor ; \
+		podman run --privileged --rm --env HOME=/root -v `go env GOCACHE`:/root/.cache/go-build --env GOCACHE=/root/.cache/go-build -v `pwd`:/src -w /src docker.io/library/golang:1.24 make vendor ; \
 	else \
-		podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src docker.io/library/golang:1.21 make vendor ; \
+		podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src docker.io/library/golang:1.24 make vendor ; \
 	fi
 
 .PHONY: clean
