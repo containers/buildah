@@ -7,10 +7,10 @@ import (
 	"go/token"
 	"os"
 
-	"github.com/quasilyte/go-ruleguard/ruleguard"
-
 	"github.com/go-critic/go-critic/checkers/rulesdata"
-	"github.com/go-critic/go-critic/framework/linter"
+	"github.com/go-critic/go-critic/linter"
+
+	"github.com/quasilyte/go-ruleguard/ruleguard"
 )
 
 //go:generate go run ./rules/precompile.go -rules ./rules/rules.go -o ./rulesdata/rulesdata.go
@@ -101,6 +101,7 @@ func (c *embeddedRuleguardChecker) WalkFile(f *ast.File) {
 		Pkg:         c.ctx.Pkg,
 		Types:       c.ctx.TypesInfo,
 		Sizes:       c.ctx.SizesInfo,
+		GoVersion:   ruleguard.GoVersion(c.ctx.GoVersion),
 		Fset:        c.ctx.FileSet,
 		TruncateLen: 100,
 	})

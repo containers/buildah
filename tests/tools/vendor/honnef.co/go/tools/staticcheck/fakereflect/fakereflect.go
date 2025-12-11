@@ -84,7 +84,7 @@ func (t TypeAndCanAddr) IsStruct() bool {
 }
 
 func (t TypeAndCanAddr) Name() string {
-	named, ok := t.Type.(*types.Named)
+	named, ok := types.Unalias(t.Type).(*types.Named)
 	if !ok {
 		return ""
 	}

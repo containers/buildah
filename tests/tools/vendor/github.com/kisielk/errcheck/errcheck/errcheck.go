@@ -167,7 +167,7 @@ func (c *Checker) LoadPackages(paths ...string) ([]*packages.Package, error) {
 		buildFlags = append(buildFlags, fmt.Sprintf("-mod=%s", c.Mod))
 	}
 	cfg := &packages.Config{
-		Mode:       packages.LoadAllSyntax,
+		Mode:       packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Tests:      !c.Exclusions.TestFiles,
 		BuildFlags: buildFlags,
 	}
@@ -205,7 +205,7 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 
 	ignore := map[string]*regexp.Regexp{}
 	// Apply SymbolRegexpsByPackage first so that if the same path appears in
-	// Packages, a more narrow regexp will be superceded by dotStar below.
+	// Packages, a more narrow regexp will be superseded by dotStar below.
 	if regexps := c.Exclusions.SymbolRegexpsByPackage; regexps != nil {
 		for pkg, re := range regexps {
 			// TODO warn if previous entry overwritten?
@@ -337,7 +337,7 @@ func (v *visitor) selectorName(call *ast.CallExpr) string {
 // names are returned. If the function is package-qualified (like "fmt.Printf()")
 // then just that function's fullName is returned.
 //
-// Otherwise, we walk through all the potentially embeddded interfaces of the receiver
+// Otherwise, we walk through all the potentially embedded interfaces of the receiver
 // the collect a list of type-qualified function names that we will check.
 func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
 	sel, fn, ok := v.selectorAndFunc(call)

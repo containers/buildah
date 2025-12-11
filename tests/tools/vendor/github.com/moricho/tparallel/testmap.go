@@ -49,6 +49,10 @@ func appendTestMap(subtests []*ssa.Function, instr ssa.Instruction) []*ssa.Funct
 	}
 
 	ssaCall := call.Value()
+	if ssaCall == nil {
+		return subtests
+	}
+
 	for _, arg := range ssaCall.Call.Args {
 		switch arg := arg.(type) {
 		case *ssa.Function:

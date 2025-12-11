@@ -13,9 +13,9 @@ import (
 
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/moby/sys/capability"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
 

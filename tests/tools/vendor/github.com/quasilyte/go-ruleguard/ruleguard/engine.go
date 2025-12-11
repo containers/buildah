@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -48,7 +47,7 @@ func (e *engine) LoadedGroups() []GoRuleGroup {
 }
 
 func (e *engine) Load(ctx *LoadContext, buildContext *build.Context, filename string, r io.Reader) error {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}

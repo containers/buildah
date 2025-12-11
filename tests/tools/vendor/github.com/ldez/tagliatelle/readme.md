@@ -11,6 +11,7 @@ Supported string casing:
 - `pascal`
 - `kebab`
 - `snake`
+- `upperSnake`
 - `goCamel` Respects [Go's common initialisms](https://github.com/golang/lint/blob/83fdc39ff7b56453e3793356bcff3070b9b96445/lint.go#L770-L809) (e.g. HttpResponse -> HTTPResponse).
 - `goPascal` Respects [Go's common initialisms](https://github.com/golang/lint/blob/83fdc39ff7b56453e3793356bcff3070b9b96445/lint.go#L770-L809) (e.g. HttpResponse -> HTTPResponse).
 - `goKebab` Respects [Go's common initialisms](https://github.com/golang/lint/blob/83fdc39ff7b56453e3793356bcff3070b9b96445/lint.go#L770-L809) (e.g. HttpResponse -> HTTPResponse).
@@ -45,18 +46,18 @@ Supported string casing:
 | NameJSON       | NameJson       | NameJSON       |
 | UneTête        | UneTête        | UneTête        |
 
-| Source         | Snake Case       | Go Snake Case    |
-|----------------|------------------|------------------|
-| GooID          | goo_id           | goo_ID           |
-| HTTPStatusCode | http_status_code | HTTP_status_code |
-| FooBAR         | foo_bar          | foo_bar          |
-| URL            | url              | URL              |
-| ID             | id               | ID               |
-| hostIP         | host_ip          | host_IP          |
-| JSON           | json             | JSON             |
-| JSONName       | json_name        | JSON_name        |
-| NameJSON       | name_json        | name_JSON        |
-| UneTête        | une_tête         | une_tête         |
+| Source         | Snake Case       | Upper Snake Case | Go Snake Case    |
+|----------------|------------------|------------------|------------------|
+| GooID          | goo_id           | GOO_ID           | goo_ID           |
+| HTTPStatusCode | http_status_code | HTTP_STATUS_CODE | HTTP_status_code |
+| FooBAR         | foo_bar          | FOO_BAR          | foo_bar          |
+| URL            | url              | URL              | URL              |
+| ID             | id               | ID               | ID               |
+| hostIP         | host_ip          | HOST_IP          | host_IP          |
+| JSON           | json             | JSON             | JSON             |
+| JSONName       | json_name        | JSON_NAME        | JSON_name        |
+| NameJSON       | name_json        | NAME_JSON        | name_JSON        |
+| UneTête        | une_tête         | UNE_TÊTE         | une_tête         |
 
 | Source         | Kebab Case       | Go KebabCase     |
 |----------------|------------------|------------------|
@@ -120,7 +121,7 @@ linters-settings:
       use-field-name: true
       rules:
         # Any struct tag type can be used.
-        # Support string case: `camel`, `pascal`, `kebab`, `snake`, `goCamel`, `goPascal`, `goKebab`, `goSnake`, `upper`, `lower`
+        # Support string case: `camel`, `pascal`, `kebab`, `snake`, `upperSnake`, `goCamel`, `goPascal`, `goKebab`, `goSnake`, `upper`, `lower`, `header`.
         json: camel
         yaml: camel
         xml: camel
@@ -148,6 +149,7 @@ Here are the default rules for the well known and used tags, when using tagliate
 - `bson`: `camel`
 - `avro`: `snake`
 - `header`: `header`
+- `envconfig`: `upperSnake`
 
 ### Custom Rules
 

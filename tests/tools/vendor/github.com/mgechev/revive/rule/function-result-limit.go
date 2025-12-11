@@ -14,11 +14,16 @@ type FunctionResultsLimitRule struct {
 	sync.Mutex
 }
 
+const defaultResultsLimit = 3
+
 func (r *FunctionResultsLimitRule) configure(arguments lint.Arguments) {
 	r.Lock()
+	defer r.Unlock()
 	if r.max == 0 {
-		checkNumberOfArguments(1, arguments, r.Name())
-
+		if len(arguments) < 1 {
+			r.max = defaultResultsLimit
+			return
+		}
 		max, ok := arguments[0].(int64) // Alt. non panicking version
 		if !ok {
 			panic(fmt.Sprintf(`invalid value passed as return results number to the "function-result-limit" rule; need int64 but got %T`, arguments[0]))
@@ -28,7 +33,6 @@ func (r *FunctionResultsLimitRule) configure(arguments lint.Arguments) {
 		}
 		r.max = int(max)
 	}
-	r.Unlock()
 }
 
 // Apply applies the rule to given file.

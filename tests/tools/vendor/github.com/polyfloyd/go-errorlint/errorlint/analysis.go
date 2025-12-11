@@ -1,7 +1,6 @@
 package errorlint
 
 import (
-	"flag"
 	"go/ast"
 	"go/types"
 	"sort"
@@ -9,53 +8,59 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-func NewAnalyzer() *analysis.Analyzer {
-	return &analysis.Analyzer{
-		Name:  "errorlint",
-		Doc:   "Source code linter for Go software that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.",
-		Run:   run,
-		Flags: flagSet,
+func NewAnalyzer(opts ...Option) *analysis.Analyzer {
+	for _, o := range opts {
+		o()
 	}
+
+	setDefaultAllowedErrors()
+
+	a := &analysis.Analyzer{
+		Name: "errorlint",
+		Doc:  "Source code linter for Go software that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.",
+		Run:  run,
+	}
+
+	a.Flags.BoolVar(&checkComparison, "comparison", true, "Check for plain error comparisons")
+	a.Flags.BoolVar(&checkAsserts, "asserts", true, "Check for plain type assertions and type switches")
+	a.Flags.BoolVar(&checkErrorf, "errorf", false, "Check whether fmt.Errorf uses the %w verb for formatting errors. See the readme for caveats")
+	a.Flags.BoolVar(&checkErrorfMulti, "errorf-multi", true, "Permit more than 1 %w verb, valid per Go 1.20 (Requires -errorf=true)")
+
+	return a
 }
 
 var (
-	flagSet         flag.FlagSet
-	checkComparison bool
-	checkAsserts    bool
-	checkErrorf     bool
+	checkComparison  bool
+	checkAsserts     bool
+	checkErrorf      bool
+	checkErrorfMulti bool
 )
 
-func init() {
-	flagSet.BoolVar(&checkComparison, "comparison", true, "Check for plain error comparisons")
-	flagSet.BoolVar(&checkAsserts, "asserts", true, "Check for plain type assertions and type switches")
-	flagSet.BoolVar(&checkErrorf, "errorf", false, "Check whether fmt.Errorf uses the %w verb for formatting errors. See the readme for caveats")
-}
-
 func run(pass *analysis.Pass) (interface{}, error) {
-	lints := []Lint{}
-	extInfo := newTypesInfoExt(pass.TypesInfo)
+	var lints []analysis.Diagnostic
+	extInfo := newTypesInfoExt(pass)
 	if checkComparison {
-		l := LintErrorComparisons(pass.Fset, extInfo)
+		l := LintErrorComparisons(extInfo)
 		lints = append(lints, l...)
 	}
 	if checkAsserts {
-		l := LintErrorTypeAssertions(pass.Fset, *pass.TypesInfo)
+		l := LintErrorTypeAssertions(pass.Fset, extInfo)
 		lints = append(lints, l...)
 	}
 	if checkErrorf {
-		l := LintFmtErrorfCalls(pass.Fset, *pass.TypesInfo)
+		l := LintFmtErrorfCalls(pass.Fset, *pass.TypesInfo, checkErrorfMulti)
 		lints = append(lints, l...)
 	}
 	sort.Sort(ByPosition(lints))
 
 	for _, l := range lints {
-		pass.Report(analysis.Diagnostic{Pos: l.Pos, Message: l.Message})
+		pass.Report(l)
 	}
 	return nil, nil
 }
 
 type TypesInfoExt struct {
-	types.Info
+	*analysis.Pass
 
 	// Maps AST nodes back to the node they are contained within.
 	NodeParent map[ast.Node]ast.Node
@@ -64,9 +69,9 @@ type TypesInfoExt struct {
 	IdentifiersForObject map[types.Object][]*ast.Ident
 }
 
-func newTypesInfoExt(info *types.Info) *TypesInfoExt {
+func newTypesInfoExt(pass *analysis.Pass) *TypesInfoExt {
 	nodeParent := map[ast.Node]ast.Node{}
-	for node := range info.Scopes {
+	for node := range pass.TypesInfo.Scopes {
 		file, ok := node.(*ast.File)
 		if !ok {
 			continue
@@ -84,15 +89,15 @@ func newTypesInfoExt(info *types.Info) *TypesInfoExt {
 	}
 
 	identifiersForObject := map[types.Object][]*ast.Ident{}
-	for node, obj := range info.Defs {
+	for node, obj := range pass.TypesInfo.Defs {
 		identifiersForObject[obj] = append(identifiersForObject[obj], node)
 	}
-	for node, obj := range info.Uses {
+	for node, obj := range pass.TypesInfo.Uses {
 		identifiersForObject[obj] = append(identifiersForObject[obj], node)
 	}
 
 	return &TypesInfoExt{
-		Info:                 *info,
+		Pass:                 pass,
 		NodeParent:           nodeParent,
 		IdentifiersForObject: identifiersForObject,
 	}
