@@ -19,10 +19,11 @@ import (
 	"regexp"
 
 	"github.com/securego/gosec/v2"
+	"github.com/securego/gosec/v2/issue"
 )
 
 type badTempFile struct {
-	gosec.MetaData
+	issue.MetaData
 	calls       gosec.CallList
 	args        *regexp.Regexp
 	argCalls    gosec.CallList
@@ -33,15 +34,15 @@ func (t *badTempFile) ID() string {
 	return t.MetaData.ID
 }
 
-func (t *badTempFile) findTempDirArgs(n ast.Node, c *gosec.Context, suspect ast.Node) *gosec.Issue {
+func (t *badTempFile) findTempDirArgs(n ast.Node, c *gosec.Context, suspect ast.Node) *issue.Issue {
 	if s, e := gosec.GetString(suspect); e == nil {
 		if t.args.MatchString(s) {
-			return gosec.NewIssue(c, n, t.ID(), t.What, t.Severity, t.Confidence)
+			return c.NewIssue(n, t.ID(), t.What, t.Severity, t.Confidence)
 		}
 		return nil
 	}
 	if ce := t.argCalls.ContainsPkgCallExpr(suspect, c, false); ce != nil {
-		return gosec.NewIssue(c, n, t.ID(), t.What, t.Severity, t.Confidence)
+		return c.NewIssue(n, t.ID(), t.What, t.Severity, t.Confidence)
 	}
 	if be, ok := suspect.(*ast.BinaryExpr); ok {
 		if ops := gosec.GetBinaryExprOperands(be); len(ops) != 0 {
@@ -55,7 +56,7 @@ func (t *badTempFile) findTempDirArgs(n ast.Node, c *gosec.Context, suspect ast.
 	return nil
 }
 
-func (t *badTempFile) Match(n ast.Node, c *gosec.Context) (gi *gosec.Issue, err error) {
+func (t *badTempFile) Match(n ast.Node, c *gosec.Context) (gi *issue.Issue, err error) {
 	if node := t.calls.ContainsPkgCallExpr(n, c, false); node != nil {
 		return t.findTempDirArgs(n, c, node.Args[0]), nil
 	}
@@ -63,7 +64,7 @@ func (t *badTempFile) Match(n ast.Node, c *gosec.Context) (gi *gosec.Issue, err 
 }
 
 // NewBadTempFile detects direct writes to predictable path in temporary directory
-func NewBadTempFile(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
+func NewBadTempFile(id string, _ gosec.Config) (gosec.Rule, []ast.Node) {
 	calls := gosec.NewCallList()
 	calls.Add("io/ioutil", "WriteFile")
 	calls.AddAll("os", "Create", "WriteFile")
@@ -77,10 +78,10 @@ func NewBadTempFile(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 		args:        regexp.MustCompile(`^(/(usr|var))?/tmp(/.*)?$`),
 		argCalls:    argCalls,
 		nestedCalls: nestedCalls,
-		MetaData: gosec.MetaData{
+		MetaData: issue.MetaData{
 			ID:         id,
-			Severity:   gosec.Medium,
-			Confidence: gosec.High,
+			Severity:   issue.Medium,
+			Confidence: issue.High,
 			What:       "File creation in shared tmp directory without using ioutil.Tempfile",
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}

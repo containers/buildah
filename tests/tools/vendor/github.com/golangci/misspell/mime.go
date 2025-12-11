@@ -4,21 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
-// The number of possible binary formats is very large
-// items that might be checked into a repo or be an
-// artifact of a build.  Additions welcome.
+// The number of possible binary formats is very large items that might be checked into a repo or be an artifact of a build.
+// Additions welcome.
 //
-// Golang's internal table is very small and can't be
-// relied on.  Even then things like ".js" have a mime
-// type of "application/javascipt" which isn't very helpful.
-// "[x]" means we have  sniff test and suffix test should be eliminated
+// Golang's internal table is very small and can't be relied on.
+// Even then things like ".js" have a mime type of "application/javascript" which isn't very helpful.
+// "[x]" means we have  sniff test and suffix test should be eliminated.
 var binary = map[string]bool{
 	".a":     true, // [ ] archive
 	".bin":   true, // [ ] binary
@@ -52,12 +50,10 @@ var binary = map[string]bool{
 	".zip":   true, // [x] archive
 }
 
-// isBinaryFilename returns true if the file is likely to be binary
+// isBinaryFilename returns true if the file is likely to be binary.
 //
-// Better heuristics could be done here, in particular a binary
-// file is unlikely to be UTF-8 encoded.  However this is cheap
-// and will solve the immediate need of making sure common
-// binary formats are not corrupted by mistake.
+// Better heuristics could be done here, in particular a binary file is unlikely to be UTF-8 encoded.
+// However, this is cheap and will solve the immediate need of making sure common binary formats are not corrupted by mistake.
 func isBinaryFilename(s string) bool {
 	return binary[strings.ToLower(filepath.Ext(s))]
 }
@@ -70,8 +66,8 @@ var scm = map[string]bool{
 	"CVS":  true,
 }
 
-// isSCMPath returns true if the path is likely part of a (private) SCM
-//  directory.  E.g.  ./git/something  = true
+// isSCMPath returns true if the path is likely part of a (private) SCM directory.
+// E.g.  ./git/something  = true.
 func isSCMPath(s string) bool {
 	// hack for .git/COMMIT_EDITMSG and .git/TAG_EDITMSG
 	// normally we don't look at anything in .git
@@ -82,13 +78,12 @@ func isSCMPath(s string) bool {
 	if strings.Contains(filepath.Base(s), "EDITMSG") {
 		return false
 	}
+
 	parts := strings.Split(filepath.Clean(s), string(filepath.Separator))
-	for _, dir := range parts {
-		if scm[dir] {
-			return true
-		}
-	}
-	return false
+
+	return slices.ContainsFunc(parts, func(dir string) bool {
+		return scm[dir]
+	})
 }
 
 var magicHeaders = [][]byte{
@@ -128,29 +123,30 @@ func isTextFile(raw []byte) bool {
 		}
 	}
 
-	// allow any text/ type with utf-8 encoding
-	// DetectContentType sometimes returns charset=utf-16 for XML stuff
-	//  in which case ignore.
+	// allow any text/ type with utf-8 encoding.
+	// DetectContentType sometimes returns charset=utf-16 for XML stuff in which case ignore.
 	mime := http.DetectContentType(raw)
 	return strings.HasPrefix(mime, "text/") && strings.HasSuffix(mime, "charset=utf-8")
 }
 
-// ReadTextFile returns the contents of a file, first testing if it is a text file
-//  returns ("", nil) if not a text file
-//  returns ("", error) if error
-//  returns (string, nil) if text
+// ReadTextFile returns the contents of a file, first testing if it is a text file:
 //
-// unfortunately, in worse case, this does
-//   1 stat
-//   1 open,read,close of 512 bytes
-//   1 more stat,open, read everything, close (via ioutil.ReadAll)
-//  This could be kinder to the filesystem.
+//	returns ("", nil) if not a text file
+//	returns ("", error) if error
+//	returns (string, nil) if text
+//
+// unfortunately, in worse case, this does:
+//
+//	 1 stat
+//	 1 open,read,close of 512 bytes
+//	 1 more stat,open, read everything, close (via io.ReadAll)
+//	This could be kinder to the filesystem.
 //
 // This uses some heuristics of the file's extension (e.g. .zip, .txt) and
 // uses a sniffer to determine if the file is text or not.
 // Using file extensions isn't great, but probably
 // good enough for real-world use.
-// Golang's built in sniffer is problematic for differnet reasons.  It's
+// Golang's built-in sniffer is problematic for different reasons.  It's
 // optimized for HTML, and is very limited in detection.  It would be good
 // to explicitly add some tests for ELF/DWARF formats to make sure we never
 // corrupt binary files.
@@ -164,9 +160,8 @@ func ReadTextFile(filename string) (string, error) {
 	}
 
 	fstat, err := os.Stat(filename)
-
 	if err != nil {
-		return "", fmt.Errorf("Unable to stat %q: %s", filename, err)
+		return "", fmt.Errorf("unable to stat %q: %w", filename, err)
 	}
 
 	// directory: nothing to do.
@@ -179,28 +174,29 @@ func ReadTextFile(filename string) (string, error) {
 	// if not-text, then exit
 	isText := false
 	if fstat.Size() > 50000 {
-		fin, err := os.Open(filename)
+		var fin *os.File
+		fin, err = os.Open(filename)
 		if err != nil {
-			return "", fmt.Errorf("Unable to open large file %q: %s", filename, err)
+			return "", fmt.Errorf("unable to open large file %q: %w", filename, err)
 		}
 		defer fin.Close()
 		buf := make([]byte, 512)
 		_, err = io.ReadFull(fin, buf)
 		if err != nil {
-			return "", fmt.Errorf("Unable to read 512 bytes from %q: %s", filename, err)
+			return "", fmt.Errorf("unable to read 512 bytes from %q: %w", filename, err)
 		}
 		if !isTextFile(buf) {
 			return "", nil
 		}
 
-		// set so we don't double check this file
+		// set so we don't double-check this file
 		isText = true
 	}
 
 	// read in whole file
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
-		return "", fmt.Errorf("Unable to read all %q: %s", filename, err)
+		return "", fmt.Errorf("unable to read all %q: %w", filename, err)
 	}
 
 	if !isText && !isTextFile(raw) {

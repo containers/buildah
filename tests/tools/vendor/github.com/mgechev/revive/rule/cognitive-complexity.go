@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 	"golang.org/x/tools/go/ast/astutil"
@@ -12,12 +13,20 @@ import (
 // CognitiveComplexityRule lints given else constructs.
 type CognitiveComplexityRule struct {
 	maxComplexity int
+	sync.Mutex
 }
 
-// Apply applies the rule to given file.
-func (r *CognitiveComplexityRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+const defaultMaxCognitiveComplexity = 7
+
+func (r *CognitiveComplexityRule) configure(arguments lint.Arguments) {
+	r.Lock()
+	defer r.Unlock()
 	if r.maxComplexity == 0 {
-		checkNumberOfArguments(1, arguments, r.Name())
+
+		if len(arguments) < 1 {
+			r.maxComplexity = defaultMaxCognitiveComplexity
+			return
+		}
 
 		complexity, ok := arguments[0].(int64)
 		if !ok {
@@ -25,8 +34,14 @@ func (r *CognitiveComplexityRule) Apply(file *lint.File, arguments lint.Argument
 		}
 		r.maxComplexity = int(complexity)
 	}
+}
+
+// Apply applies the rule to given file.
+func (r *CognitiveComplexityRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
 
 	var failures []lint.Failure
+
 	linter := cognitiveComplexityLinter{
 		file:          file,
 		maxComplexity: r.maxComplexity,
@@ -35,13 +50,13 @@ func (r *CognitiveComplexityRule) Apply(file *lint.File, arguments lint.Argument
 		},
 	}
 
-	linter.lint()
+	linter.lintCognitiveComplexity()
 
 	return failures
 }
 
 // Name returns the rule name.
-func (r *CognitiveComplexityRule) Name() string {
+func (*CognitiveComplexityRule) Name() string {
 	return "cognitive-complexity"
 }
 
@@ -51,7 +66,7 @@ type cognitiveComplexityLinter struct {
 	onFailure     func(lint.Failure)
 }
 
-func (w cognitiveComplexityLinter) lint() {
+func (w cognitiveComplexityLinter) lintCognitiveComplexity() {
 	f := w.file
 	for _, decl := range f.AST.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {

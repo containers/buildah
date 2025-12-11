@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	urlpkg "net/url"
 	"os"
@@ -29,7 +29,7 @@ const (
 	Package = "buildah"
 	// Version for the Package.  Bump version in contrib/rpm/buildah.spec
 	// too.
-	Version = "1.26.9"
+	Version = "1.26.10"
 
 	// DefaultRuntime if containers.conf fails.
 	DefaultRuntime = "runc"
@@ -118,7 +118,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 		url != "-" {
 		return "", "", nil
 	}
-	name, err = ioutil.TempDir(dir, prefix)
+	name, err = os.MkdirTemp(dir, prefix)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error creating temporary directory for %q", url)
 	}
@@ -208,7 +208,7 @@ func downloadToDirectory(url, dir string) error {
 			return err
 		}
 		defer resp1.Body.Close()
-		body, err := ioutil.ReadAll(resp1.Body)
+		body, err := io.ReadAll(resp1.Body)
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func downloadToDirectory(url, dir string) error {
 func stdinToDirectory(dir string) error {
 	logrus.Debugf("extracting stdin to %q", dir)
 	r := bufio.NewReader(os.Stdin)
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to read from stdin")
 	}

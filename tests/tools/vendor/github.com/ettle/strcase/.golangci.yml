@@ -14,8 +14,6 @@ linters-settings:
       - ifElseChain
       - whyNoLint
       - wrapperFunc
-  golint:
-    min-confidence: 0.5
   govet:
     check-shadowing: true
   lll:
@@ -37,7 +35,6 @@ linters:
   disable-all: true
   enable:
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - dupl
@@ -47,26 +44,23 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - golint
     - goprintffuncname
     - gosec
     - gosimple
     - govet
     - ineffassign
-    - interfacer
     - lll
     - misspell
     - nakedret
     - nolintlint
+    - revive
     - rowserrcheck
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
 
   # don't enable:

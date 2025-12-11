@@ -47,17 +47,16 @@ func New(data interface{}) Map {
 //
 // The arguments follow a key, value pattern.
 //
-//
 // Returns nil if any key argument is non-string or if there are an odd number of arguments.
 //
-// Example
+// # Example
 //
 // To easily create Maps:
 //
-//     m := objx.MSI("name", "Mat", "age", 29, "subobj", objx.MSI("active", true))
+//	m := objx.MSI("name", "Mat", "age", 29, "subobj", objx.MSI("active", true))
 //
-//     // creates an Map equivalent to
-//     m := objx.Map{"name": "Mat", "age": 29, "subobj": objx.Map{"active": true}}
+//	// creates an Map equivalent to
+//	m := objx.Map{"name": "Mat", "age": 29, "subobj": objx.Map{"active": true}}
 func MSI(keyAndValuePairs ...interface{}) Map {
 	newMap := Map{}
 	keyAndValuePairsLen := len(keyAndValuePairs)
@@ -92,17 +91,42 @@ func MustFromJSON(jsonString string) Map {
 	return o
 }
 
+// MustFromJSONSlice creates a new slice of Map containing the data specified in the
+// jsonString. Works with jsons with a top level array
+//
+// Panics if the JSON is invalid.
+func MustFromJSONSlice(jsonString string) []Map {
+	slice, err := FromJSONSlice(jsonString)
+	if err != nil {
+		panic("objx: MustFromJSONSlice failed with error: " + err.Error())
+	}
+	return slice
+}
+
 // FromJSON creates a new Map containing the data specified in the
 // jsonString.
 //
 // Returns an error if the JSON is invalid.
 func FromJSON(jsonString string) (Map, error) {
-	var data interface{}
-	err := json.Unmarshal([]byte(jsonString), &data)
+	var m Map
+	err := json.Unmarshal([]byte(jsonString), &m)
 	if err != nil {
 		return Nil, err
 	}
-	return New(data), nil
+	return m, nil
+}
+
+// FromJSONSlice creates a new slice of Map containing the data specified in the
+// jsonString. Works with jsons with a top level array
+//
+// Returns an error if the JSON is invalid.
+func FromJSONSlice(jsonString string) ([]Map, error) {
+	var slice []Map
+	err := json.Unmarshal([]byte(jsonString), &slice)
+	if err != nil {
+		return nil, err
+	}
+	return slice, nil
 }
 
 // FromBase64 creates a new Obj containing the data specified

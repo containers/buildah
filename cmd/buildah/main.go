@@ -13,6 +13,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
@@ -68,7 +69,7 @@ func init() {
 	)
 	storageOptions, err := storage.DefaultStoreOptions(false, 0)
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Errorf("%v", err)
 		os.Exit(1)
 
 	}
@@ -80,7 +81,7 @@ func init() {
 
 	containerConfig, err := config.Default()
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Errorf("%v", err)
 		os.Exit(1)
 	}
 	containerConfig.CheckCgroupsAndAdjustConfig()
@@ -162,7 +163,7 @@ func before(cmd *cobra.Command) error {
 		return err
 	}
 
-	for _, env := range defaultContainerConfig.Engine.Env {
+	for _, env := range defaultContainerConfig.Engine.Env.Get() {
 		splitEnv := strings.SplitN(env, "=", 2)
 		if len(splitEnv) != 2 {
 			return fmt.Errorf("invalid environment variable %q from containers.conf, valid configuration is KEY=value pair", env)
@@ -237,7 +238,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 		exitCode := cli.ExecErrorCodeGeneric
-		if ee, ok := (errors.Cause(err)).(*exec.ExitError); ok {
+		if ee, ok := (util.Cause(err)).(*exec.ExitError); ok {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 				exitCode = w.ExitStatus()
 			}

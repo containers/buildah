@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,7 +21,7 @@ import (
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
-	"github.com/opencontainers/runc/libcontainer/userns"
+	"github.com/moby/sys/userns"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -115,7 +114,7 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 	if size < 0 {
 		// Create a temporary file and copy the content to it, so that
 		// we can figure out how much content there is.
-		f, err := ioutil.TempFile(mountpoint, "download")
+		f, err := os.CreateTemp(mountpoint, "download")
 		if err != nil {
 			return errors.Wrapf(err, "error creating temporary file to hold %q", src)
 		}

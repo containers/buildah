@@ -6,11 +6,11 @@ package fakexml
 
 import (
 	"fmt"
-	"go/types"
 	"strconv"
 	"strings"
 	"sync"
 
+	"honnef.co/go/tools/go/types/typeutil"
 	"honnef.co/go/tools/staticcheck/fakereflect"
 )
 
@@ -80,8 +80,7 @@ func getTypeInfo(typ fakereflect.TypeAndCanAddr) (*typeInfo, error) {
 	}
 
 	tinfo := &typeInfo{}
-	named, ok := typ.Type.(*types.Named)
-	if typ.IsStruct() && !(ok && named.Obj().Pkg().Path() == "encoding/xml" && named.Obj().Name() == "Name") {
+	if typ.IsStruct() && !typeutil.IsTypeWithName(typ.Type, "encoding/xml.Name") {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
 			f := typ.Field(i)
@@ -249,8 +248,14 @@ func StructFieldInfo(f fakereflect.StructField) (*fieldInfo, error) {
 // in case it exists and has a valid xml field tag, otherwise
 // it returns nil.
 func lookupXMLName(typ fakereflect.TypeAndCanAddr) (xmlname *fieldInfo) {
+	seen := map[fakereflect.TypeAndCanAddr]struct{}{}
 	for typ.IsPtr() {
 		typ = typ.Elem()
+		if _, ok := seen[typ]; ok {
+			// Loop in type graph, e.g. 'type P *P'
+			return nil
+		}
+		seen[typ] = struct{}{}
 	}
 	if !typ.IsStruct() {
 		return nil

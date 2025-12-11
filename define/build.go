@@ -5,6 +5,7 @@ import (
 	"time"
 
 	nettypes "github.com/containers/common/libnetwork/types"
+	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage/pkg/archive"
@@ -101,6 +102,8 @@ type CommonBuildOptions struct {
 	Secrets []string
 	// SSHSources is the available ssh agent connections to forward in the build
 	SSHSources []string
+	// OCIHooksDir is the location of OCI hooks for the build containers
+	OCIHooksDir []string
 }
 
 // BuildOptions can be used to alter how an image is built.
@@ -134,6 +137,16 @@ type BuildOptions struct {
 	RuntimeArgs []string
 	// TransientMounts is a list of mounts that won't be kept in the image.
 	TransientMounts []string
+	// CacheFrom specifies any remote repository which can be treated as
+	// potential cache source.
+	CacheFrom reference.Named
+	// CacheTo specifies any remote repository which can be treated as
+	// potential cache destination.
+	CacheTo reference.Named
+	// CacheTTL specifies duration, if specified using `--cache-ttl` then
+	// cache intermediate images under this duration will be considered as
+	// valid cache sources and images outside this duration will be ignored.
+	CacheTTL time.Duration
 	// Compression specifies the type of compression which is applied to
 	// layer blobs.  The default is to not use compression, but
 	// archive.Gzip is recommended.
@@ -173,6 +186,11 @@ type BuildOptions struct {
 	// specified, indicating that the shared, system-wide default policy
 	// should be used.
 	SignaturePolicyPath string
+	// SkipUnusedStages allows users to skip stages in a multi-stage builds
+	// that are not needed to build the explicitly specified target stage.
+	// This is useful in scenarios where you want to build a specific target
+	// stage without building all of its dependencies.
+	SkipUnusedStages types.OptionalBool
 	// ReportWriter is an io.Writer which will be used to report the
 	// progress of the (possible) pulling of the source image and the
 	// writing of the new image.
@@ -299,4 +317,8 @@ type BuildOptions struct {
 	// value set in a base image will be preserved, so this does not
 	// frequently need to be set.
 	OSVersion string
+	// CompatSetParent causes the "parent" field to be set in the image's
+	// configuration when committing in Docker format.  Newer
+	// BuildKit-based docker build doesn't set this field.
+	CompatSetParent types.OptionalBool
 }

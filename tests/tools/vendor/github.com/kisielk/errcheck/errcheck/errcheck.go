@@ -25,45 +25,6 @@ func init() {
 var (
 	// ErrNoGoFiles is returned when CheckPackage is run on a package with no Go source files
 	ErrNoGoFiles = errors.New("package contains no go source files")
-
-	// DefaultExcludedSymbols is a list of symbol names that are usually excluded from checks by default.
-	//
-	// Note, that they still need to be explicitly copied to Checker.Exclusions.Symbols
-	DefaultExcludedSymbols = []string{
-		// bytes
-		"(*bytes.Buffer).Write",
-		"(*bytes.Buffer).WriteByte",
-		"(*bytes.Buffer).WriteRune",
-		"(*bytes.Buffer).WriteString",
-
-		// fmt
-		"fmt.Errorf",
-		"fmt.Print",
-		"fmt.Printf",
-		"fmt.Println",
-		"fmt.Fprint(*bytes.Buffer)",
-		"fmt.Fprintf(*bytes.Buffer)",
-		"fmt.Fprintln(*bytes.Buffer)",
-		"fmt.Fprint(*strings.Builder)",
-		"fmt.Fprintf(*strings.Builder)",
-		"fmt.Fprintln(*strings.Builder)",
-		"fmt.Fprint(os.Stderr)",
-		"fmt.Fprintf(os.Stderr)",
-		"fmt.Fprintln(os.Stderr)",
-
-		// math/rand
-		"math/rand.Read",
-		"(*math/rand.Rand).Read",
-
-		// strings
-		"(*strings.Builder).Write",
-		"(*strings.Builder).WriteByte",
-		"(*strings.Builder).WriteRune",
-		"(*strings.Builder).WriteString",
-
-		// hash
-		"(hash.Hash).Write",
-	}
 )
 
 // UncheckedError indicates the position of an unchecked error return.
@@ -206,7 +167,7 @@ func (c *Checker) LoadPackages(paths ...string) ([]*packages.Package, error) {
 		buildFlags = append(buildFlags, fmt.Sprintf("-mod=%s", c.Mod))
 	}
 	cfg := &packages.Config{
-		Mode:       packages.LoadAllSyntax,
+		Mode:       packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Tests:      !c.Exclusions.TestFiles,
 		BuildFlags: buildFlags,
 	}
@@ -244,7 +205,7 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 
 	ignore := map[string]*regexp.Regexp{}
 	// Apply SymbolRegexpsByPackage first so that if the same path appears in
-	// Packages, a more narrow regexp will be superceded by dotStar below.
+	// Packages, a more narrow regexp will be superseded by dotStar below.
 	if regexps := c.Exclusions.SymbolRegexpsByPackage; regexps != nil {
 		for pkg, re := range regexps {
 			// TODO warn if previous entry overwritten?
@@ -257,16 +218,17 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 	}
 
 	v := &visitor{
-		pkg:     pkg,
-		ignore:  ignore,
-		blank:   !c.Exclusions.BlankAssignments,
-		asserts: !c.Exclusions.TypeAssertions,
-		lines:   make(map[string][]string),
-		exclude: excludedSymbols,
-		errors:  []UncheckedError{},
+		typesInfo: pkg.TypesInfo,
+		fset:      pkg.Fset,
+		ignore:    ignore,
+		blank:     !c.Exclusions.BlankAssignments,
+		asserts:   !c.Exclusions.TypeAssertions,
+		lines:     make(map[string][]string),
+		exclude:   excludedSymbols,
+		errors:    []UncheckedError{},
 	}
 
-	for _, astFile := range v.pkg.Syntax {
+	for _, astFile := range pkg.Syntax {
 		if c.shouldSkipFile(astFile) {
 			continue
 		}
@@ -277,12 +239,13 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 
 // visitor implements the errcheck algorithm
 type visitor struct {
-	pkg     *packages.Package
-	ignore  map[string]*regexp.Regexp
-	blank   bool
-	asserts bool
-	lines   map[string][]string
-	exclude map[string]bool
+	typesInfo *types.Info
+	fset      *token.FileSet
+	ignore    map[string]*regexp.Regexp
+	blank     bool
+	asserts   bool
+	lines     map[string][]string
+	exclude   map[string]bool
 
 	errors []UncheckedError
 }
@@ -302,7 +265,7 @@ func (v *visitor) selectorAndFunc(call *ast.CallExpr) (*ast.SelectorExpr, *types
 		return nil, nil, false
 	}
 
-	fn, ok := v.pkg.TypesInfo.ObjectOf(sel.Sel).(*types.Func)
+	fn, ok := v.typesInfo.ObjectOf(sel.Sel).(*types.Func)
 	if !ok {
 		// Shouldn't happen, but be paranoid
 		return nil, nil, false
@@ -374,7 +337,7 @@ func (v *visitor) selectorName(call *ast.CallExpr) string {
 // names are returned. If the function is package-qualified (like "fmt.Printf()")
 // then just that function's fullName is returned.
 //
-// Otherwise, we walk through all the potentially embeddded interfaces of the receiver
+// Otherwise, we walk through all the potentially embedded interfaces of the receiver
 // the collect a list of type-qualified function names that we will check.
 func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
 	sel, fn, ok := v.selectorAndFunc(call)
@@ -389,7 +352,7 @@ func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
 
 	// This will be missing for functions without a receiver (like fmt.Printf),
 	// so just fall back to the the function's fullName in that case.
-	selection, ok := v.pkg.TypesInfo.Selections[sel]
+	selection, ok := v.typesInfo.Selections[sel]
 	if !ok {
 		return []string{name}
 	}
@@ -416,14 +379,14 @@ func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
 func (v *visitor) argName(expr ast.Expr) string {
 	// Special-case literal "os.Stdout" and "os.Stderr"
 	if sel, ok := expr.(*ast.SelectorExpr); ok {
-		if obj := v.pkg.TypesInfo.ObjectOf(sel.Sel); obj != nil {
+		if obj := v.typesInfo.ObjectOf(sel.Sel); obj != nil {
 			vr, ok := obj.(*types.Var)
 			if ok && vr.Pkg() != nil && vr.Pkg().Name() == "os" && (vr.Name() == "Stderr" || vr.Name() == "Stdout") {
 				return "os." + vr.Name()
 			}
 		}
 	}
-	t := v.pkg.TypesInfo.TypeOf(expr)
+	t := v.typesInfo.TypeOf(expr)
 	if t == nil {
 		return ""
 	}
@@ -474,7 +437,7 @@ func (v *visitor) ignoreCall(call *ast.CallExpr) bool {
 		return true
 	}
 
-	if obj := v.pkg.TypesInfo.Uses[id]; obj != nil {
+	if obj := v.typesInfo.Uses[id]; obj != nil {
 		if pkg := obj.Pkg(); pkg != nil {
 			if re, ok := v.ignore[nonVendoredPkgPath(pkg.Path())]; ok {
 				return re.MatchString(id.Name)
@@ -500,7 +463,7 @@ func nonVendoredPkgPath(pkgPath string) string {
 // len(s) == number of return types of call
 // s[i] == true iff return type at position i from left is an error type
 func (v *visitor) errorsByArg(call *ast.CallExpr) []bool {
-	switch t := v.pkg.TypesInfo.Types[call].Type.(type) {
+	switch t := v.typesInfo.Types[call].Type.(type) {
 	case *types.Named:
 		// Single return
 		return []bool{isErrorType(t)}
@@ -542,15 +505,18 @@ func (v *visitor) callReturnsError(call *ast.CallExpr) bool {
 // isRecover returns true if the given CallExpr is a call to the built-in recover() function.
 func (v *visitor) isRecover(call *ast.CallExpr) bool {
 	if fun, ok := call.Fun.(*ast.Ident); ok {
-		if _, ok := v.pkg.TypesInfo.Uses[fun].(*types.Builtin); ok {
+		if _, ok := v.typesInfo.Uses[fun].(*types.Builtin); ok {
 			return fun.Name == "recover"
 		}
 	}
 	return false
 }
 
+// TODO (dtcaciuc) collect token.Pos and then convert them to UncheckedErrors
+// after visitor is done running. This will allow to integrate more cleanly
+// with analyzer so that we don't have to convert Position back to Pos.
 func (v *visitor) addErrorAtPosition(position token.Pos, call *ast.CallExpr) {
-	pos := v.pkg.Fset.Position(position)
+	pos := v.fset.Position(position)
 	lines, ok := v.lines[pos.Filename]
 	if !ok {
 		lines = readfile(pos.Filename)
@@ -577,6 +543,7 @@ func readfile(filename string) []string {
 	if err != nil {
 		return nil
 	}
+	defer f.Close()
 
 	var lines []string
 	var scanner = bufio.NewScanner(f)
@@ -602,73 +569,98 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		if !v.ignoreCall(stmt.Call) && v.callReturnsError(stmt.Call) {
 			v.addErrorAtPosition(stmt.Call.Lparen, stmt.Call)
 		}
-	case *ast.AssignStmt:
-		if len(stmt.Rhs) == 1 {
-			// single value on rhs; check against lhs identifiers
-			if call, ok := stmt.Rhs[0].(*ast.CallExpr); ok {
-				if !v.blank {
-					break
-				}
-				if v.ignoreCall(call) {
-					break
-				}
-				isError := v.errorsByArg(call)
-				for i := 0; i < len(stmt.Lhs); i++ {
-					if id, ok := stmt.Lhs[i].(*ast.Ident); ok {
-						// We shortcut calls to recover() because errorsByArg can't
-						// check its return types for errors since it returns interface{}.
-						if id.Name == "_" && (v.isRecover(call) || isError[i]) {
-							v.addErrorAtPosition(id.NamePos, call)
-						}
-					}
-				}
-			} else if assert, ok := stmt.Rhs[0].(*ast.TypeAssertExpr); ok {
-				if !v.asserts {
-					break
-				}
-				if assert.Type == nil {
-					// type switch
-					break
-				}
-				if len(stmt.Lhs) < 2 {
-					// assertion result not read
-					v.addErrorAtPosition(stmt.Rhs[0].Pos(), nil)
-				} else if id, ok := stmt.Lhs[1].(*ast.Ident); ok && v.blank && id.Name == "_" {
-					// assertion result ignored
-					v.addErrorAtPosition(id.NamePos, nil)
-				}
-			}
-		} else {
-			// multiple value on rhs; in this case a call can't return
-			// multiple values. Assume len(stmt.Lhs) == len(stmt.Rhs)
-			for i := 0; i < len(stmt.Lhs); i++ {
-				if id, ok := stmt.Lhs[i].(*ast.Ident); ok {
-					if call, ok := stmt.Rhs[i].(*ast.CallExpr); ok {
-						if !v.blank {
-							continue
-						}
-						if v.ignoreCall(call) {
-							continue
-						}
-						if id.Name == "_" && v.callReturnsError(call) {
-							v.addErrorAtPosition(id.NamePos, call)
-						}
-					} else if assert, ok := stmt.Rhs[i].(*ast.TypeAssertExpr); ok {
-						if !v.asserts {
-							continue
-						}
-						if assert.Type == nil {
-							// Shouldn't happen anyway, no multi assignment in type switches
-							continue
-						}
-						v.addErrorAtPosition(id.NamePos, nil)
-					}
-				}
-			}
+	case *ast.GenDecl:
+		if stmt.Tok != token.VAR {
+			break
 		}
+
+		for _, spec := range stmt.Specs {
+			vspec := spec.(*ast.ValueSpec)
+
+			if len(vspec.Values) == 0 {
+				// ignore declarations w/o assignments
+				continue
+			}
+
+			var lhs []ast.Expr
+			for _, name := range vspec.Names {
+				lhs = append(lhs, ast.Expr(name))
+			}
+			v.checkAssignment(lhs, vspec.Values)
+		}
+
+	case *ast.AssignStmt:
+		v.checkAssignment(stmt.Lhs, stmt.Rhs)
+
 	default:
 	}
 	return v
+}
+
+func (v *visitor) checkAssignment(lhs, rhs []ast.Expr) {
+	if len(rhs) == 1 {
+		// single value on rhs; check against lhs identifiers
+		if call, ok := rhs[0].(*ast.CallExpr); ok {
+			if !v.blank {
+				return
+			}
+			if v.ignoreCall(call) {
+				return
+			}
+			isError := v.errorsByArg(call)
+			for i := 0; i < len(lhs); i++ {
+				if id, ok := lhs[i].(*ast.Ident); ok {
+					// We shortcut calls to recover() because errorsByArg can't
+					// check its return types for errors since it returns interface{}.
+					if id.Name == "_" && (v.isRecover(call) || isError[i]) {
+						v.addErrorAtPosition(id.NamePos, call)
+					}
+				}
+			}
+		} else if assert, ok := rhs[0].(*ast.TypeAssertExpr); ok {
+			if !v.asserts {
+				return
+			}
+			if assert.Type == nil {
+				// type switch
+				return
+			}
+			if len(lhs) < 2 {
+				// assertion result not read
+				v.addErrorAtPosition(rhs[0].Pos(), nil)
+			} else if id, ok := lhs[1].(*ast.Ident); ok && v.blank && id.Name == "_" {
+				// assertion result ignored
+				v.addErrorAtPosition(id.NamePos, nil)
+			}
+		}
+	} else {
+		// multiple value on rhs; in this case a call can't return
+		// multiple values. Assume len(lhs) == len(rhs)
+		for i := 0; i < len(lhs); i++ {
+			if id, ok := lhs[i].(*ast.Ident); ok {
+				if call, ok := rhs[i].(*ast.CallExpr); ok {
+					if !v.blank {
+						continue
+					}
+					if v.ignoreCall(call) {
+						continue
+					}
+					if id.Name == "_" && v.callReturnsError(call) {
+						v.addErrorAtPosition(id.NamePos, call)
+					}
+				} else if assert, ok := rhs[i].(*ast.TypeAssertExpr); ok {
+					if !v.asserts {
+						continue
+					}
+					if assert.Type == nil {
+						// Shouldn't happen anyway, no multi assignment in type switches
+						continue
+					}
+					v.addErrorAtPosition(id.NamePos, nil)
+				}
+			}
+		}
+	}
 }
 
 func isErrorType(t types.Type) bool {

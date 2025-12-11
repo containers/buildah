@@ -27,6 +27,7 @@ const Doc = "report mismatches between assembly files and Go declarations"
 var Analyzer = &analysis.Analyzer{
 	Name: "asmdecl",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/asmdecl",
 	Run:  run,
 }
 
@@ -90,11 +91,12 @@ var (
 	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
 	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
 	asmArchMips64LE = asmArch{name: "mips64le", bigEndian: false, stack: "R29", lr: true}
-	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true}
-	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true}
-	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true}
+	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}}
+	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}}
+	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true, retRegs: []string{"X10", "F10"}}
 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
 	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+	asmArchLoong64  = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true, retRegs: []string{"R4", "F0"}}
 
 	arches = []*asmArch{
 		&asmArch386,
@@ -110,6 +112,7 @@ var (
 		&asmArchRISCV64,
 		&asmArchS390X,
 		&asmArchWasm,
+		&asmArchLoong64,
 	}
 )
 
@@ -170,7 +173,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
+		content, tf, err := analysisutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}
@@ -731,7 +734,7 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 					src = 8
 				}
 			}
-		case "mips", "mipsle", "mips64", "mips64le":
+		case "loong64", "mips", "mipsle", "mips64", "mips64le":
 			switch op {
 			case "MOVB", "MOVBU":
 				src = 1

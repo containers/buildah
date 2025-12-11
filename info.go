@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strconv"
@@ -171,7 +170,7 @@ func storeInfo(store storage.Store) (map[string]interface{}, error) {
 }
 
 func readKernelVersion() (string, error) {
-	buf, err := ioutil.ReadFile("/proc/version")
+	buf, err := os.ReadFile("/proc/version")
 	if err != nil {
 		return "", err
 	}
@@ -183,7 +182,7 @@ func readKernelVersion() (string, error) {
 }
 
 func readUptime() (string, error) {
-	buf, err := ioutil.ReadFile("/proc/uptime")
+	buf, err := os.ReadFile("/proc/uptime")
 	if err != nil {
 		return "", err
 	}

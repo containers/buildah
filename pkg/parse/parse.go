@@ -18,6 +18,7 @@ import (
 	internalParse "github.com/containers/buildah/internal/parse"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/common/pkg/parse"
+	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/unshare"
@@ -46,6 +47,18 @@ const (
 	// Lifecycle of following directory will be inherited from how host machine treats temporary directory
 	BuildahCacheDir = "buildah-cache"
 )
+
+// RepoNameToNamedReference parse the raw string to Named reference
+func RepoNameToNamedReference(dest string) (reference.Named, error) {
+	named, err := reference.ParseNormalizedNamed(dest)
+	if err != nil {
+		return nil, fmt.Errorf("invalid repo %q: must contain registry and repository: %w", dest, err)
+	}
+	if !reference.IsNameOnly(named) {
+		return nil, fmt.Errorf("repository must contain neither a tag nor digest: %v", named)
+	}
+	return named, nil
+}
 
 // CommonBuildOptions parses the build options from the bud cli
 func CommonBuildOptions(c *cobra.Command) (*define.CommonBuildOptions, error) {
@@ -520,7 +533,9 @@ func AuthConfig(creds string) (*types.DockerAuthConfig, error) {
 	username, password := parseCreds(creds)
 	if username == "" {
 		fmt.Print("Username: ")
-		fmt.Scanln(&username)
+		if _, err := fmt.Scanln(&username); err != nil {
+			return nil, fmt.Errorf("could not read username from terminal: %w", err)
+		}
 	}
 	if password == "" {
 		fmt.Print("Password: ")

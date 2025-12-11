@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -138,6 +137,7 @@ type Executor struct {
 	osVersion               string
 	osFeatures              []string
 	envs                    []string
+	compatSetParent         types.OptionalBool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -167,7 +167,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 	}
 
 	devices := define.ContainerDevices{}
-	for _, device := range append(defaultContainerConfig.Containers.Devices, options.Devices...) {
+	for _, device := range append(defaultContainerConfig.Containers.Devices.Get(), options.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return nil, err
@@ -176,7 +176,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 	}
 
 	transientMounts := []Mount{}
-	for _, volume := range append(defaultContainerConfig.Containers.Volumes, options.TransientMounts...) {
+	for _, volume := range append(defaultContainerConfig.Containers.Volumes.Get(), options.TransientMounts...) {
 		mount, err := parse.Volume(volume)
 		if err != nil {
 			return nil, err
@@ -195,7 +195,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 
 	writer := options.ReportWriter
 	if options.Quiet {
-		writer = ioutil.Discard
+		writer = io.Discard
 	}
 
 	var rusageLogFile io.Writer
@@ -286,6 +286,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		osVersion:                      options.OSVersion,
 		osFeatures:                     append([]string{}, options.OSFeatures...),
 		envs:                           append([]string{}, options.Envs...),
+		compatSetParent:                options.CompatSetParent,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -521,7 +522,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 	stdout := b.out
 	if b.quiet {
-		b.out = ioutil.Discard
+		b.out = io.Discard
 	}
 
 	cleanup := func() error {
@@ -763,7 +764,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if dest, err := b.resolveNameToImageRef(b.output); err == nil {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -774,7 +775,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
 			}
 			// Report back the caller the tags applied, if any.
-			img, err = is.Transport.GetStoreImage(b.store, dest)
+			img, err = is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -794,8 +795,8 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	}
 	logrus.Debugf("printing final image id %q", imageID)
 	if b.iidfile != "" {
-		if err = ioutil.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
-			return imageID, ref, errors.Wrapf(err, "failed to write image ID to file %q", b.iidfile)
+		if err = os.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
+			return imageID, ref, fmt.Errorf("failed to write image ID to file %q: %w", b.iidfile, err)
 		}
 	} else {
 		if _, err := stdout.Write([]byte(imageID + "\n")); err != nil {
