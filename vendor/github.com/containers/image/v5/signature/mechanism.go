@@ -6,16 +6,19 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 
-	"golang.org/x/crypto/openpgp"
+	// This code is used only to parse the data in an explicitly-untrusted
+	// code path, where cryptography is not relevant. For now, continue to
+	// use this frozen deprecated implementation. When mechanism_openpgp.go
+	// migrates to another implementation, this should migrate as well.
+	//lint:ignore SA1019 See above
+	"golang.org/x/crypto/openpgp" //nolint:staticcheck
 )
 
 // SigningMechanism abstracts a way to sign binary blobs and verify their signatures.
 // Each mechanism should eventually be closed by calling Close().
-// FIXME: Eventually expand on keyIdentity (namespace them between mechanisms to
-// eliminate ambiguities, support CA signatures and perhaps other key properties)
 type SigningMechanism interface {
 	// Close removes resources associated with the mechanism, if any.
 	Close() error
@@ -32,6 +35,15 @@ type SigningMechanism interface {
 	// is NOT the same as a "key identity" used in other calls to this interface, and
 	// the values may have no recognizable relationship if the public key is not available.
 	UntrustedSignatureContents(untrustedSignature []byte) (untrustedContents []byte, shortKeyIdentifier string, err error)
+}
+
+// signingMechanismWithPassphrase is an internal extension of SigningMechanism.
+type signingMechanismWithPassphrase interface {
+	SigningMechanism
+
+	// Sign creates a (non-detached) signature of input using keyIdentity and passphrase.
+	// Fails with a SigningNotSupportedError if the mechanism does not support signing.
+	SignWithPassphrase(input []byte, keyIdentity string, passphrase string) ([]byte, error)
 }
 
 // SigningNotSupportedError is returned when trying to sign using a mechanism which does not support that.
@@ -53,7 +65,7 @@ func NewGPGSigningMechanism() (SigningMechanism, error) {
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
 func NewEphemeralGPGSigningMechanism(blob []byte) (SigningMechanism, []string, error) {
-	return newEphemeralGPGSigningMechanism(blob)
+	return newEphemeralGPGSigningMechanism([][]byte{blob})
 }
 
 // gpgUntrustedSignatureContents returns UNTRUSTED contents of the signature WITHOUT ANY VERIFICATION,
@@ -70,7 +82,7 @@ func gpgUntrustedSignatureContents(untrustedSignature []byte) (untrustedContents
 	if !md.IsSigned {
 		return nil, "", errors.New("The input is not a signature")
 	}
-	content, err := ioutil.ReadAll(md.UnverifiedBody)
+	content, err := io.ReadAll(md.UnverifiedBody)
 	if err != nil {
 		// Coverage: An error during reading the body can happen only if
 		// 1) the message is encrypted, which is not our case (and we don’t give ReadMessage the key

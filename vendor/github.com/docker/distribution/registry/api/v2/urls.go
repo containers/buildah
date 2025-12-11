@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/gorilla/mux"
 )
 
@@ -251,16 +251,4 @@ func appendValuesURL(u *url.URL, values ...url.Values) *url.URL {
 
 	u.RawQuery = merged.Encode()
 	return u
-}
-
-// appendValues appends the parameters to the url. Panics if the string is not
-// a url.
-func appendValues(u string, values ...url.Values) string {
-	up, err := url.Parse(u)
-
-	if err != nil {
-		panic(err) // should never happen
-	}
-
-	return appendValuesURL(up, values...).String()
 }

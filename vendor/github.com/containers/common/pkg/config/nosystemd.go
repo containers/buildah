@@ -1,6 +1,12 @@
-// +build !systemd
+//go:build !systemd || !cgo
+// +build !systemd !cgo
 
 package config
+
+const (
+	// DefaultLogDriver is the default type of log files
+	DefaultLogDriver = "k8s-file"
+)
 
 func defaultCgroupManager() string {
 	return CgroupfsCgroupsManager
@@ -15,5 +21,9 @@ func defaultLogDriver() string {
 }
 
 func useSystemd() bool {
+	return false
+}
+
+func useJournald() bool {
 	return false
 }

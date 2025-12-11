@@ -1,3 +1,4 @@
+//go:build linux && apparmor
 // +build linux,apparmor
 
 package apparmor
@@ -42,7 +43,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/kernel/security/** rwklx,
 
 {{if ge .Version 208095}}
-  # suppress ptrace denials when using using 'ps' inside a container
+  # suppress ptrace denials when using 'ps' inside a container
   ptrace (trace,read) peer={{.Name}},
 {{end}}
 }

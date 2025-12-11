@@ -92,7 +92,7 @@ type ClientStream interface {
 	// calling RecvMsg on the same stream at the same time, but it is not safe
 	// to call SendMsg on the same stream in different goroutines. It is also
 	// not safe to call CloseSend concurrently with SendMsg.
-	SendMsg(m interface{}) error
+	SendMsg(m any) error
 	// RecvMsg blocks until it receives a message into m or the stream is
 	// done. It returns io.EOF when the stream completes successfully. On
 	// any other error, the stream is aborted and the error contains the RPC
@@ -101,7 +101,7 @@ type ClientStream interface {
 	// It is safe to have a goroutine calling SendMsg and another goroutine
 	// calling RecvMsg on the same stream at the same time, but it is not
 	// safe to call RecvMsg on the same stream in different goroutines.
-	RecvMsg(m interface{}) error
+	RecvMsg(m any) error
 }
 
 // ClientInterceptor is an interceptor for gRPC client streams.
@@ -117,9 +117,12 @@ type ClientInterceptor interface {
 	NewStream(ctx context.Context, ri RPCInfo, done func(), newStream func(ctx context.Context, done func()) (ClientStream, error)) (ClientStream, error)
 }
 
-// ServerInterceptor is unimplementable; do not use.
+// ServerInterceptor is an interceptor for incoming RPC's on gRPC server side.
 type ServerInterceptor interface {
-	notDefined()
+	// AllowRPC checks if an incoming RPC is allowed to proceed based on
+	// information about connection RPC was received on, and HTTP Headers. This
+	// information will be piped into context.
+	AllowRPC(ctx context.Context) error // TODO: Make this a real interceptor for filters such as rate limiting.
 }
 
 type csKeyType string
@@ -129,7 +132,7 @@ const csKey = csKeyType("grpc.internal.resolver.configSelector")
 // SetConfigSelector sets the config selector in state and returns the new
 // state.
 func SetConfigSelector(state resolver.State, cs ConfigSelector) resolver.State {
-	state.Attributes = state.Attributes.WithValues(csKey, cs)
+	state.Attributes = state.Attributes.WithValue(csKey, cs)
 	return state
 }
 
