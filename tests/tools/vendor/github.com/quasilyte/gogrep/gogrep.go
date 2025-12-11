@@ -11,7 +11,7 @@ import (
 )
 
 func IsEmptyNodeSlice(n ast.Node) bool {
-	if list, ok := n.(NodeSlice); ok {
+	if list, ok := n.(*NodeSlice); ok {
 		return list.Len() == 0
 	}
 	return false
@@ -62,6 +62,9 @@ type MatcherState struct {
 	// actual matching phase)
 	capture []CapturedNode
 
+	nodeSlices     []NodeSlice
+	nodeSlicesUsed int
+
 	pc int
 
 	partial PartialNode
@@ -69,7 +72,8 @@ type MatcherState struct {
 
 func NewMatcherState() MatcherState {
 	return MatcherState{
-		capture: make([]CapturedNode, 0, 8),
+		capture:    make([]CapturedNode, 0, 8),
+		nodeSlices: make([]NodeSlice, 16),
 	}
 }
 
@@ -143,34 +147,37 @@ func Compile(config CompileConfig) (*Pattern, PatternInfo, error) {
 }
 
 func Walk(root ast.Node, fn func(n ast.Node) bool) {
-	switch root := root.(type) {
-	case ExprSlice:
-		for _, e := range root {
-			ast.Inspect(e, fn)
+	if root, ok := root.(*NodeSlice); ok {
+		switch root.Kind {
+		case ExprNodeSlice:
+			for _, e := range root.exprSlice {
+				ast.Inspect(e, fn)
+			}
+		case StmtNodeSlice:
+			for _, e := range root.stmtSlice {
+				ast.Inspect(e, fn)
+			}
+		case FieldNodeSlice:
+			for _, e := range root.fieldSlice {
+				ast.Inspect(e, fn)
+			}
+		case IdentNodeSlice:
+			for _, e := range root.identSlice {
+				ast.Inspect(e, fn)
+			}
+		case SpecNodeSlice:
+			for _, e := range root.specSlice {
+				ast.Inspect(e, fn)
+			}
+		default:
+			for _, e := range root.declSlice {
+				ast.Inspect(e, fn)
+			}
 		}
-	case stmtSlice:
-		for _, e := range root {
-			ast.Inspect(e, fn)
-		}
-	case fieldSlice:
-		for _, e := range root {
-			ast.Inspect(e, fn)
-		}
-	case identSlice:
-		for _, e := range root {
-			ast.Inspect(e, fn)
-		}
-	case specSlice:
-		for _, e := range root {
-			ast.Inspect(e, fn)
-		}
-	case declSlice:
-		for _, e := range root {
-			ast.Inspect(e, fn)
-		}
-	default:
-		ast.Inspect(root, fn)
+		return
 	}
+
+	ast.Inspect(root, fn)
 }
 
 func newPatternInfo() PatternInfo {

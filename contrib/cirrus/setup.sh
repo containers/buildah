@@ -10,7 +10,7 @@ source $(dirname $0)/lib.sh
 
 req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
 
-_EOL=20230601
+_EOL=20260601
 if [[ $(date +%Y%m%d) -ge $_EOL ]]; then
     die "As of $_EOL this branch is probably
 no longer supported in RHEL 8.7/9.1, please
@@ -42,8 +42,13 @@ EOF
         then
             showrun setsebool -P container_manage_cgroup true
         fi
+
+        # Use the newest runc runtime to match 1.2.9 runc go module update
+        if [[ "$BUILDAH_RUNTIME" == "runc" ]]; then
+            showrun dnf update -y runc
+        fi
         ;;
-    ubuntu)
+    ubuntu|debian)
         if [[ "$1" == "conformance" ]]; then
             msg "Installing previously downloaded/cached packages"
             ooe.sh dpkg -i \

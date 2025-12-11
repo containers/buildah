@@ -1,7 +1,6 @@
 package printers
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 
@@ -10,7 +9,7 @@ import (
 )
 
 type JSON struct {
-	rd *report.Data
+	rd *report.Data // TODO(ldez) should be drop in v2. Only use by JSON reporter.
 	w  io.Writer
 }
 
@@ -26,7 +25,7 @@ type JSONResult struct {
 	Report *report.Data
 }
 
-func (p JSON) Print(ctx context.Context, issues []result.Issue) error {
+func (p JSON) Print(issues []result.Issue) error {
 	res := JSONResult{
 		Issues: issues,
 		Report: p.rd,

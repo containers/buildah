@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -104,6 +103,13 @@ func init() {
 	flags.AddFlagSet(&fromAndBudFlags)
 	flags.SetNormalizeFunc(buildahcli.AliasFlags)
 
+	if err := flags.MarkHidden("userns-uid-map"); err != nil {
+		logrus.Errorf("unable to mark userns-uid-map flag as hidden: %v", err)
+	}
+	if err := flags.MarkHidden("userns-gid-map"); err != nil {
+		logrus.Errorf("unable to mark userns-gid-map flag as hidden: %v", err)
+	}
+
 	rootCmd.AddCommand(fromCommand)
 }
 
@@ -165,7 +171,7 @@ func onBuild(builder *buildah.Builder, quiet bool) error {
 		case "RUN":
 			var stdout io.Writer
 			if quiet {
-				stdout = ioutil.Discard
+				stdout = io.Discard
 			}
 			if err := builder.Run(args, buildah.RunOptions{Stdout: stdout}); err != nil {
 				return err
@@ -281,7 +287,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 	devices := define.ContainerDevices{}
-	for _, device := range append(defaultContainerConfig.Containers.Devices, iopts.Devices...) {
+	for _, device := range append(defaultContainerConfig.Containers.Devices.Get(), iopts.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return err
@@ -294,7 +300,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
-	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
+	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits.Get(), commonOpts.Ulimit...)
 
 	decConfig, err := util.DecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
@@ -340,7 +346,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	if iopts.cidfile != "" {
 		filePath := iopts.cidfile
-		if err := ioutil.WriteFile(filePath, []byte(builder.ContainerID), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(builder.ContainerID), 0644); err != nil {
 			return fmt.Errorf("failed to write container ID file %q: %w", filePath, err)
 		}
 	}

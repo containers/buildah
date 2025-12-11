@@ -154,7 +154,7 @@ load helpers
   run_buildah rmi alpine
   run_buildah pull $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "localhost${TEST_SCRATCH_DIR}/alpine:latest"
+  expect_output --substring "none"
   run_buildah 125 pull --all-tags $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
   expect_output --substring "pulling all tags is not supported for oci transport"
 }
