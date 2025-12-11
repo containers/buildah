@@ -42,7 +42,7 @@ func init() {
 
 	budCommand := &cobra.Command{
 		Use:     "bud",
-		Aliases: []string{"build-using-dockerfile"},
+		Aliases: []string{"build-using-dockerfile", "build"},
 		Short:   "Build an image using instructions in a Dockerfile",
 		Long:    budDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
