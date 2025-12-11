@@ -352,7 +352,7 @@ load helpers
 
 @test "from with nonexistent authfile: fails" {
   run_buildah 125 from --authfile /no/such/file --pull --signature-policy ${TESTSDIR}/policy.json alpine
-  expect_output "checking authfile: stat /no/such/file: no such file or directory"
+  expect_output --substring "stat /no/such/file: no such file or directory"
 }
 
 @test "from --pull-always: emits 'Getting' even if image is cached" {
@@ -382,11 +382,11 @@ load helpers
 
   # Try encrypted image without key should fail
   run_buildah 125 from oci:${TESTDIR}/tmp/busybox_enc
-  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+  expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
-  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+  expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
   run_buildah from  --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
@@ -404,11 +404,11 @@ load helpers
 
   # Try encrypted image without key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+  expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+  expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
   run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest

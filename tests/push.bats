@@ -83,7 +83,7 @@ load helpers
   _prefetch busybox
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json busybox
-  expect_output --substring "busybox"
+  expect_output --substring "requested access to the resource is denied"
 }
 
 @test "push should fail with nonexistent authfile" {
