@@ -334,7 +334,7 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 		return errors.Wrapf(err, "failed to get container config")
 	}
 	// Other process resource limits
-	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits); err != nil {
+	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits.Get()); err != nil {
 		return err
 	}
 
@@ -575,7 +575,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get container config")
 	}
-	dnsSearch = append(defaultContainerConfig.Containers.DNSSearches, dnsSearch...)
+	dnsSearch = append(defaultContainerConfig.Containers.DNSSearches.Get(), dnsSearch...)
 	if len(dnsSearch) > 0 {
 		search = dnsSearch
 	}
@@ -589,7 +589,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		}
 	}
 
-	dnsServers = append(defaultContainerConfig.Containers.DNSServers, dnsServers...)
+	dnsServers = append(defaultContainerConfig.Containers.DNSServers.Get(), dnsServers...)
 	if len(dnsServers) != 0 {
 		dns, err := getDNSIP(dnsServers)
 		if err != nil {
@@ -601,7 +601,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		}
 	}
 
-	dnsOptions = append(defaultContainerConfig.Containers.DNSOptions, dnsOptions...)
+	dnsOptions = append(defaultContainerConfig.Containers.DNSOptions.Get(), dnsOptions...)
 	if len(dnsOptions) != 0 {
 		options = dnsOptions
 	}
