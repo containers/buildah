@@ -23,6 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/internal/blobinfocache"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/imagedestination/impl"
 	"go.podman.io/image/v5/internal/imagedestination/stubs"
 	"go.podman.io/image/v5/internal/iolimits"
@@ -705,6 +706,11 @@ func (d *dockerImageDestination) putSignaturesToSigstoreAttachments(ctx context.
 		return errors.New("writing sigstore attachments is disabled by configuration")
 	}
 
+	digestOptions, err := digests.CanonicalDefault().WithDefault(digest.Canonical) // FIXME: This is bad and redundant, but we ultimately want the choice to be provided by the caller; and this way it shows up on audit searches for digest.Canonical.
+	if err != nil {
+		return err
+	}
+
 	ociManifest, err := d.c.getSigstoreAttachmentManifest(ctx, d.ref, manifestDigest)
 	if err != nil {
 		return err
@@ -760,6 +766,7 @@ func (d *dockerImageDestination) putSignaturesToSigstoreAttachments(ctx context.
 			IsConfig:   false,
 			EmptyLayer: false,
 			LayerIndex: nil,
+			Digests:    digestOptions,
 		})
 		if err != nil {
 			return err
@@ -781,6 +788,7 @@ func (d *dockerImageDestination) putSignaturesToSigstoreAttachments(ctx context.
 		IsConfig:   true,
 		EmptyLayer: false,
 		LayerIndex: nil,
+		Digests:    digestOptions,
 	})
 	if err != nil {
 		return err

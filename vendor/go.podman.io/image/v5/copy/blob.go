@@ -101,6 +101,11 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 		Cache:      ic.c.blobInfoCache,
 		IsConfig:   isConfig,
 		EmptyLayer: emptyLayer,
+		Digests:    ic.c.options.digestOptions,
+		// CannotChangeDigestReason requires stream.info.Digest to always be set, and it is:
+		// If ic.cannotModifyManifestReason, stream.info was not modified since its initialization at the top of this
+		// function, and the caller is required to provide a digest.
+		CannotChangeDigestReason: ic.cannotModifyManifestReason,
 	}
 	if !isConfig {
 		options.LayerIndex = &layerIndex
