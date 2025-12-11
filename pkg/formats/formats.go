@@ -12,7 +12,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh/terminal"
+	terminal "golang.org/x/term"
 )
 
 const (

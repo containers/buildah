@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -108,7 +107,7 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 	if size < 0 {
 		// Create a temporary file and copy the content to it, so that
 		// we can figure out how much content there is.
-		f, err := ioutil.TempFile(mountpoint, "download")
+		f, err := os.CreateTemp(mountpoint, "download")
 		if err != nil {
 			return errors.Wrapf(err, "error creating temporary file to hold %q", src)
 		}

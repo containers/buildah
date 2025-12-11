@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -180,7 +179,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 
 	writer := options.ReportWriter
 	if options.Quiet {
-		writer = ioutil.Discard
+		writer = io.Discard
 	}
 
 	exec := Executor{
@@ -468,7 +467,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 	stdout := b.out
 	if b.quiet {
-		b.out = ioutil.Discard
+		b.out = io.Discard
 	}
 
 	cleanup := func() error {
@@ -677,7 +676,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if dest, err := b.resolveNameToImageRef(b.output); err == nil {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -688,7 +687,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
 			}
 			// Report back the caller the tags applied, if any.
-			img, err = is.Transport.GetStoreImage(b.store, dest)
+			img, err = is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -708,7 +707,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	}
 	logrus.Debugf("printing final image id %q", imageID)
 	if b.iidfile != "" {
-		if err = ioutil.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
+		if err = os.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
 			return imageID, ref, errors.Wrapf(err, "failed to write image ID to file %q", b.iidfile)
 		}
 	} else {

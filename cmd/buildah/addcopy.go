@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -271,7 +270,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 
 func parseDockerignore(ignoreFile string) ([]string, error) {
 	var excludes []string
-	ignore, err := ioutil.ReadFile(ignoreFile)
+	ignore, err := os.ReadFile(ignoreFile)
 	if err != nil {
 		return excludes, err
 	}

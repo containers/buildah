@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -372,7 +371,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	}
 
 	if iopts.Quiet {
-		options.ReportWriter = ioutil.Discard
+		options.ReportWriter = io.Discard
 	}
 
 	_, _, err = imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
