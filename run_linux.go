@@ -393,7 +393,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 				return nil, err
 			}
 			logrus.Debugf("populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
-			if err = extractWithTar(mountPoint, srcPath, volumePath); err != nil && !os.IsNotExist(errors.Cause(err)) {
+			if err = extractWithTar(mountPoint, srcPath, volumePath); err != nil && !os.IsNotExist(unwrapError(err)) {
 				return nil, errors.Wrapf(err, "error populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
 			}
 		}

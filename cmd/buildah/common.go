@@ -129,7 +129,7 @@ func setXDGRuntimeDir() error {
 func openBuilder(ctx context.Context, store storage.Store, name string) (builder *buildah.Builder, err error) {
 	if name != "" {
 		builder, err = buildah.OpenBuilder(store, name)
-		if os.IsNotExist(errors.Cause(err)) {
+		if os.IsNotExist(unwrapError(err)) {
 			options := buildah.ImportOptions{
 				Container: name,
 			}
@@ -297,4 +297,13 @@ Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
 {{end}}
 `
+}
+
+func unwrapError(err error) error {
+	e := errors.Cause(err)
+	for e != nil {
+		err = e
+		e = errors.Unwrap(err)
+	}
+	return err
 }

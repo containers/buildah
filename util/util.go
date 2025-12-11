@@ -1,6 +1,7 @@
 package util
 
 import (
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -244,6 +245,20 @@ func GetFailureCause(err, defaultError error) error {
 	case errcode.Error, *url.Error:
 		return nErr
 	default:
+		var (
+			errcodeErrors errcode.Errors
+			errcodeError  errcode.Error
+			urlError      *url.Error
+		)
+		if stderrors.As(err, &errcodeErrors) {
+			return errcodeErrors
+		}
+		if stderrors.As(err, &errcodeError) {
+			return errcodeError
+		}
+		if stderrors.As(err, &urlError) {
+			return urlError
+		}
 		return defaultError
 	}
 }

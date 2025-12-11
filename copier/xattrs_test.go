@@ -1,6 +1,7 @@
 package copier
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,7 +33,7 @@ func TestXattrs(t *testing.T) {
 			defer os.Remove(f.Name())
 
 			err = Lsetxattrs(f.Name(), map[string]string{attribute: value})
-			if unwrapError(err) == syscall.ENOTSUP {
+			if errors.Is(err, syscall.ENOTSUP) {
 				t.Skip(fmt.Sprintf("extended attributes not supported on %q, skipping", tmp))
 			}
 			if !assert.Nil(t, err, "error setting attribute on file: %v", err) {

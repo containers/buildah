@@ -1,6 +1,7 @@
 package main
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -178,7 +179,7 @@ func shutdownStore(cmd *cobra.Command) error {
 		logrus.Debugf("shutting down the store")
 		needToShutdownStore = false
 		if _, err = store.Shutdown(false); err != nil {
-			if errors.Cause(err) == storage.ErrLayerUsedByContainer {
+			if errors.Is(errors.Cause(err), storage.ErrLayerUsedByContainer) {
 				logrus.Infof("failed to shutdown storage: %q", err)
 			} else {
 				logrus.Warnf("failed to shutdown storage: %q", err)
@@ -226,7 +227,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 		exitCode := cli.ExecErrorCodeGeneric
-		if ee, ok := (errors.Cause(err)).(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if stderrors.As(errors.Cause(err), &ee) {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 				exitCode = w.ExitStatus()
 			}

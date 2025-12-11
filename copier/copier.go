@@ -1094,7 +1094,7 @@ func copierHandlerStat(req request, pm *fileutils.PatternMatcher) *response {
 }
 
 func errorIsPermission(err error) bool {
-	err = errors.Cause(err)
+	err = unwrapError(err)
 	if err == nil {
 		return false
 	}
@@ -1186,7 +1186,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 								return filepath.SkipDir
 							}
 							return nil
-						} else if os.IsNotExist(errors.Cause(err)) {
+						} else if os.IsNotExist(unwrapError(err)) {
 							logrus.Warningf("copier: file disappeared while reading: %q", path)
 							return nil
 						}
@@ -1244,7 +1244,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 					if err := copierHandlerGetOne(info, symlinkTarget, rel, path, options, tw, hardlinkChecker, idMappings); err != nil {
 						if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
 							return ok
-						} else if os.IsNotExist(errors.Cause(err)) {
+						} else if os.IsNotExist(unwrapError(err)) {
 							logrus.Warningf("copier: file disappeared while reading: %q", path)
 							return nil
 						}

@@ -63,7 +63,7 @@ EOM
 
   # bud test bad password should fail
   run_buildah 125 bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:badpassword
-  expect_output --substring "unauthorized: authentication required" \
+  expect_output --substring "authentication required" \
                 "buildah bud with wrong credentials"
 
   # bud test this should work
@@ -91,7 +91,7 @@ EOM
 
   # Push with wrong credentials: should fail
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --tls-verify=true --cert-dir=$BUILDAH_AUTHDIR --creds testuser:WRONGPASSWORD alpine localhost:5000/my-alpine
-  expect_output --substring "unauthorized: authentication required"
+  expect_output --substring "authentication required"
 
   # Make sure we can fetch it
   run_buildah from --pull-always --cert-dir=$BUILDAH_AUTHDIR --tls-verify=true --creds=testuser:testpassword localhost:5000/my-alpine

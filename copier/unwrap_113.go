@@ -1,10 +1,9 @@
+//go:build go113
 // +build go113
 
 package copier
 
 import (
-	stderror "errors"
-
 	"github.com/pkg/errors"
 )
 

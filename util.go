@@ -159,7 +159,7 @@ func ReserveSELinuxLabels(store storage.Store, id string) error {
 			} else {
 				b, err := OpenBuilder(store, c.ID)
 				if err != nil {
-					if os.IsNotExist(errors.Cause(err)) {
+					if os.IsNotExist(unwrapError(err)) {
 						// Ignore not exist errors since containers probably created by other tool
 						// TODO, we need to read other containers json data to reserve their SELinux labels
 						continue
@@ -222,4 +222,13 @@ func extractWithTar(root, src, dest string) error {
 		return errors.Wrapf(putErr, "error copying contents of %q to %q", src, dest)
 	}
 	return nil
+}
+
+func unwrapError(err error) error {
+	e := errors.Cause(err)
+	for e != nil {
+		err = e
+		e = errors.Unwrap(err)
+	}
+	return err
 }
