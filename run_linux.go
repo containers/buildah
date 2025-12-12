@@ -253,7 +253,7 @@ rootless=%d
 
 	defer func() {
 		if err := cleanupRunMounts(runMountTargets, mountPoint); err != nil {
-			options.Logger.Errorf("unabe to cleanup run mounts %v", err)
+			options.Logger.Errorf("unable to cleanup run mounts %v", err)
 		}
 	}()
 
@@ -1531,6 +1531,9 @@ func runUsingRuntimeMain() {
 	if err := json.NewDecoder(confPipe).Decode(&options); err != nil {
 		fmt.Fprintf(os.Stderr, "error decoding options: %v\n", err)
 		os.Exit(1)
+	}
+	if options.Options.Logger == nil {
+		options.Options.Logger = logrus.StandardLogger()
 	}
 	// Set ourselves up to read the container's exit status.  We're doing this in a child process
 	// so that we won't mess with the setting in a caller of the library.
