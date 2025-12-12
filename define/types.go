@@ -33,7 +33,7 @@ const (
 	// DefaultRuntime if containers.conf fails.
 	DefaultRuntime = "runc"
 
-	DefaultCNIPluginPath = "/usr/libexec/cni:/opt/cni/bin"
+	DefaultCNIPluginPath = "/usr/libexec/cni:/usr/lib/cni:opt/cni/bin"
 	// DefaultCNIConfigDir is the default location of CNI configuration files.
 	DefaultCNIConfigDir = "/etc/cni/net.d"
 
