@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.39.7 (2025-12-11)
+
+    [release-1.39] Bump runc to v1.2.9
+
 ## v1.39.6 (2025-11-18)
 
     CI: run integration tests on Fedora with both crun and runc
