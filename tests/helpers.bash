@@ -343,6 +343,31 @@ function check_options_flag_err() {
     [[ $output = *"No options ($flag) can be specified after"* ]]
 }
 
+#################
+#  is_rootless  #  Check if we run as normal user
+#################
+function is_rootless() {
+    [ "$(id -u)" -ne 0 ]
+}
+
+#################################
+#  skip_if_rootless_environment # `mount` or its variant needs unshare
+#################################
+function skip_if_rootless_environment() {
+    if is_rootless; then
+        skip "${1:-test is being invoked from rootless environment and might need unshare}"
+    fi
+}
+
+#################################
+#  skip_if_root_environment     #
+#################################
+function skip_if_root_environment() {
+    if ! is_rootless; then
+        skip "${1:-test is being invoked from root environment}"
+    fi
+}
+
 ####################
 #  skip_if_chroot  #
 ####################
@@ -416,6 +441,12 @@ function start_git_daemon() {
   daemondir=${TESTDIR}/git-daemon
   mkdir -p ${daemondir}/repo
   gzip -dc < ${1:-${TESTSDIR}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
+
+  # git >=2.45 aborts with "dubious ownership" error if serving other user's files as root
+  if ! is_rootless; then
+      chown -R root:root ${daemondir}/repo
+  fi
+
   GITPORT=$(($RANDOM + 32768))
   git daemon --detach --pid-file=${TESTDIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
 }
