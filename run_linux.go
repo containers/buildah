@@ -949,8 +949,9 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 			return 1, errors.Wrapf(err, "error parsing container state %q from %s", string(stateOutput), runtime)
 		}
 		switch state.Status {
-		case "running":
-		case "stopped":
+		case specs.StateCreating, specs.StateCreated, specs.StateRunning:
+			// all fine
+		case specs.StateStopped:
 			stopped = true
 		default:
 			return 1, errors.Errorf("container status unexpectedly changed to %q", state.Status)
