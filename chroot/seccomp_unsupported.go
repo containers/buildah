@@ -13,3 +13,7 @@ func setSeccomp(spec *specs.Spec) error {
 	}
 	return nil
 }
+
+func overrideDefaultSeccompProfile(spec *specs.Spec) error {
+	return nil
+}

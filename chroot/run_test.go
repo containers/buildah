@@ -90,6 +90,9 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	if err := os.Chown(rootDir, int(uid), int(gid)); err != nil {
 		t.Fatalf("os.Chown(%q): %v", rootDir, err)
 	}
+	if err = overrideDefaultSeccompProfile(g.Config); err != nil {
+		t.Fatalf("overriding default seccomp profile to match our default: %v", err)
+	}
 
 	output := new(bytes.Buffer)
 	if err := RunUsingChroot(g.Config, bundleDir, "/", new(bytes.Buffer), output, output); err != nil {

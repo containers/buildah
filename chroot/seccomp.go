@@ -3,6 +3,7 @@
 package chroot
 
 import (
+	"github.com/containers/common/pkg/seccomp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	libseccomp "github.com/seccomp/libseccomp-golang"
@@ -169,5 +170,14 @@ func setSeccomp(spec *specs.Spec) error {
 	if err != nil {
 		return errors.Wrapf(err, "error activating seccomp filter")
 	}
+	return nil
+}
+
+func overrideDefaultSeccompProfile(spec *specs.Spec) error {
+	profile, err := seccomp.GetDefaultProfile(spec)
+	if err != nil {
+		return err
+	}
+	spec.Linux.Seccomp = profile
 	return nil
 }
