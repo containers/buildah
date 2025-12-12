@@ -317,8 +317,8 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run --net=container $cid -- cat /etc/hosts
-  expect_output --substring "127.0.0.1 +localhost"
+  run_buildah run --net=container $cid -- sed -E 's,([\t ])+, ,g' /etc/hosts
+  expect_output --substring "127.0.0.1 localhost"
 }
 
 @test "from name test" {
