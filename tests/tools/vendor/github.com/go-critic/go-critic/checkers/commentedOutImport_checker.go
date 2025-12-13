@@ -5,14 +5,14 @@ import (
 	"go/token"
 	"regexp"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "commentedOutImport"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects commented-out imports"
 	info.Before = `
 import (
@@ -24,24 +24,24 @@ import (
 	"fmt"
 )`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		const pattern = `(?m)^(?://|/\*)?\s*"([a-zA-Z0-9_/]+)"\s*(?:\*/)?$`
 		return &commentedOutImportChecker{
 			ctx:            ctx,
 			importStringRE: regexp.MustCompile(pattern),
-		}
+		}, nil
 	})
 }
 
 type commentedOutImportChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	importStringRE *regexp.Regexp
 }
 
 func (c *commentedOutImportChecker) WalkFile(f *ast.File) {
-	// TODO(Quasilyte): handle commented-out import spec,
+	// TODO(quasilyte): handle commented-out import spec,
 	// for example: // import "errors".
 
 	for _, decl := range f.Decls {

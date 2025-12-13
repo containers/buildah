@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package chroot
@@ -7,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,10 +17,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"unsafe"
 
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/internal/pty"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/mount"
@@ -31,8 +31,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/gocapability/capability"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
+	terminal "golang.org/x/term"
 )
 
 const (
@@ -229,38 +229,10 @@ func runUsingChrootMain() {
 	var stderr io.Writer
 	fdDesc := make(map[int]string)
 	if options.Spec.Process.Terminal {
-		// Create a pseudo-terminal -- open a copy of the master side.
-		ptyMasterFd, err := unix.Open("/dev/ptmx", os.O_RDWR, 0600)
+		ptyMasterFd, ptyFd, err := pty.GetPtyDescriptors()
 		if err != nil {
-			logrus.Errorf("error opening PTY master using /dev/ptmx: %v", err)
+			logrus.Errorf("error opening PTY descriptors: %v", err)
 			os.Exit(1)
-		}
-		// Set the kernel's lock to "unlocked".
-		locked := 0
-		if result, _, err := unix.Syscall(unix.SYS_IOCTL, uintptr(ptyMasterFd), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&locked))); int(result) == -1 {
-			logrus.Errorf("error locking PTY descriptor: %v", err)
-			os.Exit(1)
-		}
-		// Get a handle for the other end.
-		ptyFd, _, err := unix.Syscall(unix.SYS_IOCTL, uintptr(ptyMasterFd), unix.TIOCGPTPEER, unix.O_RDWR|unix.O_NOCTTY)
-		if int(ptyFd) == -1 {
-			if errno, isErrno := err.(syscall.Errno); !isErrno || (errno != syscall.EINVAL && errno != syscall.ENOTTY) {
-				logrus.Errorf("error getting PTY descriptor: %v", err)
-				os.Exit(1)
-			}
-			// EINVAL means the kernel's too old to understand TIOCGPTPEER.  Try TIOCGPTN.
-			ptyN, err := unix.IoctlGetInt(ptyMasterFd, unix.TIOCGPTN)
-			if err != nil {
-				logrus.Errorf("error getting PTY number: %v", err)
-				os.Exit(1)
-			}
-			ptyName := fmt.Sprintf("/dev/pts/%d", ptyN)
-			fd, err := unix.Open(ptyName, unix.O_RDWR|unix.O_NOCTTY, 0620)
-			if err != nil {
-				logrus.Errorf("error opening PTY %q: %v", ptyName, err)
-				os.Exit(1)
-			}
-			ptyFd = uintptr(fd)
 		}
 		// Make notes about what's going where.
 		relays[ptyMasterFd] = unix.Stdout
@@ -294,7 +266,7 @@ func runUsingChrootMain() {
 			// receive a SIGWINCH.
 		}
 		// Open an *os.File object that we can pass to our child.
-		ctty = os.NewFile(ptyFd, "/dev/tty")
+		ctty = os.NewFile(uintptr(ptyFd), "/dev/tty")
 		// Set ownership for the PTY.
 		if err = ctty.Chown(rootUID, rootGID); err != nil {
 			var cttyInfo unix.Stat_t
@@ -753,7 +725,7 @@ func runUsingChrootExecMain() {
 			os.Exit(1)
 		}
 	} else {
-		setgroups, _ := ioutil.ReadFile("/proc/self/setgroups")
+		setgroups, _ := os.ReadFile("/proc/self/setgroups")
 		if strings.Trim(string(setgroups), "\n") != "deny" {
 			logrus.Debugf("clearing supplemental groups")
 			if err = syscall.Setgroups([]int{}); err != nil {
@@ -883,11 +855,14 @@ func setApparmorProfile(spec *specs.Spec) error {
 
 // setCapabilities sets capabilities for ourselves, to be more or less inherited by any processes that we'll start.
 func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
-	currentCaps, err := capability.NewPid(0)
+	currentCaps, err := capability.NewPid2(0)
 	if err != nil {
 		return errors.Wrapf(err, "error reading capabilities of current process")
 	}
-	caps, err := capability.NewPid(0)
+	if err = currentCaps.Load(); err != nil {
+		return errors.Wrapf(err, "error reading capabilities of current process")
+	}
+	caps, err := capability.NewPid2(0)
 	if err != nil {
 		return errors.Wrapf(err, "error reading capabilities of current process")
 	}
@@ -896,33 +871,34 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 		capability.EFFECTIVE:   spec.Process.Capabilities.Effective,
 		capability.INHERITABLE: {},
 		capability.PERMITTED:   spec.Process.Capabilities.Permitted,
-		capability.AMBIENT:     spec.Process.Capabilities.Ambient,
+		capability.AMBIENT:     {},
 	}
 	knownCaps := capability.List()
+	noCap := capability.Cap(-1)
 	caps.Clear(capability.CAPS | capability.BOUNDS | capability.AMBS)
 	for capType, capList := range capMap {
 		for _, capToSet := range capList {
-			cap := capability.CAP_LAST_CAP
+			cap := noCap
 			for _, c := range knownCaps {
 				if strings.EqualFold("CAP_"+c.String(), capToSet) {
 					cap = c
 					break
 				}
 			}
-			if cap == capability.CAP_LAST_CAP {
+			if cap == noCap {
 				return errors.Errorf("error mapping capability %q to a number", capToSet)
 			}
 			caps.Set(capType, cap)
 		}
 		for _, capToSet := range keepCaps {
-			cap := capability.CAP_LAST_CAP
+			cap := noCap
 			for _, c := range knownCaps {
 				if strings.EqualFold("CAP_"+c.String(), capToSet) {
 					cap = c
 					break
 				}
 			}
-			if cap == capability.CAP_LAST_CAP {
+			if cap == noCap {
 				return errors.Errorf("error mapping capability %q to a number", capToSet)
 			}
 			if currentCaps.Get(capType, cap) {

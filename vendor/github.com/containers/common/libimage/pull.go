@@ -1,16 +1,24 @@
+//go:build !remote
+// +build !remote
+
 package libimage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/containers/common/pkg/config"
 	registryTransport "github.com/containers/image/v5/docker"
 	dockerArchiveTransport "github.com/containers/image/v5/docker/archive"
+	dockerDaemonTransport "github.com/containers/image/v5/docker/daemon"
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/manifest"
 	ociArchiveTransport "github.com/containers/image/v5/oci/archive"
 	ociTransport "github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/pkg/shortnames"
@@ -18,7 +26,8 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
-	"github.com/pkg/errors"
+	digest "github.com/opencontainers/go-digest"
+	ociSpec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -55,18 +64,37 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 	var possiblyUnqualifiedName string // used for short-name resolution
 	ref, err := alltransports.ParseImageName(name)
 	if err != nil {
+		// Check whether `name` points to a transport.  If so, we
+		// return the error.  Otherwise we assume that `name` refers to
+		// an image on a registry (e.g., "fedora").
+		//
+		// NOTE: the `docker` transport is an exception to support a
+		// `pull docker:latest` which would otherwise return an error.
+		if t := alltransports.TransportFromImageName(name); t != nil && t.Name() != registryTransport.Transport.Name() {
+			return nil, err
+		}
+
 		// If the image clearly refers to a local one, we can look it up directly.
 		// In fact, we need to since they are not parseable.
 		if strings.HasPrefix(name, "sha256:") || (len(name) == 64 && !strings.ContainsAny(name, "/.:@")) {
 			if pullPolicy == config.PullPolicyAlways {
-				return nil, errors.Errorf("pull policy is always but image has been referred to by ID (%s)", name)
+				return nil, fmt.Errorf("pull policy is always but image has been referred to by ID (%s)", name)
 			}
-			local, _, err := r.LookupImage(name, &LookupImageOptions{IgnorePlatform: true})
+			local, _, err := r.LookupImage(name, nil)
 			if err != nil {
 				return nil, err
 			}
 			return []*Image{local}, err
 		}
+
+		// Docker compat: strip off the tag iff name is tagged and digested
+		// (e.g., fedora:latest@sha256...).  In that case, the tag is stripped
+		// off and entirely ignored.  The digest is the sole source of truth.
+		normalizedName, _, normalizeError := normalizeTaggedDigestedString(name)
+		if normalizeError != nil {
+			return nil, normalizeError
+		}
+		name = normalizedName
 
 		// If the input does not include a transport assume it refers
 		// to a registry.
@@ -89,11 +117,7 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 	}
 
 	if options.AllTags && ref.Transport().Name() != registryTransport.Transport.Name() {
-		return nil, errors.Errorf("pulling all tags is not supported for %s transport", ref.Transport().Name())
-	}
-
-	if r.eventChannel != nil {
-		defer r.writeEvent(&Event{ID: "", Name: name, Time: time.Now(), Type: EventTypeImagePull})
+		return nil, fmt.Errorf("pulling all tags is not supported for %s transport", ref.Transport().Name())
 	}
 
 	// Some callers may set the platform via the system context at creation
@@ -117,7 +141,6 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 
 	// Dispatch the copy operation.
 	switch ref.Transport().Name() {
-
 	// DOCKER REGISTRY
 	case registryTransport.Transport.Name():
 		pulledImages, pullError = r.copyFromRegistry(ctx, ref, possiblyUnqualifiedName, pullPolicy, options)
@@ -136,15 +159,53 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 	}
 
 	localImages := []*Image{}
-	for _, name := range pulledImages {
-		local, _, err := r.LookupImage(name, &LookupImageOptions{IgnorePlatform: true})
+	for _, iName := range pulledImages {
+		image, _, err := r.LookupImage(iName, nil)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error locating pulled image %q name in containers storage", name)
+			return nil, fmt.Errorf("locating pulled image %q name in containers storage: %w", iName, err)
 		}
-		localImages = append(localImages, local)
+
+		// Note that we can ignore the 2nd return value here. Some
+		// images may ship with "wrong" platform, but we already warn
+		// about it. Throwing an error is not (yet) the plan.
+		matchError, _, err := image.matchesPlatform(ctx, options.OS, options.Architecture, options.Variant)
+		if err != nil {
+			return nil, fmt.Errorf("checking platform of image %s: %w", name, err)
+		}
+
+		// If the image does not match the expected/requested platform,
+		// make sure to leave some breadcrumbs for the user.
+		if matchError != nil {
+			if options.Writer == nil {
+				logrus.Warnf("%v", matchError)
+			} else {
+				fmt.Fprintf(options.Writer, "WARNING: %v\n", matchError)
+			}
+		}
+
+		if r.eventChannel != nil {
+			// Note that we use the input name here to preserve the transport data.
+			r.writeEvent(&Event{ID: image.ID(), Name: name, Time: time.Now(), Type: EventTypeImagePull})
+		}
+
+		localImages = append(localImages, image)
 	}
 
 	return localImages, pullError
+}
+
+// nameFromAnnotations returns a reference string to be used as an image name,
+// or an empty string.  The annotations map may be nil.
+func nameFromAnnotations(annotations map[string]string) string {
+	if annotations == nil {
+		return ""
+	}
+	// buildkit/containerd are using a custom annotation see
+	// containers/podman/issues/12560.
+	if annotations["io.containerd.image.name"] != "" {
+		return annotations["io.containerd.image.name"]
+	}
+	return annotations[ociSpec.AnnotationRefName]
 }
 
 // copyFromDefault is the default copier for a number of transports.  Other
@@ -159,26 +220,45 @@ func (r *Runtime) copyFromDefault(ctx context.Context, ref types.ImageReference,
 	// Figure out a name for the storage destination.
 	var storageName, imageName string
 	switch ref.Transport().Name() {
-
-	case ociTransport.Transport.Name():
-		split := strings.SplitN(ref.StringWithinTransport(), ":", 2)
-		storageName = toLocalImageName(split[0])
-		imageName = storageName
-
-	case ociArchiveTransport.Transport.Name():
-		manifest, err := ociArchiveTransport.LoadManifestDescriptor(ref)
+	case dockerDaemonTransport.Transport.Name():
+		// Normalize to docker.io if needed (see containers/podman/issues/10998).
+		named, err := reference.ParseNormalizedNamed(ref.StringWithinTransport())
 		if err != nil {
 			return nil, err
 		}
-		// if index.json has no reference name, compute the image digest instead
-		if manifest.Annotations == nil || manifest.Annotations["org.opencontainers.image.ref.name"] == "" {
-			storageName, err = getImageDigest(ctx, ref, nil)
+		imageName = named.String()
+		storageName = imageName
+
+	case ociTransport.Transport.Name():
+		split := strings.SplitN(ref.StringWithinTransport(), ":", 2)
+		if len(split) == 1 || split[1] == "" {
+			// Same trick as for the dir transport: we cannot use
+			// the path to a directory as the name.
+			storageName, err = getImageID(ctx, ref, nil)
 			if err != nil {
 				return nil, err
 			}
 			imageName = "sha256:" + storageName[1:]
-		} else {
-			storageName = manifest.Annotations["org.opencontainers.image.ref.name"]
+		} else { // If the OCI-reference includes an image reference, use it
+			storageName = split[1]
+			imageName = storageName
+		}
+
+	case ociArchiveTransport.Transport.Name():
+		manifestDescriptor, err := ociArchiveTransport.LoadManifestDescriptorWithContext(r.SystemContext(), ref)
+		if err != nil {
+			return nil, err
+		}
+		storageName = nameFromAnnotations(manifestDescriptor.Annotations)
+		switch len(storageName) {
+		case 0:
+			// If there's no reference name in the annotations, compute an ID.
+			storageName, err = getImageID(ctx, ref, nil)
+			if err != nil {
+				return nil, err
+			}
+			imageName = "sha256:" + storageName[1:]
+		default:
 			named, err := NormalizeName(storageName)
 			if err != nil {
 				return nil, err
@@ -191,19 +271,25 @@ func (r *Runtime) copyFromDefault(ctx context.Context, ref types.ImageReference,
 		storageName = ref.StringWithinTransport()
 		named := ref.DockerReference()
 		if named == nil {
-			return nil, errors.Errorf("could not get an image name for storage reference %q", ref)
+			return nil, fmt.Errorf("could not get an image name for storage reference %q", ref)
 		}
 		imageName = named.String()
 
 	default:
-		storageName = toLocalImageName(ref.StringWithinTransport())
-		imageName = storageName
+		// Path-based transports (e.g., dir) may include invalid
+		// characters, so we should pessimistically generate an ID
+		// instead of looking at the StringWithinTransport().
+		storageName, err = getImageID(ctx, ref, nil)
+		if err != nil {
+			return nil, err
+		}
+		imageName = "sha256:" + storageName[1:]
 	}
 
 	// Create a storage reference.
 	destRef, err := storageTransport.Transport.ParseStoreReference(r.store, storageName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parsing %q", storageName)
+		return nil, fmt.Errorf("parsing %q: %w", storageName, err)
 	}
 
 	_, err = c.copy(ctx, ref, destRef)
@@ -222,7 +308,7 @@ func (r *Runtime) storageReferencesReferencesFromArchiveReader(ctx context.Conte
 
 	var imageNames []string
 	if len(destNames) == 0 {
-		destName, err := getImageDigest(ctx, readerRef, &r.systemContext)
+		destName, err := getImageID(ctx, readerRef, &r.systemContext)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -245,7 +331,7 @@ func (r *Runtime) storageReferencesReferencesFromArchiveReader(ctx context.Conte
 	for _, destName := range destNames {
 		destRef, err := storageTransport.Transport.ParseStoreReference(r.store, destName)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "error parsing dest reference name %#v", destName)
+			return nil, nil, fmt.Errorf("parsing dest reference name %#v: %w", destName, err)
 		}
 		references = append(references, destRef)
 	}
@@ -261,6 +347,11 @@ func (r *Runtime) copyFromDockerArchive(ctx context.Context, ref types.ImageRefe
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err := reader.Close(); err != nil {
+			logrus.Errorf("Closing reader of docker archive: %v", err)
+		}
+	}()
 
 	return r.copyFromDockerArchiveReaderReference(ctx, reader, readerRef, options)
 }
@@ -290,8 +381,8 @@ func (r *Runtime) copyFromDockerArchiveReaderReference(ctx context.Context, read
 }
 
 // copyFromRegistry pulls the specified, possibly unqualified, name from a
-// registry.  On successful pull it returns the used fully-qualified name that
-// can later be used to look up the image in the local containers storage.
+// registry.  On successful pull it returns the ID of the image in local
+// storage.
 //
 // If options.All is set, all tags from the specified registry will be pulled.
 func (r *Runtime) copyFromRegistry(ctx context.Context, ref types.ImageReference, inputName string, pullPolicy config.PullPolicy, options *PullOptions) ([]string, error) {
@@ -304,37 +395,86 @@ func (r *Runtime) copyFromRegistry(ctx context.Context, ref types.ImageReference
 		return r.copySingleImageFromRegistry(ctx, inputName, pullPolicy, options)
 	}
 
+	// Copy all tags
 	named := reference.TrimNamed(ref.DockerReference())
 	tags, err := registryTransport.GetRepositoryTags(ctx, &r.systemContext, ref)
 	if err != nil {
 		return nil, err
 	}
 
-	pulledTags := []string{}
+	pulledIDs := []string{}
 	for _, tag := range tags {
 		select { // Let's be gentle with Podman remote.
 		case <-ctx.Done():
-			return nil, errors.Errorf("pulling cancelled")
+			return nil, fmt.Errorf("pulling cancelled")
 		default:
 			// We can continue.
 		}
 		tagged, err := reference.WithTag(named, tag)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error creating tagged reference (name %s, tag %s)", named.String(), tag)
+			return nil, fmt.Errorf("creating tagged reference (name %s, tag %s): %w", named.String(), tag, err)
 		}
 		pulled, err := r.copySingleImageFromRegistry(ctx, tagged.String(), pullPolicy, options)
 		if err != nil {
 			return nil, err
 		}
-		pulledTags = append(pulledTags, pulled...)
+		pulledIDs = append(pulledIDs, pulled...)
 	}
 
-	return pulledTags, nil
+	return pulledIDs, nil
+}
+
+// imageIDsForManifest() parses the manifest of the copied image and then looks
+// up the IDs of the matching image.  There's a small slice of time, between
+// when we copy the image into local storage and when we go to look for it
+// using the name that we gave it when we copied it, when the name we wanted to
+// assign to the image could have been moved, but the image's ID will remain
+// the same until it is deleted.
+func (r *Runtime) imagesIDsForManifest(manifestBytes []byte, sys *types.SystemContext) ([]string, error) {
+	var imageDigest digest.Digest
+	manifestType := manifest.GuessMIMEType(manifestBytes)
+	if manifest.MIMETypeIsMultiImage(manifestType) {
+		list, err := manifest.ListFromBlob(manifestBytes, manifestType)
+		if err != nil {
+			return nil, fmt.Errorf("parsing manifest list: %w", err)
+		}
+		d, err := list.ChooseInstance(sys)
+		if err != nil {
+			return nil, fmt.Errorf("choosing instance from manifest list: %w", err)
+		}
+		imageDigest = d
+	} else {
+		d, err := manifest.Digest(manifestBytes)
+		if err != nil {
+			return nil, fmt.Errorf("digesting manifest")
+		}
+		imageDigest = d
+	}
+	images, err := r.store.ImagesByDigest(imageDigest)
+	if err != nil {
+		return nil, fmt.Errorf("listing images by manifest digest: %w", err)
+	}
+
+	// If you have additionStores defined and the same image stored in
+	// both storage and additional store, it can be output twice.
+	// Fixes github.com/containers/podman/issues/18647
+	results := []string{}
+	imageMap := map[string]bool{}
+	for _, image := range images {
+		if imageMap[image.ID] {
+			continue
+		}
+		imageMap[image.ID] = true
+		results = append(results, image.ID)
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("identifying new image by manifest digest: %w", storage.ErrImageUnknown)
+	}
+	return results, nil
 }
 
 // copySingleImageFromRegistry pulls the specified, possibly unqualified, name
-// from a registry.  On successful pull it returns the used fully-qualified
-// name that can later be used to look up the image in the local containers
+// from a registry.  On successful pull it returns the ID of the image in local
 // storage.
 func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName string, pullPolicy config.PullPolicy, options *PullOptions) ([]string, error) { //nolint:gocyclo
 	// Sanity check.
@@ -348,20 +488,24 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 		err               error
 	)
 
-	// Always check if there's a local image.  If, we should use it's
+	// Always check if there's a local image.  If so, we should use its
 	// resolved name for pulling.  Assume we're doing a `pull foo`.
 	// If there's already a local image "localhost/foo", then we should
 	// attempt pulling that instead of doing the full short-name dance.
-	lookupOptions := &LookupImageOptions{
-		// NOTE: we must ignore the platform of a local image when
-		// doing lookups.  Some images set an incorrect or even invalid
-		// platform (see containers/podman/issues/10682).  Doing the
-		// lookup while ignoring the platform checks prevents
-		// redundantly downloading the same image.
-		IgnorePlatform: true,
+	//
+	// NOTE that we only do platform checks if the specified values differ
+	// from the local platform. Unfortunately, there are many images used
+	// in the wild which don't set the correct value(s) in the config
+	// causing various issues such as containers/podman/issues/10682.
+	lookupImageOptions := &LookupImageOptions{Variant: options.Variant}
+	if options.Architecture != runtime.GOARCH {
+		lookupImageOptions.Architecture = options.Architecture
 	}
-	localImage, resolvedImageName, err = r.LookupImage(imageName, lookupOptions)
-	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
+	if options.OS != runtime.GOOS {
+		lookupImageOptions.OS = options.OS
+	}
+	localImage, resolvedImageName, err = r.LookupImage(imageName, lookupImageOptions)
+	if err != nil && !errors.Is(err, storage.ErrImageUnknown) {
 		logrus.Errorf("Looking up %s in local storage: %v", imageName, err)
 	}
 
@@ -373,46 +517,27 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 		}
 	}
 
-	customPlatform := false
-	if len(options.Architecture)+len(options.OS)+len(options.Variant) > 0 {
-		customPlatform = true
-		// Unless the pull policy is "always", we must pessimistically assume
-		// that the local image has an invalid architecture (see
-		// containers/podman/issues/10682).  Hence, whenever the user requests
-		// a custom platform, set the pull policy to "always" to make sure
-		// we're pulling down the image.
+	customPlatform := len(options.Architecture)+len(options.OS)+len(options.Variant) > 0
+	if customPlatform && pullPolicy != config.PullPolicyAlways && pullPolicy != config.PullPolicyNever {
+		// Unless the pull policy is always/never, we must
+		// pessimistically assume that the local image has an invalid
+		// architecture (see containers/podman/issues/10682).  Hence,
+		// whenever the user requests a custom platform, set the pull
+		// policy to "newer" to make sure we're pulling down the
+		// correct image.
 		//
-		// NOTE that this is will even override --pull={false,never}.  This is
-		// very likely a bug but a consistent one in Podman/Buildah and should
-		// be addressed at a later point.
-		if pullPolicy != config.PullPolicyAlways {
-			switch {
-			// User input clearly refer to a local image.
-			case strings.HasPrefix(imageName, "localhost/"):
-				logrus.Debugf("Enforcing pull policy to %q to support custom platform (arch: %q, os: %q, variant: %q)", "never", options.Architecture, options.OS, options.Variant)
-				pullPolicy = config.PullPolicyNever
-
-			// Image resolved to a local one, so let's still have a
-			// look at the registries or aliases but use it
-			// otherwise.
-			case strings.HasPrefix(resolvedImageName, "localhost/"):
-				logrus.Debugf("Enforcing pull policy to %q to support custom platform (arch: %q, os: %q, variant: %q)", "newer", options.Architecture, options.OS, options.Variant)
-				pullPolicy = config.PullPolicyNewer
-
-			default:
-				logrus.Debugf("Enforcing pull policy to %q to support custom platform (arch: %q, os: %q, variant: %q)", "always", options.Architecture, options.OS, options.Variant)
-				pullPolicy = config.PullPolicyAlways
-			}
-		}
+		// NOTE that this is will even override --pull={false,never}.
+		pullPolicy = config.PullPolicyNewer
+		logrus.Debugf("Enforcing pull policy to %q to pull custom platform (arch: %q, os: %q, variant: %q) - local image may mistakenly specify wrong platform", pullPolicy, options.Architecture, options.OS, options.Variant)
 	}
 
 	if pullPolicy == config.PullPolicyNever {
 		if localImage != nil {
-			logrus.Debugf("Pull policy %q but no local image has been found for %s", pullPolicy, imageName)
+			logrus.Debugf("Pull policy %q and %s resolved to local image %s", pullPolicy, imageName, resolvedImageName)
 			return []string{resolvedImageName}, nil
 		}
-		logrus.Debugf("Pull policy %q and %s resolved to local image %s", pullPolicy, imageName, resolvedImageName)
-		return nil, errors.Wrap(storage.ErrImageUnknown, imageName)
+		logrus.Debugf("Pull policy %q but no local image has been found for %s", pullPolicy, imageName)
+		return nil, fmt.Errorf("%s: %w", imageName, storage.ErrImageUnknown)
 	}
 
 	if pullPolicy == config.PullPolicyMissing && localImage != nil {
@@ -423,13 +548,13 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	if localImage != nil && strings.HasPrefix(localImage.ID(), imageName) {
 		switch pullPolicy {
 		case config.PullPolicyAlways:
-			return nil, errors.Errorf("pull policy is always but image has been referred to by ID (%s)", imageName)
+			return nil, fmt.Errorf("pull policy is always but image has been referred to by ID (%s)", imageName)
 		default:
 			return []string{resolvedImageName}, nil
 		}
 	}
 
-	// If we found a local image, we should use it's locally resolved name
+	// If we found a local image, we should use its locally resolved name
 	// (see containers/buildah/issues/2904).  An exception is if a custom
 	// platform is specified (e.g., `--arch=arm64`).  In that case, we need
 	// to pessimistically pull the image since some images declare wrong
@@ -437,7 +562,8 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	// containers/podman/issues/10682).
 	//
 	// In other words: multi-arch support can only be as good as the images
-	// in the wild.
+	// in the wild, so we shouldn't break things for our users by trying to
+	// insist that they make sense.
 	if localImage != nil && !customPlatform {
 		if imageName != resolvedImageName {
 			logrus.Debugf("Image %s resolved to local image %s which will be used for pulling", imageName, resolvedImageName)
@@ -448,6 +574,9 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	sys := r.systemContextCopy()
 	resolved, err := shortnames.Resolve(sys, imageName)
 	if err != nil {
+		if localImage != nil && pullPolicy == config.PullPolicyNewer {
+			return []string{resolvedImageName}, nil
+		}
 		return nil, err
 	}
 
@@ -475,6 +604,9 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 		return nil
 	}
 
+	if socketPath, ok := os.LookupEnv("NOTIFY_SOCKET"); ok {
+		options.extendTimeoutSocket = socketPath
+	}
 	c, err := r.newCopier(&options.CopyOptions)
 	if err != nil {
 		return nil, err
@@ -491,7 +623,7 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 		}
 
 		if pullPolicy == config.PullPolicyNewer && localImage != nil {
-			isNewer, err := localImage.HasDifferentDigest(ctx, srcRef)
+			isNewer, err := localImage.hasDifferentDigestWithSystemContext(ctx, srcRef, c.systemContext)
 			if err != nil {
 				pullErrors = append(pullErrors, err)
 				continue
@@ -516,7 +648,8 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 				return nil, err
 			}
 		}
-		if _, err := c.copy(ctx, srcRef, destRef); err != nil {
+		var manifestBytes []byte
+		if manifestBytes, err = c.copy(ctx, srcRef, destRef); err != nil {
 			logrus.Debugf("Error pulling candidate %s: %v", candidateString, err)
 			pullErrors = append(pullErrors, err)
 			continue
@@ -529,6 +662,9 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 		}
 
 		logrus.Debugf("Pulled candidate %s successfully", candidateString)
+		if ids, err := r.imagesIDsForManifest(manifestBytes, sys); err == nil {
+			return ids, nil
+		}
 		return []string{candidate.Value.String()}, nil
 	}
 
@@ -537,7 +673,7 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	}
 
 	if len(pullErrors) == 0 {
-		return nil, errors.Errorf("internal error: no image pulled (pull policy %s)", pullPolicy)
+		return nil, fmt.Errorf("internal error: no image pulled (pull policy %s)", pullPolicy)
 	}
 
 	return nil, resolved.FormatPullErrors(pullErrors)

@@ -20,7 +20,6 @@ var basicFunctions = template.FuncMap{
 	},
 	"split":    strings.Split,
 	"join":     strings.Join,
-	"title":    strings.Title,
 	"lower":    strings.ToLower,
 	"upper":    strings.ToUpper,
 	"pad":      padWithSpace,
@@ -33,9 +32,6 @@ var basicFunctions = template.FuncMap{
 // Some functions like `split` are irrelevant so not added.
 var headerFunctions = template.FuncMap{
 	"json": func(v string) string {
-		return v
-	},
-	"title": func(v string) string {
 		return v
 	},
 	"lower": func(v string) string {

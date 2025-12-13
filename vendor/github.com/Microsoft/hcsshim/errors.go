@@ -1,3 +1,5 @@
+//go:build windows
+
 package hcsshim
 
 import (
@@ -50,6 +52,9 @@ var (
 	// ErrUnexpectedValue is an error encountered when hcs returns an invalid value
 	ErrUnexpectedValue = hcs.ErrUnexpectedValue
 
+	// ErrOperationDenied is an error when hcs attempts an operation that is explicitly denied
+	ErrOperationDenied = hcs.ErrOperationDenied
+
 	// ErrVmcomputeAlreadyStopped is an error encountered when a shutdown or terminate request is made on a stopped container
 	ErrVmcomputeAlreadyStopped = hcs.ErrVmcomputeAlreadyStopped
 
@@ -59,7 +64,7 @@ var (
 	// ErrVmcomputeOperationInvalidState is an error encountered when the compute system is not in a valid state for the requested operation
 	ErrVmcomputeOperationInvalidState = hcs.ErrVmcomputeOperationInvalidState
 
-	// ErrProcNotFound is an error encountered when the the process cannot be found
+	// ErrProcNotFound is an error encountered when a procedure look up fails.
 	ErrProcNotFound = hcs.ErrProcNotFound
 
 	// ErrVmcomputeOperationAccessIsDenied is an error which can be encountered when enumerating compute systems in RS1/RS2
@@ -159,7 +164,7 @@ func (e *ProcessError) Error() string {
 // IsNotExist checks if an error is caused by the Container or Process not existing.
 // Note: Currently, ErrElementNotFound can mean that a Process has either
 // already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
-// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+// will currently return true when the error is ErrElementNotFound.
 func IsNotExist(err error) bool {
 	if _, ok := err.(EndpointNotFoundError); ok {
 		return true
@@ -192,7 +197,7 @@ func IsTimeout(err error) bool {
 // a Container or Process being already stopped.
 // Note: Currently, ErrElementNotFound can mean that a Process has either
 // already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
-// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+// will currently return true when the error is ErrElementNotFound.
 func IsAlreadyStopped(err error) bool {
 	return hcs.IsAlreadyStopped(getInnerError(err))
 }

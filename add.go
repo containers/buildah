@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,7 +21,7 @@ import (
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/moby/sys/userns"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -108,7 +107,7 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 	if size < 0 {
 		// Create a temporary file and copy the content to it, so that
 		// we can figure out how much content there is.
-		f, err := ioutil.TempFile(mountpoint, "download")
+		f, err := os.CreateTemp(mountpoint, "download")
 		if err != nil {
 			return errors.Wrapf(err, "error creating temporary file to hold %q", src)
 		}
@@ -399,7 +398,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						ChmodDirs:     nil,
 						ChownFiles:    nil,
 						ChmodFiles:    nil,
-						IgnoreDevices: rsystem.RunningInUserNS(),
+						IgnoreDevices: userns.RunningInUserNS(),
 					}
 					putErr = copier.Put(extractDirectory, extractDirectory, putOptions, io.TeeReader(pipeReader, hasher))
 				}
@@ -534,7 +533,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						ChmodDirs:       nil,
 						ChownFiles:      nil,
 						ChmodFiles:      nil,
-						IgnoreDevices:   rsystem.RunningInUserNS(),
+						IgnoreDevices:   userns.RunningInUserNS(),
 					}
 					putErr = copier.Put(extractDirectory, extractDirectory, putOptions, io.TeeReader(pipeReader, hasher))
 				}
@@ -586,7 +585,7 @@ func (b *Builder) userForRun(mountPoint string, userspec string) (specs.User, st
 	if !strings.Contains(userspec, ":") {
 		groups, err2 := chrootuser.GetAdditionalGroupsForUser(mountPoint, uint64(u.UID))
 		if err2 != nil {
-			if errors.Cause(err2) != chrootuser.ErrNoSuchUser && err == nil {
+			if !errors.Is(errors.Cause(err2), chrootuser.ErrNoSuchUser) && err == nil {
 				err = err2
 			}
 		} else {

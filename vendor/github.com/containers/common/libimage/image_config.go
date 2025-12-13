@@ -1,7 +1,9 @@
+//go:build !remote
+// +build !remote
+
 package libimage
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -9,7 +11,6 @@ import (
 
 	"github.com/containers/common/pkg/signal"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ImageConfig is a wrapper around the OCIv1 Image Configuration struct exported
@@ -45,7 +46,7 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 		if len(split) != 2 {
 			split = strings.SplitN(change, "=", 2)
 			if len(split) != 2 {
-				return nil, errors.Errorf("invalid change %q - must be formatted as KEY VALUE", change)
+				return nil, fmt.Errorf("invalid change %q - must be formatted as KEY VALUE", change)
 			}
 		}
 
@@ -55,7 +56,7 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 		case "USER":
 			// Assume literal contents are the user.
 			if value == "" {
-				return nil, errors.Errorf("invalid change %q - must provide a value to USER", change)
+				return nil, fmt.Errorf("invalid change %q - must provide a value to USER", change)
 			}
 			config.User = value
 		case "EXPOSE":
@@ -64,14 +65,14 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 			// Protocol must be "tcp" or "udp"
 			splitPort := strings.Split(value, "/")
 			if len(splitPort) > 2 {
-				return nil, errors.Errorf("invalid change %q - EXPOSE port must be formatted as PORT[/PROTO]", change)
+				return nil, fmt.Errorf("invalid change %q - EXPOSE port must be formatted as PORT[/PROTO]", change)
 			}
 			portNum, err := strconv.Atoi(splitPort[0])
 			if err != nil {
-				return nil, errors.Wrapf(err, "invalid change %q - EXPOSE port must be an integer", change)
+				return nil, fmt.Errorf("invalid change %q - EXPOSE port must be an integer: %w", change, err)
 			}
 			if portNum > 65535 || portNum <= 0 {
-				return nil, errors.Errorf("invalid change %q - EXPOSE port must be a valid port number", change)
+				return nil, fmt.Errorf("invalid change %q - EXPOSE port must be a valid port number", change)
 			}
 			proto := "tcp"
 			if len(splitPort) > 1 {
@@ -80,7 +81,7 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 				case "tcp", "udp":
 					proto = testProto
 				default:
-					return nil, errors.Errorf("invalid change %q - EXPOSE protocol must be TCP or UDP", change)
+					return nil, fmt.Errorf("invalid change %q - EXPOSE protocol must be TCP or UDP", change)
 				}
 			}
 			if config.ExposedPorts == nil {
@@ -90,21 +91,19 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 		case "ENV":
 			// Format is either:
 			// ENV key=value
-			// ENV key=value key=value ...
+			// ENV key-1=value key-2=value ...
 			// ENV key value
 			// Both keys and values can be surrounded by quotes to group them.
 			// For now: we only support key=value
 			// We will attempt to strip quotation marks if present.
 
-			var (
-				key, val string
-			)
+			var key, val string
 
 			splitEnv := strings.SplitN(value, "=", 2)
 			key = splitEnv[0]
 			// We do need a key
 			if key == "" {
-				return nil, errors.Errorf("invalid change %q - ENV must have at least one argument", change)
+				return nil, fmt.Errorf("invalid change %q - ENV must have at least one argument", change)
 			}
 			// Perfectly valid to not have a value
 			if len(splitEnv) == 2 {
@@ -166,11 +165,11 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 				testUnmarshal = strings.Split(value, " ")
 			}
 			if len(testUnmarshal) == 0 {
-				return nil, errors.Errorf("invalid change %q - must provide at least one argument to VOLUME", change)
+				return nil, fmt.Errorf("invalid change %q - must provide at least one argument to VOLUME", change)
 			}
 			for _, vol := range testUnmarshal {
 				if vol == "" {
-					return nil, errors.Errorf("invalid change %q - VOLUME paths must not be empty", change)
+					return nil, fmt.Errorf("invalid change %q - VOLUME paths must not be empty", change)
 				}
 				if config.Volumes == nil {
 					config.Volumes = make(map[string]struct{})
@@ -184,7 +183,7 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 			// WORKDIR c results in /A/b/c
 			// Just need to check it's not empty...
 			if value == "" {
-				return nil, errors.Errorf("invalid change %q - must provide a non-empty WORKDIR", change)
+				return nil, fmt.Errorf("invalid change %q - must provide a non-empty WORKDIR", change)
 			}
 			config.WorkingDir = filepath.Join(config.WorkingDir, value)
 		case "LABEL":
@@ -201,7 +200,7 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 			splitLabel := strings.SplitN(value, "=", 2)
 			// Unlike ENV, LABEL must have a value
 			if len(splitLabel) != 2 {
-				return nil, errors.Errorf("invalid change %q - LABEL must be formatted key=value", change)
+				return nil, fmt.Errorf("invalid change %q - LABEL must be formatted key=value", change)
 			}
 			key = splitLabel[0]
 			val = splitLabel[1]
@@ -214,7 +213,7 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 			}
 			// Check key after we strip quotations
 			if key == "" {
-				return nil, errors.Errorf("invalid change %q - LABEL must have a non-empty key", change)
+				return nil, fmt.Errorf("invalid change %q - LABEL must have a non-empty key", change)
 			}
 			if config.Labels == nil {
 				config.Labels = make(map[string]string)
@@ -224,17 +223,17 @@ func ImageConfigFromChanges(changes []string) (*ImageConfig, error) { // nolint:
 			// Check the provided signal for validity.
 			killSignal, err := signal.ParseSignal(value)
 			if err != nil {
-				return nil, errors.Wrapf(err, "invalid change %q - KILLSIGNAL must be given a valid signal", change)
+				return nil, fmt.Errorf("invalid change %q - KILLSIGNAL must be given a valid signal: %w", change, err)
 			}
 			config.StopSignal = fmt.Sprintf("%d", killSignal)
 		case "ONBUILD":
 			// Onbuild always appends.
 			if value == "" {
-				return nil, errors.Errorf("invalid change %q - ONBUILD must be given an argument", change)
+				return nil, fmt.Errorf("invalid change %q - ONBUILD must be given an argument", change)
 			}
 			config.OnBuild = append(config.OnBuild, value)
 		default:
-			return nil, errors.Errorf("invalid change %q - invalid instruction %s", change, outerKey)
+			return nil, fmt.Errorf("invalid change %q - invalid instruction %s", change, outerKey)
 		}
 	}
 

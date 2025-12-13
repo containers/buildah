@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/types"
 	"github.com/google/go-intervals/intervalset"
-	"github.com/pkg/errors"
 )
 
 // idSet represents a set of integer IDs. It is stored as an ordered set of intervals.
@@ -113,7 +116,7 @@ func (s *idSet) findAvailable(n int) (*idSet, error) {
 		n -= i.length()
 	}
 	if n > 0 {
-		return nil, errors.New("could not find enough available IDs")
+		return nil, types.ErrNoAvailableIDs
 	}
 	return &idSet{set: intervalset.NewImmutableSet(intervals)}, nil
 }
@@ -217,4 +220,46 @@ func maxInt(a, b int) int {
 		return b
 	}
 	return a
+}
+
+func hasOverlappingRanges(mappings []idtools.IDMap) error {
+	hostIntervals := intervalset.Empty()
+	containerIntervals := intervalset.Empty()
+
+	var conflicts []string
+
+	for _, m := range mappings {
+		c := interval{start: m.ContainerID, end: m.ContainerID + m.Size}
+		h := interval{start: m.HostID, end: m.HostID + m.Size}
+
+		added := false
+		overlaps := false
+
+		containerIntervals.IntervalsBetween(c, func(x intervalset.Interval) bool {
+			overlaps = true
+			return false
+		})
+		if overlaps {
+			conflicts = append(conflicts, fmt.Sprintf("%v:%v:%v", m.ContainerID, m.HostID, m.Size))
+			added = true
+		}
+		containerIntervals.Add(intervalset.NewSet([]intervalset.Interval{c}))
+
+		hostIntervals.IntervalsBetween(h, func(x intervalset.Interval) bool {
+			overlaps = true
+			return false
+		})
+		if overlaps && !added {
+			conflicts = append(conflicts, fmt.Sprintf("%v:%v:%v", m.ContainerID, m.HostID, m.Size))
+		}
+		hostIntervals.Add(intervalset.NewSet([]intervalset.Interval{h}))
+	}
+
+	if conflicts != nil {
+		if len(conflicts) == 1 {
+			return fmt.Errorf("the specified UID and/or GID mapping %s conflicts with other mappings: %w", conflicts[0], ErrInvalidMappings)
+		}
+		return fmt.Errorf("the specified UID and/or GID mappings %s conflict with other mappings: %w", strings.Join(conflicts, ", "), ErrInvalidMappings)
+	}
+	return nil
 }

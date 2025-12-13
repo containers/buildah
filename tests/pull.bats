@@ -13,7 +13,7 @@ load helpers
   # force a failed pull and look at the error message which *must* include the
   # the resolved image name (localhost/image:latest).
   run_buildah 125 pull --policy=always image
-  [[ "$output" == *"Error initializing source docker://localhost/image:latest"* ]]
+  [[ "$output" == *"initializing source docker://localhost/image:latest"* ]]
   run_buildah rmi localhost/image ${iid}
 }
 
@@ -84,10 +84,12 @@ load helpers
   run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest dir:${TESTDIR}/buildahtest
   run_buildah rmi alpine
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  run_buildah pull --quiet --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  imageID="$output"
+  # Images pulled via the dir transport are untagged.
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "localhost${TESTDIR}/buildahtest:latest"
-  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  expect_output --substring "<none>:<none>"
+  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:$imageID
   expect_output --substring "pulling all tags is not supported for dir transport"
 }
 
@@ -149,7 +151,7 @@ load helpers
   run_buildah rmi alpine
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "localhost${TESTDIR}/alpine:latest"
+  expect_output --substring "<none>:<none>"
   run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
   expect_output --substring "pulling all tags is not supported for oci transport"
 }
@@ -186,11 +188,11 @@ load helpers
 
   # Try to pull encrypted image without key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/tmp/busybox_enc
-  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+  expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try to pull encrypted image with wrong key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
-  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+  expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
@@ -208,11 +210,11 @@ load helpers
 
   # Try to pull encrypted image without key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+  expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try to pull encrypted image with wrong key should fail, with diff. msg
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+  expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
@@ -234,11 +236,11 @@ load helpers
 
   # Try to pull encrypted image without key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+  expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try to pull encrypted image with wrong key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+  expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest

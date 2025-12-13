@@ -184,7 +184,7 @@ func (p *parser) clearStackToContext(s scope) {
 	}
 }
 
-// parseGenericRawTextElements implements the generic raw text element parsing
+// parseGenericRawTextElement implements the generic raw text element parsing
 // algorithm defined in 12.2.6.2.
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-elements-that-contain-only-text
 // TODO: Since both RAWTEXT and RCDATA states are treated as tokenizer's part
@@ -663,6 +663,24 @@ func inHeadIM(p *parser) bool {
 			// Ignore the token.
 			return true
 		case a.Template:
+			// TODO: remove this divergence from the HTML5 spec.
+			//
+			// We don't handle all of the corner cases when mixing foreign
+			// content (i.e. <math> or <svg>) with <template>. Without this
+			// early return, we can get into an infinite loop, possibly because
+			// of the "TODO... further divergence" a little below.
+			//
+			// As a workaround, if we are mixing foreign content and templates,
+			// just ignore the rest of the HTML. Foreign content is rare and a
+			// relatively old HTML feature. Templates are also rare and a
+			// relatively new HTML feature. Their combination is very rare.
+			for _, e := range p.oe {
+				if e.Namespace != "" {
+					p.im = ignoreTheRemainingTokens
+					return true
+				}
+			}
+
 			p.addElement()
 			p.afe = append(p.afe, &scopeMarker)
 			p.framesetOK = false
@@ -683,7 +701,7 @@ func inHeadIM(p *parser) bool {
 			if !p.oe.contains(a.Template) {
 				return true
 			}
-			// TODO: remove this divergence from the HTML5 spec.
+			// TODO: remove this further divergence from the HTML5 spec.
 			//
 			// See https://bugs.chromium.org/p/chromium/issues/detail?id=829668
 			p.generateImpliedEndTags()
@@ -716,7 +734,7 @@ func inHeadIM(p *parser) bool {
 	return false
 }
 
-// 12.2.6.4.5.
+// Section 12.2.6.4.5.
 func inHeadNoscriptIM(p *parser) bool {
 	switch p.tok.Type {
 	case DoctypeToken:
@@ -822,6 +840,10 @@ func afterHeadIM(p *parser) bool {
 
 	p.parseImpliedToken(StartTagToken, a.Body, a.Body.String())
 	p.framesetOK = true
+	if p.tok.Type == ErrorToken {
+		// Stop parsing.
+		return true
+	}
 	return false
 }
 
@@ -1013,7 +1035,7 @@ func inBodyIM(p *parser) bool {
 			if p.tok.DataAtom == a.Input {
 				for _, t := range p.tok.Attr {
 					if t.Key == "type" {
-						if strings.ToLower(t.Val) == "hidden" {
+						if strings.EqualFold(t.Val, "hidden") {
 							// Skip setting framesetOK = false
 							return true
 						}
@@ -1441,7 +1463,7 @@ func inTableIM(p *parser) bool {
 			return inHeadIM(p)
 		case a.Input:
 			for _, t := range p.tok.Attr {
-				if t.Key == "type" && strings.ToLower(t.Val) == "hidden" {
+				if t.Key == "type" && strings.EqualFold(t.Val, "hidden") {
 					p.addElement()
 					p.oe.pop()
 					return true
@@ -2124,6 +2146,10 @@ func afterAfterFramesetIM(p *parser) bool {
 	default:
 		// Ignore the token.
 	}
+	return true
+}
+
+func ignoreTheRemainingTokens(p *parser) bool {
 	return true
 }
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -249,6 +248,6 @@ func preprocessContainerfileContents(containerfile string, r io.Reader, ctxDir s
 		logrus.Warnf("Ignoring %s\n", stderr.String())
 	}
 
-	rc := ioutil.NopCloser(bytes.NewReader(stdout.Bytes()))
+	rc := io.NopCloser(bytes.NewReader(stdout.Bytes()))
 	return &rc, nil
 }

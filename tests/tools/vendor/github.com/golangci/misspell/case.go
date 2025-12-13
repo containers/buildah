@@ -4,10 +4,10 @@ import (
 	"strings"
 )
 
-// WordCase is an enum of various word casing styles
+// WordCase is an enum of various word casing styles.
 type WordCase int
 
-// Various WordCase types.. likely to be not correct
+// Various WordCase types... likely to be not correct.
 const (
 	CaseUnknown WordCase = iota
 	CaseLower
@@ -15,7 +15,7 @@ const (
 	CaseTitle
 )
 
-// CaseStyle returns what case style a word is in
+// CaseStyle returns what case style a word is in.
 func CaseStyle(word string) WordCase {
 	upperCount := 0
 	lowerCount := 0
@@ -42,11 +42,10 @@ func CaseStyle(word string) WordCase {
 	return CaseUnknown
 }
 
-// CaseVariations returns
-// If AllUpper or First-Letter-Only is upcased: add the all upper case version
-// If AllLower, add the original, the title and upcase forms
-// If Mixed, return the original, and the all upcase form
-//
+// CaseVariations returns:
+// If AllUpper or First-Letter-Only is upper-cased: add the all upper case version.
+// If AllLower, add the original, the title and  upper-case forms.
+// If Mixed, return the original, and the all  upper-case form.
 func CaseVariations(word string, style WordCase) []string {
 	switch style {
 	case CaseLower:

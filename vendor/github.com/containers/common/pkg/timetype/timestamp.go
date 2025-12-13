@@ -34,13 +34,14 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 	// if the string has a Z or a + or three dashes use parse otherwise use parseinlocation
 	parseInLocation := !(strings.ContainsAny(value, "zZ+") || strings.Count(value, "-") == 3)
 
-	if strings.Contains(value, ".") { // nolint:gocritic
+	switch {
+	case strings.Contains(value, "."):
 		if parseInLocation {
 			format = rFC3339NanoLocal
 		} else {
 			format = time.RFC3339Nano
 		}
-	} else if strings.Contains(value, "T") {
+	case strings.Contains(value, "T"):
 		// we want the number of colons in the T portion of the timestamp
 		tcolons := strings.Count(value, ":")
 		// if parseInLocation is off and we have a +/- zone offset (not Z) then
@@ -68,9 +69,9 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 				format = time.RFC3339
 			}
 		}
-	} else if parseInLocation {
+	case parseInLocation:
 		format = dateLocal
-	} else {
+	default:
 		format = dateWithZone
 	}
 
@@ -102,8 +103,10 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 // if the incoming nanosecond portion is longer or shorter than 9 digits it is
 // converted to nanoseconds.  The expectation is that the seconds and
 // seconds will be used to create a time variable.  For example:
-//     seconds, nanoseconds, err := ParseTimestamp("1136073600.000000001",0)
-//     if err == nil since := time.Unix(seconds, nanoseconds)
+//
+//	seconds, nanoseconds, err := ParseTimestamp("1136073600.000000001",0)
+//	if err == nil since := time.Unix(seconds, nanoseconds)
+//
 // returns seconds as def(aultSeconds) if value == ""
 func ParseTimestamps(value string, def int64) (secs, nanoSecs int64, err error) {
 	if value == "" {
@@ -112,7 +115,7 @@ func ParseTimestamps(value string, def int64) (secs, nanoSecs int64, err error) 
 	return parseTimestamp(value)
 }
 
-func parseTimestamp(value string) (int64, int64, error) { // nolint:gocritic
+func parseTimestamp(value string) (int64, int64, error) {
 	sa := strings.SplitN(value, ".", 2)
 	s, err := strconv.ParseInt(sa[0], 10, 64)
 	if err != nil {

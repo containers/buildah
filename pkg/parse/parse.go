@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	terminal "golang.org/x/term"
 )
 
 const (
@@ -738,13 +738,15 @@ func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
 	username, password := parseCreds(creds)
 	if username == "" {
 		fmt.Print("Username: ")
-		fmt.Scanln(&username)
+		if _, err := fmt.Scanln(&username); err != nil {
+			return nil, fmt.Errorf("could not read user name from terminal: %w", err)
+		}
 	}
 	if password == "" {
 		fmt.Print("Password: ")
 		termPassword, err := terminal.ReadPassword(0)
 		if err != nil {
-			return nil, errors.Wrapf(err, "could not read password from terminal")
+			return nil, fmt.Errorf("could not read password from terminal: %w", err)
 		}
 		password = string(termPassword)
 	}

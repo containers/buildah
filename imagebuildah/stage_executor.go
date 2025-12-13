@@ -1181,7 +1181,7 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error computing digest of manifest for image %q", cacheID)
 	}
-	img, err := is.Transport.GetStoreImage(s.executor.store, dest)
+	img, err := is.Transport.GetStoreImage(s.executor.store, dest) //nolint:staticcheck
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error locating new copy of image %q (i.e., %q)", cacheID, transports.ImageName(dest))
 	}
@@ -1365,6 +1365,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		RetryDelay:            s.executor.retryPullPushDelay,
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
+		CompatSetParent:       s.executor.compatSetParent,
 	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {

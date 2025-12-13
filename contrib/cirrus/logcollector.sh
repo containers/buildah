@@ -9,7 +9,7 @@ req_env_vars CI GOSRC OS_RELEASE_ID
 case $1 in
     audit)
         case $OS_RELEASE_ID in
-            ubuntu) showrun cat /var/log/kern.log ;;
+            ubuntu|debian) showrun cat /var/log/kern.log ;;
             fedora) showrun cat /var/log/audit/audit.log ;;
             *) bad_os_id_ver ;;
         esac
@@ -41,7 +41,7 @@ case $1 in
             fedora*)
                 PKG_LST_CMD='rpm -q --qf=%{N}-%{V}-%{R}-%{ARCH}\n'
                 ;;
-            ubuntu*)
+            ubuntu*|debian*)
                 PKG_LST_CMD='dpkg-query --show --showformat=${Package}-${Version}-${Architecture}\n'
                 ;;
             *) bad_os_id_ver ;;
