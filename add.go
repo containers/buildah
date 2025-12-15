@@ -587,7 +587,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	// Copy each source in turn.
 	for _, src := range sources {
 		var multiErr *multierror.Error
-		var getErr, closeErr, renameErr, putErr error
+		var getErr, closeErr, renameErr, putErr, cleanupErr error
 		var wg sync.WaitGroup
 		if sourceIsRemote(src) || sourceIsGit(src) {
 			pipeReader, pipeWriter := io.Pipe()
@@ -626,6 +626,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					writer := io.WriteCloser(pipeWriter)
 					repositoryDir := filepath.Join(cloneDir, subdir)
 					getErr = copier.Get(repositoryDir, repositoryDir, getOptions, []string{"."}, writer)
+					cleanupErr = os.RemoveAll(cloneDir)
 				}()
 			} else {
 				go func() {
@@ -673,7 +674,10 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			if putErr != nil {
 				putErr = fmt.Errorf("storing %q: %w", src, putErr)
 			}
-			multiErr = multierror.Append(getErr, putErr)
+			if cleanupErr != nil {
+				cleanupErr = fmt.Errorf("cleaning up copy of %q: %w", src, cleanupErr)
+			}
+			multiErr = multierror.Append(getErr, putErr, cleanupErr)
 			if multiErr != nil && multiErr.ErrorOrNil() != nil {
 				if len(multiErr.Errors) > 1 {
 					return multiErr.ErrorOrNil()
