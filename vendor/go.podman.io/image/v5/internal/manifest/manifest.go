@@ -34,6 +34,10 @@ const (
 	DockerV2Schema2ForeignLayerMediaType = "application/vnd.docker.image.rootfs.foreign.diff.tar"
 	// DockerV2Schema2ForeignLayerMediaType is the MIME type used for gzipped schema 2 foreign layers.
 	DockerV2Schema2ForeignLayerMediaTypeGzip = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
+	// NydusBootstrapLayerMediaType is the MIME type used for Nydus bootstrap layers.
+	NydusBootstrapLayerMediaType = "application/vnd.containers.image.nydus.bootstrap.v1+json"
+	// NydusBlobLayerMediaType is the MIME type used for Nydus data blob layers.
+	NydusBlobLayerMediaType = "application/vnd.containers.image.nydus.blob.v1"
 )
 
 // GuessMIMEType guesses MIME type of a manifest and returns it _if it is recognized_, or "" if unknown or unrecognized.
@@ -107,9 +111,16 @@ func GuessMIMEType(manifest []byte) string {
 	return ""
 }
 
-// Digest returns the a digest of a docker manifest, with any necessary implied transformations like stripping v1s1 signatures.
+// Digest returns the digest of a docker manifest, with any necessary implied transformations like stripping v1s1 signatures.
 // This is publicly visible as c/image/manifest.Digest.
 func Digest(manifest []byte) (digest.Digest, error) {
+	return DigestWithAlgorithm(manifest, digest.Canonical)
+}
+
+// DigestWithAlgorithm returns the digest of a docker manifest using the specified algorithm,
+// with any necessary implied transformations like stripping v1s1 signatures.
+// This is publicly visible as c/image/manifest.DigestWithAlgorithm.
+func DigestWithAlgorithm(manifest []byte, algo digest.Algorithm) (digest.Digest, error) {
 	if GuessMIMEType(manifest) == DockerV2Schema1SignedMediaType {
 		sig, err := libtrust.ParsePrettySignature(manifest, "signatures")
 		if err != nil {
@@ -122,8 +133,7 @@ func Digest(manifest []byte) (digest.Digest, error) {
 			return "", err
 		}
 	}
-
-	return digest.FromBytes(manifest), nil
+	return algo.FromBytes(manifest), nil
 }
 
 // MatchesDigest returns true iff the manifest matches expectedDigest.
