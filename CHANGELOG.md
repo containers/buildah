@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.39.8 (2025-12-23)
+
+    [release-1.39] CVE-2025-49713 x/crypto
+
 ## v1.39.7 (2025-12-11)
 
     [release-1.39] Bump runc to v1.2.9
