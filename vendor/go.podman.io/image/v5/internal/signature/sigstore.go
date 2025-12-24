@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"maps"
+	"strings"
 )
 
 const (
@@ -17,7 +18,27 @@ const (
 	SigstoreCertificateAnnotationKey = "dev.sigstore.cosign/certificate"
 	// from sigstore/cosign/pkg/oci/static.ChainAnnotationKey
 	SigstoreIntermediateCertificateChainAnnotationKey = "dev.sigstore.cosign/chain"
+
+	// Sigstore bundle format media types
+	// See https://github.com/sigstore/protobuf-specs for the bundle specification
+	SigstoreBundleMIMEType = "application/vnd.dev.sigstore.bundle.v0.3+json"
+	// SigstoreBundleMediaTypePrefix is the prefix for all sigstore bundle versions
+	SigstoreBundleMediaTypePrefix = "application/vnd.dev.sigstore.bundle"
+
+	// DSSEPayloadType is the payload type used in DSSE envelopes for in-toto attestations
+	DSSEPayloadType = "application/vnd.in-toto+json"
 )
+
+// IsSigstoreBundleMediaType returns true if the media type indicates a Cosign v3 sigstore bundle format
+func IsSigstoreBundleMediaType(mediaType string) bool {
+	return strings.HasPrefix(mediaType, SigstoreBundleMediaTypePrefix)
+}
+
+// IsSigstoreSignatureMediaType returns true if the media type indicates any sigstore signature format
+// (either legacy simple signing or new bundle format)
+func IsSigstoreSignatureMediaType(mediaType string) bool {
+	return mediaType == SigstoreSignatureMIMEType || IsSigstoreBundleMediaType(mediaType)
+}
 
 // Sigstore is a github.com/cosign/cosign signature.
 // For the persistent-storage format used for blobChunk(), we want

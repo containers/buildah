@@ -1035,6 +1035,28 @@ func (c *dockerClient) fetchManifest(ctx context.Context, ref dockerReference, t
 	return manblob, simplifyContentType(res.Header.Get("Content-Type")), nil
 }
 
+// getManifestSize returns the size of a manifest using a HEAD request.
+// This is used when we need the size for OCI descriptor fields but don't need the manifest content.
+func (c *dockerClient) getManifestSize(ctx context.Context, ref dockerReference, manifestDigest digest.Digest) (int64, error) {
+	path := fmt.Sprintf(manifestPath, reference.Path(ref.ref), manifestDigest.String())
+	headers := map[string][]string{
+		"Accept": manifest.DefaultRequestedManifestMIMETypes,
+	}
+	res, err := c.makeRequest(ctx, http.MethodHead, path, headers, nil, v2Auth, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("getting manifest size %s in %s: %w", manifestDigest.String(), ref.ref.Name(), registryHTTPResponseToError(res))
+	}
+	contentLength := res.ContentLength
+	if contentLength < 0 {
+		return 0, fmt.Errorf("manifest HEAD response missing Content-Length for %s", manifestDigest.String())
+	}
+	return contentLength, nil
+}
+
 // getExternalBlob returns the reader of the first available blob URL from urls, which must not be empty.
 // This function can return nil reader when no url is supported by this function. In this case, the caller
 // should fallback to fetch the non-external blob (i.e. pull from the registry).

@@ -158,6 +158,26 @@ func (s *UntrustedSigstorePayload) strictUnmarshalJSON(data []byte) error {
 	})
 }
 
+// UntrustedDockerReference returns the docker reference from the payload.
+func (s *UntrustedSigstorePayload) UntrustedDockerReference() string {
+	return s.untrustedDockerReference
+}
+
+// UntrustedDockerManifestDigest returns the manifest digest from the payload.
+func (s *UntrustedSigstorePayload) UntrustedDockerManifestDigest() digest.Digest {
+	return s.untrustedDockerManifestDigest
+}
+
+// ParseSigstorePayload parses a simple signing payload from JSON bytes.
+// This is used when we've already verified the signature and just need to parse the content.
+func ParseSigstorePayload(data []byte) (*UntrustedSigstorePayload, error) {
+	var payload UntrustedSigstorePayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, NewInvalidSignatureError(fmt.Sprintf("parsing simple signing payload: %v", err))
+	}
+	return &payload, nil
+}
+
 // SigstorePayloadAcceptanceRules specifies how to decide whether an untrusted payload is acceptable.
 // We centralize the actual parsing and data extraction in VerifySigstorePayload; this supplies
 // the policy.  We use an object instead of supplying func parameters to verifyAndExtractSignature

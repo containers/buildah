@@ -242,6 +242,12 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 		return sarRejected, err
 	}
 
+	// Check if this is a sigstore bundle format
+	mimeType := sig.UntrustedMIMEType()
+	if signature.IsSigstoreBundleMediaType(mimeType) {
+		return pr.isSignatureAcceptedBundle(ctx, image, sig, trustRoot)
+	}
+
 	untrustedAnnotations := sig.UntrustedAnnotations()
 	untrustedBase64Signature, ok := untrustedAnnotations[signature.SigstoreSignatureAnnotationKey]
 	if !ok {
@@ -395,7 +401,8 @@ func (pr *prSigstoreSigned) isRunningImageAllowed(ctx context.Context, image pri
 			foundNonSigstoreSignatures++
 			continue
 		}
-		if sigstoreSig.UntrustedMIMEType() != signature.SigstoreSignatureMIMEType {
+		// Accept both legacy simple signing format and new Cosign v3 bundle format
+		if !signature.IsSigstoreSignatureMediaType(sigstoreSig.UntrustedMIMEType()) {
 			foundSigstoreNonAttachments++
 			continue
 		}
