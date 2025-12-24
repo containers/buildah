@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	digest "github.com/opencontainers/go-digest"
+	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/internal/imagesource/impl"
@@ -617,8 +618,9 @@ func (s *dockerImageSource) appendSignaturesFromAPIExtension(ctx context.Context
 	return nil
 }
 
-// appendSignaturesFromSigstoreAttachments implements GetSignaturesWithFormat() using the sigstore tag convention,
-// storing the signatures to *dest.
+// appendSignaturesFromSigstoreAttachments implements GetSignaturesWithFormat() using sigstore conventions,
+// storing the signatures to *dest. It first tries the OCI 1.1 referrers API (Cosign v3 style),
+// then falls back to the tag-based attachment scheme.
 // On error, the contents of *dest are undefined.
 func (s *dockerImageSource) appendSignaturesFromSigstoreAttachments(ctx context.Context, dest *[]signature.Signature, instanceDigest *digest.Digest) error {
 	if !s.c.useSigstoreAttachments {
@@ -631,6 +633,104 @@ func (s *dockerImageSource) appendSignaturesFromSigstoreAttachments(ctx context.
 		return err
 	}
 
+	// Try OCI 1.1 referrers API first (Cosign v3 / sigstore bundle format)
+	foundViaReferrers, err := s.appendSignaturesFromReferrers(ctx, dest, manifestDigest)
+	if err != nil {
+		logrus.Debugf("Referrers API failed: %v, falling back to tag-based scheme", err)
+	}
+	if foundViaReferrers {
+		return nil
+	}
+
+	// Fall back to tag-based attachment scheme (legacy Cosign style)
+	return s.appendSignaturesFromTagAttachments(ctx, dest, manifestDigest)
+}
+
+// appendSignaturesFromReferrers fetches sigstore signatures using the OCI 1.1 referrers API.
+// Returns true if any signatures were found, false otherwise.
+func (s *dockerImageSource) appendSignaturesFromReferrers(ctx context.Context, dest *[]signature.Signature, manifestDigest digest.Digest) (bool, error) {
+	referrers, err := s.c.getSigstoreReferrers(ctx, s.physicalRef, manifestDigest)
+	if err != nil {
+		return false, err
+	}
+	if len(referrers) == 0 {
+		return false, nil
+	}
+
+	logrus.Debugf("Found %d sigstore referrers via OCI 1.1 referrers API", len(referrers))
+
+	for i, desc := range referrers {
+		logrus.Debugf("Fetching sigstore referrer %d/%d: %s (type: %s)", i+1, len(referrers), desc.Digest.String(), desc.ArtifactType)
+
+		// For referrers, we need to fetch the manifest first to get the actual signature content
+		// The referrer descriptor points to a manifest, which contains layers with the signature
+		payload, artifactType, annotations, err := s.fetchReferrerPayloadAndType(ctx, desc)
+		if err != nil {
+			return false, err
+		}
+
+		// Skip if this isn't actually a sigstore bundle (the index might have wrong artifact type)
+		if !signature.IsSigstoreBundleMediaType(artifactType) &&
+			!signature.IsSigstoreSignatureMediaType(artifactType) {
+			logrus.Debugf("Skipping referrer %s: artifact type %s is not a sigstore type", desc.Digest.String(), artifactType)
+			continue
+		}
+
+		*dest = append(*dest, signature.SigstoreFromComponents(artifactType, payload, annotations))
+	}
+
+	return true, nil
+}
+
+// fetchReferrerPayloadAndType fetches the actual signature payload, artifact type, and annotations from a referrer descriptor.
+// For sigstore bundles, the referrer is typically an OCI manifest with a single layer containing the bundle.
+// It returns (payload, artifactType, annotations, error).
+func (s *dockerImageSource) fetchReferrerPayloadAndType(ctx context.Context, desc imgspecv1.Descriptor) ([]byte, string, map[string]string, error) {
+	// Referrers point to manifests, not blobs. Fetch via manifest API.
+	manifestBlob, _, err := s.c.fetchManifest(ctx, s.physicalRef, desc.Digest.String())
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("fetching referrer manifest %s: %w", desc.Digest.String(), err)
+	}
+
+	// Parse the manifest to get layers and artifact type
+	ociManifest, err := manifest.OCI1FromManifest(manifestBlob)
+	if err != nil {
+		// If it's not an OCI manifest, the payload might be the manifest itself (for simple bundles)
+		logrus.Debugf("Referrer %s is not an OCI manifest, using raw content as payload", desc.Digest.String())
+		return manifestBlob, desc.ArtifactType, desc.Annotations, nil
+	}
+
+	// Get the actual artifact type from the manifest (more reliable than the index entry)
+	artifactType := ociManifest.ArtifactType
+	// "application/vnd.oci.empty.v1+json" is a placeholder used when artifact type is unset
+	if artifactType == "" || artifactType == "application/vnd.oci.empty.v1+json" {
+		// Check the layer's media type first (most reliable for actual content type)
+		if len(ociManifest.Layers) > 0 && ociManifest.Layers[0].MediaType != "" {
+			artifactType = ociManifest.Layers[0].MediaType
+		} else if desc.ArtifactType != "" && desc.ArtifactType != "application/vnd.oci.empty.v1+json" {
+			// Fallback to descriptor's artifact type if meaningful
+			artifactType = desc.ArtifactType
+		}
+	}
+
+	// For OCI manifests, the signature/bundle is typically in the first layer
+	if len(ociManifest.Layers) == 0 {
+		return nil, "", nil, fmt.Errorf("referrer manifest %s has no layers", desc.Digest.String())
+	}
+
+	// Fetch the first layer (the signature payload)
+	// Annotations are stored on the layer descriptor, not the referrer index descriptor
+	layer := ociManifest.Layers[0]
+	payload, err := s.c.getOCIDescriptorContents(ctx, s.physicalRef, layer, iolimits.MaxSignatureBodySize, none.NoCache)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("fetching referrer payload %s: %w", layer.Digest.String(), err)
+	}
+
+	return payload, artifactType, layer.Annotations, nil
+}
+
+// appendSignaturesFromTagAttachments implements the legacy tag-based sigstore attachment scheme.
+func (s *dockerImageSource) appendSignaturesFromTagAttachments(ctx context.Context, dest *[]signature.Signature, manifestDigest digest.Digest) error {
 	ociManifest, err := s.c.getSigstoreAttachmentManifest(ctx, s.physicalRef, manifestDigest)
 	if err != nil {
 		return err
@@ -644,7 +744,7 @@ func (s *dockerImageSource) appendSignaturesFromSigstoreAttachments(ctx context.
 		// Note that this copies all kinds of attachments: attestations, and whatever else is there,
 		// not just signatures. We leave the signature consumers to decide based on the MIME type.
 		logrus.Debugf("Fetching sigstore attachment %d/%d: %s", layerIndex+1, len(ociManifest.Layers), layer.Digest.String())
-		// We don’t benefit from a real BlobInfoCache here because we never try to reuse/mount attachment payloads.
+		// We don't benefit from a real BlobInfoCache here because we never try to reuse/mount attachment payloads.
 		// That might eventually need to change if payloads grow to be not just signatures, but something
 		// significantly large.
 		payload, err := s.c.getOCIDescriptorContents(ctx, s.physicalRef, layer, iolimits.MaxSignatureBodySize,
