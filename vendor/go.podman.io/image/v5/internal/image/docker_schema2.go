@@ -412,3 +412,8 @@ func (m *manifestSchema2) SupportsEncryption(context.Context) bool {
 func (m *manifestSchema2) CanChangeLayerCompression(mimeType string) bool {
 	return m.m.CanChangeLayerCompression(mimeType)
 }
+
+// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+func (m *manifestSchema2) UpdateConfigDigest(newDigest digest.Digest) error {
+	return m.m.UpdateConfigDigest(newDigest)
+}

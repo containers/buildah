@@ -274,3 +274,10 @@ func (m *OCI1) CanChangeLayerCompression(mimeType string) bool {
 	}
 	return compressionVariantsRecognizeMIMEType(oci1CompressionMIMETypeSets, mimeType)
 }
+
+// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+// This returns an error if the manifest does not support config digest updates.
+func (m *OCI1) UpdateConfigDigest(newDigest digest.Digest) error {
+	m.Config.Digest = newDigest
+	return nil
+}
