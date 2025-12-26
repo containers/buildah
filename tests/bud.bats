@@ -5448,7 +5448,7 @@ _EOF
   expect_output --substring "memory"
 }
 
-@test "bud with --cpu-shares" {
+@test "bud with --cpu-shares, checked" {
   skip_if_chroot
   skip_if_rootless_environment
   skip_if_rootless_and_cgroupv1
@@ -5469,21 +5469,26 @@ _EOF
 
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
+FROM alpine
+RUN printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
 _EOF
-    expect="weight $((1 + ((${shares} - 2) * 9999) / 262142))"
+    # there's an old way to convert the value, and a new way to convert the value, and we don't know
+    # which one our runtime is using, so accept the values that either would compute for ${shares}
+    local oldexpect="weight $((1 + ((${shares} - 2) * 9999) / 262142))"
+    local newconverted=$(awk '{if ($1 <= 2) { print "1"} else if ($1 >= 262144) {print "10000"} else {l=log($1)/log(2); e=((((l+125)*l)/612.0) - 7.0/34.0); p = exp(e*log(10)); print int(p+1)}}' <<< "${shares}")
+    local newexpect="weight ${newconverted}"
+    expect="($oldexpect|$newexpect)"
   else
     cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
+FROM alpine
+RUN printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
 _EOF
     expect="weight ${shares}"
   fi
 
   run_buildah build --cpu-shares=${shares} -t testcpu \
                   $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
-  expect_output --from="${lines[2]}" "${expect}"
+  expect_output --from="${lines[2]}" --substring "${expect}"
 }
 
 @test "bud with --cpuset-cpus" {
