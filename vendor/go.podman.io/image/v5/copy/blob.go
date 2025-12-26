@@ -101,6 +101,11 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 		Cache:      ic.c.blobInfoCache,
 		IsConfig:   isConfig,
 		EmptyLayer: emptyLayer,
+		Digests:    ic.c.options.digestOptions,
+		// CannotChangeDigestReason requires stream.info.Digest to always be set, and it is:
+		// If ic.cannotModifyManifestReason, stream.info was not modified since its initialization at the top of this
+		// function, and the caller is required to provide a digest.
+		CannotChangeDigestReason: ic.cannotModifyManifestReason,
 	}
 	if !isConfig {
 		options.LayerIndex = &layerIndex
@@ -133,7 +138,10 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, digest verification failed but was ignored", srcInfo.Digest)
 	}
 	if stream.info.Digest != "" && uploadedInfo.Digest != stream.info.Digest {
-		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, blob with digest %s saved with digest %s", srcInfo.Digest, stream.info.Digest, uploadedInfo.Digest)
+		// If algorithms match, the whole digest values must match
+		if stream.info.Digest.Algorithm() == uploadedInfo.Digest.Algorithm() {
+			return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, blob with digest %s saved with digest %s", srcInfo.Digest, stream.info.Digest, uploadedInfo.Digest)
+		}
 	}
 	if digestingReader.validationSucceeded {
 		if err := compressionStep.recordValidatedDigestData(ic.c, uploadedInfo, srcInfo, encryptionStep, decryptionStep); err != nil {

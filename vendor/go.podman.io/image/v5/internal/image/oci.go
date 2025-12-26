@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	ociencspec "github.com/containers/ocicrypt/spec"
+	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/internal/iolimits"
@@ -331,4 +332,9 @@ func (m *manifestOCI1) SupportsEncryption(context.Context) bool {
 // to a different manifest format).
 func (m *manifestOCI1) CanChangeLayerCompression(mimeType string) bool {
 	return m.m.CanChangeLayerCompression(mimeType)
+}
+
+// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+func (m *manifestOCI1) UpdateConfigDigest(newDigest digest.Digest) error {
+	return m.m.UpdateConfigDigest(newDigest)
 }

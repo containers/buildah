@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
@@ -59,6 +60,9 @@ type genericManifest interface {
 	// algorithms depends not on the current format, but possibly on the target of a conversion (if UpdatedImage converts
 	// to a different manifest format).
 	CanChangeLayerCompression(mimeType string) bool
+	// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+	// This returns an error if the manifest does not support config digest updates (e.g., schema1 manifests).
+	UpdateConfigDigest(newDigest digest.Digest) error
 }
 
 // manifestInstanceFromBlob returns a genericManifest implementation for (manblob, mt) in src.

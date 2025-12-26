@@ -176,6 +176,11 @@ func (m *Schema1) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 	return nil
 }
 
+// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+func (m *Schema1) UpdateConfigDigest(newDigest digest.Digest) error {
+	return fmt.Errorf("cannot update config digest for schema1 manifest")
+}
+
 // Serialize returns the manifest in a blob format.
 // NOTE: Serialize() does not in general reproduce the original blob if this object was loaded from one, even if no modifications were made!
 func (m *Schema1) Serialize() ([]byte, error) {
