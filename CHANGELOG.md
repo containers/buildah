@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.33.14 (2025-12-26)
+
+    [release-1.33] CVE-2025-49713 x/crypto
+
 ## v1.33.13 (2025-12-08)
 
     Fix linter errors
