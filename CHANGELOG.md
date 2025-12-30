@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.37.8 (2025-12-30)
+
+    [release-1.37] CVE-2025-49713 x/crypto
+
 ## v1.37.7 (2025-12-09)
 
     [release-1.37] CI: run integration tests on Fedora with both crun and
