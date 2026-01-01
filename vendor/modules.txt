@@ -359,7 +359,7 @@ github.com/opencontainers/runc/libcontainer/devices
 # github.com/opencontainers/runtime-spec v1.3.0
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116
+# github.com/opencontainers/runtime-tools v0.9.1-0.20251205004911-5e639034dcdc
 ## explicit; go 1.21
 github.com/opencontainers/runtime-tools/generate
 github.com/opencontainers/runtime-tools/generate/seccomp
