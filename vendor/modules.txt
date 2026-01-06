@@ -73,7 +73,7 @@ github.com/containernetworking/cni/pkg/types/create
 github.com/containernetworking/cni/pkg/types/internal
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containernetworking/plugins v1.8.0
+# github.com/containernetworking/plugins v1.9.0
 ## explicit; go 1.24.2
 github.com/containernetworking/plugins/pkg/ns
 # github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01
@@ -232,7 +232,7 @@ github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.18.1
+# github.com/klauspost/compress v1.18.2
 ## explicit; go 1.23
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -409,8 +409,8 @@ github.com/sigstore/sigstore/pkg/cryptoutils
 github.com/sigstore/sigstore/pkg/signature
 github.com/sigstore/sigstore/pkg/signature/options
 github.com/sigstore/sigstore/pkg/signature/payload
-# github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af
-## explicit; go 1.13
+# github.com/sirupsen/logrus v1.9.4-0.20251023124752-b61f268f75b6
+## explicit; go 1.17
 github.com/sirupsen/logrus
 # github.com/smallstep/pkcs7 v0.1.1
 ## explicit; go 1.14
@@ -498,7 +498,7 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# go.podman.io/common v0.66.1-0.20251202202200-df55d6c661e8
+# go.podman.io/common v0.66.1-0.20251202202200-df55d6c661e8 => github.com/clan/container-libs/common v0.0.0-20260106012341-9f3bf573f7b7
 ## explicit; go 1.24.6
 go.podman.io/common/internal
 go.podman.io/common/internal/attributedstring
@@ -551,7 +551,7 @@ go.podman.io/common/pkg/umask
 go.podman.io/common/pkg/util
 go.podman.io/common/pkg/version
 go.podman.io/common/version
-# go.podman.io/image/v5 v5.38.1-0.20251202202200-df55d6c661e8
+# go.podman.io/image/v5 v5.38.1-0.20251202202200-df55d6c661e8 => github.com/clan/container-libs/image/v5 v5.0.0-20260106012341-9f3bf573f7b7
 ## explicit; go 1.24.6
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
@@ -619,7 +619,7 @@ go.podman.io/image/v5/transports
 go.podman.io/image/v5/transports/alltransports
 go.podman.io/image/v5/types
 go.podman.io/image/v5/version
-# go.podman.io/storage v1.61.1-0.20251202202200-df55d6c661e8
+# go.podman.io/storage v1.61.1-0.20251202202200-df55d6c661e8 => github.com/clan/container-libs/storage v0.0.0-20260106012341-9f3bf573f7b7
 ## explicit; go 1.24.0
 go.podman.io/storage
 go.podman.io/storage/drivers
@@ -849,12 +849,15 @@ k8s.io/klog
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# tags.cncf.io/container-device-interface v1.0.2-0.20251120202831-139ffec09210
+# tags.cncf.io/container-device-interface v1.1.0
 ## explicit; go 1.21
 tags.cncf.io/container-device-interface/internal/validation
 tags.cncf.io/container-device-interface/internal/validation/k8s
 tags.cncf.io/container-device-interface/pkg/cdi
 tags.cncf.io/container-device-interface/pkg/parser
-# tags.cncf.io/container-device-interface/specs-go v1.0.1-0.20251120202831-139ffec09210
+# tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# go.podman.io/common => github.com/clan/container-libs/common v0.0.0-20260106012341-9f3bf573f7b7
+# go.podman.io/storage => github.com/clan/container-libs/storage v0.0.0-20260106012341-9f3bf573f7b7
+# go.podman.io/image/v5 => github.com/clan/container-libs/image/v5 v5.0.0-20260106012341-9f3bf573f7b7
