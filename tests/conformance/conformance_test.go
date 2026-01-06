@@ -185,6 +185,7 @@ func TestConformance(t *testing.T) {
 						test.dockerBuilderVersion = docker.BuilderV1
 						test.compatVolumes = types.OptionalBoolTrue
 						test.compatScratchConfig = types.OptionalBoolTrue
+						test.fsSkip = slices.Concat(test.fsSkip, test.fsSkipCompatVolumesTrue)
 					})
 				})
 			} else {
@@ -1425,7 +1426,9 @@ type (
 		compatLayerOmissions types.OptionalBool        // value to set for the buildah CompatLayerOmissions flag
 		transientMounts      []string                  // one possible buildah-specific feature
 		fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
-		buildArgs            map[string]string         // build args to supply, as if --build-arg was used
+
+		fsSkipCompatVolumesTrue []string          // more expected filesystem differences when compatVolumes=true
+		buildArgs               map[string]string // build args to supply, as if --build-arg was used
 	}
 )
 
@@ -3642,9 +3645,10 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:             "chown-volume", // from podman #22530
-		contextDir:       "chown-volume",
-		testUsingVolumes: true,
+		name:                    "chown-volume", // from podman #22530
+		contextDir:              "chown-volume",
+		testUsingVolumes:        true,
+		fsSkipCompatVolumesTrue: []string{"(dir):volumea:mtime", "(dir):volumeb:mtime", "(dir):volumec:mtime"},
 	},
 
 	{
