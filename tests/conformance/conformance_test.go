@@ -30,6 +30,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
 	"github.com/containers/buildah/internal/config"
+	dockerapi "github.com/docker/docker/api"
 	dockerbuildtypes "github.com/docker/docker/api/types/build"
 	dockerdockerclient "github.com/docker/docker/client"
 	docker "github.com/fsouza/go-dockerclient"
@@ -340,7 +341,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	}
 
 	// connect to dockerd using go-dockerclient
-	client, err := docker.NewClientFromEnv()
+	client, err := docker.NewVersionedClientFromEnv(dockerapi.DefaultVersion)
 	require.NoError(t, err, "unable to initialize docker client")
 	var dockerVersion []string
 	if version, err := client.Version(); err == nil {
