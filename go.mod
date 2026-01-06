@@ -41,7 +41,7 @@ require (
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.39.0
 	golang.org/x/term v0.38.0
-	tags.cncf.io/container-device-interface v1.0.2-0.20251120202831-139ffec09210
+	tags.cncf.io/container-device-interface v1.1.0
 )
 
 require (
@@ -137,5 +137,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
-	tags.cncf.io/container-device-interface/specs-go v1.0.1-0.20251120202831-139ffec09210 // indirect
+	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
