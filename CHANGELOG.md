@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v1.41.8 (2026-01-06)
+
+    [release-1.41] Bump Go in tests/tools to 1.24
+    [release-1.41] CVE-2025-47913 x/crypto
+
 ## v1.41.7 (2025-12-11)
 
     [release-1.41] Bump runc to v1.3.4
