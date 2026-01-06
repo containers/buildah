@@ -3817,15 +3817,23 @@ func TestCommit(t *testing.T) {
 			description: "expose just config",
 			baseImage:   "mirror.gcr.io/busybox",
 			config: &docker.Config{
-				ExposedPorts: map[docker.Port]struct{}{"23456": {}},
+				ExposedPorts: map[docker.Port]struct{}{"23456/tcp": {}},
 			},
 		},
 		{
-			description: "expose union",
+			description: "expose union implicit",
 			baseImage:   "mirror.gcr.io/busybox",
 			changes:     []string{"EXPOSE 12345"},
 			config: &docker.Config{
-				ExposedPorts: map[docker.Port]struct{}{"23456": {}},
+				ExposedPorts: map[docker.Port]struct{}{"23456/tcp": {}},
+			},
+		},
+		{
+			description: "expose union explicit",
+			baseImage:   "mirror.gcr.io/busybox",
+			changes:     []string{"EXPOSE 12345/tcp"},
+			config: &docker.Config{
+				ExposedPorts: map[docker.Port]struct{}{"23456/tcp": {}},
 			},
 		},
 		{
