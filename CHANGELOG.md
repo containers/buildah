@@ -2,6 +2,12 @@
 
 # Changelog
 
+## v1.39.8 (2026-01-06)
+
+    [release-1.39] tests/run.bats: "run masks" test: accept "unreadable"
+    [release-1.39] Adjust cpu-shares check test for weight
+    [release-1.39] CVE-2025-49713 x/crypto
+
 ## v1.39.7 (2025-12-11)
 
     [release-1.39] Bump runc to v1.2.9
