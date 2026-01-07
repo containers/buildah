@@ -821,6 +821,21 @@ func DefaultProfile() *Seccomp {
 				"socket",
 			},
 			Action:   ActErrno,
+			Errno:    "EPERM",
+			ErrnoRet: &eperm,
+			Args: []*Arg{
+				{
+					Index: 0,
+					Value: unix.AF_VSOCK,
+					Op:    OpEqualTo,
+				},
+			},
+		},
+		{
+			Names: []string{
+				"socket",
+			},
+			Action:   ActErrno,
 			Errno:    "EINVAL",
 			ErrnoRet: &einval,
 			Args: []*Arg{
@@ -846,6 +861,11 @@ func DefaultProfile() *Seccomp {
 			Action: ActAllow,
 			Args: []*Arg{
 				{
+					Index: 0,
+					Value: unix.AF_NETLINK,
+					Op:    OpEqualTo,
+				},
+				{
 					Index: 2,
 					Value: unix.NETLINK_AUDIT,
 					Op:    OpNotEqual,
@@ -878,6 +898,11 @@ func DefaultProfile() *Seccomp {
 			Action: ActAllow,
 			Args: []*Arg{
 				{
+					Index: 0,
+					Value: unix.AF_NETLINK,
+					Op:    OpEqualTo,
+				},
+				{
 					Index: 2,
 					Value: unix.NETLINK_AUDIT,
 					Op:    OpNotEqual,
@@ -892,6 +917,13 @@ func DefaultProfile() *Seccomp {
 				"socket",
 			},
 			Action: ActAllow,
+			Args: []*Arg{
+				{
+					Index: 0,
+					Value: unix.AF_VSOCK,
+					Op:    OpNotEqual,
+				},
+			},
 			Includes: Filter{
 				Caps: []string{"CAP_AUDIT_WRITE"},
 			},
