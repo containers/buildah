@@ -124,11 +124,24 @@ load helpers
   cp -v ${TEST_SOURCES}/containers.conf ${TEST_SCRATCH_DIR}/containers.conf
   chmod ugo+r ${TEST_SCRATCH_DIR}/containers.conf
   mkdir -p ${TEST_SCRATCH_DIR}/chroot
+  ${COPY_BINARY} containers-storage:[${STORAGE_DRIVER}@${TEST_SCRATCH_DIR}/root+${TEST_SCRATCH_DIR}/runroot]docker.io/library/busybox:latest dir:${TEST_SCRATCH_DIR}/base-image
   chown -R 1:1 ${TEST_SCRATCH_DIR}/root ${TEST_SCRATCH_DIR}/runroot ${TEST_SCRATCH_DIR}/chroot
+  if test ${STORAGE_DRIVER} = overlay ; then
+    if test -x /usr/bin/fuse-overlayfs ; then
+      local storage_opts="overlay.mount_program=/usr/bin/fuse-overlayfs"
+    else
+      skip "trying to use overlay on top of overlay, but fuse-overlayfs is not present"
+    fi
+  fi
+  # a script that runs inside of a new mount namespace and mounts the current
+  # rootfs as the "lower" for an overlay, then pivots into it
   cat > ${TEST_SCRATCH_DIR}/script1 <<- EOF
   PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${PATH:+:$PATH}
   set -e
   set -x
+  if test \$(stat -f -c %T "${TEST_SCRATCH_DIR}/chroot") = overlayfs ; then
+    mount -t tmpfs -o size=16M none ${TEST_SCRATCH_DIR}/chroot
+  fi
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/workdir
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/upperdir
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged
@@ -152,21 +165,34 @@ load helpers
   if test -d /var/tmp; then
     mount --bind /var/tmp ${TEST_SCRATCH_DIR}/chroot/merged/var/tmp
   fi
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/run
+  mount -t tmpfs -o size=1024k none ${TEST_SCRATCH_DIR}/chroot/merged/run
+  chmod 755 ${TEST_SCRATCH_DIR}/chroot/merged/run
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/run/containers/storage
+  chmod 755 ${TEST_SCRATCH_DIR}/chroot/merged/run/containers/storage
+  mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers/storage
+  chmod 755 ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers/storage
+  chown -R 1:1 ${TEST_SCRATCH_DIR}/chroot/merged/run ${TEST_SCRATCH_DIR}/chroot/merged/var/lib/containers
   mount --bind ${TEST_SCRATCH_DIR} ${TEST_SCRATCH_DIR}/chroot/merged/${TEST_SCRATCH_DIR}
   mkdir -p ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin
+  chmod 755 ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin
   touch ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin/buildah
   mount --bind ${BUILDAH_BINARY:-$TEST_SOURCES/../bin/buildah} ${TEST_SCRATCH_DIR}/chroot/merged/usr/local/bin/buildah
   cd ${TEST_SCRATCH_DIR}/chroot/merged
+  ${COPY_BINARY} --root ${TEST_SCRATCH_DIR}/root --runroot ${TEST_SCRATCH_DIR}/runroot --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} dir:${TEST_SCRATCH_DIR}/base-image dir:${TEST_SCRATCH_DIR}/chroot/merged/base-image
   pivot_root . tmp
   mount --make-rslave tmp
   umount -f -l tmp
-  mount -o remount,ro --make-rshared /
+  mount -o remount --make-rshared /
   grep ' / / ' /proc/self/mountinfo
   # unshare from util-linux 2.39 also accepts INNER:OUTER:SIZE for --map-users
   # and --map-groups, but fedora 37's is too old, so the older OUTER,INNER,SIZE
   # (using commas instead of colons as field separators) will have to do
-  unshare --setuid 0 --setgid 0 --map-users=1,0,1024 --map-groups=1,0,1024 -UinCfpm bash ${TEST_SCRATCH_DIR}/script2
+  unshare --setuid 0 --setgid 0 --map-users=1,0,1024 --map-users=1025,65534,2 --map-groups=1,0,1024 --map-groups=1025,65534,2 -UinCfpm bash ${TEST_SCRATCH_DIR}/script2
 EOF
+  # a script that runs inside of a new user namespace with an unprivileged ID
+  # mapped to root, which is expected to be able to run, with the proper
+  # configuration options, on top of that overlay filesystem
   cat > ${TEST_SCRATCH_DIR}/script2 <<- EOF
   set -e
   set -x
@@ -175,8 +201,11 @@ EOF
   cat /proc/self/uid_map
   cat /proc/self/gid_map
   mount --make-shared /
-  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} from --name ctrid --pull=never --quiet docker.io/library/busybox
-  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} run --isolation=chroot ctrid pwd
+  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} pull dir:/base-image
+  baseID=\$(jq -r .config.digest /base-image/manifest.json)
+  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} tag \${baseID} docker.io/library/busybox
+  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} from --name ctrid --pull=never --quiet docker.io/library/busybox
+  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} run --isolation=chroot ctrid pwd
 EOF
   chmod +x ${TEST_SCRATCH_DIR}
   chmod +rx ${TEST_SCRATCH_DIR}/script1 ${TEST_SCRATCH_DIR}/script2

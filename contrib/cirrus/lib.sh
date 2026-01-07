@@ -198,7 +198,7 @@ in_podman() {
                    --cgroupns=host \
                    "${envargs[@]}" \
                    -e BUILDAH_ISOLATION \
-                   -e STORAGE_DRIVER \
+                   -e STORAGE_DRIVER"${NESTED_STORAGE_DRIVER:+=${NESTED_STORAGE_DRIVER}}" \
                    -e "IN_PODMAN=false" \
                    -e "CONTAINER=podman" \
                    -e "CGROUP_MANAGER=cgroupfs" \
