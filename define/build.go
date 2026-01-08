@@ -145,9 +145,12 @@ type BuildOptions struct {
 	Runtime string
 	// RuntimeArgs adds global arguments for the runtime.
 	RuntimeArgs []string
-	// TransientMounts is a list of unparsed mounts that will be provided to
+	// TransientMounts is a list of unparsed src:dest volume instructions that will be provided to
 	// RUN instructions.
 	TransientMounts []string
+	// TransientRunMounts is a list of unparsed mounts (e.g. type=secret etc) that will be provided to
+	// RUN instructions.
+	TransientRunMounts []string
 	// CacheFrom specifies any remote repository which can be treated as
 	// potential cache source.
 	CacheFrom []reference.Named
