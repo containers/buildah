@@ -4041,14 +4041,17 @@ _EOF
 }
 
 @test "bud with preprocessor" {
-  _prefetch alpine
+  _prefetch busybox
   target=alpine-image
-  run_buildah build -q $WITH_POLICY_JSON -t ${target} -f Decomposed.in $BUDFILES/preprocess
+  starthttpd $BUDFILES/preprocess
+  run_buildah build --build-arg HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --network=host $WITH_POLICY_JSON -t ${target} -f Decomposed.in $BUDFILES/preprocess
 }
 
 @test "bud with preprocessor error" {
+  _prefetch busybox
   target=alpine-image
-  run_buildah bud $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
+  starthttpd $BUDFILES/preprocess
+  run_buildah bud --build-arg HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --network=host $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
   expect_output --substring "Ignoring <stdin>:5:2: error: #error"
 }
 
@@ -4809,9 +4812,10 @@ _EOF
 }
 
 @test "bud test RUN with a privileged command" {
-  _prefetch alpine
-  target=alpinepriv
-  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/run-privd/Dockerfile $BUDFILES/run-privd
+  _prefetch busybox
+  target=busyboxpriv
+  starthttpd $BUDFILES/run-privd
+  run_buildah build --network=host --build-arg HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON -t ${target} -f $BUDFILES/run-privd/Dockerfile $BUDFILES/run-privd
   expect_output --substring "[^:][^[:graph:]]COMMIT ${target}"
   run_buildah images -q
   expect_line_count 2
@@ -7914,14 +7918,13 @@ _EOF
 }
 
 @test "bud with ADD with git repository source" {
-  _prefetch alpine
+  _prefetch quay.io/hummingbird/git # any image with git preinstalled would do
 
   local contextdir=${TEST_SCRATCH_DIR}/add-git
   mkdir -p $contextdir
   cat > $contextdir/Dockerfile << _EOF
-FROM alpine
-RUN apk add git
-
+FROM quay.io/hummingbird/git
+USER 0:0
 ADD https://github.com/containers/podman.git#v5.0 /podman-branch
 ADD https://github.com/containers/podman.git#v5.0.0 /podman-tag
 _EOF
@@ -7929,14 +7932,14 @@ _EOF
   run_buildah build -f $contextdir/Dockerfile -t git-image $contextdir
   run_buildah from --quiet $WITH_POLICY_JSON --name testctr git-image
 
-  run_buildah run testctr -- sh -c 'cd podman-branch && git rev-parse HEAD'
+  run_buildah run testctr -- sh -c 'git -C /podman-branch rev-parse HEAD'
   local_head_hash=$output
-  run_buildah run testctr -- sh -c 'cd podman-branch && git ls-remote origin v5.0 | cut -f1'
+  run_buildah run testctr -- sh -c 'git -C /podman-branch ls-remote origin v5.0 | cut -f1'
   assert "$output" = "$local_head_hash"
 
-  run_buildah run testctr -- sh -c 'cd podman-tag && git rev-parse HEAD'
+  run_buildah run testctr -- sh -c 'git -C /podman-tag rev-parse HEAD'
   local_head_hash=$output
-  run_buildah run testctr -- sh -c 'cd podman-tag && git ls-remote --tags origin v5.0.0^{} | cut -f1'
+  run_buildah run testctr -- sh -c 'git -C /podman-tag ls-remote --tags origin v5.0.0^{} | cut -f1'
   assert "$output" = "$local_head_hash"
 
   cat > $contextdir/Dockerfile << _EOF
