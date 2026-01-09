@@ -222,6 +222,14 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		return options, nil, nil, errors.New("'rm' and 'force-rm' can only be set with either 'layers' or 'no-cache'")
 	}
 
+	if iopts.StageLabels && !iopts.CacheStages {
+		return options, nil, nil, errors.New("'stage-labels' requires 'cache-stages'")
+	}
+
+	if iopts.BuildIDFile != "" && !iopts.StageLabels {
+		return options, nil, nil, errors.New("'build-id-file' requires 'stage-labels'")
+	}
+
 	if c.Flag("compress").Changed {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
@@ -386,6 +394,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		BlobDirectory:           iopts.BlobCache,
 		BuildOutputs:            iopts.BuildOutputs,
 		CacheFrom:               cacheFrom,
+		CacheStages:             iopts.CacheStages,
 		CacheTo:                 cacheTo,
 		CacheTTL:                cacheTTL,
 		CDIConfigDir:            iopts.CDIConfigDir,
@@ -408,6 +417,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		GroupAdd:                iopts.GroupAdd,
 		IDMappingOptions:        idmappingOptions,
 		IIDFile:                 iopts.Iidfile,
+		BuildIDFile:             iopts.BuildIDFile,
 		IgnoreFile:              iopts.IgnoreFile,
 		In:                      stdin,
 		InheritLabels:           inheritLabels,
@@ -447,6 +457,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		SkipUnusedStages:        skipUnusedStages,
 		SourceDateEpoch:         sourceDateEpoch,
 		Squash:                  iopts.Squash,
+		StageLabels:             iopts.StageLabels,
 		SystemContext:           systemContext,
 		Target:                  iopts.Target,
 		Timestamp:               timestamp,
