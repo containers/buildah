@@ -1,5 +1,5 @@
-FROM alpine:latest
+FROM busybox
 
 #include "common"
 
-#error
+#error THISERROR

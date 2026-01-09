@@ -1,7 +1,5 @@
-FROM alpine
-
-RUN apk add openssh-client
-
+FROM quay.io/hummingbird/git
+USER 0:0
 RUN --mount=type=ssh,id=default ssh-add -l -E md5
 RUN ssh-add -l -E md5
 RUN cat /run/buildkit/ssh_agent.0
