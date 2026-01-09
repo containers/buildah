@@ -18,6 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb/v8"
 	"go.podman.io/image/v5/docker/reference"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/image"
 	"go.podman.io/image/v5/internal/pkg/platform"
 	"go.podman.io/image/v5/internal/private"
@@ -379,11 +380,6 @@ func (ic *imageCopier) noPendingManifestUpdates() bool {
 // compareImageDestinationManifestEqual compares the source and destination image manifests (reading the manifest from the
 // (possibly remote) destination). If they are equal, it returns a full copySingleImageResult, nil otherwise.
 func (ic *imageCopier) compareImageDestinationManifestEqual(ctx context.Context, targetInstance *digest.Digest) (*copySingleImageResult, error) {
-	srcManifestDigest, err := manifest.Digest(ic.src.ManifestBlob)
-	if err != nil {
-		return nil, fmt.Errorf("calculating manifest digest: %w", err)
-	}
-
 	destImageSource, err := ic.c.dest.Reference().NewImageSource(ctx, ic.c.options.DestinationCtx)
 	if err != nil {
 		logrus.Debugf("Unable to create destination image %s source: %v", ic.c.dest.Reference(), err)
@@ -397,14 +393,15 @@ func (ic *imageCopier) compareImageDestinationManifestEqual(ctx context.Context,
 		return nil, nil
 	}
 
-	destManifestDigest, err := manifest.Digest(destManifest)
+	if !bytes.Equal(ic.src.ManifestBlob, destManifest) {
+		logrus.Debugf("Source and destination manifests differ")
+		return nil, nil
+	}
+	logrus.Debugf("Destination already matches the source manifest")
+
+	srcManifestDigest, err := manifest.Digest(ic.src.ManifestBlob)
 	if err != nil {
 		return nil, fmt.Errorf("calculating manifest digest: %w", err)
-	}
-
-	logrus.Debugf("Comparing source and destination manifest digests: %v vs. %v", srcManifestDigest, destManifestDigest)
-	if srcManifestDigest != destManifestDigest {
-		return nil, nil
 	}
 
 	compressionAlgos := set.New[string]()
@@ -596,12 +593,27 @@ func (ic *imageCopier) copyUpdatedConfigAndManifest(ctx context.Context, instanc
 		return nil, "", fmt.Errorf("reading manifest: %w", err)
 	}
 
-	if err := ic.copyConfig(ctx, pendingImage); err != nil {
+	newConfigDigest, err := ic.copyConfig(ctx, pendingImage)
+	if err != nil {
 		return nil, "", err
 	}
 
+	// FIXME: Single image only; multi-arch needs per-instance config digest updates.
+	// See https://github.com/containers/container-libs/pull/552#discussion_r2611627578
+	if newConfigDigest != nil {
+		man, err = ic.updateManifestConfigDigest(man, pendingImage, *newConfigDigest)
+		if err != nil {
+			return nil, "", fmt.Errorf("updating manifest config digest: %w", err)
+		}
+	}
+
 	ic.c.Printf("Writing manifest to image destination\n")
-	manifestDigest, err := manifest.Digest(man)
+	// Choose the digest algorithm based on digest options
+	manifestDigestAlgo, err := ic.c.options.digestOptions.Choose(digests.Situation{})
+	if err != nil {
+		return nil, "", fmt.Errorf("choosing manifest digest algorithm: %w", err)
+	}
+	manifestDigest, err := manifest.DigestWithAlgorithm(man, manifestDigestAlgo)
 	if err != nil {
 		return nil, "", err
 	}
@@ -615,13 +627,33 @@ func (ic *imageCopier) copyUpdatedConfigAndManifest(ctx context.Context, instanc
 	return man, manifestDigest, nil
 }
 
+// updateManifestConfigDigest updates the config digest in the manifest using the manifest abstraction layer.
+func (ic *imageCopier) updateManifestConfigDigest(manifestBlob []byte, src types.Image, newConfigDigest digest.Digest) ([]byte, error) {
+	_, mt, err := src.Manifest(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("getting manifest type: %w", err)
+	}
+
+	m, err := manifest.FromBlob(manifestBlob, mt)
+	if err != nil {
+		return nil, fmt.Errorf("parsing manifest: %w", err)
+	}
+
+	if err := m.UpdateConfigDigest(newConfigDigest); err != nil {
+		return nil, err
+	}
+
+	return m.Serialize()
+}
+
 // copyConfig copies config.json, if any, from src to dest.
-func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
+// It returns the new config digest if it changed (due to digest algorithm forcing), or nil otherwise.
+func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) (*digest.Digest, error) {
 	srcInfo := src.ConfigInfo()
 	if srcInfo.Digest != "" {
 		if err := ic.c.concurrentBlobCopiesSemaphore.Acquire(ctx, 1); err != nil {
 			// This can only fail with ctx.Err(), so no need to blame acquiring the semaphore.
-			return fmt.Errorf("copying config: %w", err)
+			return nil, fmt.Errorf("copying config: %w", err)
 		}
 		defer ic.c.concurrentBlobCopiesSemaphore.Release(1)
 
@@ -649,13 +681,17 @@ func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
 			return destInfo, nil
 		}()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if destInfo.Digest != srcInfo.Digest {
-			return fmt.Errorf("Internal error: copying uncompressed config blob %s changed digest to %s", srcInfo.Digest, destInfo.Digest)
+			// If algorithms match, the whole digest values must match
+			if destInfo.Digest.Algorithm() == srcInfo.Digest.Algorithm() {
+				return nil, fmt.Errorf("Internal error: copying uncompressed config blob %s changed digest to %s", srcInfo.Digest, destInfo.Digest)
+			}
+			return &destInfo.Digest, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // diffIDResult contains both a digest value and an error from diffIDComputationGoroutine.
@@ -747,19 +783,34 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			tocDigest = *d
 		}
 
-		reused, reusedBlob, err := ic.c.dest.TryReusingBlobWithOptions(ctx, srcInfo, private.TryReusingBlobOptions{
-			Cache:                   ic.c.blobInfoCache,
-			CanSubstitute:           canSubstitute,
-			EmptyLayer:              emptyLayer,
-			LayerIndex:              &layerIndex,
-			SrcRef:                  srcRef,
-			PossibleManifestFormats: append([]string{ic.manifestConversionPlan.preferredMIMEType}, ic.manifestConversionPlan.otherMIMETypeCandidates...),
-			RequiredCompression:     requiredCompression,
-			OriginalCompression:     srcInfo.CompressionAlgorithm,
-			TOCDigest:               tocDigest,
-		})
-		if err != nil {
-			return types.BlobInfo{}, "", fmt.Errorf("trying to reuse blob %s at destination: %w", srcInfo.Digest, err)
+		// FIXME: Blob reuse disabled when forcing different digest algorithm.
+		canTryReuse := true
+		if forcedAlgo := ic.c.options.digestOptions.MustUseSet(); forcedAlgo != "" {
+			if srcInfo.Digest.Algorithm() != forcedAlgo {
+				logrus.Debugf("Skipping blob reuse for %s: digest algorithm %s doesn't match forced algorithm %s",
+					srcInfo.Digest, srcInfo.Digest.Algorithm(), forcedAlgo)
+				canTryReuse = false
+			}
+		}
+
+		reused := false
+		var reusedBlob private.ReusedBlob
+		if canTryReuse {
+			var err error
+			reused, reusedBlob, err = ic.c.dest.TryReusingBlobWithOptions(ctx, srcInfo, private.TryReusingBlobOptions{
+				Cache:                   ic.c.blobInfoCache,
+				CanSubstitute:           canSubstitute,
+				EmptyLayer:              emptyLayer,
+				LayerIndex:              &layerIndex,
+				SrcRef:                  srcRef,
+				PossibleManifestFormats: append([]string{ic.manifestConversionPlan.preferredMIMEType}, ic.manifestConversionPlan.otherMIMETypeCandidates...),
+				RequiredCompression:     requiredCompression,
+				OriginalCompression:     srcInfo.CompressionAlgorithm,
+				TOCDigest:               tocDigest,
+			})
+			if err != nil {
+				return types.BlobInfo{}, "", fmt.Errorf("trying to reuse blob %s at destination: %w", srcInfo.Digest, err)
+			}
 		}
 		if reused {
 			logrus.Debugf("Skipping blob %s (already present):", srcInfo.Digest)

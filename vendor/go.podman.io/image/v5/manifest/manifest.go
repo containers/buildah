@@ -90,6 +90,10 @@ type Manifest interface {
 	// the underlying image format is expected to include a configuration blob.
 	Inspect(configGetter func(types.BlobInfo) ([]byte, error)) (*types.ImageInspectInfo, error)
 
+	// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+	// This returns an error if the manifest does not support config digest updates (e.g., schema1 manifests).
+	UpdateConfigDigest(newDigest digest.Digest) error
+
 	// Serialize returns the manifest in a blob format.
 	// NOTE: Serialize() does not in general reproduce the original blob if this object was loaded from one, even if no modifications were made!
 	Serialize() ([]byte, error)
@@ -111,6 +115,12 @@ func GuessMIMEType(manifestBlob []byte) string {
 // Digest returns the a digest of a docker manifest, with any necessary implied transformations like stripping v1s1 signatures.
 func Digest(manifestBlob []byte) (digest.Digest, error) {
 	return manifest.Digest(manifestBlob)
+}
+
+// DigestWithAlgorithm returns the digest of a docker manifest using the specified algorithm,
+// with any necessary implied transformations like stripping v1s1 signatures.
+func DigestWithAlgorithm(manifestBlob []byte, algo digest.Algorithm) (digest.Digest, error) {
+	return manifest.DigestWithAlgorithm(manifestBlob, algo)
 }
 
 // MatchesDigest returns true iff the manifest matches expectedDigest.

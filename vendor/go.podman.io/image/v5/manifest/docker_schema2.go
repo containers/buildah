@@ -305,3 +305,10 @@ func (m *Schema2) ImageID([]digest.Digest) (string, error) {
 func (m *Schema2) CanChangeLayerCompression(mimeType string) bool {
 	return compressionVariantsRecognizeMIMEType(schema2CompressionMIMETypeSets, mimeType)
 }
+
+// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+// This returns an error if the manifest does not support config digest updates.
+func (m *Schema2) UpdateConfigDigest(newDigest digest.Digest) error {
+	m.ConfigDescriptor.Digest = newDigest
+	return nil
+}

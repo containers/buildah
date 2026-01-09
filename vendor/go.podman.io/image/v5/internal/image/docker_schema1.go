@@ -255,3 +255,8 @@ func (m *manifestSchema1) SupportsEncryption(context.Context) bool {
 func (m *manifestSchema1) CanChangeLayerCompression(mimeType string) bool {
 	return true // There are no MIME types in the manifest, so we must assume a valid image.
 }
+
+// UpdateConfigDigest updates the config descriptor's digest in the manifest.
+func (m *manifestSchema1) UpdateConfigDigest(newDigest digest.Digest) error {
+	return fmt.Errorf("cannot update config digest for schema1 manifest")
+}
