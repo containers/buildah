@@ -146,7 +146,7 @@ kept distributed across one or more remote registries using Buildah's caching me
 **--cache-stages** *bool-value*
 
 Preserve intermediate stage images instead of removing them after the build completes
-(Default is `false`). By default, buildah removes intermediate stage images to save space.
+(Default is `false`). By default, Buildah removes intermediate stage images to save space.
 This option keeps those images, which can be useful for debugging multi-stage builds or
 for reusing intermediate stages in subsequent builds.
 

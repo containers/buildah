@@ -26,9 +26,9 @@ import (
 
 // LayerResults represents the results of the layer flags
 type LayerResults struct {
+	CacheStages bool
 	ForceRm     bool
 	Layers      bool
-	CacheStages bool
 	StageLabels bool
 }
 
@@ -61,6 +61,7 @@ type BudResults struct {
 	BuildArg            []string
 	BuildArgFile        []string
 	BuildContext        []string
+	BuildIDFile         string
 	CacheFrom           []string
 	CacheTo             []string
 	CacheTTL            string
@@ -75,7 +76,6 @@ type BudResults struct {
 	Format              string
 	From                string
 	Iidfile             string
-	BuildIDFile         string
 	InheritLabels       bool
 	InheritAnnotations  bool
 	Label               []string

@@ -9063,7 +9063,7 @@ EOF
 @test "bud with --build-id-file writes UUID to file" {
   _prefetch alpine
   target="build-id-test-$(safename)"
-  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+  run_buildah build $WITH_POLICY_JSON --cache-stages=true --stage-labels=true --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
   test -f ${TEST_SCRATCH_DIR}/build-id.txt
   build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
   assert "$build_id" =~ "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" "build ID should be valid UUID format"
@@ -9171,6 +9171,49 @@ EOF
   cache_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
   cache_count=$(echo "$cache_images" | wc -w)
   assert "$cache_count" == "1" "with cache-stages should have 1 intermediate image (intermediate stage)"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages=false does not preserve intermediate images" {
+  _prefetch alpine
+  target="cache-stages-test-$(safename)"
+
+  # Build with --cache-stages=false
+  run_buildah build $WITH_POLICY_JSON --cache-stages=false -t ${target}-no-cache -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate-one-unused $BUDFILES/cache-stages-test
+  run_buildah images -a
+  baseline_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  baseline_count=$(echo "$baseline_images" | wc -w)
+  assert "$baseline_count" == "0" "without cache-stages should have 0 intermediate images"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages and --stage-labels=false does not label intermediate images" {
+  _prefetch alpine
+  target="cache-stages-test-$(safename)"
+
+  # Build with --stage-labels=false
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels=false -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate-one-unused $BUDFILES/cache-stages-test
+  run_buildah images -a
+  intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  intermediate_count=$(echo "$intermediate_images" | wc -w)
+  assert "$intermediate_count" == "1" "should have 1 intermediate image"
+
+  # Verify that intermediate image does NOT have stage labels
+  for image_id in $intermediate_images; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.name"}}' $image_id
+    assert "$output" == "" "stage.name label should not be present when --stage-labels=false"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+    assert "$output" == "" "build.id label should not be present when --stage-labels=false"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.base"}}' $image_id
+    assert "$output" == "" "stage.base label should not be present when --stage-labels=false"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
+    assert "$output" == "" "stage.parent_name label should not be present when --stage-labels=false"
+  done
 
   run_buildah rmi --all
 }
