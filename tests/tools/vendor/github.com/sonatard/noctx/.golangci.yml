@@ -1,0 +1,14 @@
+run:
+  linters-settings:
+    govet:
+       enable-all: true
+  linters:
+    enable-all: true
+    disable:
+      - gochecknoglobals
+      - gomnd
+      - gocognit
+      - nestif
+      - nilnil
+      - paralleltest
+      - varnamelen

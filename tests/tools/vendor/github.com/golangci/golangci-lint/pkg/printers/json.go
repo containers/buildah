@@ -1,22 +1,22 @@
 package printers
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
+	"io"
 
-	"github.com/golangci/golangci-lint/pkg/logutils"
 	"github.com/golangci/golangci-lint/pkg/report"
 	"github.com/golangci/golangci-lint/pkg/result"
 )
 
 type JSON struct {
-	rd *report.Data
+	rd *report.Data // TODO(ldez) should be drop in v2. Only use by JSON reporter.
+	w  io.Writer
 }
 
-func NewJSON(rd *report.Data) *JSON {
+func NewJSON(rd *report.Data, w io.Writer) *JSON {
 	return &JSON{
 		rd: rd,
+		w:  w,
 	}
 }
 
@@ -25,22 +25,14 @@ type JSONResult struct {
 	Report *report.Data
 }
 
-func (p JSON) Print(ctx context.Context, issues <-chan result.Issue) error {
-	allIssues := []result.Issue{}
-	for i := range issues {
-		allIssues = append(allIssues, i)
-	}
-
+func (p JSON) Print(issues []result.Issue) error {
 	res := JSONResult{
-		Issues: allIssues,
+		Issues: issues,
 		Report: p.rd,
 	}
-
-	outputJSON, err := json.Marshal(res)
-	if err != nil {
-		return err
+	if res.Issues == nil {
+		res.Issues = []result.Issue{}
 	}
 
-	fmt.Fprint(logutils.StdOut, string(outputJSON))
-	return nil
+	return json.NewEncoder(p.w).Encode(res)
 }

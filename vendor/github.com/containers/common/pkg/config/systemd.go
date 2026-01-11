@@ -1,9 +1,11 @@
-// +build systemd
+//go:build systemd && cgo
+// +build systemd,cgo
 
 package config
 
 import (
-	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -12,8 +14,15 @@ import (
 )
 
 var (
-	systemdOnce sync.Once
-	usesSystemd bool
+	systemdOnce  sync.Once
+	usesSystemd  bool
+	journaldOnce sync.Once
+	usesJournald bool
+)
+
+const (
+	// DefaultLogDriver is the default type of log files
+	DefaultLogDriver = "journald"
 )
 
 func defaultCgroupManager() string {
@@ -29,30 +38,49 @@ func defaultCgroupManager() string {
 }
 
 func defaultEventsLogger() string {
-	if useSystemd() {
+	if useJournald() {
 		return "journald"
 	}
 	return "file"
 }
 
 func defaultLogDriver() string {
-	// If we decide to change the default for logdriver, it should be done here.
-	if useSystemd() {
-		return DefaultLogDriver
+	if useJournald() {
+		return "journald"
 	}
-
-	return DefaultLogDriver
-
+	return "k8s-file"
 }
 
 func useSystemd() bool {
 	systemdOnce.Do(func() {
-		dat, err := ioutil.ReadFile("/proc/1/comm")
+		dat, err := os.ReadFile("/proc/1/comm")
 		if err == nil {
 			val := strings.TrimSuffix(string(dat), "\n")
 			usesSystemd = (val == "systemd")
 		}
-		return
 	})
 	return usesSystemd
+}
+
+func useJournald() bool {
+	journaldOnce.Do(func() {
+		if !useSystemd() {
+			return
+		}
+		for _, root := range []string{"/run/log/journal", "/var/log/journal"} {
+			dirs, err := os.ReadDir(root)
+			if err != nil {
+				continue
+			}
+			for _, d := range dirs {
+				if d.IsDir() {
+					if _, err := os.ReadDir(filepath.Join(root, d.Name())); err == nil {
+						usesJournald = true
+						return
+					}
+				}
+			}
+		}
+	})
+	return usesJournald
 }

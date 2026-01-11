@@ -1,21 +1,27 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package analysis
 
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"unicode"
 )
 
 // Validate reports an error if any of the analyzers are misconfigured.
 // Checks include:
 // that the name is a valid identifier;
-// that analyzer names are unique;
+// that the Doc is not empty;
+// that the Run is non-nil;
 // that the Requires graph is acyclic;
 // that analyzer fact types are unique;
 // that each fact type is a pointer.
+//
+// Analyzer names need not be unique, though this may be confusing.
 func Validate(analyzers []*Analyzer) error {
-	names := make(map[string]bool)
-
 	// Map each fact type to its sole generating analyzer.
 	factTypes := make(map[reflect.Type]*Analyzer)
 
@@ -39,15 +45,14 @@ func Validate(analyzers []*Analyzer) error {
 			if !validIdent(a.Name) {
 				return fmt.Errorf("invalid analyzer name %q", a)
 			}
-			if names[a.Name] {
-				return fmt.Errorf("duplicate analyzer name %q", a)
-			}
-			names[a.Name] = true
 
 			if a.Doc == "" {
 				return fmt.Errorf("analyzer %q is undocumented", a)
 			}
 
+			if a.Run == nil {
+				return fmt.Errorf("analyzer %q has nil Run", a)
+			}
 			// fact types
 			for _, f := range a.FactTypes {
 				if f == nil {
@@ -65,12 +70,26 @@ func Validate(analyzers []*Analyzer) error {
 			}
 
 			// recursion
-			for i, req := range a.Requires {
+			for _, req := range a.Requires {
 				if err := visit(req); err != nil {
-					return fmt.Errorf("%s.Requires[%d]: %v", a.Name, i, err)
+					return err
 				}
 			}
 			color[a] = black
+		}
+
+		if color[a] == grey {
+			stack := []*Analyzer{a}
+			inCycle := map[string]bool{}
+			for len(stack) > 0 {
+				current := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if color[current] == grey && !inCycle[current.Name] {
+					inCycle[current.Name] = true
+					stack = append(stack, current.Requires...)
+				}
+			}
+			return &CycleInRequiresGraphError{AnalyzerNames: inCycle}
 		}
 
 		return nil
@@ -101,4 +120,18 @@ func validIdent(name string) bool {
 		}
 	}
 	return name != ""
+}
+
+type CycleInRequiresGraphError struct {
+	AnalyzerNames map[string]bool
+}
+
+func (e *CycleInRequiresGraphError) Error() string {
+	var b strings.Builder
+	b.WriteString("cycle detected involving the following analyzers:")
+	for n := range e.AnalyzerNames {
+		b.WriteByte(' ')
+		b.WriteString(n)
+	}
+	return b.String()
 }

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Unconvert removes redundant type conversions from Go packages.
+// Package unconvert Unconvert removes redundant type conversions from Go packages.
 package unconvert
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -18,21 +18,47 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"reflect"
 	"runtime/pprof"
 	"sort"
+	"strings"
 	"sync"
 	"unicode"
 
-	"github.com/kisielk/gotool"
 	"golang.org/x/text/width"
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 )
 
 // Unnecessary conversions are identified by the position
 // of their left parenthesis within a source file.
 
 type editSet map[token.Position]struct{}
+
+func (e editSet) add(pos token.Position) {
+	pos.Offset = 0
+	e[pos] = struct{}{}
+}
+
+func (e editSet) has(pos token.Position) bool {
+	pos.Offset = 0
+	_, ok := e[pos]
+	return ok
+}
+
+func (e editSet) remove(pos token.Position) {
+	pos.Offset = 0
+	delete(e, pos)
+}
+
+// intersect removes positions from e that are not present in x.
+func (e editSet) intersect(x editSet) {
+	for pos := range e {
+		if _, ok := x[pos]; !ok {
+			delete(e, pos)
+		}
+	}
+}
 
 type fileToEditSet map[string]editSet
 
@@ -97,11 +123,11 @@ func (e *editor) rewrite(f *ast.Expr) {
 	}
 
 	pos := e.file.Position(call.Lparen)
-	if _, ok := e.edits[pos]; !ok {
+	if !e.edits.has(pos) {
 		return
 	}
 	*f = call.Args[0]
-	delete(e.edits, pos)
+	e.edits.remove(pos)
 }
 
 var (
@@ -161,21 +187,12 @@ func rub(buf []byte) []byte {
 	return res.Bytes()
 }
 
-var (
-	flagAll        = flag.Bool("unconvert.all", false, "type check all GOOS and GOARCH combinations")
-	flagApply      = flag.Bool("unconvert.apply", false, "apply edits to source files")
-	flagCPUProfile = flag.String("unconvert.cpuprofile", "", "write CPU profile to file")
-	// TODO(mdempsky): Better description and maybe flag name.
-	flagSafe = flag.Bool("unconvert.safe", false, "be more conservative (experimental)")
-	flagV    = flag.Bool("unconvert.v", false, "verbose output")
-)
-
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: unconvert [flags] [package ...]\n")
 	flag.PrintDefaults()
 }
 
-func nomain() {
+func main() {
 	flag.Usage = usage
 	flag.Parse()
 
@@ -188,17 +205,28 @@ func nomain() {
 		defer pprof.StopCPUProfile()
 	}
 
-	importPaths := gotool.ImportPaths(flag.Args())
-	if len(importPaths) == 0 {
-		return
+	patterns := flag.Args() // 0 or more import path patterns.
+
+	var configs [][]string
+	if *flagConfigs != "" {
+		if os.Getenv("UNCONVERT_CONFIGS_EXPERIMENT") != "1" {
+			fmt.Println("WARNING: -configs is experimental and subject to change without notice.")
+			fmt.Println("Please comment at https://github.com/mdempsky/unconvert/issues/26")
+			fmt.Println("if you'd like to rely on this interface.")
+			fmt.Println("(Set UNCONVERT_CONFIGS_EXPERIMENT=1 to silence this warning.)")
+			fmt.Println()
+		}
+
+		if err := json.Unmarshal([]byte(*flagConfigs), &configs); err != nil {
+			log.Fatal(err)
+		}
+	} else if *flagAll {
+		configs = allConfigs()
+	} else {
+		configs = [][]string{nil}
 	}
 
-	var m fileToEditSet
-	if *flagAll {
-		m = mergeEdits(importPaths)
-	} else {
-		m = computeEdits(importPaths, build.Default.GOOS, build.Default.GOARCH, build.Default.CgoEnabled)
-	}
+	m := mergeEdits(patterns, configs)
 
 	if *flagApply {
 		var wg sync.WaitGroup
@@ -226,69 +254,36 @@ func nomain() {
 	}
 }
 
-func Run(prog *loader.Program) []token.Position {
-	m := computeEditsFromProg(prog)
-	var conversions []token.Position
-	for _, positions := range m {
-		for pos := range positions {
-			conversions = append(conversions, pos)
-		}
+func allConfigs() [][]string {
+	out, err := exec.Command("go", "tool", "dist", "list", "-json").Output()
+	if err != nil {
+		log.Fatal(err)
 	}
-	return conversions
+
+	var platforms []struct {
+		GOOS, GOARCH string
+	}
+	err = json.Unmarshal(out, &platforms)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var res [][]string
+	for _, platform := range platforms {
+		res = append(res, []string{
+			"GOOS=" + platform.GOOS,
+			"GOARCH=" + platform.GOARCH,
+		})
+	}
+	return res
 }
 
-var plats = [...]struct {
-	goos, goarch string
-}{
-	// TODO(mdempsky): buildall.bash also builds linux-386-387 and linux-arm-arm5.
-	{"android", "386"},
-	{"android", "amd64"},
-	{"android", "arm"},
-	{"android", "arm64"},
-	{"darwin", "386"},
-	{"darwin", "amd64"},
-	{"darwin", "arm"},
-	{"darwin", "arm64"},
-	{"dragonfly", "amd64"},
-	{"freebsd", "386"},
-	{"freebsd", "amd64"},
-	{"freebsd", "arm"},
-	{"linux", "386"},
-	{"linux", "amd64"},
-	{"linux", "arm"},
-	{"linux", "arm64"},
-	{"linux", "mips64"},
-	{"linux", "mips64le"},
-	{"linux", "ppc64"},
-	{"linux", "ppc64le"},
-	{"linux", "s390x"},
-	{"nacl", "386"},
-	{"nacl", "amd64p32"},
-	{"nacl", "arm"},
-	{"netbsd", "386"},
-	{"netbsd", "amd64"},
-	{"netbsd", "arm"},
-	{"openbsd", "386"},
-	{"openbsd", "amd64"},
-	{"openbsd", "arm"},
-	{"plan9", "386"},
-	{"plan9", "amd64"},
-	{"plan9", "arm"},
-	{"solaris", "amd64"},
-	{"windows", "386"},
-	{"windows", "amd64"},
-}
-
-func mergeEdits(importPaths []string) fileToEditSet {
+func mergeEdits(patterns []string, configs [][]string) fileToEditSet {
 	m := make(fileToEditSet)
-	for _, plat := range plats {
-		for f, e := range computeEdits(importPaths, plat.goos, plat.goarch, false) {
+	for _, config := range configs {
+		for f, e := range computeEdits(patterns, config) {
 			if e0, ok := m[f]; ok {
-				for k := range e0 {
-					if _, ok := e[k]; !ok {
-						delete(e0, k)
-					}
-				}
+				e0.intersect(e)
 			} else {
 				m[f] = e
 			}
@@ -297,48 +292,48 @@ func mergeEdits(importPaths []string) fileToEditSet {
 	return m
 }
 
-type noImporter struct{}
-
-func (noImporter) Import(path string) (*types.Package, error) {
-	panic("golang.org/x/tools/go/loader said this wouldn't be called")
-}
-
-func computeEdits(importPaths []string, os, arch string, cgoEnabled bool) fileToEditSet {
-	ctxt := build.Default
-	ctxt.GOOS = os
-	ctxt.GOARCH = arch
-	ctxt.CgoEnabled = cgoEnabled
-
-	var conf loader.Config
-	conf.Build = &ctxt
-	conf.TypeChecker.Importer = noImporter{}
-	for _, importPath := range importPaths {
-		conf.Import(importPath)
+func computeEdits(patterns []string, config []string) fileToEditSet {
+	// TODO(mdempsky): Move into config?
+	var buildFlags []string
+	if *flagTags != "" {
+		buildFlags = []string{"-tags", *flagTags}
 	}
-	prog, err := conf.Load()
+
+	pkgs, err := packages.Load(&packages.Config{
+		Mode:       packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
+		Env:        append(os.Environ(), config...),
+		BuildFlags: buildFlags,
+		Tests:      *flagTests,
+	}, patterns...)
 	if err != nil {
 		log.Fatal(err)
 	}
+	packages.PrintErrors(pkgs)
 
-	return computeEditsFromProg(prog)
-}
-
-func computeEditsFromProg(prog *loader.Program) fileToEditSet {
 	type res struct {
 		file  string
 		edits editSet
 	}
+
 	ch := make(chan res)
 	var wg sync.WaitGroup
-	for _, pkg := range prog.InitialPackages() {
-		for _, file := range pkg.Files {
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
 			pkg, file := pkg, file
+			tokenFile := pkg.Fset.File(file.Package)
+			filename := tokenFile.Position(file.Package).Filename
+
+			// Hack to recognize _cgo_gotypes.go.
+			if strings.HasSuffix(filename, "-d") || strings.HasSuffix(filename, "/_cgo_gotypes.go") {
+				continue
+			}
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				v := visitor{pkg: pkg, file: prog.Fset.File(file.Package), edits: make(editSet)}
+				v := visitor{info: pkg.TypesInfo, file: tokenFile, edits: make(editSet)}
 				ast.Walk(&v, file)
-				ch <- res{v.file.Name(), v.edits}
+				ch <- res{filename, v.edits}
 			}()
 		}
 	}
@@ -360,7 +355,7 @@ type step struct {
 }
 
 type visitor struct {
-	pkg   *loader.PackageInfo
+	info  *types.Info
 	file  *token.File
 	edits editSet
 	path  []step
@@ -390,7 +385,7 @@ func (v *visitor) unconvert(call *ast.CallExpr) {
 	if len(call.Args) != 1 || call.Ellipsis != token.NoPos {
 		return
 	}
-	ft, ok := v.pkg.Types[call.Fun]
+	ft, ok := v.info.Types[call.Fun]
 	if !ok {
 		fmt.Println("Missing type for function")
 		return
@@ -399,7 +394,7 @@ func (v *visitor) unconvert(call *ast.CallExpr) {
 		// Function call; not a conversion.
 		return
 	}
-	at, ok := v.pkg.Types[call.Args[0]]
+	at, ok := v.info.Types[call.Args[0]]
 	if !ok {
 		fmt.Println("Missing type for argument")
 		return
@@ -408,7 +403,13 @@ func (v *visitor) unconvert(call *ast.CallExpr) {
 		// A real conversion.
 		return
 	}
-	if isUntypedValue(call.Args[0], &v.pkg.Info) {
+	if !*flagFastMath && isFloatingPoint(ft.Type) {
+		// As of Go 1.9, explicit floating-point type
+		// conversions are always significant because they
+		// force rounding and prevent operation fusing.
+		return
+	}
+	if isUntypedValue(call.Args[0], v.info) {
 		// Workaround golang.org/issue/13061.
 		return
 	}
@@ -417,31 +418,15 @@ func (v *visitor) unconvert(call *ast.CallExpr) {
 		fmt.Println("Skipped a possible type conversion because of -safe at", v.file.Position(call.Pos()))
 		return
 	}
-	if v.isCgoCheckPointerContext() {
-		// cmd/cgo generates explicit type conversions that
-		// are often redundant when introducing
-		// _cgoCheckPointer calls (issue #16).  Users can't do
-		// anything about these, so skip over them.
-		return
-	}
 
-	v.edits[v.file.Position(call.Lparen)] = struct{}{}
+	v.edits.add(v.file.Position(call.Lparen))
 }
 
-func (v *visitor) isCgoCheckPointerContext() bool {
-	ctxt := &v.path[len(v.path)-2]
-	if ctxt.i != 1 {
-		return false
-	}
-	call, ok := ctxt.n.(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	ident, ok := call.Fun.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return ident.Name == "_cgoCheckPointer"
+// isFloatingPointer reports whether t's underlying type is a floating
+// point type.
+func isFloatingPoint(t types.Type) bool {
+	ut, ok := t.Underlying().(*types.Basic)
+	return ok && ut.Info()&(types.IsFloat|types.IsComplex) != 0
 }
 
 // isSafeContext reports whether the current context requires
@@ -463,7 +448,7 @@ func (v *visitor) isSafeContext(t types.Type) bool {
 		}
 		// We're a conversion in the pos'th element of n.Rhs.
 		// Check that the corresponding element of n.Lhs is of type t.
-		lt, ok := v.pkg.Types[n.Lhs[pos]]
+		lt, ok := v.info.Types[n.Lhs[pos]]
 		if !ok {
 			fmt.Println("Missing type for LHS expression")
 			return false
@@ -485,7 +470,7 @@ func (v *visitor) isSafeContext(t types.Type) bool {
 		} else {
 			other = n.X
 		}
-		ot, ok := v.pkg.Types[other]
+		ot, ok := v.info.Types[other]
 		if !ok {
 			fmt.Println("Missing type for other binop subexpr")
 			return false
@@ -497,7 +482,7 @@ func (v *visitor) isSafeContext(t types.Type) bool {
 			// Type conversion in the function subexpr is okay.
 			return true
 		}
-		ft, ok := v.pkg.Types[n.Fun]
+		ft, ok := v.info.Types[n.Fun]
 		if !ok {
 			fmt.Println("Missing type for function expression")
 			return false
@@ -550,7 +535,7 @@ func (v *visitor) isSafeContext(t types.Type) bool {
 		if typeExpr == nil {
 			fmt.Println(ctxt)
 		}
-		pt, ok := v.pkg.Types[typeExpr]
+		pt, ok := v.info.Types[typeExpr]
 		if !ok {
 			fmt.Println("Missing type for return parameter at", v.file.Position(n.Pos()))
 			return false

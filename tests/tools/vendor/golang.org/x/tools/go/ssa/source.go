@@ -23,11 +23,10 @@ import (
 // enclosed by the package's init() function.
 //
 // Returns nil if not found; reasons might include:
-//    - the node is not enclosed by any function.
-//    - the node is within an anonymous function (FuncLit) and
-//      its SSA function has not been created yet
-//      (pkg.Build() has not yet been called).
-//
+//   - the node is not enclosed by any function.
+//   - the node is within an anonymous function (FuncLit) and
+//     its SSA function has not been created yet
+//     (pkg.Build() has not yet been called).
 func EnclosingFunction(pkg *Package, path []ast.Node) *Function {
 	// Start with package-level function...
 	fn := findEnclosingPackageLevelFunction(pkg, path)
@@ -65,14 +64,12 @@ outer:
 // depend on whether SSA code for pkg has been built, so it can be
 // used to quickly reject check inputs that will cause
 // EnclosingFunction to fail, prior to SSA building.
-//
 func HasEnclosingFunction(pkg *Package, path []ast.Node) bool {
 	return findEnclosingPackageLevelFunction(pkg, path) != nil
 }
 
 // findEnclosingPackageLevelFunction returns the Function
 // corresponding to the package-level function enclosing path.
-//
 func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function {
 	if n := len(path); n >= 2 { // [... {Gen,Func}Decl File]
 		switch decl := path[n-2].(type) {
@@ -107,7 +104,6 @@ func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function 
 
 // findNamedFunc returns the named function whose FuncDecl.Ident is at
 // position pos.
-//
 func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 	// Look at all package members and method sets of named types.
 	// Not very efficient.
@@ -123,7 +119,9 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
 				if obj.Pos() == pos {
-					return pkg.values[obj].(*Function)
+					// obj from MethodSet may not be the origin type.
+					m := obj.Origin()
+					return pkg.objects[m].(*Function)
 				}
 			}
 		}
@@ -135,13 +133,13 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 // expression e.
 //
 // It returns nil if no value was found, e.g.
-//    - the expression is not lexically contained within f;
-//    - f was not built with debug information; or
-//    - e is a constant expression.  (For efficiency, no debug
-//      information is stored for constants. Use
-//      go/types.Info.Types[e].Value instead.)
-//    - e is a reference to nil or a built-in function.
-//    - the value was optimised away.
+//   - the expression is not lexically contained within f;
+//   - f was not built with debug information; or
+//   - e is a constant expression.  (For efficiency, no debug
+//     information is stored for constants. Use
+//     go/types.Info.Types[e].Value instead.)
+//   - e is a reference to nil or a built-in function.
+//   - the value was optimised away.
 //
 // If e is an addressable expression used in an lvalue context,
 // value is the address denoted by e, and isAddr is true.
@@ -153,7 +151,6 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 // astutil.PathEnclosingInterval to locate the ast.Node, then
 // EnclosingFunction to locate the Function, then ValueForExpr to find
 // the ssa.Value.)
-//
 func (f *Function) ValueForExpr(e ast.Expr) (value Value, isAddr bool) {
 	if f.debugInfo() { // (opt)
 		e = unparen(e)
@@ -173,39 +170,36 @@ func (f *Function) ValueForExpr(e ast.Expr) (value Value, isAddr bool) {
 // --- Lookup functions for source-level named entities (types.Objects) ---
 
 // Package returns the SSA Package corresponding to the specified
-// type-checker package object.
-// It returns nil if no such SSA package has been created.
-//
-func (prog *Program) Package(obj *types.Package) *Package {
-	return prog.packages[obj]
+// type-checker package. It returns nil if no such Package was
+// created by a prior call to prog.CreatePackage.
+func (prog *Program) Package(pkg *types.Package) *Package {
+	return prog.packages[pkg]
 }
 
-// packageLevelValue returns the package-level value corresponding to
-// the specified named object, which may be a package-level const
-// (*Const), var (*Global) or func (*Function) of some package in
-// prog.  It returns nil if the object is not found.
+// packageLevelMember returns the package-level member corresponding
+// to the specified symbol, which may be a package-level const
+// (*NamedConst), var (*Global) or func/method (*Function) of some
+// package in prog.
 //
-func (prog *Program) packageLevelValue(obj types.Object) Value {
+// It returns nil if the object belongs to a package that has not been
+// created by prog.CreatePackage.
+func (prog *Program) packageLevelMember(obj types.Object) Member {
 	if pkg, ok := prog.packages[obj.Pkg()]; ok {
-		return pkg.values[obj]
+		return pkg.objects[obj]
 	}
 	return nil
 }
 
-// FuncValue returns the concrete Function denoted by the source-level
-// named function obj, or nil if obj denotes an interface method.
-//
-// TODO(adonovan): check the invariant that obj.Type() matches the
-// result's Signature, both in the params/results and in the receiver.
-//
+// FuncValue returns the SSA function or (non-interface) method
+// denoted by the specified func symbol. It returns nil id the symbol
+// denotes an interface method, or belongs to a package that was not
+// created by prog.CreatePackage.
 func (prog *Program) FuncValue(obj *types.Func) *Function {
-	fn, _ := prog.packageLevelValue(obj).(*Function)
+	fn, _ := prog.packageLevelMember(obj).(*Function)
 	return fn
 }
 
-// ConstValue returns the SSA Value denoted by the source-level named
-// constant obj.
-//
+// ConstValue returns the SSA constant denoted by the specified const symbol.
 func (prog *Program) ConstValue(obj *types.Const) *Const {
 	// TODO(adonovan): opt: share (don't reallocate)
 	// Consts for const objects and constant ast.Exprs.
@@ -215,14 +209,14 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 		return NewConst(obj.Val(), obj.Type())
 	}
 	// Package-level named constant?
-	if v := prog.packageLevelValue(obj); v != nil {
-		return v.(*Const)
+	if v := prog.packageLevelMember(obj); v != nil {
+		return v.(*NamedConst).Value
 	}
 	return NewConst(obj.Val(), obj.Type())
 }
 
 // VarValue returns the SSA Value that corresponds to a specific
-// identifier denoting the source-level named variable obj.
+// identifier denoting the specified var symbol.
 //
 // VarValue returns nil if a local variable was not found, perhaps
 // because its package was not built, the debug information was not
@@ -237,8 +231,9 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // If the identifier is a field selector and its base expression is
 // non-addressable, then VarValue returns the value of that field.
 // For example:
-//    func f() struct {x int}
-//    f().x  // VarValue(x) returns a *Field instruction of type int
+//
+//	func f() struct {x int}
+//	f().x  // VarValue(x) returns a *Field instruction of type int
 //
 // All other identifiers denote addressable locations (variables).
 // For them, VarValue may return either the variable's address or its
@@ -247,14 +242,14 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 //
 // If !isAddr, the returned value is the one associated with the
 // specific identifier.  For example,
-//       var x int    // VarValue(x) returns Const 0 here
-//       x = 1        // VarValue(x) returns Const 1 here
+//
+//	var x int    // VarValue(x) returns Const 0 here
+//	x = 1        // VarValue(x) returns Const 1 here
 //
 // It is not specified whether the value or the address is returned in
 // any particular case, as it may depend upon optimizations performed
 // during SSA code generation, such as registerization, constant
 // folding, avoidance of materialization of subexpressions, etc.
-//
 func (prog *Program) VarValue(obj *types.Var, pkg *Package, ref []ast.Node) (value Value, isAddr bool) {
 	// All references to a var are local to some function, possibly init.
 	fn := EnclosingFunction(pkg, ref)
@@ -285,7 +280,7 @@ func (prog *Program) VarValue(obj *types.Var, pkg *Package, ref []ast.Node) (val
 	}
 
 	// Defining ident of package-level var?
-	if v := prog.packageLevelValue(obj); v != nil {
+	if v := prog.packageLevelMember(obj); v != nil {
 		return v.(*Global), true
 	}
 

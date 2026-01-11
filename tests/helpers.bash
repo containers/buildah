@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 
+# Directory in which tests live
+TESTDIR=${TESTDIR:-$(dirname ${BASH_SOURCE})}
+
 BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../bin/buildah}
 IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../bin/imgtype}
 COPY_BINARY=${COPY_BINARY:-$(dirname ${BASH_SOURCE})/../bin/copy}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
+DUMPSPEC_BINARY=${DUMPSPEC_BINARY:-$(dirname ${BASH_SOURCE})/../bin/dumpspec}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)
 
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
+
+# Shortcut for directory containing Containerfiles for bud.bats
+BUDFILES=${TESTDIR}/bud
 
 # We don't invoke gnupg directly in many places, but this avoids ENOTTY errors
 # when we invoke it directly in batch mode, and CI runs us without a terminal
@@ -39,9 +46,23 @@ function setup() {
 function starthttpd() {
     pushd ${2:-${TESTDIR}} > /dev/null
     go build -o serve ${TESTSDIR}/serve/serve.go
-    HTTP_SERVER_PORT=$((RANDOM+32768))
-    ./serve ${HTTP_SERVER_PORT} ${1:-${BATS_TMPDIR}} &
+    portfile=$(mktemp)
+    if test -z "${portfile}"; then
+        echo error creating temporaty file
+        exit 1
+    fi
+    ./serve ${1:-${BATS_TMPDIR}} 0 ${portfile} &
     HTTP_SERVER_PID=$!
+    waited=0
+    while ! test -s ${portfile} ; do
+        sleep 0.1
+        if test $((++waited)) -ge 300 ; then
+            echo test http server did not start within timeout
+            exit 1
+        fi
+    done
+    HTTP_SERVER_PORT=$(cat ${portfile})
+    rm -f ${portfile}
     popd > /dev/null
 }
 
@@ -329,6 +350,31 @@ function check_options_flag_err() {
     [[ $output = *"No options ($flag) can be specified after"* ]]
 }
 
+#################
+#  is_rootless  #  Check if we run as normal user
+#################
+function is_rootless() {
+    [ "$(id -u)" -ne 0 ]
+}
+
+#################################
+#  skip_if_rootless_environment # `mount` or its variant needs unshare
+#################################
+function skip_if_rootless_environment() {
+    if is_rootless; then
+        skip "${1:-test is being invoked from rootless environment and might need unshare}"
+    fi
+}
+
+#################################
+#  skip_if_root_environment     #
+#################################
+function skip_if_root_environment() {
+    if ! is_rootless; then
+        skip "${1:-test is being invoked from root environment}"
+    fi
+}
+
 ####################
 #  skip_if_chroot  #
 ####################
@@ -402,6 +448,12 @@ function start_git_daemon() {
   daemondir=${TESTDIR}/git-daemon
   mkdir -p ${daemondir}/repo
   gzip -dc < ${1:-${TESTSDIR}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
+
+  # git >=2.45 aborts with "dubious ownership" error if serving other user's files as root
+  if ! is_rootless; then
+      chown -R root:root ${daemondir}/repo
+  fi
+
   GITPORT=$(($RANDOM + 32768))
   git daemon --detach --pid-file=${TESTDIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
 }

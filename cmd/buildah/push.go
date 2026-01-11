@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -200,7 +199,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	ref, digest, err := buildah.Push(getContext(), src, dest, options)
 	if err != nil {
-		if errors.Cause(err) != storage.ErrImageUnknown {
+		if !errors.Is(errors.Cause(err), storage.ErrImageUnknown) {
 			// Image might be a manifest so attempt a manifest push
 			if manifestsErr := manifestPush(systemContext, store, src, destSpec, iopts); manifestsErr == nil {
 				return nil
@@ -217,7 +216,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	logrus.Debugf("Successfully pushed %s with digest %s", transports.ImageName(dest), digest.String())
 
 	if iopts.digestfile != "" {
-		if err = ioutil.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
+		if err = os.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
 			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", iopts.digestfile))
 		}
 	}

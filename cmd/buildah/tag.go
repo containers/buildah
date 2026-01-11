@@ -35,7 +35,7 @@ func tagCmd(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	lookupOptions := libimage.LookupImageOptions{IgnorePlatform: true}
+	lookupOptions := libimage.LookupImageOptions{}
 	image, _, err := runtime.LookupImage(args[0], &lookupOptions)
 	if err != nil {
 		return err

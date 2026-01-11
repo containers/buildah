@@ -1,5 +1,7 @@
 {
 	"defaultAction": "SCMP_ACT_ERRNO",
+	"defaultErrnoRet": 38,
+	"defaultErrno": "ENOSYS",
 	"archMap": [
 		{
 			"architecture": "SCMP_ARCH_X86_64",
@@ -52,6 +54,45 @@
 	"syscalls": [
 		{
 			"names": [
+				"bdflush",
+				"io_pgetevents",
+				"kexec_file_load",
+				"kexec_load",
+				"migrate_pages",
+				"move_pages",
+				"nfsservctl",
+				"nice",
+				"oldfstat",
+				"oldlstat",
+				"oldolduname",
+				"oldstat",
+				"olduname",
+				"pciconfig_iobase",
+				"pciconfig_read",
+				"pciconfig_write",
+				"sgetmask",
+				"ssetmask",
+				"swapcontext",
+				"swapoff",
+				"swapon",
+				"sysfs",
+				"uselib",
+				"userfaultfd",
+				"ustat",
+				"vm86",
+				"vm86old",
+				"vmsplice"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {},
+			"errnoRet": 1,
+			"errno": "EPERM"
+		},
+		{
+			"names": [
 				"_llseek",
 				"_newselect",
 				"accept",
@@ -76,6 +117,7 @@
 				"clock_nanosleep",
 				"clock_nanosleep_time64",
 				"clone",
+				"clone3",
 				"close",
 				"close_range",
 				"connect",
@@ -132,7 +174,9 @@
 				"ftruncate",
 				"ftruncate64",
 				"futex",
+				"futex_time64",
 				"futimesat",
+				"get_mempolicy",
 				"get_robust_list",
 				"get_thread_area",
 				"getcpu",
@@ -184,6 +228,9 @@
 				"ipc",
 				"keyctl",
 				"kill",
+				"landlock_add_rule",
+				"landlock_create_ruleset",
+				"landlock_restrict_self",
 				"lchown",
 				"lchown32",
 				"lgetxattr",
@@ -198,7 +245,10 @@
 				"lstat",
 				"lstat64",
 				"madvise",
+				"mbind",
+				"membarrier",
 				"memfd_create",
+				"memfd_secret",
 				"mincore",
 				"mkdir",
 				"mkdirat",
@@ -210,13 +260,16 @@
 				"mmap",
 				"mmap2",
 				"mount",
+				"mount_setattr",
 				"move_mount",
 				"mprotect",
 				"mq_getsetattr",
 				"mq_notify",
 				"mq_open",
 				"mq_timedreceive",
+				"mq_timedreceive_time64",
 				"mq_timedsend",
+				"mq_timedsend_time64",
 				"mq_unlink",
 				"mremap",
 				"msgctl",
@@ -231,9 +284,9 @@
 				"nanosleep",
 				"newfstatat",
 				"open",
+				"open_tree",
 				"openat",
 				"openat2",
-				"open_tree",
 				"pause",
 				"pidfd_getfd",
 				"pidfd_open",
@@ -241,6 +294,9 @@
 				"pipe",
 				"pipe2",
 				"pivot_root",
+				"pkey_alloc",
+				"pkey_free",
+				"pkey_mprotect",
 				"poll",
 				"ppoll",
 				"ppoll_time64",
@@ -249,13 +305,18 @@
 				"preadv",
 				"preadv2",
 				"prlimit64",
+				"process_mrelease",
+				"process_vm_readv",
+				"process_vm_writev",
 				"pselect6",
 				"pselect6_time64",
+				"ptrace",
 				"pwrite64",
 				"pwritev",
 				"pwritev2",
 				"read",
 				"readahead",
+				"readdir",
 				"readlink",
 				"readlinkat",
 				"readv",
@@ -263,6 +324,7 @@
 				"recv",
 				"recvfrom",
 				"recvmmsg",
+				"recvmmsg_time64",
 				"recvmsg",
 				"remap_file_pages",
 				"removexattr",
@@ -271,6 +333,7 @@
 				"renameat2",
 				"restart_syscall",
 				"rmdir",
+				"rseq",
 				"rt_sigaction",
 				"rt_sigpending",
 				"rt_sigprocmask",
@@ -278,6 +341,7 @@
 				"rt_sigreturn",
 				"rt_sigsuspend",
 				"rt_sigtimedwait",
+				"rt_sigtimedwait_time64",
 				"rt_tgsigqueueinfo",
 				"sched_get_priority_max",
 				"sched_get_priority_min",
@@ -286,6 +350,7 @@
 				"sched_getparam",
 				"sched_getscheduler",
 				"sched_rr_get_interval",
+				"sched_rr_get_interval_time64",
 				"sched_setaffinity",
 				"sched_setattr",
 				"sched_setparam",
@@ -297,13 +362,14 @@
 				"semget",
 				"semop",
 				"semtimedop",
+				"semtimedop_time64",
 				"send",
 				"sendfile",
 				"sendfile64",
 				"sendmmsg",
 				"sendmsg",
 				"sendto",
-				"setns",
+				"set_mempolicy",
 				"set_robust_list",
 				"set_thread_area",
 				"set_tid_address",
@@ -316,6 +382,7 @@
 				"setgroups",
 				"setgroups32",
 				"setitimer",
+				"setns",
 				"setpgid",
 				"setpriority",
 				"setregid",
@@ -337,10 +404,15 @@
 				"shmdt",
 				"shmget",
 				"shutdown",
+				"sigaction",
 				"sigaltstack",
+				"signal",
 				"signalfd",
 				"signalfd4",
+				"sigpending",
+				"sigprocmask",
 				"sigreturn",
+				"sigsuspend",
 				"socketcall",
 				"socketpair",
 				"splice",
@@ -354,6 +426,7 @@
 				"sync",
 				"sync_file_range",
 				"syncfs",
+				"syscall",
 				"sysinfo",
 				"syslog",
 				"tee",
@@ -365,6 +438,8 @@
 				"timer_gettime",
 				"timer_gettime64",
 				"timer_settime",
+				"timer_settime64",
+				"timerfd",
 				"timerfd_create",
 				"timerfd_gettime",
 				"timerfd_gettime64",
@@ -502,10 +577,10 @@
 			"names": [
 				"arm_fadvise64_64",
 				"arm_sync_file_range",
-				"sync_file_range2",
 				"breakpoint",
 				"cacheflush",
-				"set_tls"
+				"set_tls",
+				"sync_file_range2"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],
@@ -582,6 +657,22 @@
 		},
 		{
 			"names": [
+				"open_by_handle_at"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_DAC_READ_SEARCH"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
+		},
+		{
+			"names": [
 				"bpf",
 				"fanotify_init",
 				"lookup_dcookie",
@@ -603,6 +694,29 @@
 		},
 		{
 			"names": [
+				"bpf",
+				"fanotify_init",
+				"lookup_dcookie",
+				"perf_event_open",
+				"quotactl",
+				"setdomainname",
+				"sethostname",
+				"setns"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
+		},
+		{
+			"names": [
 				"chroot"
 			],
 			"action": "SCMP_ACT_ALLOW",
@@ -617,9 +731,25 @@
 		},
 		{
 			"names": [
+				"chroot"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_CHROOT"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
+		},
+		{
+			"names": [
 				"delete_module",
-				"init_module",
 				"finit_module",
+				"init_module",
 				"query_module"
 			],
 			"action": "SCMP_ACT_ALLOW",
@@ -634,19 +764,22 @@
 		},
 		{
 			"names": [
-				"get_mempolicy",
-				"mbind",
-				"set_mempolicy"
+				"delete_module",
+				"finit_module",
+				"init_module",
+				"query_module"
 			],
-			"action": "SCMP_ACT_ALLOW",
+			"action": "SCMP_ACT_ERRNO",
 			"args": [],
 			"comment": "",
-			"includes": {
+			"includes": {},
+			"excludes": {
 				"caps": [
-					"CAP_SYS_NICE"
+					"CAP_SYS_MODULE"
 				]
 			},
-			"excludes": {}
+			"errnoRet": 1,
+			"errno": "EPERM"
 		},
 		{
 			"names": [
@@ -664,11 +797,24 @@
 		},
 		{
 			"names": [
+				"acct"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_PACCT"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
+		},
+		{
+			"names": [
 				"kcmp",
-				"process_madvise",
-				"process_vm_readv",
-				"process_vm_writev",
-				"ptrace"
+				"process_madvise"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],
@@ -682,8 +828,25 @@
 		},
 		{
 			"names": [
-				"iopl",
-				"ioperm"
+				"kcmp",
+				"process_madvise"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_PTRACE"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
+		},
+		{
+			"names": [
+				"ioperm",
+				"iopl"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],
@@ -697,10 +860,27 @@
 		},
 		{
 			"names": [
-				"settimeofday",
-				"stime",
+				"ioperm",
+				"iopl"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_RAWIO"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
+		},
+		{
+			"names": [
 				"clock_settime",
-				"clock_settime64"
+				"clock_settime64",
+				"settimeofday",
+				"stime"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],
@@ -711,6 +891,25 @@
 				]
 			},
 			"excludes": {}
+		},
+		{
+			"names": [
+				"clock_settime",
+				"clock_settime64",
+				"settimeofday",
+				"stime"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_TIME"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
 		},
 		{
 			"names": [
@@ -725,6 +924,22 @@
 				]
 			},
 			"excludes": {}
+		},
+		{
+			"names": [
+				"vhangup"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_TTY_CONFIG"
+				]
+			},
+			"errnoRet": 1,
+			"errno": "EPERM"
 		},
 		{
 			"names": [
@@ -752,7 +967,8 @@
 					"CAP_AUDIT_WRITE"
 				]
 			},
-			"errnoRet": 22
+			"errnoRet": 22,
+			"errno": "EINVAL"
 		},
 		{
 			"names": [

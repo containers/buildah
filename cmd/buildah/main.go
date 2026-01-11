@@ -1,6 +1,7 @@
 package main
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -78,6 +79,8 @@ func init() {
 	}
 
 	cobra.OnInitialize(initConfig)
+	// Hide the implicit `completion` command in cobra.
+	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	//rootCmd.TraverseChildren = true
 	rootCmd.Version = fmt.Sprintf("%s (image-spec %s, runtime-spec %s)", define.Version, ispecs.Version, rspecs.Version)
 	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.Debug, "debug", false, "print debugging information")
@@ -151,7 +154,7 @@ func before(cmd *cobra.Command) error {
 		return err
 	}
 
-	for _, env := range defaultContainerConfig.Engine.Env {
+	for _, env := range defaultContainerConfig.Engine.Env.Get() {
 		splitEnv := strings.SplitN(env, "=", 2)
 		if len(splitEnv) != 2 {
 			return fmt.Errorf("invalid environment variable %q from containers.conf, valid configuration is KEY=value pair", env)
@@ -178,7 +181,7 @@ func shutdownStore(cmd *cobra.Command) error {
 		logrus.Debugf("shutting down the store")
 		needToShutdownStore = false
 		if _, err = store.Shutdown(false); err != nil {
-			if errors.Cause(err) == storage.ErrLayerUsedByContainer {
+			if errors.Is(errors.Cause(err), storage.ErrLayerUsedByContainer) {
 				logrus.Infof("failed to shutdown storage: %q", err)
 			} else {
 				logrus.Warnf("failed to shutdown storage: %q", err)
@@ -226,7 +229,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 		exitCode := cli.ExecErrorCodeGeneric
-		if ee, ok := (errors.Cause(err)).(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if stderrors.As(errors.Cause(err), &ee) {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 				exitCode = w.ExitStatus()
 			}

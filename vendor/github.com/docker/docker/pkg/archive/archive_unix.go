@@ -81,6 +81,11 @@ func getFileUIDGID(stat interface{}) (idtools.Identity, error) {
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by
 // createTarFile to handle the following types of header: Block; Char; Fifo
 func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
+	if sys.RunningInUserNS() {
+		// cannot create a device if running in user namespace
+		return nil
+	}
+
 	mode := uint32(hdr.Mode & 07777)
 	switch hdr.Typeflag {
 	case tar.TypeBlock:
@@ -91,12 +96,7 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 		mode |= unix.S_IFIFO
 	}
 
-	err := system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor)))
-	if errors.Is(err, syscall.EPERM) && sys.RunningInUserNS() {
-		// In most cases, cannot create a device if running in user namespace
-		err = nil
-	}
-	return err
+	return system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor)))
 }
 
 func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {

@@ -308,7 +308,7 @@ function configure_and_check_user() {
 	zflag=
 	if which selinuxenabled > /dev/null 2> /dev/null ; then
 		if selinuxenabled ; then
-			zflag=z
+			zflag=,z
 		fi
 	fi
 	${OCI} --version
@@ -318,9 +318,13 @@ function configure_and_check_user() {
 	mkdir -p ${TESTDIR}/was:empty
 	# As a baseline, this should succeed.
 	run_buildah run --mount type=tmpfs,dst=/var/tmpfs-not-empty                                           $cid touch /var/tmpfs-not-empty/testfile
-	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty${zflag:+,${zflag}}      $cid touch /var/not-empty/testfile
+	# This should succeed, but the writes should effectively be discarded
+	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty${zflag}                 $cid touch /var/not-empty/testfile
+	if test -r ${TEST_SCRATCH_DIR}/was:empty/testfile ; then
+		die write to mounted type=bind was not discarded, ${TEST_SCRATCH_DIR}/was:empty/testfile exists
+	fi
 	# If we're parsing the options at all, this should be read-only, so it should fail.
-	run_buildah 1 run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty,ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
+	run_buildah 1 run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty,ro${zflag}            $cid touch /var/not-empty/testfile
 	# Even if the parent directory doesn't exist yet, this should succeed.
 	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/multi-level/subdirectory          $cid touch /var/multi-level/subdirectory/testfile
 	# And check the same for file volumes.
@@ -378,21 +382,25 @@ function configure_and_check_user() {
 	export CONTAINERS_CONF=${TESTDIR}/containers.conf
 
 	_prefetch alpine
-	maxpids=$(cat /proc/sys/kernel/pid_max)
+
+	run podman run --rm alpine sh -c "awk '/open files/{print \$4 \"/\" \$5}' /proc/self/limits"
+	podman_files=$output
+
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
-	expect_output 1024 "limits: open files (unlimited)"
-	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
-	expect_output ${maxpids} "limits: processes (unlimited)"
+	run_buildah run $cid awk '/open files/{print $4 "/" $5}' /proc/self/limits
+	expect_output "${podman_files}" "limits: podman and buildah should agree on open files"
+
+	run podman run --rm alpine sh -c "awk '/processes/{print \$3 \"/\" \$4}' /proc/self/limits"
+	podman_processes=$output
+	run_buildah run $cid awk '/processes/{print $3 "/" $4}' /proc/self/limits
+	expect_output ${podman_processes} "processes should match podman"
 	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "300" "limits: open files (w/file limit)"
-	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
-	expect_output ${maxpids} "limits: processes (w/file limit)"
 	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine

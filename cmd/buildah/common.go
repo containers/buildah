@@ -129,7 +129,7 @@ func setXDGRuntimeDir() error {
 func openBuilder(ctx context.Context, store storage.Store, name string) (builder *buildah.Builder, err error) {
 	if name != "" {
 		builder, err = buildah.OpenBuilder(store, name)
-		if os.IsNotExist(errors.Cause(err)) {
+		if os.IsNotExist(unwrapError(err)) {
 			options := buildah.ImportOptions{
 				Container: name,
 			}
@@ -189,8 +189,8 @@ func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, stor
 			manifestDigest = mDigest.String()
 		}
 	}
-	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(img, nil))
-	if inspectableErr == nil && inspectable != nil {
+	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(img, nil)) //nolint:staticcheck
+	if inspectable != nil && inspectableErr == nil {                                                   //nolint:staticcheck
 		inspectInfo, inspectErr := inspectable.Inspect(ctx)
 		if inspectErr == nil && inspectInfo != nil && inspectInfo.Created != nil {
 			created = *inspectInfo.Created
@@ -297,4 +297,13 @@ Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
 {{end}}
 `
+}
+
+func unwrapError(err error) error {
+	e := errors.Cause(err)
+	for e != nil {
+		err = e
+		e = errors.Unwrap(err)
+	}
+	return err
 }

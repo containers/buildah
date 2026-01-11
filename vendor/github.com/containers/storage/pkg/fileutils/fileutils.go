@@ -1,6 +1,7 @@
 package fileutils
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"text/scanner"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,7 +38,7 @@ func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
 				return nil, errors.New("illegal exclusion pattern: \"!\"")
 			}
 			newp.exclusion = true
-			p = p[1:]
+			p = strings.TrimPrefix(filepath.Clean(p[1:]), "/")
 			pm.exclusions = true
 		}
 		// Do some syntax checking on the pattern.
@@ -165,7 +165,7 @@ func (pm *PatternMatcher) Patterns() []*Pattern {
 	return pm.patterns
 }
 
-// Pattern defines a single regexp used used to filter file paths.
+// Pattern defines a single regexp used to filter file paths.
 type Pattern struct {
 	cleanedPattern string
 	dirs           []string
@@ -183,7 +183,6 @@ func (p *Pattern) Exclusion() bool {
 }
 
 func (p *Pattern) match(path string) (bool, error) {
-
 	if p.regexp == nil {
 		if err := p.compile(); err != nil {
 			return false, filepath.ErrBadPattern
@@ -321,14 +320,14 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 	var realPath string
 	var err error
 	if realPath, err = filepath.Abs(path); err != nil {
-		return "", fmt.Errorf("unable to get absolute path for %s: %s", path, err)
+		return "", fmt.Errorf("unable to get absolute path for %s: %w", path, err)
 	}
 	if realPath, err = filepath.EvalSymlinks(realPath); err != nil {
-		return "", fmt.Errorf("failed to canonicalise path for %s: %s", path, err)
+		return "", fmt.Errorf("failed to canonicalise path for %s: %w", path, err)
 	}
 	realPathInfo, err := os.Stat(realPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to stat target '%s' of '%s': %s", realPath, path, err)
+		return "", fmt.Errorf("failed to stat target '%s' of '%s': %w", realPath, path, err)
 	}
 	if !realPathInfo.Mode().IsDir() {
 		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
@@ -340,13 +339,13 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 // The target of the symbolic link can be a file and a directory.
 func ReadSymlinkedPath(path string) (realPath string, err error) {
 	if realPath, err = filepath.Abs(path); err != nil {
-		return "", errors.Wrapf(err, "unable to get absolute path for %q", path)
+		return "", fmt.Errorf("unable to get absolute path for %q: %w", path, err)
 	}
 	if realPath, err = filepath.EvalSymlinks(realPath); err != nil {
-		return "", errors.Wrapf(err, "failed to canonicalise path for %q", path)
+		return "", fmt.Errorf("failed to canonicalise path for %q: %w", path, err)
 	}
 	if _, err := os.Stat(realPath); err != nil {
-		return "", errors.Wrapf(err, "failed to stat target %q of %q", realPath, path)
+		return "", fmt.Errorf("failed to stat target %q of %q: %w", realPath, path, err)
 	}
 	return realPath, nil
 }
@@ -356,12 +355,12 @@ func CreateIfNotExists(path string, isDir bool) error {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			if isDir {
-				return os.MkdirAll(path, 0755)
+				return os.MkdirAll(path, 0o755)
 			}
-			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return err
 			}
-			f, err := os.OpenFile(path, os.O_CREATE, 0755)
+			f, err := os.OpenFile(path, os.O_CREATE, 0o755)
 			if err != nil {
 				return err
 			}

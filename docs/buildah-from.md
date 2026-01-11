@@ -382,6 +382,23 @@ the user namespace in which `Buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another
 process.
 
+**--userns-uid-map** *mapping*
+
+Directly specifies a UID mapping which should be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling `RUN` instructions will default to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+Entries in this map take the form of one or more colon-separated triples of a starting
+in-container UID, a corresponding starting host-level UID, and the number of
+consecutive IDs which the map entry represents.
+
+This option overrides the *remap-uids* setting in the *options* section of
+/etc/containers/storage.conf.
+
+If this option is not specified, but a global --userns-uid-map setting is
+supplied, settings from the global option will be used.
+
 **--userns-uid-map-user** *mapping*
 
 Directly specifies a UID mapping which should be used to set ownership, at the
@@ -404,6 +421,23 @@ are specified, but --userns-gid-map is specified, the UID map will be set to
 use the same numeric values as the GID map.
 
 **NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
+
+**--userns-gid-map** *mapping*
+
+Directly specifies a GID mapping which should be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling `RUN` instructions will default to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+Entries in this map take the form of one or more colon-separated triples of a starting
+in-container GID, a corresponding starting host-level GID, and the number of
+consecutive IDs which the map entry represents.
+
+This option overrides the *remap-gids* setting in the *options* section of
+/etc/containers/storage.conf.
+
+If this option is not specified, but a global --userns-gid-map setting is
+supplied, settings from the global option will be used.
 
 **--userns-gid-map-group** *mapping*
 

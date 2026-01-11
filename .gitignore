@@ -8,4 +8,3 @@ Dockerfile*
 !/tests/bud/*/Dockerfile*
 !/tests/conformance/**/Dockerfile*
 *.swp
-result
