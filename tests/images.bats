@@ -27,15 +27,19 @@ load helpers
 
 @test "images all test" {
   _prefetch alpine
-  run_buildah bud $WITH_POLICY_JSON --layers -t test $BUDFILES/use-layers
+  contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p ${contentdir}
+  echo legend has it this counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+  run_buildah bud $WITH_POLICY_JSON --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --layers -t test $BUDFILES/use-layers
   run_buildah images
   expect_line_count 3
 
   run_buildah images -a
-  expect_line_count 8
+  expect_line_count 9
 
   # create a no name image which should show up when doing buildah images without the --all flag
-  run_buildah bud $WITH_POLICY_JSON $BUDFILES/use-layers
+  run_buildah bud $WITH_POLICY_JSON --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $BUDFILES/use-layers
   run_buildah images
   expect_line_count 4
 }

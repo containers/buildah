@@ -1329,12 +1329,16 @@ _EOF
 
 @test "build with add resolving to invalid HTTP status code" {
   _prefetch alpine
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  local contextdir=${TEST_SCRATCH_DIR}/build-context
   mkdir -p $contextdir
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  starthttpd $contentdir
 
   cat > $contextdir/Dockerfile << _EOF
 FROM alpine
-ADD https://google.com/test /
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/test /
 _EOF
 
   run_buildah 125 build $WITH_POLICY_JSON -t source -f $contextdir/Dockerfile
@@ -2187,16 +2191,22 @@ _EOF
 
 @test "bud with --layers and --no-cache flags" {
   _prefetch alpine
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo somebody told me that this counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+
   local contextdir=${TEST_SCRATCH_DIR}/use-layers
   cp -a $BUDFILES/use-layers $contextdir
 
   # Run with --pull-always to have a regression test for
   # containers/podman/issues/10307.
-  run_buildah build --pull-always $WITH_POLICY_JSON --layers -t test1 $contextdir
+  run_buildah build --pull-always --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers -t test1 $contextdir
   run_buildah images -a
-  expect_line_count 8
+  expect_line_count 9
 
-  run_buildah build --pull-never $WITH_POLICY_JSON --layers -t test2 $contextdir
+  run_buildah build --pull-never --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers -t test2 $contextdir
   run_buildah images -a
   expect_line_count 10
   run_buildah inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test1
@@ -2235,7 +2245,13 @@ _EOF
 
 @test "bud with no --layers comment" {
   _prefetch alpine
-  run_buildah build --pull-never $WITH_POLICY_JSON --layers=false --no-cache -t test $BUDFILES/use-layers
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo i heard a rumor that this counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+
+  run_buildah build --pull-never --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers=false --no-cache -t test $BUDFILES/use-layers
   run_buildah images -a
   expect_line_count 3
   run_buildah inspect --format "{{index .Docker.History 2}}" test
@@ -2511,13 +2527,19 @@ _EOF
 
 @test "bud with --rm flag" {
   _prefetch alpine
-  run_buildah build $WITH_POLICY_JSON --layers -t test1 $BUDFILES/use-layers
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo all the cool kids say this counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+
+  run_buildah build --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers -t test1 $BUDFILES/use-layers
   run_buildah containers
   expect_line_count 1
 
-  run_buildah build $WITH_POLICY_JSON --rm=false --layers -t test2 $BUDFILES/use-layers
+  run_buildah build --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --rm=false --layers -t test2 $BUDFILES/use-layers
   run_buildah containers
-  expect_line_count 7
+  expect_line_count 8
 }
 
 @test "bud with --force-rm flag" {

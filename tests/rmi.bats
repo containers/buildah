@@ -212,15 +212,19 @@ EOF
 
 @test "rmi with cached images" {
   _prefetch alpine
-  run_buildah bud $WITH_POLICY_JSON --layers -t test1 $BUDFILES/use-layers
+  contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p ${contentdir}
+  echo sure, i guess this also counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+  run_buildah bud $WITH_POLICY_JSON --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --layers -t test1 $BUDFILES/use-layers
   run_buildah images -a -q
-  expect_line_count 7
+  expect_line_count 8
   run_buildah bud $WITH_POLICY_JSON --layers -t test2 -f Dockerfile.2 $BUDFILES/use-layers
   run_buildah images -a -q
-  expect_line_count 9
+  expect_line_count 10
   run_buildah rmi test2
   run_buildah images -a -q
-  expect_line_count 7
+  expect_line_count 8
   run_buildah rmi test1
   run_buildah images -a -q
   expect_line_count 1
