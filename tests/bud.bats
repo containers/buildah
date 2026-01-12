@@ -7920,31 +7920,36 @@ _EOF
 @test "bud with ADD with git repository source" {
   _prefetch quay.io/hummingbird/git # any image with git preinstalled would do
 
+  local repodir=${TEST_SCRATCH_DIR}/repository
+  mkdir -p ${repodir}/podman.git
+  tar -C ${repodir}/podman.git -xz < ${TEST_SOURCES}/git-daemon/bare-podman-repo.tar.gz
+  starthttpd /git/=${repodir}:"git http-backend":GIT_HTTP_EXPORT_ALL=1:GIT_PROJECT_ROOT=${repodir} ${repodir}
+
   local contextdir=${TEST_SCRATCH_DIR}/add-git
   mkdir -p $contextdir
   cat > $contextdir/Dockerfile << _EOF
 FROM quay.io/hummingbird/git
 USER 0:0
-ADD https://github.com/containers/podman.git#v5.0 /podman-branch
-ADD https://github.com/containers/podman.git#v5.0.0 /podman-tag
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/podman.git#v5.0 /podman-branch
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/podman.git#v5.0.0 /podman-tag
 _EOF
 
   run_buildah build -f $contextdir/Dockerfile -t git-image $contextdir
   run_buildah from --quiet $WITH_POLICY_JSON --name testctr git-image
 
-  run_buildah run testctr -- sh -c 'git -C /podman-branch rev-parse HEAD'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-branch rev-parse HEAD'
   local_head_hash=$output
-  run_buildah run testctr -- sh -c 'git -C /podman-branch ls-remote origin v5.0 | cut -f1'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-branch ls-remote origin v5.0 | cut -f1'
   assert "$output" = "$local_head_hash"
 
-  run_buildah run testctr -- sh -c 'git -C /podman-tag rev-parse HEAD'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-tag rev-parse HEAD'
   local_head_hash=$output
-  run_buildah run testctr -- sh -c 'git -C /podman-tag ls-remote --tags origin v5.0.0^{} | cut -f1'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-tag ls-remote --tags origin v5.0.0 | cut -f1'
   assert "$output" = "$local_head_hash"
 
   cat > $contextdir/Dockerfile << _EOF
 FROM scratch
-ADD https://github.com/containers/crun.git#nosuchbranch /src
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/podman.git#nosuchbranch /src
 _EOF
   run_buildah 125 build -f $contextdir/Dockerfile -t git-image $contextdir
   expect_output --substring "couldn't find remote ref nosuchbranch"
