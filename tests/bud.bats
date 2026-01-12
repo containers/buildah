@@ -1329,12 +1329,16 @@ _EOF
 
 @test "build with add resolving to invalid HTTP status code" {
   _prefetch alpine
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  local contextdir=${TEST_SCRATCH_DIR}/build-context
   mkdir -p $contextdir
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  starthttpd $contentdir
 
   cat > $contextdir/Dockerfile << _EOF
 FROM alpine
-ADD https://google.com/test /
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/test /
 _EOF
 
   run_buildah 125 build $WITH_POLICY_JSON -t source -f $contextdir/Dockerfile
@@ -2187,16 +2191,22 @@ _EOF
 
 @test "bud with --layers and --no-cache flags" {
   _prefetch alpine
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo somebody told me that this counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+
   local contextdir=${TEST_SCRATCH_DIR}/use-layers
   cp -a $BUDFILES/use-layers $contextdir
 
   # Run with --pull-always to have a regression test for
   # containers/podman/issues/10307.
-  run_buildah build --pull-always $WITH_POLICY_JSON --layers -t test1 $contextdir
+  run_buildah build --pull-always --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers -t test1 $contextdir
   run_buildah images -a
-  expect_line_count 8
+  expect_line_count 9
 
-  run_buildah build --pull-never $WITH_POLICY_JSON --layers -t test2 $contextdir
+  run_buildah build --pull-never --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers -t test2 $contextdir
   run_buildah images -a
   expect_line_count 10
   run_buildah inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test1
@@ -2235,7 +2245,13 @@ _EOF
 
 @test "bud with no --layers comment" {
   _prefetch alpine
-  run_buildah build --pull-never $WITH_POLICY_JSON --layers=false --no-cache -t test $BUDFILES/use-layers
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo i heard a rumor that this counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+
+  run_buildah build --pull-never --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers=false --no-cache -t test $BUDFILES/use-layers
   run_buildah images -a
   expect_line_count 3
   run_buildah inspect --format "{{index .Docker.History 2}}" test
@@ -2511,13 +2527,19 @@ _EOF
 
 @test "bud with --rm flag" {
   _prefetch alpine
-  run_buildah build $WITH_POLICY_JSON --layers -t test1 $BUDFILES/use-layers
+
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo all the cool kids say this counts as a README file > ${contentdir}/README.md
+  starthttpd ${contentdir}
+
+  run_buildah build --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --layers -t test1 $BUDFILES/use-layers
   run_buildah containers
   expect_line_count 1
 
-  run_buildah build $WITH_POLICY_JSON --rm=false --layers -t test2 $BUDFILES/use-layers
+  run_buildah build --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON --rm=false --layers -t test2 $BUDFILES/use-layers
   run_buildah containers
-  expect_line_count 7
+  expect_line_count 8
 }
 
 @test "bud with --force-rm flag" {
@@ -4041,14 +4063,17 @@ _EOF
 }
 
 @test "bud with preprocessor" {
-  _prefetch alpine
+  _prefetch busybox
   target=alpine-image
-  run_buildah build -q $WITH_POLICY_JSON -t ${target} -f Decomposed.in $BUDFILES/preprocess
+  starthttpd $BUDFILES/preprocess
+  run_buildah build --build-arg HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --network=host $WITH_POLICY_JSON -t ${target} -f Decomposed.in $BUDFILES/preprocess
 }
 
 @test "bud with preprocessor error" {
+  _prefetch busybox
   target=alpine-image
-  run_buildah bud $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
+  starthttpd $BUDFILES/preprocess
+  run_buildah bud --build-arg HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --network=host $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
   expect_output --substring "Ignoring <stdin>:5:2: error: #error"
 }
 
@@ -4809,9 +4834,10 @@ _EOF
 }
 
 @test "bud test RUN with a privileged command" {
-  _prefetch alpine
-  target=alpinepriv
-  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/run-privd/Dockerfile $BUDFILES/run-privd
+  _prefetch busybox
+  target=busyboxpriv
+  starthttpd $BUDFILES/run-privd
+  run_buildah build --network=host --build-arg HTTP_SERVER_PORT=${HTTP_SERVER_PORT} $WITH_POLICY_JSON -t ${target} -f $BUDFILES/run-privd/Dockerfile $BUDFILES/run-privd
   expect_output --substring "[^:][^[:graph:]]COMMIT ${target}"
   run_buildah images -q
   expect_line_count 2
@@ -5665,6 +5691,10 @@ EOF
 }
 
 @test "bud cache add-copy-chown" {
+  contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p ${contentdir}
+  echo sure, this counts as a readme file > ${TEST_SCRATCH_DIR}/content/README.md
+  starthttpd $contentdir
   # Build each variation of COPY (from context, from previous stage) and ADD (from context, not overriding an archive, URL) twice.
   # Each second build should produce an image with the same ID as the first build, because the cache matches, but they should
   # otherwise all be different.
@@ -5675,7 +5705,7 @@ EOF
       iidfile=${TEST_SCRATCH_DIR}/${action}${i}
       containerfile=Dockerfile.${action}$(((i-1) % 2 + 1))
 
-      run_buildah build --iidfile $iidfile --layers --quiet $WITH_POLICY_JSON -f $containerfile $BUDFILES/cache-chown
+      run_buildah build --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --iidfile $iidfile --layers --quiet $WITH_POLICY_JSON -f $containerfile $BUDFILES/cache-chown
     done
   done
 
@@ -7914,34 +7944,38 @@ _EOF
 }
 
 @test "bud with ADD with git repository source" {
-  _prefetch alpine
+  _prefetch quay.io/hummingbird/git # any image with git preinstalled would do
+
+  local repodir=${TEST_SCRATCH_DIR}/repository
+  mkdir -p ${repodir}/podman.git
+  tar -C ${repodir}/podman.git -xz < ${TEST_SOURCES}/git-daemon/bare-podman-repo.tar.gz
+  starthttpd /git/=${repodir}:"git http-backend":GIT_HTTP_EXPORT_ALL=1:GIT_PROJECT_ROOT=${repodir} ${repodir}
 
   local contextdir=${TEST_SCRATCH_DIR}/add-git
   mkdir -p $contextdir
   cat > $contextdir/Dockerfile << _EOF
-FROM alpine
-RUN apk add git
-
-ADD https://github.com/containers/podman.git#v5.0 /podman-branch
-ADD https://github.com/containers/podman.git#v5.0.0 /podman-tag
+FROM quay.io/hummingbird/git
+USER 0:0
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/podman.git#v5.0 /podman-branch
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/podman.git#v5.0.0 /podman-tag
 _EOF
 
   run_buildah build -f $contextdir/Dockerfile -t git-image $contextdir
   run_buildah from --quiet $WITH_POLICY_JSON --name testctr git-image
 
-  run_buildah run testctr -- sh -c 'cd podman-branch && git rev-parse HEAD'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-branch rev-parse HEAD'
   local_head_hash=$output
-  run_buildah run testctr -- sh -c 'cd podman-branch && git ls-remote origin v5.0 | cut -f1'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-branch ls-remote origin v5.0 | cut -f1'
   assert "$output" = "$local_head_hash"
 
-  run_buildah run testctr -- sh -c 'cd podman-tag && git rev-parse HEAD'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-tag rev-parse HEAD'
   local_head_hash=$output
-  run_buildah run testctr -- sh -c 'cd podman-tag && git ls-remote --tags origin v5.0.0^{} | cut -f1'
+  run_buildah run --network=host testctr -- sh -c 'git -C /podman-tag ls-remote --tags origin v5.0.0 | cut -f1'
   assert "$output" = "$local_head_hash"
 
   cat > $contextdir/Dockerfile << _EOF
 FROM scratch
-ADD https://github.com/containers/crun.git#nosuchbranch /src
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/podman.git#nosuchbranch /src
 _EOF
   run_buildah 125 build -f $contextdir/Dockerfile -t git-image $contextdir
   expect_output --substring "couldn't find remote ref nosuchbranch"
@@ -8751,22 +8785,26 @@ EOF
 
 @test "bud --link ADD with remote URL consistent diffID" {
   _prefetch alpine
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo this is a readmin > ${contentdir}/README.md
+  starthttpd ${contentdir}
   local contextdir=${TEST_SCRATCH_DIR}/bud/link-url
   mkdir -p $contextdir
-  
+
   cat > $contextdir/Dockerfile << EOF
 FROM alpine
-ADD --link https://github.com/moby/moby/raw/master/README.md /README.md
+ADD --link http://0.0.0.0:${HTTP_SERVER_PORT}/README.md /README.md
 RUN echo "remote add complete" > /complete.txt
 RUN cat /README.md
 EOF
-  
+
   run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-url1 $contextdir
   run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-url2 $contextdir
-  
+
   diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-url1 1)
   diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-url2 1)
-  
+
   assert "$diffid1" = "$diffid2" "ADD --link with URL should have consistent diffID"
 }
 
