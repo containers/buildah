@@ -8759,22 +8759,26 @@ EOF
 
 @test "bud --link ADD with remote URL consistent diffID" {
   _prefetch alpine
+  local contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p $contentdir
+  echo this is a readmin > ${contentdir}/README.md
+  starthttpd ${contentdir}
   local contextdir=${TEST_SCRATCH_DIR}/bud/link-url
   mkdir -p $contextdir
-  
+
   cat > $contextdir/Dockerfile << EOF
 FROM alpine
-ADD --link https://github.com/moby/moby/raw/master/README.md /README.md
+ADD --link http://0.0.0.0:${HTTP_SERVER_PORT}/README.md /README.md
 RUN echo "remote add complete" > /complete.txt
 RUN cat /README.md
 EOF
-  
+
   run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-url1 $contextdir
   run_buildah build --no-cache --layers $WITH_POLICY_JSON -t oci:${TEST_SCRATCH_DIR}/oci-url2 $contextdir
-  
+
   diffid1=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-url1 1)
   diffid2=$(oci_image_diff_id ${TEST_SCRATCH_DIR}/oci-url2 1)
-  
+
   assert "$diffid1" = "$diffid2" "ADD --link with URL should have consistent diffID"
 }
 
