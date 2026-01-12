@@ -262,6 +262,8 @@ type BuildOptions struct {
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
 	IIDFile string
+	// IIDFileRaw tells the builder to write the image ID to the specified file without the algorithm prefix
+	IIDFileRaw string
 	// Squash tells the builder to produce an image with a single layer instead of with
 	// possibly more than one layer, by only committing a new layer after processing the
 	// final instruction.
