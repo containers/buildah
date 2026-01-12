@@ -5669,6 +5669,10 @@ EOF
 }
 
 @test "bud cache add-copy-chown" {
+  contentdir=${TEST_SCRATCH_DIR}/content
+  mkdir -p ${contentdir}
+  echo sure, this counts as a readme file > ${TEST_SCRATCH_DIR}/content/README.md
+  starthttpd $contentdir
   # Build each variation of COPY (from context, from previous stage) and ADD (from context, not overriding an archive, URL) twice.
   # Each second build should produce an image with the same ID as the first build, because the cache matches, but they should
   # otherwise all be different.
@@ -5679,7 +5683,7 @@ EOF
       iidfile=${TEST_SCRATCH_DIR}/${action}${i}
       containerfile=Dockerfile.${action}$(((i-1) % 2 + 1))
 
-      run_buildah build --iidfile $iidfile --layers --quiet $WITH_POLICY_JSON -f $containerfile $BUDFILES/cache-chown
+      run_buildah build --build-arg=HTTP_SERVER_PORT=${HTTP_SERVER_PORT} --iidfile $iidfile --layers --quiet $WITH_POLICY_JSON -f $containerfile $BUDFILES/cache-chown
     done
   done
 
