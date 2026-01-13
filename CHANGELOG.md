@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v1.29.7 (2026-01-12)
+
+    [release-1.29] Adjust cpu-shares check test for weight
+    [release-1.29] CVE-2025-49713 x/crypto
+
 ## v1.29.6 (2025-12-11)
 
     Temporarily hard-skip bud-multiple-platform-values test
