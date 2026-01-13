@@ -1,15 +1,14 @@
-# if TARGETARCH is defined, we'l pull the x86_64 image
-FROM registry.fedoraproject.org/fedora-minimal:42${TARGETARCH:+-x86_64} AS amd64
-# if TARGETARCH is defined, we'l pull the aarch64 image
-FROM registry.fedoraproject.org/fedora-minimal:42${TARGETARCH:+-aarch64} AS arm64
+# Pull architecture-specific ubuntu images from cached registry
+FROM --platform=linux/amd64 quay.io/libpod/ubuntu:latest AS amd64
+FROM --platform=linux/arm64 quay.io/libpod/ubuntu:latest AS arm64
 
 # run "file" against both shared libraries
-FROM registry.fedoraproject.org/fedora-minimal AS native
-COPY --from=amd64 /lib64/libc.so.6 /libc-amd64
-COPY --from=arm64 /lib64/libc.so.6 /libc-arm64
-RUN microdnf -y install file && microdnf -y clean all
+FROM quay.io/libpod/ubuntu:latest AS native
+COPY --from=amd64 /lib/x86_64-linux-gnu/libc.so.6 /libc-amd64
+COPY --from=arm64 /lib/aarch64-linux-gnu/libc.so.6 /libc-arm64
+RUN apt-get update && apt-get install -y file && apt-get clean
 RUN file /libc-* | tee /libc-types.txt && touch -d @0 /libc-types.txt
 
 # expect them to have different target architectures listed in their ELF headers
-FROM registry.fedoraproject.org/fedora-minimal
+FROM quay.io/libpod/ubuntu:latest
 COPY --from=native /libc-types.txt /

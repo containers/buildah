@@ -71,7 +71,7 @@ function _check_matches() {
 	run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
 	outputdir=${TEST_SCRATCH_DIR}/outputdir
 	mkdir -p ${outputdir}
-	podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --mount type=bind,src=${outputdir},target=/output,Z --net host quay.io/skopeo/stable copy --preserve-digests --authfile=/test.auth --tls-verify=false docker://registry.fedoraproject.org/fedora-minimal dir:/output
+	podman run --rm --mount type=bind,src=${TEST_SCRATCH_DIR}/test.auth,target=/test.auth,Z --mount type=bind,src=${outputdir},target=/output,Z --net host quay.io/skopeo/stable copy --preserve-digests --authfile=/test.auth --tls-verify=false docker://quay.io/libpod/alpine:3.10.2 dir:/output
 	run_buildah rmi --all -f
 	run_buildah pull --blob-cache=${blobcachedir} dir:${outputdir}
 	run_buildah images -a --format '{{.ID}}'
