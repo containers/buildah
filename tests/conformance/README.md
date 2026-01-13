@@ -22,9 +22,7 @@ docker pull mirror.gcr.io/golang
 docker pull mirror.gcr.io/alpine
 docker pull mirror.gcr.io/busybox
 docker pull quay.io/libpod/centos:7
-docker pull registry.fedoraproject.org/fedora-minimal:42-aarch64
-docker pull registry.fedoraproject.org/fedora-minimal:42-x86_64
-docker pull registry.fedoraproject.org/fedora-minimal
+docker pull quay.io/libpod/ubuntu:latest
 ```
 
 This test program is used as input in a few of the conformance tests:

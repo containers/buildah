@@ -1,5 +1,5 @@
 FROM alpine as one
-LABEL name world
+LABEL created_by world
 
 FROM one
 RUN echo world

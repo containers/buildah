@@ -1,1 +1,1 @@
-FROM registry.fedoraproject.org/fedora-minimal
+FROM quay.io/libpod/testimage:20241011

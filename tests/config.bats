@@ -82,22 +82,22 @@ function check_matrix() {
 }
 
 @test "config --unsetlabel" {
-  base=registry.fedoraproject.org/fedora-minimal
+  base=quay.io/libpod/testimage:20241011
   _prefetch $base
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON $base
   cid=$output
-  run_buildah commit $WITH_POLICY_JSON $cid with-name-label
-  run_buildah config --unsetlabel name $cid
-  run_buildah commit $WITH_POLICY_JSON $cid without-name-label
+  run_buildah commit $WITH_POLICY_JSON $cid with-created-by-label
+  run_buildah config --unsetlabel created_by $cid
+  run_buildah commit $WITH_POLICY_JSON $cid without-created-by-label
 
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' with-name-label
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "created_by"}}' with-created-by-label
   assert "$output" != "" "label should be set in base image"
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' without-name-label
-  assert "$output" == "" "name label should be removed"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "created_by"}}' without-created-by-label
+  assert "$output" == "" "created_by label should be removed"
 }
 
 @test "config --unsetannotation" {
-  base=registry.fedoraproject.org/fedora-minimal
+  base=quay.io/libpod/testimage:20241011
   _prefetch $base
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON $base
   cid=$output
