@@ -1,0 +1,6 @@
+FROM alpine AS intermediate
+RUN echo "intermediate" >> /build.txt
+
+FROM alpine
+COPY --from=intermediate /build.txt /app/build.txt
+RUN echo "final"
