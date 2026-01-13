@@ -151,7 +151,7 @@ type executor struct {
 	imageInfoLock                           sync.Mutex
 	imageInfoCache                          map[string]imageTypeAndHistoryAndDiffIDs
 	fromOverride                            string
-	additionalBuildContexts                 map[string]*define.AdditionalBuildContext
+	additionalBuildContexts                 map[string]*additionalBuildContext
 	manifest                                string
 	secrets                                 map[string]define.Secret
 	sshsources                              map[string]*sshagent.Source
@@ -177,6 +177,11 @@ type executor struct {
 	rewriteTimestamp                        bool
 	createdAnnotation                       types.OptionalBool
 	metadataFile                            string
+}
+
+type additionalBuildContext struct {
+	define.AdditionalBuildContext
+	cleanupDirectory string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -247,6 +252,16 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 	buildOutputs := slices.Clone(options.BuildOutputs)
 	if options.BuildOutput != "" { //nolint:staticcheck
 		buildOutputs = append(buildOutputs, options.BuildOutput) //nolint:staticcheck
+	}
+
+	var additionalBuildContexts map[string]*additionalBuildContext
+	if len(options.AdditionalBuildContexts) > 0 {
+		additionalBuildContexts = make(map[string]*additionalBuildContext)
+		for k, abc := range options.AdditionalBuildContexts {
+			additionalBuildContexts[k] = &additionalBuildContext{
+				AdditionalBuildContext: *abc,
+			}
+		}
 	}
 
 	exec := executor{
@@ -332,7 +347,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		rusageLogFile:                           rusageLogFile,
 		imageInfoCache:                          make(map[string]imageTypeAndHistoryAndDiffIDs),
 		fromOverride:                            options.From,
-		additionalBuildContexts:                 options.AdditionalBuildContexts,
+		additionalBuildContexts:                 additionalBuildContexts,
 		manifest:                                options.Manifest,
 		secrets:                                 secrets,
 		sshsources:                              sshsources,
@@ -777,6 +792,16 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				closer.Close()
 			}
 		}
+
+		for _, abc := range b.additionalBuildContexts {
+			if abc.cleanupDirectory != "" {
+				if err := os.RemoveAll(abc.cleanupDirectory); err != nil {
+					logrus.Debugf("cleaning up directory %q: %v", abc.cleanupDirectory, err)
+				}
+				abc.cleanupDirectory = ""
+			}
+		}
+
 		return lastErr
 	}
 
