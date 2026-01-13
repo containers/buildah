@@ -9,7 +9,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
-	"go.podman.io/image/v5/internal/imagesource"
 	"go.podman.io/image/v5/internal/imagesource/impl"
 	"go.podman.io/image/v5/internal/private"
 	"go.podman.io/image/v5/internal/signature"
@@ -50,13 +49,13 @@ type ociArchiveImageSource struct {
 
 // newImageSource returns an ImageSource for reading from an existing directory.
 // newImageSource untars the file and saves it in a temp directory
-func newImageSource(ctx context.Context, sys *types.SystemContext, ref ociArchiveReference) (private.ImageSource, error) {
-	tempDirRef, err := createUntarTempDir(sys, ref)
+func newImageSource(ctx context.Context, ref ociArchiveReference, options private.NewImageSourceOptions) (private.ImageSource, error) {
+	tempDirRef, err := createUntarTempDir(options.Sys, ref)
 	if err != nil {
 		return nil, fmt.Errorf("creating temp directory: %w", err)
 	}
 
-	unpackedSrc, err := tempDirRef.ociRefExtracted.NewImageSource(ctx, sys)
+	unpackedSrc, err := tempDirRef.ociRefExtracted.NewImageSourceWithOptions(ctx, options)
 	if err != nil {
 		var notFound ocilayout.ImageNotFoundError
 		if errors.As(err, &notFound) {
@@ -69,7 +68,7 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref ociArchiv
 	}
 	s := &ociArchiveImageSource{
 		ref:         ref,
-		unpackedSrc: imagesource.FromPublic(unpackedSrc),
+		unpackedSrc: unpackedSrc,
 		tempDirRef:  tempDirRef,
 	}
 	s.Compat = impl.AddCompat(s)

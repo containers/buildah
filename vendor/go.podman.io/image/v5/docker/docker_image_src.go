@@ -53,16 +53,16 @@ type dockerImageSource struct {
 // newImageSource creates a new ImageSource for the specified image reference.
 // The caller must call .Close() on the returned ImageSource.
 // The caller must ensure !ref.isUnknownDigest.
-func newImageSource(ctx context.Context, sys *types.SystemContext, ref dockerReference) (*dockerImageSource, error) {
+func newImageSource(ctx context.Context, ref dockerReference, options private.NewImageSourceOptions) (*dockerImageSource, error) {
 	if ref.isUnknownDigest {
 		return nil, fmt.Errorf("reading images from docker: reference %q without a tag or digest is not supported", ref.StringWithinTransport())
 	}
 
-	registryConfig, err := loadRegistryConfiguration(sys)
+	registryConfig, err := loadRegistryConfiguration(options.Sys)
 	if err != nil {
 		return nil, err
 	}
-	registry, err := sysregistriesv2.FindRegistry(sys, ref.ref.Name())
+	registry, err := sysregistriesv2.FindRegistry(options.Sys, ref.ref.Name())
 	if err != nil {
 		return nil, fmt.Errorf("loading registries configuration: %w", err)
 	}
@@ -92,12 +92,12 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref dockerRef
 	}
 	attempts := []attempt{}
 	for _, pullSource := range pullSources {
-		if sys != nil && sys.DockerLogMirrorChoice {
+		if options.Sys != nil && options.Sys.DockerLogMirrorChoice {
 			logrus.Infof("Trying to access %q", pullSource.Reference)
 		} else {
 			logrus.Debugf("Trying to access %q", pullSource.Reference)
 		}
-		s, err := newImageSourceAttempt(ctx, sys, ref, pullSource, registryConfig)
+		s, err := newImageSourceAttempt(ctx, options.Sys, ref, pullSource, registryConfig)
 		if err == nil {
 			return s, nil
 		}
