@@ -1,5 +1,5 @@
 FROM alpine AS builder
-RUN echo "transitive intermediate stage" > /output.txt
+RUN echo "builder intermediate stage" > /output.txt
 
 FROM builder AS final-stage
 RUN echo "final intermediate stage" >> /output.txt

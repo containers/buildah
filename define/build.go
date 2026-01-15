@@ -284,7 +284,7 @@ type BuildOptions struct {
 	CacheStages bool
 	// StageLabels tells the builder to add metadata labels to intermediate stage images for easier recognition.
 	// These labels include stage name, base image, build ID, and parent stage name (when a stage uses another
-	// intermediate stage as its base, i.e., transitive aliases). This option requires CacheStages to be enabled.
+	// stage as its base). This option requires CacheStages to be enabled.
 	StageLabels bool
 	// NoCache tells the builder to build the image from scratch without checking for a cache.
 	// It creates a new set of cached images for the build.

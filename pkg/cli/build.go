@@ -231,6 +231,10 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		return options, nil, nil, errors.New("'build-id-file' requires 'stage-labels'")
 	}
 
+	if iopts.Layers && iopts.CacheStages {
+		return options, nil, nil, errors.New("'layers' and 'cache-stages' cannot be used together")
+	}
+
 	if c.Flag("compress").Changed {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
