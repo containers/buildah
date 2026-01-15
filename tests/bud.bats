@@ -9244,6 +9244,14 @@ EOF
   expect_output --substring "writing build ID to file"
 }
 
+@test "bud with --layers and --cache-stages should error" {
+  _prefetch alpine
+  target="layers-cache-stages-error-test-$(safename)"
+
+  run_buildah 125 build $WITH_POLICY_JSON --layers --cache-stages -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+  expect_output --substring "'layers' and 'cache-stages' cannot be used together"
+}
+
 @test "bud with --cache-stages on single-stage Dockerfile should not create intermediate images" {
   _prefetch alpine
   target="single-stage-test-$(safename)"
@@ -9348,11 +9356,11 @@ EOF
   run_buildah rmi --all
 }
 
-@test "bud transitive alias pattern connects stages via labels" {
+@test "bud chain of two stages - one stage is used as base for another" {
   _prefetch alpine
-  target="transitive-alias-test-$(safename)"
+  target="chained-stages-test-$(safename)"
 
-  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.transitive $BUDFILES/cache-stages-test
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.chained-stages $BUDFILES/cache-stages-test
 
   # Get the build ID from file
   build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
@@ -9374,9 +9382,9 @@ EOF
     run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.base"}}' $image_id
     base="$output"
 
-    # Check if base is in the list of intermediate images (child intermediate transitive image)
+    # Check if base is in the list of intermediate images (stage is used by another stage as base)
     if echo "$all_intermediate_images" | grep -q "$base"; then
-      # This is child intermediate transitive stage image: its base is another intermediate image
+      # This is a child stage: its base is another intermediate image
       child_image_id="$image_id"
       child_name="$name"
       child_base="$base"
@@ -9384,14 +9392,14 @@ EOF
       run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
       child_parent_name="$output"
     else
-      # This is parent intermediate transitive stage image: its base is not an intermediate image
+      # This is a parent stage that serves as base for another stage
       parent_image_id="$image_id"
       parent_name="$name"
     fi
   done
 
-  assert "$parent_image_id" "!=" "" "parent intermediate transitive stage image should be present"
-  assert "$child_image_id" "!=" "" "child intermediate transitive stage image should be present"
+  assert "$parent_image_id" "!=" "" "parent stage should be present"
+  assert "$child_image_id" "!=" "" "child stage should be present"
 
   assert "$parent_name" "==" "builder" "parent stage name should be 'builder'"
   assert "$child_name" "==" "final-stage" "child stage name should be 'final-stage'"
@@ -9435,7 +9443,7 @@ EOF
     run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
     assert "$output" "==" "$build_id" "layer build.id should match build ID file"
 
-    # Should not have parent_name label (independent layers, not transitive)
+    # Should not have parent_name label (independent layers, not using another stage as base)
     run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
     assert "$output" == "" "independent layer should not have parent_name label"
   done
@@ -9446,11 +9454,11 @@ EOF
   run_buildah rmi --all
 }
 
-@test "bud with --cache-stages and chain of transitive aliases" {
+@test "bud with --cache-stages and chain of multiple stages" {
   _prefetch alpine
-  target="chain-transitive-test-$(safename)"
+  target="chained-multiple-stages-test-$(safename)"
 
-  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.chain-transitive $BUDFILES/cache-stages-test
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.chained-multiple-stages $BUDFILES/cache-stages-test
   build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
   run_buildah images -a
   all_intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
@@ -9478,26 +9486,26 @@ EOF
   done
 
   assert "${stage_ids[base]}" "!=" "" "should have base stage"
-  assert "${stage_ids[transitive1]}" "!=" "" "should have transitive1 stage"
-  assert "${stage_ids[transitive2]}" "!=" "" "should have transitive2 stage"
+  assert "${stage_ids[stage1]}" "!=" "" "should have stage1 stage"
+  assert "${stage_ids[stage2]}" "!=" "" "should have stage2 stage"
 
   assert "${stage_parent_names[base]}" == "" "base should not have parent_name"
   assert "${stage_bases[base]}" "=~" "alpine" "base should use alpine as base"
 
-  assert "${stage_parent_names[transitive1]}" "==" "base" "transitive1 parent_name should be 'base'"
-  assert "${stage_bases[transitive1]}" "==" "${stage_ids[base]}" "transitive1 base should be base image ID"
+  assert "${stage_parent_names[stage1]}" "==" "base" "stage1 parent_name should be 'base'"
+  assert "${stage_bases[stage1]}" "==" "${stage_ids[base]}" "stage1 base should be base image ID"
 
-  assert "${stage_parent_names[transitive2]}" "==" "transitive1" "transitive2 parent_name should be 'transitive1'"
-  assert "${stage_bases[transitive2]}" "==" "${stage_ids[transitive1]}" "transitive2 base should be transitive1 image ID"
+  assert "${stage_parent_names[stage2]}" "==" "stage1" "stage2 parent_name should be 'stage1'"
+  assert "${stage_bases[stage2]}" "==" "${stage_ids[stage1]}" "stage2 base should be stage1 image ID"
 
   run_buildah rmi --all
 }
 
 @test "bud with --cache-stages and ARG in stage names resolves correctly" {
   _prefetch alpine
-  target="arg-stage-names-test-$(safename)"
+  target="arg-stages-chained-stages-test-$(safename)"
 
-  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.arg-stages-and-transitive $BUDFILES/cache-stages-test
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.arg-stages-and-chained-stages $BUDFILES/cache-stages-test
 
   build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
   run_buildah images -a

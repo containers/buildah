@@ -116,7 +116,6 @@ type executor struct {
 	cacheStages                             bool
 	stageLabels                             bool
 	buildID                                 string
-	buildIDFile                             string
 	intermediateStageParents                map[string]struct{} // Tracks which intermediate stages are used as base by other intermediate stages
 	noHostname                              bool
 	noHosts                                 bool
@@ -314,7 +313,6 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		defaultMountsFilePath:                   options.DefaultMountsFilePath,
 		iidfile:                                 options.IIDFile,
 		iidfileRaw:                              options.IIDFileRaw,
-		buildIDFile:                             options.BuildIDFile,
 		squash:                                  options.Squash,
 		labels:                                  slices.Clone(options.Labels),
 		layerLabels:                             slices.Clone(options.LayerLabels),
