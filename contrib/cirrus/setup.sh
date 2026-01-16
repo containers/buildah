@@ -14,12 +14,6 @@ echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
 cd $GOSRC
 case "$OS_RELEASE_ID" in
     fedora)
-        # Not executing IN_PODMAN container
-        if [[ -z "$CONTAINER" ]]; then
-            warn "Adding secondary testing partition & growing root filesystem"
-            bash $SCRIPT_BASE/add_second_partition.sh
-        fi
-
         warn "Hard-coding podman to use crun"
 	cat > /etc/containers/containers.conf <<EOF
 [engine]
@@ -32,7 +26,7 @@ EOF
             showrun setsebool -P container_manage_cgroup true
         fi
         ;;
-    ubuntu)
+    ubuntu|debian)
         ;;
     *)
         bad_os_id_ver

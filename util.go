@@ -15,7 +15,7 @@ import (
 	"github.com/containers/storage/pkg/reexec"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/opencontainers/selinux/go-selinux/label"
+	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -159,7 +159,7 @@ func ReserveSELinuxLabels(store storage.Store, id string) error {
 			} else {
 				b, err := OpenBuilder(store, c.ID)
 				if err != nil {
-					if os.IsNotExist(errors.Cause(err)) {
+					if os.IsNotExist(unwrapError(err)) {
 						// Ignore not exist errors since containers probably created by other tool
 						// TODO, we need to read other containers json data to reserve their SELinux labels
 						continue
@@ -167,9 +167,7 @@ func ReserveSELinuxLabels(store storage.Store, id string) error {
 					return err
 				}
 				// Prevent different containers from using same MCS label
-				if err := label.ReserveLabel(b.ProcessLabel); err != nil {
-					return errors.Wrapf(err, "error reserving SELinux label %q", b.ProcessLabel)
-				}
+				selinux.ReserveLabel(b.ProcessLabel)
 			}
 		}
 	}
@@ -224,4 +222,13 @@ func extractWithTar(root, src, dest string) error {
 		return errors.Wrapf(putErr, "error copying contents of %q to %q", src, dest)
 	}
 	return nil
+}
+
+func unwrapError(err error) error {
+	e := errors.Cause(err)
+	for e != nil {
+		err = e
+		e = errors.Unwrap(err)
+	}
+	return err
 }

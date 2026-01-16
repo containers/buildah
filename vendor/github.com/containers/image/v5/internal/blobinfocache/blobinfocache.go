@@ -2,6 +2,7 @@ package blobinfocache
 
 import (
 	"github.com/containers/image/v5/pkg/compression"
+	compressiontypes "github.com/containers/image/v5/pkg/compression/types"
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -20,6 +21,12 @@ func FromBlobInfoCache(bic types.BlobInfoCache) BlobInfoCache2 {
 
 type v1OnlyBlobInfoCache struct {
 	types.BlobInfoCache
+}
+
+func (bic *v1OnlyBlobInfoCache) Open() {
+}
+
+func (bic *v1OnlyBlobInfoCache) Close() {
 }
 
 func (bic *v1OnlyBlobInfoCache) RecordDigestCompressorName(anyDigest digest.Digest, compressorName string) {
@@ -47,7 +54,7 @@ func CandidateLocationsFromV2(v2candidates []BICReplacementCandidate2) []types.B
 // compression algorithm, or Uncompressed, or UnknownCompression.  This is typically used by
 // TryReusingBlob() implementations to set values in the BlobInfo structure that they return
 // upon success.
-func OperationAndAlgorithmForCompressor(compressorName string) (types.LayerCompression, *compression.Algorithm, error) {
+func OperationAndAlgorithmForCompressor(compressorName string) (types.LayerCompression, *compressiontypes.Algorithm, error) {
 	switch compressorName {
 	case Uncompressed:
 		return types.Decompress, nil, nil

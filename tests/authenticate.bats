@@ -19,7 +19,7 @@ load helpers
   run_buildah 0 login --username testuserfoo --password testpassword docker.io
 
   run_buildah 125 logout --authfile /tmp/nonexistent docker.io
-  expect_output "checking authfile: stat /tmp/nonexistent: no such file or directory"
+  expect_output --substring "stat /tmp/nonexistent: no such file or directory"
 
   run_buildah 0 logout docker.io
 }
@@ -44,7 +44,7 @@ load helpers
 
   # wrong credentials: should fail
   run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
-  expect_output --substring "unauthorized: authentication required"
+  expect_output --substring "authentication required"
 
   # This should work
   run_buildah from --name "my-alpine-work-ctr" --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword localhost:5000/my-alpine
@@ -63,7 +63,7 @@ EOM
 
   # bud test bad password should fail
   run_buildah 125 bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:badpassword
-  expect_output --substring "unauthorized: authentication required" \
+  expect_output --substring "authentication required" \
                 "buildah bud with wrong credentials"
 
   # bud test this should work
@@ -91,7 +91,7 @@ EOM
 
   # Push with wrong credentials: should fail
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --tls-verify=true --cert-dir=$BUILDAH_AUTHDIR --creds testuser:WRONGPASSWORD alpine localhost:5000/my-alpine
-  expect_output --substring "unauthorized: authentication required"
+  expect_output --substring "authentication required"
 
   # Make sure we can fetch it
   run_buildah from --pull-always --cert-dir=$BUILDAH_AUTHDIR --tls-verify=true --creds=testuser:testpassword localhost:5000/my-alpine
@@ -129,16 +129,16 @@ EOM
 
   # After login, push should pass
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false alpine localhost:5000/my-alpine
-  expect_output --substring "Storing signatures"
+  expect_output --substring "Writing manifest to image destination"
 
   run_buildah 125 login --tls-verify=false --username testuser --password WRONGPASSWORD localhost:5000
-  expect_output 'error logging into "localhost:5000": invalid username/password' \
+  expect_output --substring 'invalid username/password' \
                 "buildah login, wrong credentials"
 
   run_buildah 0 logout localhost:5000
   expect_output "Removed login credentials for localhost:5000"
 
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false alpine localhost:5000/my-alpine
-  expect_output --substring "unauthorized: authentication required" \
+  expect_output --substring "authentication required" \
                 "buildah push after buildah logout"
 }

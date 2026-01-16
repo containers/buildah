@@ -1,3 +1,6 @@
+//go:build !remote
+// +build !remote
+
 package libimage
 
 import (
@@ -35,7 +38,7 @@ func (i *Image) Tree(traverseChildren bool) (string, error) {
 		fmt.Fprintf(sb, "No Image Layers")
 	}
 
-	layerTree, err := i.runtime.layerTree()
+	layerTree, err := i.runtime.layerTree(nil)
 	if err != nil {
 		return "", err
 	}
@@ -80,6 +83,10 @@ func (i *Image) Tree(traverseChildren bool) (string, error) {
 }
 
 func imageTreeTraverseChildren(node *layerNode, parent gotree.Tree) error {
+	if node.layer == nil {
+		return nil
+	}
+
 	var tags string
 	repoTags, err := node.repoTags()
 	if err != nil {

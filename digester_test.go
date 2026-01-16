@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"testing"
@@ -167,7 +166,7 @@ func TestCompositeDigester(t *testing.T) {
 								// the filter should have left modtime to "roughly now"
 								require.NotEqual(t, zero, hdr.ModTime, "timestamp for entry should not have been zero")
 							}
-							n, err = io.Copy(ioutil.Discard, tr)
+							n, err = io.Copy(io.Discard, tr)
 							require.Nil(t, err, "error reading tar content from buffer: %v", err)
 							require.Equal(t, hdr.Size, n, "short read reading tar content")
 							hdr, err = tr.Next()

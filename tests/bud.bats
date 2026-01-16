@@ -2797,14 +2797,14 @@ FROM registry.access.redhat.com/ubi8-minimal
 _EOF
   run_buildah bud -f Containerfile --pull=false -q --arch=amd64 -t image-amd --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
   run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-amd
-  expect_output --substring x86_64
+  expect_output --substring '(x86_64|amd64)'
 
   # Tag the image to localhost/ubi8-minimal to make sure that the image gets
   # pulled since the local one does not match the requested architecture.
   run_buildah tag image-amd localhost/ubi8-minimal
   run_buildah bud -f Containerfile --pull=false -q --arch=arm64 -t image-arm --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
   run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-arm
-  expect_output --substring arm64
+  expect_output --substring '(arm64|aarch64)'
 
   run_buildah inspect --format '{{ .FromImageID }}' image-arm
   fromiid=$output
@@ -2948,7 +2948,7 @@ _EOF
 }
 
 @test "bud with --cgroup-parent" {
-  skip_if_no_runtime
+  skip_if_rootless_environment
   skip_if_chroot
 
   _prefetch alpine
@@ -2956,25 +2956,20 @@ _EOF
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
   cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run cat /proc/self/cgroup
+FROM alpine
+RUN .linux.cgroupsPath
 _EOF
 
   # with cgroup-parent
   run_buildah bud --cgroup-parent test-cgroup -t with-flag \
-                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  if is_cgroupsv2; then
-    expect_output --from="${lines[2]}" "0::/test-cgroup"
-  else
-    expect_output --substring "/test-cgroup"
-  fi
+                  --runtime ${DUMPSPEC_BINARY} --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --substring "test-cgroup"
 
   # without cgroup-parent
   run_buildah bud -t without-flag \
-                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
-    die "Unexpected cgroup."
-  fi
+                  --runtime ${DUMPSPEC_BINARY} --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  run grep "test-cgroup" <<< "$output"
+  [ "$status" -ne 0 ]
 }
 
 @test "bud with --cpu-period and --cpu-quota" {

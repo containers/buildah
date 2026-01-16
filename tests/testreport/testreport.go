@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,8 +16,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/gocapability/capability"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
+	terminal "golang.org/x/term"
 )
 
 func getVersion(r *types.TestReport) {
@@ -91,8 +90,11 @@ func getProcessCwd(r *types.TestReport) error {
 }
 
 func getProcessCapabilities(r *types.TestReport) error {
-	capabilities, err := capability.NewPid(0)
+	capabilities, err := capability.NewPid2(0)
 	if err != nil {
+		return errors.Wrapf(err, "error reading current capabilities")
+	}
+	if err = capabilities.Load(); err != nil {
 		return errors.Wrapf(err, "error reading current capabilities")
 	}
 	if r.Spec.Process.Capabilities == nil {
@@ -179,7 +181,7 @@ func getProcessAppArmorProfile(r *types.TestReport) error {
 
 func getProcessOOMScoreAdjust(r *types.TestReport) error {
 	node := "/proc/self/oom_score_adj"
-	score, err := ioutil.ReadFile(node)
+	score, err := os.ReadFile(node)
 	if err != nil {
 		return errors.Wrapf(err, "error reading %q", node)
 	}
@@ -311,7 +313,7 @@ func getLinuxSysctl(r *types.TestReport) error {
 		if info.IsDir() {
 			return nil
 		}
-		value, err := ioutil.ReadFile(path)
+		value, err := os.ReadFile(path)
 		if err != nil {
 			if pe, ok := err.(*os.PathError); ok {
 				if errno, ok := pe.Err.(syscall.Errno); ok {

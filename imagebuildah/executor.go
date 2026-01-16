@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -121,6 +120,7 @@ type Executor struct {
 	fromOverride                   string
 	manifest                       string
 	secrets                        map[string]string
+	compatSetParent                types.OptionalBool
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -150,7 +150,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 	}
 
 	devices := define.ContainerDevices{}
-	for _, device := range append(defaultContainerConfig.Containers.Devices, options.Devices...) {
+	for _, device := range append(defaultContainerConfig.Containers.Devices.Get(), options.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return nil, err
@@ -159,7 +159,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 	}
 
 	transientMounts := []Mount{}
-	for _, volume := range append(defaultContainerConfig.Containers.Volumes, options.TransientMounts...) {
+	for _, volume := range append(defaultContainerConfig.Containers.Volumes.Get(), options.TransientMounts...) {
 		mount, err := parse.Volume(volume)
 		if err != nil {
 			return nil, err
@@ -180,7 +180,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 
 	writer := options.ReportWriter
 	if options.Quiet {
-		writer = ioutil.Discard
+		writer = io.Discard
 	}
 
 	exec := Executor{
@@ -245,6 +245,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 		fromOverride:                   options.From,
 		manifest:                       options.Manifest,
 		secrets:                        secrets,
+		compatSetParent:                options.CompatSetParent,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -468,7 +469,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 	stdout := b.out
 	if b.quiet {
-		b.out = ioutil.Discard
+		b.out = io.Discard
 	}
 
 	cleanup := func() error {
@@ -513,7 +514,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			}
 			if _, err := b.store.DeleteImage(removeID, true); err != nil {
 				logrus.Debugf("failed to remove intermediate image %q: %v", removeID, err)
-				if b.forceRmIntermediateCtrs || errors.Cause(err) != storage.ErrImageUsedByContainer {
+				if b.forceRmIntermediateCtrs || !errors.Is(errors.Cause(err), storage.ErrImageUsedByContainer) {
 					lastErr = err
 				}
 			}
@@ -677,7 +678,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if dest, err := b.resolveNameToImageRef(b.output); err == nil {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -688,7 +689,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
 			}
 			// Report back the caller the tags applied, if any.
-			img, err = is.Transport.GetStoreImage(b.store, dest)
+			img, err = is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -708,7 +709,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	}
 	logrus.Debugf("printing final image id %q", imageID)
 	if b.iidfile != "" {
-		if err = ioutil.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
+		if err = os.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
 			return imageID, ref, errors.Wrapf(err, "failed to write image ID to file %q", b.iidfile)
 		}
 	} else {

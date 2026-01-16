@@ -2,17 +2,16 @@ package checkers
 
 import (
 	"go/ast"
-	"regexp"
 	"strings"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "deprecatedComment"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects malformed 'deprecated' doc-comments"
 	info.Before = `
 // deprecated, use FuncNew instead
@@ -21,15 +20,18 @@ func FuncOld() int`
 // Deprecated: use FuncNew instead
 func FuncOld() int`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		c := &deprecatedCommentChecker{ctx: ctx}
 
-		c.commonPatterns = []*regexp.Regexp{
-			regexp.MustCompile(`(?i)this (?:function|type) is deprecated`),
-			regexp.MustCompile(`(?i)deprecated[.!]? use \S* instead`),
-			regexp.MustCompile(`(?i)\[\[deprecated\]\].*`),
-			regexp.MustCompile(`(?i)note: deprecated\b.*`),
-			regexp.MustCompile(`(?i)deprecated in.*`),
+		c.commonPatterns = []string{
+			"this type is deprecated",
+			"this function is deprecated",
+			"[[deprecated]]",
+			"note: deprecated",
+			"deprecated in",
+			"deprecated. use",
+			"deprecated! use",
+			"deprecated use",
 			// TODO(quasilyte): more of these?
 		}
 
@@ -41,6 +43,7 @@ func FuncOld() int`
 			"Dprecated: ",
 			"Derecated: ",
 			"Depecated: ",
+			"Depekated: ",
 			"Deprcated: ",
 			"Depreated: ",
 			"Deprected: ",
@@ -55,15 +58,15 @@ func FuncOld() int`
 			c.commonTypos[i] = strings.ToUpper(c.commonTypos[i])
 		}
 
-		return astwalk.WalkerForDocComment(c)
+		return astwalk.WalkerForDocComment(c), nil
 	})
 }
 
 type deprecatedCommentChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
-	commonPatterns []*regexp.Regexp
+	commonPatterns []string
 	commonTypos    []string
 }
 
@@ -114,7 +117,11 @@ func (c *deprecatedCommentChecker) VisitDocComment(doc *ast.CommentGroup) {
 
 		// Check for other commonly used patterns.
 		for _, pat := range c.commonPatterns {
-			if pat.MatchString(l) {
+			if len(l) < len(pat) {
+				continue
+			}
+
+			if strings.EqualFold(l[:len(pat)], pat) {
 				c.warnPattern(comment)
 				return
 			}

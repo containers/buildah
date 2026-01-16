@@ -1,14 +1,14 @@
 package checkers
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
 
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astcopy"
 	"github.com/go-toolsmith/astequal"
@@ -18,9 +18,9 @@ import (
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "boolExprSimplify"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{linter.StyleTag, linter.ExperimentalTag}
 	info.Summary = "Detects bool expressions that can be simplified"
 	info.Before = `
 a := !(elapsed >= expectElapsedMin)
@@ -29,14 +29,14 @@ b := !(x) == !(y)`
 a := elapsed < expectElapsedMin
 b := (x) == (y)`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForExpr(&boolExprSimplifyChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForExpr(&boolExprSimplifyChecker{ctx: ctx}), nil
 	})
 }
 
 type boolExprSimplifyChecker struct {
 	astwalk.WalkHandler
-	ctx       *lintpack.CheckerContext
+	ctx       *linter.CheckerContext
 	hasFloats bool
 }
 
@@ -47,7 +47,7 @@ func (c *boolExprSimplifyChecker) VisitExpr(x ast.Expr) {
 
 	// Throw away non-bool expressions and avoid redundant
 	// AST copying below.
-	if typ := c.ctx.TypesInfo.TypeOf(x); typ == nil || !typep.HasBoolKind(typ.Underlying()) {
+	if typ := c.ctx.TypeOf(x); typ == nil || !typep.HasBoolKind(typ.Underlying()) {
 		return
 	}
 
@@ -55,8 +55,8 @@ func (c *boolExprSimplifyChecker) VisitExpr(x ast.Expr) {
 	// this is why we record valuable info before doing it.
 	c.hasFloats = lintutil.ContainsNode(x, func(n ast.Node) bool {
 		if x, ok := n.(*ast.BinaryExpr); ok {
-			return typep.HasFloatProp(c.ctx.TypesInfo.TypeOf(x.X).Underlying()) ||
-				typep.HasFloatProp(c.ctx.TypesInfo.TypeOf(x.Y).Underlying())
+			return typep.HasFloatProp(c.ctx.TypeOf(x.X).Underlying()) ||
+				typep.HasFloatProp(c.ctx.TypeOf(x.Y).Underlying())
 		}
 		return false
 	})
@@ -289,11 +289,12 @@ func (c *boolExprSimplifyChecker) foldRanges(cur *astutil.Cursor) bool {
 			// `x >= c && x <= c` => `x == c`
 			{token.GEQ, token.LEQ, 0, 0},
 		}
-		for _, comb := range combTable {
+		for i := range combTable {
+			comb := combTable[i]
 			if match(&comb) {
 				lhs.Op = token.EQL
 				v := c1 + comb.resDelta
-				lhs.Y.(*ast.BasicLit).Value = fmt.Sprint(v)
+				lhs.Y.(*ast.BasicLit).Value = strconv.FormatInt(v, 10)
 				cur.Replace(lhs)
 				return true
 			}
@@ -310,11 +311,12 @@ func (c *boolExprSimplifyChecker) foldRanges(cur *astutil.Cursor) bool {
 			// `x <= c || x >= c+2` => `x != c+1`
 			{token.LEQ, token.GEQ, 2, 1},
 		}
-		for _, comb := range combTable {
+		for i := range combTable {
+			comb := combTable[i]
 			if match(&comb) {
 				lhs.Op = token.NEQ
 				v := c1 + comb.resDelta
-				lhs.Y.(*ast.BasicLit).Value = fmt.Sprint(v)
+				lhs.Y.(*ast.BasicLit).Value = strconv.FormatInt(v, 10)
 				cur.Replace(lhs)
 				return true
 			}
@@ -325,7 +327,7 @@ func (c *boolExprSimplifyChecker) foldRanges(cur *astutil.Cursor) bool {
 }
 
 func (c *boolExprSimplifyChecker) int64val(x ast.Expr) (int64, bool) {
-	// TODO(Quasilyte): if we had types info, we could use TypesInfo.Types[x].Value,
+	// TODO(quasilyte): if we had types info, we could use TypesInfo.Types[x].Value,
 	// but since copying erases leaves us without it, only basic literals are handled.
 	lit, ok := x.(*ast.BasicLit)
 	if !ok {

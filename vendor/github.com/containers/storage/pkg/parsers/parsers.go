@@ -13,7 +13,7 @@ import (
 func ParseKeyValueOpt(opt string) (string, string, error) {
 	parts := strings.SplitN(opt, "=", 2)
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
+		return "", "", fmt.Errorf("unable to parse key/value option: %s", opt)
 	}
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
@@ -24,13 +24,14 @@ func ParseKeyValueOpt(opt string) (string, string, error) {
 // input string. It returns a `map[int]bool` with available elements from `val`
 // set to `true`.
 // Supported formats:
-//     7
-//     1-6
-//     0,3-4,7,8-10
-//     0-0,0,1-7
-//     03,1-3      <- this is gonna get parsed as [1,2,3]
-//     3,2,1
-//     0-2,3,1
+//
+//	7
+//	1-6
+//	0,3-4,7,8-10
+//	0-0,0,1-7
+//	03,1-3      <- this is gonna get parsed as [1,2,3]
+//	3,2,1
+//	0-2,3,1
 func ParseUintList(val string) (map[int]bool, error) {
 	if val == "" {
 		return map[int]bool{}, nil
