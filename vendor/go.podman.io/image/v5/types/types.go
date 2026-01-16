@@ -640,6 +640,8 @@ type SystemContext struct {
 	// If not "", overrides the system’s default path for a directory containing host[:port] subdirectories with the same structure as DockerCertPath above.
 	// Ignored if DockerCertPath is non-empty.
 	DockerPerHostCertDirPath string
+	// If not "", a string containing PEM-encoded certificates to add to the trusted root CAs.
+	DockerAdditionalTrustedBundle string
 	// Allow contacting container registries over HTTP, or HTTPS with failed TLS verification. Note that this does not affect other TLS connections.
 	DockerInsecureSkipTLSVerify OptionalBool
 	// if nil, the library tries to parse ~/.docker/config.json to retrieve credentials
@@ -668,6 +670,10 @@ type SystemContext struct {
 	DockerRegistryPushPrecomputeDigests bool
 	// DockerProxyURL specifies proxy configuration schema (like socks5://username:password@ip:port)
 	DockerProxyURL *url.URL
+	// DockerProxy is a function that determines the proxy URL for a given request URL.
+	// If set, this takes precedence over DockerProxyURL. The function should return the proxy URL to use,
+	// or nil if no proxy should be used for the given request.
+	DockerProxy func(reqURL *url.URL) (*url.URL, error)
 
 	// === docker/daemon.Transport overrides ===
 	// A directory containing a CA certificate (ending with ".crt"),
