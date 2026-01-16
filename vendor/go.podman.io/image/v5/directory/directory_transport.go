@@ -11,6 +11,8 @@ import (
 	"go.podman.io/image/v5/directory/explicitfilepath"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/internal/image"
+	"go.podman.io/image/v5/internal/imagereference/impl"
+	"go.podman.io/image/v5/internal/private"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
 )
@@ -143,10 +145,16 @@ func (ref dirReference) NewImage(ctx context.Context, sys *types.SystemContext) 
 	return image.FromReference(ctx, sys, ref)
 }
 
+// NewImageSourceWithOptions returns a types.ImageSource for this reference.
+// The caller must call .Close() on the returned ImageSource.
+func (ref dirReference) NewImageSourceWithOptions(ctx context.Context, options private.NewImageSourceOptions) (private.ImageSource, error) {
+	return newImageSource(ref)
+}
+
 // NewImageSource returns a types.ImageSource for this reference.
 // The caller must call .Close() on the returned ImageSource.
 func (ref dirReference) NewImageSource(ctx context.Context, sys *types.SystemContext) (types.ImageSource, error) {
-	return newImageSource(ref)
+	return impl.NewImageSource(ref, ctx, sys)
 }
 
 // NewImageDestination returns a types.ImageDestination for this reference.
@@ -166,7 +174,13 @@ func (ref dirReference) manifestPath(instanceDigest *digest.Digest) (string, err
 		if err := instanceDigest.Validate(); err != nil { // digest.Digest.Encoded() panics on failure, and could possibly result in a path with ../, so validate explicitly.
 			return "", err
 		}
-		return filepath.Join(ref.path, instanceDigest.Encoded()+".manifest.json"), nil
+		var filename string
+		if instanceDigest.Algorithm() == digest.Canonical {
+			filename = instanceDigest.Encoded() + ".manifest.json"
+		} else {
+			filename = instanceDigest.Algorithm().String() + "-" + instanceDigest.Encoded() + ".manifest.json"
+		}
+		return filepath.Join(ref.path, filename), nil
 	}
 	return filepath.Join(ref.path, "manifest.json"), nil
 }
@@ -193,7 +207,13 @@ func (ref dirReference) signaturePath(index int, instanceDigest *digest.Digest) 
 		if err := instanceDigest.Validate(); err != nil { // digest.Digest.Encoded() panics on failure, and could possibly result in a path with ../, so validate explicitly.
 			return "", err
 		}
-		return filepath.Join(ref.path, fmt.Sprintf(instanceDigest.Encoded()+".signature-%d", index+1)), nil
+		var prefix string
+		if instanceDigest.Algorithm() == digest.Canonical {
+			prefix = instanceDigest.Encoded()
+		} else {
+			prefix = instanceDigest.Algorithm().String() + "-" + instanceDigest.Encoded()
+		}
+		return filepath.Join(ref.path, fmt.Sprintf(prefix+".signature-%d", index+1)), nil
 	}
 	return filepath.Join(ref.path, fmt.Sprintf("signature-%d", index+1)), nil
 }
