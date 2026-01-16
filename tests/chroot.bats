@@ -204,7 +204,7 @@ EOF
   /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} pull dir:/base-image
   baseID=\$(jq -r .config.digest /base-image/manifest.json)
   /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} tag \${baseID} docker.io/library/busybox
-  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} from --name ctrid --pull=never --quiet docker.io/library/busybox
+  /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} from --name ctrid --pull=never --quiet quay.io/libpod/busybox
   /usr/local/bin/buildah ${BUILDAH_REGISTRY_OPTS} --root /var/lib/containers/storage --runroot /run/containers/storage --storage-driver ${STORAGE_DRIVER} ${storage_opts:+--storage-opt ${storage_opts}} run --isolation=chroot ctrid pwd
 EOF
   chmod +x ${TEST_SCRATCH_DIR}
