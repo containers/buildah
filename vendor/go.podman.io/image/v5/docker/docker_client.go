@@ -262,6 +262,11 @@ func newDockerClient(sys *types.SystemContext, registry, reference string) (*doc
 		return nil, err
 	}
 
+	// If the non-host-specific trust bundle is given add it to the RootCAs pool
+	if sys.DockerAdditionalTrustedBundle != "" {
+		tlsClientConfig.RootCAs.AppendCertsFromPEM([]byte(sys.DockerAdditionalTrustedBundle))
+	}
+
 	// Check if TLS verification shall be skipped (default=false) which can
 	// be specified in the sysregistriesv2 configuration.
 	skipVerify := false
@@ -971,6 +976,11 @@ func (c *dockerClient) detectPropertiesHelper(ctx context.Context) error {
 	// if set DockerProxyURL explicitly, use the DockerProxyURL instead of system proxy
 	if c.sys != nil && c.sys.DockerProxyURL != nil {
 		tr.Proxy = http.ProxyURL(c.sys.DockerProxyURL)
+	}
+	if c.sys != nil && c.sys.DockerProxy != nil {
+		tr.Proxy = func(request *http.Request) (*url.URL, error) {
+			return c.sys.DockerProxy(request.URL)
+		}
 	}
 	c.client = &http.Client{Transport: tr}
 
