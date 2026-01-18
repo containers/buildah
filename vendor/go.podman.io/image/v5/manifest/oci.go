@@ -47,7 +47,10 @@ func SupportedOCI1MediaType(m string) error {
 		imgspecv1.MediaTypeImageLayerNonDistributable, imgspecv1.MediaTypeImageLayerNonDistributableGzip, imgspecv1.MediaTypeImageLayerNonDistributableZstd, //nolint:staticcheck // NonDistributable layers are deprecated, but we want to continue to support manipulating pre-existing images.
 		imgspecv1.MediaTypeImageManifest,
 		imgspecv1.MediaTypeLayoutHeader,
-		ociencspec.MediaTypeLayerEnc, ociencspec.MediaTypeLayerGzipEnc:
+		ociencspec.MediaTypeLayerEnc, ociencspec.MediaTypeLayerGzipEnc,
+		manifest.WasmContentLayerMediaType, manifest.WasmContentLayerMediaType + "+gzip", manifest.WasmContentLayerMediaType + "+zstd",
+		manifest.WasmContentLayerMediaType + "+encrypted", manifest.WasmContentLayerMediaType + "+gzip+encrypted", manifest.WasmContentLayerMediaType + "+zstd+encrypted",
+		manifest.WasmConfigMediaType:
 		return nil
 	default:
 		return fmt.Errorf("unsupported OCIv1 media type: %q", m)
@@ -116,6 +119,11 @@ var oci1CompressionMIMETypeSets = []compressionMIMETypeSet{
 		compressiontypes.GzipAlgorithmName: imgspecv1.MediaTypeImageLayerGzip,
 		compressiontypes.ZstdAlgorithmName: imgspecv1.MediaTypeImageLayerZstd,
 	},
+	{
+		mtsUncompressed:                    manifest.WasmContentLayerMediaType,
+		compressiontypes.GzipAlgorithmName: manifest.WasmContentLayerMediaType + "+gzip",
+		compressiontypes.ZstdAlgorithmName: manifest.WasmContentLayerMediaType + "+zstd",
+	},
 }
 
 // UpdateLayerInfos replaces the original layers with the specified BlobInfos (size+digest+urls+mediatype), in order (the root layer first, and then successive layered layers)
@@ -173,7 +181,8 @@ func getEncryptedMediaType(mediatype string) (string, error) {
 	unsuffixedMediatype := parts[0]
 	switch unsuffixedMediatype {
 	case DockerV2Schema2LayerMediaType, imgspecv1.MediaTypeImageLayer,
-		imgspecv1.MediaTypeImageLayerNonDistributable: //nolint:staticcheck // NonDistributable layers are deprecated, but we want to continue to support manipulating pre-existing images.
+		imgspecv1.MediaTypeImageLayerNonDistributable, //nolint:staticcheck // NonDistributable layers are deprecated, but we want to continue to support manipulating pre-existing images.
+		manifest.WasmContentLayerMediaType:
 		return mediatype + "+encrypted", nil
 	}
 
@@ -199,11 +208,11 @@ func (m *OCI1) Serialize() ([]byte, error) {
 
 // Inspect returns various information for (skopeo inspect) parsed from the manifest and configuration.
 func (m *OCI1) Inspect(configGetter func(types.BlobInfo) ([]byte, error)) (*types.ImageInspectInfo, error) {
-	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
-		// We could return at least the layers, but that’s already available in a better format via types.Image.LayerInfos.
+	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig && m.Config.MediaType != manifest.WasmConfigMediaType {
+		// We could return at least the layers, but that's already available in a better format via types.Image.LayerInfos.
 		// Most software calling this without human intervention is going to expect the values to be realistic and relevant,
 		// and is probably better served by failing; we can always re-visit that later if we fail now, but
-		// if we started returning some data for OCI artifacts now, we couldn’t start failing in this function later.
+		// if we started returning some data for OCI artifacts now, we couldn't start failing in this function later.
 		return nil, manifest.NewNonImageArtifactError(&m.Manifest)
 	}
 
@@ -253,8 +262,8 @@ func (m *OCI1) ImageID(diffIDs []digest.Digest) (string, error) {
 	// gives us the option to not fail, and return some value, in the future,
 	// without committing to that approach now.
 	// (The only known caller of ImageID is storage/storageImageDestination.computeID,
-	// which can’t work with non-image artifacts.)
-	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
+	// which can't work with non-image artifacts.)
+	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig && m.Config.MediaType != manifest.WasmConfigMediaType {
 		return "", manifest.NewNonImageArtifactError(&m.Manifest)
 	}
 
@@ -269,7 +278,7 @@ func (m *OCI1) ImageID(diffIDs []digest.Digest) (string, error) {
 // NOTE: Even if this returns true, the relevant format might not accept all compression algorithms; the set of accepted
 // algorithms depends not on the current format, but possibly on the target of a conversion.
 func (m *OCI1) CanChangeLayerCompression(mimeType string) bool {
-	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
+	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig && m.Config.MediaType != manifest.WasmConfigMediaType {
 		return false
 	}
 	return compressionVariantsRecognizeMIMEType(oci1CompressionMIMETypeSets, mimeType)

@@ -85,7 +85,7 @@ func (m *manifestOCI1) ConfigBlob(ctx context.Context) ([]byte, error) {
 // layers in the resulting configuration isn't guaranteed to be returned to due how
 // old image manifests work (docker v2s1 especially).
 func (m *manifestOCI1) OCIConfig(ctx context.Context) (*imgspecv1.Image, error) {
-	if m.m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
+	if m.m.Config.MediaType != imgspecv1.MediaTypeImageConfig && m.m.Config.MediaType != internalManifest.WasmConfigMediaType {
 		return nil, internalManifest.NewNonImageArtifactError(&m.m.Manifest)
 	}
 
@@ -244,7 +244,7 @@ func (m *manifestOCI1) layerEditsOfOCIOnlyFeatures(options *types.ManifestUpdate
 // value.
 // This does not change the state of the original manifestOCI1 object.
 func (m *manifestOCI1) convertToManifestSchema2(_ context.Context, options *types.ManifestUpdateOptions) (*manifestSchema2, error) {
-	if m.m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
+	if m.m.Config.MediaType != imgspecv1.MediaTypeImageConfig && m.m.Config.MediaType != internalManifest.WasmConfigMediaType {
 		return nil, internalManifest.NewNonImageArtifactError(&m.m.Manifest)
 	}
 
@@ -290,6 +290,9 @@ func (m *manifestOCI1) convertToManifestSchema2(_ context.Context, options *type
 		case ociencspec.MediaTypeLayerEnc, ociencspec.MediaTypeLayerGzipEnc, ociencspec.MediaTypeLayerZstdEnc,
 			ociencspec.MediaTypeLayerNonDistributableEnc, ociencspec.MediaTypeLayerNonDistributableGzipEnc, ociencspec.MediaTypeLayerNonDistributableZstdEnc:
 			return nil, fmt.Errorf("during manifest conversion: encrypted layers (%q) are not supported in docker images", layers[idx].MediaType)
+		case internalManifest.WasmContentLayerMediaType, internalManifest.WasmContentLayerMediaType + "+gzip", internalManifest.WasmContentLayerMediaType + "+zstd",
+			internalManifest.WasmContentLayerMediaType + "+encrypted", internalManifest.WasmContentLayerMediaType + "+gzip+encrypted", internalManifest.WasmContentLayerMediaType + "+zstd+encrypted":
+			return nil, fmt.Errorf("during manifest conversion: WASM layers (%q) are not supported in docker images", layers[idx].MediaType)
 		default:
 			return nil, fmt.Errorf("Unknown media type during manifest conversion: %q", layers[idx].MediaType)
 		}
@@ -306,7 +309,7 @@ func (m *manifestOCI1) convertToManifestSchema2(_ context.Context, options *type
 // value.
 // This does not change the state of the original manifestOCI1 object.
 func (m *manifestOCI1) convertToManifestSchema1(ctx context.Context, options *types.ManifestUpdateOptions) (genericManifest, error) {
-	if m.m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
+	if m.m.Config.MediaType != imgspecv1.MediaTypeImageConfig && m.m.Config.MediaType != internalManifest.WasmConfigMediaType {
 		return nil, internalManifest.NewNonImageArtifactError(&m.m.Manifest)
 	}
 
