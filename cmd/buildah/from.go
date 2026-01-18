@@ -277,8 +277,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		Isolation:             isolation,
 		NamespaceOptions:      namespaceOptions,
 		ConfigureNetwork:      networkPolicy,
-		CNIPluginPath:         iopts.CNIPlugInPath,
-		CNIConfigDir:          iopts.CNIConfigDir,
 		IDMappingOptions:      idmappingOptions,
 		Capabilities:          capabilities,
 		CommonBuildOpts:       commonOpts,
