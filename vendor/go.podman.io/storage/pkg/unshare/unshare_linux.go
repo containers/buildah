@@ -161,6 +161,9 @@ func (c *Cmd) Start() (retErr error) {
 		}
 	}()
 
+	// Additional steps are required when CGO is not available
+	unshareWithNoCGO(c)
+
 	// Start the new process.
 	err = c.Cmd.Start()
 	if err != nil {

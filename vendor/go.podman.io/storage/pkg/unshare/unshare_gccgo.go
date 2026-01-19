@@ -23,3 +23,5 @@ func init() {
 		C.init()
 	}
 }
+
+func unshareWithNoCGO(c *Cmd) {}
