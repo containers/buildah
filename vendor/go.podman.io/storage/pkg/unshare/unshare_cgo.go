@@ -8,3 +8,5 @@ package unshare
 //   _containers_unshare();
 // }
 import "C"
+
+func unshareWithNoCGO(c *Cmd) {}
