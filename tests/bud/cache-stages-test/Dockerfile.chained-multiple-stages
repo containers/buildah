@@ -1,0 +1,12 @@
+FROM alpine AS base
+RUN echo "base" > /output.txt
+
+FROM base AS stage1
+RUN echo "stage1" >> /output.txt
+
+FROM stage1 AS stage2
+RUN echo "stage2" >> /output.txt
+
+FROM alpine
+COPY --from=stage2 /output.txt /app/output.txt
+RUN cat /app/output.txt
