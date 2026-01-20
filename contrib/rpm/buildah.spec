@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.21.5
+Version:        1.21.6
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,49 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Jan 20 2026 David Shea <dshea@redhat.com> 1.21.6-1
+- copier test: use correct UID/GID in test archives
+- copier.unwrapError(): update for Go 1.16
+- [release-1.21] Partially work around containers/common
+- run: fix nil deref using the option's logger (from #3431)
+- from add-host test: accept either tabs or spaces in /etc/hosts
+- Add /usr/lib/cni to define.DefaultCNIPluginPath
+- bud --pull=false --arch test: accept either RPM or Go arch names
+- Update the selinux spc test
+- runUsingRuntime: use named constants for runtime states
+- Add a dummy "runtime" that just dumps its config file
+- run: handle relabeling bind mounts ourselves
+- Backport permissions fixup for test git server from #5550
+- util.SortMounts(): make the returned order more stable
+- chroot tests: use the same default seccomp profile
+- vendor c/common
+- Remove -cover flag from test-unit target
+- Update expected error messages
+- Make "buildah build" an alias for "buildah bud"
+- Update man pages
+- Builder.SetWorkDir(): trim off a path separator suffix, if there is one
+- commit: set "parent" for docker format only when requested
+- Stop setting "parent" in docker format
+- Don't set ambient capabilities
+- Update linter configuration and address some warnings
+- tests/serve/serve.go: use a kernel-assigned port
+- use c/image/pkg/blobcache
+- Update to compensate for containers/common API changes
+- Handle errors.Cause() returning not-completely-unwrapped errors
+- CI: switch to debian for testing there
+- Bump CI environment
+- Switch to moby/sys/userns for RunningInUserNS
+- Update go-selinux uses to handle API changes
+- Update other dependencies
+- tests/tools: update ginkgo and golangci-lint
+- Update golang.org/x/tools to v0.26.0
+- Makefile: drop non-Linux cross-compile targets
+- Bump runc to v1.2.9 - CVE-2025-52881
+- tests/conformance/testdata/Dockerfile.add:...
+- conformance tests: don't break on trailing zeroes in layer blobs
+- conformance test: ignore file type bits when comparing layers
+- [release-1.21] Replace registry.centos.org
+
 * Tue Sep 20 2022 Nalin Dahyabhai <nalin@redhat.com> 1.21.5-1
 - run: add container gid to additional groups
 - run: do not set the inheritable capabilities
