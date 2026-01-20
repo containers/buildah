@@ -379,32 +379,28 @@ func (ic *imageCopier) noPendingManifestUpdates() bool {
 // compareImageDestinationManifestEqual compares the source and destination image manifests (reading the manifest from the
 // (possibly remote) destination). If they are equal, it returns a full copySingleImageResult, nil otherwise.
 func (ic *imageCopier) compareImageDestinationManifestEqual(ctx context.Context, targetInstance *digest.Digest) (*copySingleImageResult, error) {
-	srcManifestDigest, err := manifest.Digest(ic.src.ManifestBlob)
-	if err != nil {
-		return nil, fmt.Errorf("calculating manifest digest: %w", err)
-	}
-
 	destImageSource, err := ic.c.dest.Reference().NewImageSource(ctx, ic.c.options.DestinationCtx)
 	if err != nil {
-		logrus.Debugf("Unable to create destination image %s source: %v", ic.c.dest.Reference(), err)
+		logrus.Debugf("Unable to create destination image %s source: %v", transports.ImageName(ic.c.dest.Reference()), err)
 		return nil, nil
 	}
 	defer destImageSource.Close()
 
 	destManifest, destManifestType, err := destImageSource.GetManifest(ctx, targetInstance)
 	if err != nil {
-		logrus.Debugf("Unable to get destination image %s/%s manifest: %v", destImageSource, targetInstance, err)
+		logrus.Debugf("Unable to get destination image %s/%s manifest: %v", transports.ImageName(destImageSource.Reference()), targetInstance, err)
 		return nil, nil
 	}
 
-	destManifestDigest, err := manifest.Digest(destManifest)
+	if !bytes.Equal(ic.src.ManifestBlob, destManifest) {
+		logrus.Debugf("Source and destination manifests differ")
+		return nil, nil
+	}
+	logrus.Debugf("Destination already matches the source manifest")
+
+	srcManifestDigest, err := manifest.Digest(ic.src.ManifestBlob)
 	if err != nil {
 		return nil, fmt.Errorf("calculating manifest digest: %w", err)
-	}
-
-	logrus.Debugf("Comparing source and destination manifest digests: %v vs. %v", srcManifestDigest, destManifestDigest)
-	if srcManifestDigest != destManifestDigest {
-		return nil, nil
 	}
 
 	compressionAlgos := set.New[string]()
