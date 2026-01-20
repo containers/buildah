@@ -12,7 +12,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	terminal "golang.org/x/term"
 )
 
 const (

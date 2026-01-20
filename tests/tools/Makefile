@@ -16,29 +16,20 @@ vendor:
 	GO111MODULE=on $(GO) mod vendor
 	GO111MODULE=on $(GO) mod verify
 
-define go-build
-	$(shell cd `pwd` && $(GO_BUILD) -o $(BUILDDIR)/$(shell basename $(1)) $(1))
-	@echo > /dev/null
-endef
-
 .PHONY: clean
 clean:
 	rm -rf $(BUILDDIR)
 
 $(BUILDDIR): \
-	$(BUILDDIR)/ginkgo \
 	$(BUILDDIR)/git-validation \
 	$(BUILDDIR)/go-md2man \
 	$(BUILDDIR)/golangci-lint
 
-$(BUILDDIR)/ginkgo:
-	$(call go-build,./vendor/github.com/onsi/ginkgo/ginkgo)
-
 $(BUILDDIR)/git-validation:
-	$(call go-build,./vendor/github.com/vbatts/git-validation)
+	$(GO_BUILD) -o $@ ./vendor/github.com/vbatts/git-validation
 
 $(BUILDDIR)/go-md2man:
-	$(call go-build,./vendor/github.com/cpuguy83/go-md2man)
+	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man
 
 $(BUILDDIR)/golangci-lint:
-	$(call go-build,./vendor/github.com/golangci/golangci-lint/cmd/golangci-lint)
+	$(GO_BUILD) -o $@ ./vendor/github.com/golangci/golangci-lint/cmd/golangci-lint

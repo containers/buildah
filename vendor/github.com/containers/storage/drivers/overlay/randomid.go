@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package overlay
@@ -47,13 +48,13 @@ func generateID(l int) string {
 			if retryOnError(err) && retries < maxretries {
 				count += n
 				retries++
-				logrus.Errorf("error generating version 4 uuid, retrying: %v", err)
+				logrus.Errorf("Generating version 4 uuid, retrying: %v", err)
 				continue
 			}
 
 			// Any other errors represent a system problem. What did someone
 			// do to /dev/urandom?
-			panic(fmt.Errorf("error reading random number generator, retried for %v: %v", totalBackoff.String(), err))
+			panic(fmt.Errorf("reading random number generator, retried for %v: %w", totalBackoff.String(), err))
 		}
 
 		break

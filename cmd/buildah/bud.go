@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,7 +42,7 @@ func init() {
 
 	budCommand := &cobra.Command{
 		Use:     "bud",
-		Aliases: []string{"build-using-dockerfile"},
+		Aliases: []string{"build-using-dockerfile", "build"},
 		Short:   "Build an image using instructions in a Dockerfile",
 		Long:    budDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -372,7 +371,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	}
 
 	if iopts.Quiet {
-		options.ReportWriter = ioutil.Discard
+		options.ReportWriter = io.Discard
 	}
 
 	_, _, err = imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)

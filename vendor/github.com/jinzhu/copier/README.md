@@ -27,9 +27,10 @@ import (
 )
 
 type User struct {
-	Name string
-	Role string
-	Age  int32
+	Name        string
+	Role        string
+	Age         int32
+	EmployeeCode int64 `copier:"EmployeeNum"` // specify field name
 
 	// Explicitly ignored in the destination struct.
 	Salary   int
@@ -52,7 +53,7 @@ type Employee struct {
 	Salary    int    `copier:"-"`
 
 	DoubleAge int32
-	EmployeId int64
+	EmployeeId int64 `copier:"EmployeeNum"` // specify field name
 	SuperRole string
 }
 
@@ -85,7 +86,7 @@ func main() {
 
 	fmt.Printf("%#v \n", employees)
 	// []Employee{
-	//   {Name: "Jinzhu", Age: 18, Salary:0, DoubleAge: 36, EmployeId: 0, SuperRole: "Super Admin"}
+	//   {Name: "Jinzhu", Age: 18, Salary:0, DoubleAge: 36, EmployeeId: 0, SuperRole: "Super Admin"}
 	// }
 
 	// Copy slice to slice
@@ -94,8 +95,8 @@ func main() {
 
 	fmt.Printf("%#v \n", employees)
 	// []Employee{
-	//   {Name: "Jinzhu", Age: 18, Salary:0, DoubleAge: 36, EmployeId: 0, SuperRole: "Super Admin"},
-	//   {Name: "jinzhu 2", Age: 30, Salary:0, DoubleAge: 60, EmployeId: 0, SuperRole: "Super Dev"},
+	//   {Name: "Jinzhu", Age: 18, Salary:0, DoubleAge: 36, EmployeeId: 0, SuperRole: "Super Admin"},
+	//   {Name: "jinzhu 2", Age: 30, Salary:0, DoubleAge: 60, EmployeeId: 0, SuperRole: "Super Dev"},
 	// }
 
  	// Copy map to map

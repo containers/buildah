@@ -3,15 +3,17 @@ package checkers
 import (
 	"go/ast"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/linter"
+
+	"github.com/go-toolsmith/astcast"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "hugeParam"
-	info.Tags = []string{"performance"}
-	info.Params = lintpack.CheckerParams{
+	info.Tags = []string{linter.PerformanceTag}
+	info.Params = linter.CheckerParams{
 		"sizeThreshold": {
 			Value: 80,
 			Usage: "size in bytes that makes the warning trigger",
@@ -21,17 +23,17 @@ func init() {
 	info.Before = `func f(x [1024]int) {}`
 	info.After = `func f(x *[1024]int) {}`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		return astwalk.WalkerForFuncDecl(&hugeParamChecker{
 			ctx:           ctx,
 			sizeThreshold: int64(info.Params.Int("sizeThreshold")),
-		})
+		}), nil
 	})
 }
 
 type hugeParamChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	sizeThreshold int64
 }
@@ -39,18 +41,36 @@ type hugeParamChecker struct {
 func (c *hugeParamChecker) VisitFuncDecl(decl *ast.FuncDecl) {
 	// TODO(quasilyte): maybe it's worthwhile to permit skipping
 	// test files for this checker?
+	if c.isImplementStringer(decl) {
+		return
+	}
+
 	if decl.Recv != nil {
 		c.checkParams(decl.Recv.List)
 	}
 	c.checkParams(decl.Type.Params.List)
 }
 
+// isImplementStringer check method signature is: String() string.
+func (*hugeParamChecker) isImplementStringer(decl *ast.FuncDecl) bool {
+	if decl.Recv != nil &&
+		decl.Name.Name == "String" &&
+		decl.Type != nil &&
+		len(decl.Type.Params.List) == 0 &&
+		len(decl.Type.Results.List) == 1 &&
+		astcast.ToIdent(decl.Type.Results.List[0].Type).Name == "string" {
+		return true
+	}
+
+	return false
+}
+
 func (c *hugeParamChecker) checkParams(params []*ast.Field) {
 	for _, p := range params {
 		for _, id := range p.Names {
-			typ := c.ctx.TypesInfo.TypeOf(id)
-			size := c.ctx.SizesInfo.Sizeof(typ)
-			if size >= c.sizeThreshold {
+			typ := c.ctx.TypeOf(id)
+			size, ok := c.ctx.SizeOf(typ)
+			if ok && size >= c.sizeThreshold {
 				c.warn(id, size)
 			}
 		}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -385,7 +384,7 @@ func OpenBuilder(store storage.Store, container string) (*Builder, error) {
 	if err != nil {
 		return nil, err
 	}
-	buildstate, err := ioutil.ReadFile(filepath.Join(cdir, stateFile))
+	buildstate, err := os.ReadFile(filepath.Join(cdir, stateFile))
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +420,7 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 		if err != nil {
 			return nil, err
 		}
-		buildstate, err := ioutil.ReadFile(filepath.Join(cdir, stateFile))
+		buildstate, err := os.ReadFile(filepath.Join(cdir, stateFile))
 		if err != nil {
 			if os.IsNotExist(err) {
 				logrus.Debugf("error reading %q: %v, ignoring container %q", filepath.Join(cdir, stateFile), err, container.ID)
@@ -458,7 +457,7 @@ func OpenAllBuilders(store storage.Store) (builders []*Builder, err error) {
 		if err != nil {
 			return nil, err
 		}
-		buildstate, err := ioutil.ReadFile(filepath.Join(cdir, stateFile))
+		buildstate, err := os.ReadFile(filepath.Join(cdir, stateFile))
 		if err != nil {
 			if os.IsNotExist(err) {
 				logrus.Debugf("error reading %q: %v, ignoring container %q", filepath.Join(cdir, stateFile), err, container.ID)

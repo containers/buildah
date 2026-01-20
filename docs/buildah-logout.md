@@ -31,6 +31,10 @@ environment variable. `export REGISTRY_AUTH_FILE=path`
 
 Remove the cached credentials for all registries in the auth file
 
+**--compat-auth-file**=*path*
+
+Instead of updating the default credentials file, update the one at *path*, and use a Docker-compatible format.
+
 **--help**, **-h**
 
 Print usage statement

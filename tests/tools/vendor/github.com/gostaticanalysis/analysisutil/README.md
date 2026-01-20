@@ -1,10 +1,5 @@
 # analysisutil
 
-[![godoc.org][godoc-badge]][godoc]
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/gostaticanalysis/analysisutil)](https://pkg.go.dev/github.com/gostaticanalysis/analysisutil)
 
 Utilities for x/tools/go/analysis package.
-
-<!-- links -->
-[godoc]: https://godoc.org/github.com/gostaticanalysis/analysisutil
-[godoc-badge]: https://img.shields.io/badge/godoc-reference-4F73B3.svg?style=flat-square&label=%20godoc.org
-

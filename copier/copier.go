@@ -4,9 +4,9 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/user"
@@ -575,7 +575,7 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 		bulkReader = bytes.NewReader([]byte{})
 	}
 	if bulkWriter == nil {
-		bulkWriter = ioutil.Discard
+		bulkWriter = io.Discard
 	}
 	cmd := reexec.Command(copierCommand)
 	stdinRead, stdinWrite, err := os.Pipe()
@@ -1094,7 +1094,7 @@ func copierHandlerStat(req request, pm *fileutils.PatternMatcher) *response {
 }
 
 func errorIsPermission(err error) bool {
-	err = errors.Cause(err)
+	err = unwrapError(err)
 	if err == nil {
 		return false
 	}
@@ -1186,7 +1186,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 								return filepath.SkipDir
 							}
 							return nil
-						} else if os.IsNotExist(errors.Cause(err)) {
+						} else if os.IsNotExist(unwrapError(err)) {
 							logrus.Warningf("copier: file disappeared while reading: %q", path)
 							return nil
 						}
@@ -1244,7 +1244,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 					if err := copierHandlerGetOne(info, symlinkTarget, rel, path, options, tw, hardlinkChecker, idMappings); err != nil {
 						if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
 							return ok
-						} else if os.IsNotExist(errors.Cause(err)) {
+						} else if os.IsNotExist(unwrapError(err)) {
 							logrus.Warningf("copier: file disappeared while reading: %q", path)
 							return nil
 						}
@@ -1625,7 +1625,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			// no type flag for sockets
 			default:
 				return errors.Errorf("unrecognized Typeflag %c", hdr.Typeflag)
-			case tar.TypeReg, tar.TypeRegA:
+			case tar.TypeReg, tar.TypeRegA: //nolint:staticcheck
 				var written int64
 				written, err = createFile(path, tr)
 				// only check the length if there wasn't an error, which we'll
@@ -1865,4 +1865,16 @@ func copierHandlerRemove(req request) *response {
 		return errorResponse("copier: remove %q: %v", req.Directory, err)
 	}
 	return &response{Error: "", Remove: removeResponse{}}
+}
+
+func unwrapError(err error) error {
+	e := errors.Cause(err)
+	for e != nil {
+		err = e
+		e = stderrors.Unwrap(err)
+		if e == err {
+			break
+		}
+	}
+	return err
 }

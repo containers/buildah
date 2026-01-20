@@ -41,11 +41,19 @@ load helpers
   run_buildah rm $cid
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "elsewhere-img-working-container"
+  expect_output "dir-working-container"
   run_buildah rm $output
 
   run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "$(basename ${elsewhere})-working-container"
+  expect_output "dir-working-container"
+
+  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid oci-archive:${elsewhere}.oci
+  run_buildah rm $cid
+
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json oci-archive:${elsewhere}.oci
+  expect_output "oci-archive-working-container"
   run_buildah rm $output
 
   run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
@@ -54,11 +62,11 @@ load helpers
   run_buildah rm $cid
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "elsewhere-img-working-container"
+  expect_output "dir-working-container-1"
   run_buildah rm $output
 
   run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "$(basename ${elsewhere})-working-container"
+  expect_output "dir-working-container-1"
 }
 
 @test "from-tagged-image" {
@@ -125,7 +133,7 @@ load helpers
   run_buildah rmi alpine
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/alp-dir
-  expect_output "alp-dir-working-container"
+  expect_output "dir-working-container"
 }
 
 @test "from the following transports: docker-archive and oci-archive with no image reference" {
@@ -309,8 +317,8 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run --net=container $cid -- cat /etc/hosts
-  expect_output --substring "127.0.0.1 +localhost"
+  run_buildah run --net=container $cid -- sed -E 's,([\t ])+, ,g' /etc/hosts
+  expect_output --substring "127.0.0.1 localhost"
 }
 
 @test "from name test" {
@@ -352,7 +360,7 @@ load helpers
 
 @test "from with nonexistent authfile: fails" {
   run_buildah 125 from --authfile /no/such/file --pull --signature-policy ${TESTSDIR}/policy.json alpine
-  expect_output "checking authfile: stat /no/such/file: no such file or directory"
+  expect_output --substring "stat /no/such/file: no such file or directory"
 }
 
 @test "from --pull-always: emits 'Getting' even if image is cached" {
@@ -382,11 +390,11 @@ load helpers
 
   # Try encrypted image without key should fail
   run_buildah 125 from oci:${TESTDIR}/tmp/busybox_enc
-  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+  expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
-  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+  expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
   run_buildah from  --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
@@ -404,11 +412,11 @@ load helpers
 
   # Try encrypted image without key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+  expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
-  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+  expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
   run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest

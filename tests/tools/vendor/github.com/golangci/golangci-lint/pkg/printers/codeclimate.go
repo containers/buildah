@@ -1,19 +1,21 @@
 package printers
 
 import (
-	"context"
-	"crypto/md5"
 	"encoding/json"
-	"fmt"
+	"io"
 
-	"github.com/golangci/golangci-lint/pkg/logutils"
 	"github.com/golangci/golangci-lint/pkg/result"
 )
 
-// CodeClimateIssue is a subset of the Code Climate spec - https://github.com/codeclimate/spec/blob/master/SPEC.md#data-types
-// It is just enough to support GitLab CI Code Quality - https://docs.gitlab.com/ee/user/project/merge_requests/code_quality.html
+const defaultCodeClimateSeverity = "critical"
+
+// CodeClimateIssue is a subset of the Code Climate spec.
+// https://github.com/codeclimate/platform/blob/master/spec/analyzers/SPEC.md#data-types
+// It is just enough to support GitLab CI Code Quality.
+// https://docs.gitlab.com/ee/user/project/merge_requests/code_quality.html
 type CodeClimateIssue struct {
 	Description string `json:"description"`
+	Severity    string `json:"severity,omitempty"`
 	Fingerprint string `json:"fingerprint"`
 	Location    struct {
 		Path  string `json:"path"`
@@ -24,33 +26,34 @@ type CodeClimateIssue struct {
 }
 
 type CodeClimate struct {
+	w io.Writer
 }
 
-func NewCodeClimate() *CodeClimate {
-	return &CodeClimate{}
+func NewCodeClimate(w io.Writer) *CodeClimate {
+	return &CodeClimate{w: w}
 }
 
-func (p CodeClimate) Print(ctx context.Context, issues <-chan result.Issue) error {
-	allIssues := []CodeClimateIssue{}
+func (p CodeClimate) Print(issues []result.Issue) error {
+	codeClimateIssues := make([]CodeClimateIssue, 0, len(issues))
 	for i := range issues {
-		var issue CodeClimateIssue
-		issue.Description = i.FromLinter + ": " + i.Text
-		issue.Location.Path = i.Pos.Filename
-		issue.Location.Lines.Begin = i.Pos.Line
+		issue := &issues[i]
+		codeClimateIssue := CodeClimateIssue{}
+		codeClimateIssue.Description = issue.Description()
+		codeClimateIssue.Location.Path = issue.Pos.Filename
+		codeClimateIssue.Location.Lines.Begin = issue.Pos.Line
+		codeClimateIssue.Fingerprint = issue.Fingerprint()
+		codeClimateIssue.Severity = defaultCodeClimateSeverity
 
-		// Need a checksum of the issue, so we use MD5 of the filename, text, and first line of source
-		hash := md5.New()
-		_, _ = hash.Write([]byte(i.Pos.Filename + i.Text + i.SourceLines[0]))
-		issue.Fingerprint = fmt.Sprintf("%X", hash.Sum(nil))
+		if issue.Severity != "" {
+			codeClimateIssue.Severity = issue.Severity
+		}
 
-		allIssues = append(allIssues, issue)
+		codeClimateIssues = append(codeClimateIssues, codeClimateIssue)
 	}
 
-	outputJSON, err := json.Marshal(allIssues)
+	err := json.NewEncoder(p.w).Encode(codeClimateIssues)
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprint(logutils.StdOut, string(outputJSON))
 	return nil
 }

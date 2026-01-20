@@ -2,7 +2,8 @@ package tlsclientconfig
 
 import (
 	"crypto/tls"
-	"io/ioutil"
+	"crypto/x509"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -10,16 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-connections/sockets"
-	"github.com/docker/go-connections/tlsconfig"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 )
 
 // SetupCertificates opens all .crt, .cert, and .key files in dir and appends / loads certs and key pairs as appropriate to tlsc
 func SetupCertificates(dir string, tlsc *tls.Config) error {
 	logrus.Debugf("Looking for TLS certificates and private keys in %s", dir)
-	fs, err := ioutil.ReadDir(dir)
+	fs, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -35,7 +34,7 @@ func SetupCertificates(dir string, tlsc *tls.Config) error {
 		fullPath := filepath.Join(dir, f.Name())
 		if strings.HasSuffix(f.Name(), ".crt") {
 			logrus.Debugf(" crt: %s", fullPath)
-			data, err := ioutil.ReadFile(fullPath)
+			data, err := os.ReadFile(fullPath)
 			if err != nil {
 				if os.IsNotExist(err) {
 					// Dangling symbolic link?
@@ -48,9 +47,9 @@ func SetupCertificates(dir string, tlsc *tls.Config) error {
 				return err
 			}
 			if tlsc.RootCAs == nil {
-				systemPool, err := tlsconfig.SystemCertPool()
+				systemPool, err := x509.SystemCertPool()
 				if err != nil {
-					return errors.Wrap(err, "unable to get system cert pool")
+					return fmt.Errorf("unable to get system cert pool: %w", err)
 				}
 				tlsc.RootCAs = systemPool
 			}
@@ -61,33 +60,30 @@ func SetupCertificates(dir string, tlsc *tls.Config) error {
 			keyName := certName[:len(certName)-5] + ".key"
 			logrus.Debugf(" cert: %s", fullPath)
 			if !hasFile(fs, keyName) {
-				return errors.Errorf("missing key %s for client certificate %s. Note that CA certificates should use the extension .crt", keyName, certName)
+				return fmt.Errorf("missing key %s for client certificate %s. Note that CA certificates should use the extension .crt", keyName, certName)
 			}
 			cert, err := tls.LoadX509KeyPair(filepath.Join(dir, certName), filepath.Join(dir, keyName))
 			if err != nil {
 				return err
 			}
-			tlsc.Certificates = append(tlsc.Certificates, cert)
+			tlsc.Certificates = append(slices.Clone(tlsc.Certificates), cert)
 		}
 		if strings.HasSuffix(f.Name(), ".key") {
 			keyName := f.Name()
 			certName := keyName[:len(keyName)-4] + ".cert"
 			logrus.Debugf(" key: %s", fullPath)
 			if !hasFile(fs, certName) {
-				return errors.Errorf("missing client certificate %s for key %s", certName, keyName)
+				return fmt.Errorf("missing client certificate %s for key %s", certName, keyName)
 			}
 		}
 	}
 	return nil
 }
 
-func hasFile(files []os.FileInfo, name string) bool {
-	for _, f := range files {
-		if f.Name() == name {
-			return true
-		}
-	}
-	return false
+func hasFile(files []os.DirEntry, name string) bool {
+	return slices.ContainsFunc(files, func(f os.DirEntry) bool {
+		return f.Name() == name
+	})
 }
 
 // NewTransport Creates a default transport
@@ -95,17 +91,13 @@ func NewTransport() *http.Transport {
 	direct := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-		DualStack: true,
 	}
 	tr := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		DialContext:         direct.DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
-		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
-		DisableKeepAlives: true,
-	}
-	if _, err := sockets.DialerFromEnvironment(direct); err != nil {
-		logrus.Debugf("Can't execute DialerFromEnvironment: %v", err)
+		IdleConnTimeout:     90 * time.Second,
+		MaxIdleConns:        100,
 	}
 	return tr
 }

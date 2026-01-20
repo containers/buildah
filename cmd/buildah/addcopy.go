@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,7 +151,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	contextdir := iopts.contextdir
 
 	if iopts.from != "" {
-		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Cause(err) == storage.ErrContainerUnknown {
+		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Is(errors.Cause(err), storage.ErrContainerUnknown) {
 			systemContext, err2 := parse.SystemContextFromOptions(c)
 			if err2 != nil {
 				return errors.Wrap(err2, "error building system context")
@@ -271,7 +270,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 
 func parseDockerignore(ignoreFile string) ([]string, error) {
 	var excludes []string
-	ignore, err := ioutil.ReadFile(ignoreFile)
+	ignore, err := os.ReadFile(ignoreFile)
 	if err != nil {
 		return excludes, err
 	}

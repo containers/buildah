@@ -1,3 +1,6 @@
+//go:build freebsd && cgo
+// +build freebsd,cgo
+
 package mount
 
 /*
@@ -28,14 +31,25 @@ func allocateIOVecs(options []string) []C.struct_iovec {
 func mount(device, target, mType string, flag uintptr, data string) error {
 	isNullFS := false
 
-	xs := strings.Split(data, ",")
-	for _, x := range xs {
-		if x == "bind" {
-			isNullFS = true
+	options := []string{"fspath", target}
+
+	if data != "" {
+		xs := strings.Split(data, ",")
+		for _, x := range xs {
+			if x == "bind" {
+				isNullFS = true
+				continue
+			}
+			opt := strings.SplitN(x, "=", 2)
+			options = append(options, opt[0])
+			if len(opt) == 2 {
+				options = append(options, opt[1])
+			} else {
+				options = append(options, "")
+			}
 		}
 	}
 
-	options := []string{"fspath", target}
 	if isNullFS {
 		options = append(options, "fstype", "nullfs", "target", device)
 	} else {
@@ -48,7 +62,7 @@ func mount(device, target, mType string, flag uintptr, data string) error {
 
 	if errno := C.nmount(&rawOptions[0], C.uint(len(options)), C.int(flag)); errno != 0 {
 		reason := C.GoString(C.strerror(*C.__error()))
-		return fmt.Errorf("Failed to call nmount: %s", reason)
+		return fmt.Errorf("failed to call nmount: %s", reason)
 	}
 	return nil
 }

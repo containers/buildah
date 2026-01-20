@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -121,7 +120,7 @@ func makeArchive(headers []tar.Header, contents map[string][]byte) io.ReadCloser
 // inside of it, from an archive and returns its location.  It can be removed
 // once it's no longer needed.
 func makeContextFromArchive(archive io.ReadCloser, subdir string) (string, error) {
-	tmp, err := ioutil.TempDir("", "copier-test-")
+	tmp, err := os.MkdirTemp("", "copier-test-")
 	if err != nil {
 		return "", err
 	}
@@ -180,12 +179,12 @@ type enumeratedFile struct {
 var (
 	testDate = time.Unix(1485449953, 0)
 
-	uid, gid = os.Getuid(), os.Getgid()
+	uid = os.Getuid()
 
 	testArchiveSlice = makeArchiveSlice([]tar.Header{
-		{Name: "item-0", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 123, Mode: 0600, ModTime: testDate},
-		{Name: "item-1", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 456, Mode: 0600, ModTime: testDate},
-		{Name: "item-2", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 789, Mode: 0600, ModTime: testDate},
+		{Name: "item-0", Typeflag: tar.TypeReg, Size: 123, Mode: 0600, ModTime: testDate},
+		{Name: "item-1", Typeflag: tar.TypeReg, Size: 456, Mode: 0600, ModTime: testDate},
+		{Name: "item-2", Typeflag: tar.TypeReg, Size: 789, Mode: 0600, ModTime: testDate},
 	})
 
 	testArchives = []struct {
@@ -206,36 +205,36 @@ var (
 			name:     "regular",
 			rootOnly: false,
 			headers: []tar.Header{
-				{Name: "file-0", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 123456789, Mode: 0600, ModTime: testDate},
-				{Name: "file-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600, ModTime: testDate},
-				{Name: "file-b", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600, ModTime: testDate},
-				{Name: "file-c", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "file-a", Mode: 0600, ModTime: testDate},
-				{Name: "file-u", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: cISUID | 0755, ModTime: testDate},
-				{Name: "file-g", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: cISGID | 0755, ModTime: testDate},
-				{Name: "file-t", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: cISVTX | 0755, ModTime: testDate},
-				{Name: "link-0", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../file-0", Size: 123456789, Mode: 0777, ModTime: testDate},
-				{Name: "link-a", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "file-a", Size: 23, Mode: 0777, ModTime: testDate},
-				{Name: "link-b", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0777, ModTime: testDate},
-				{Name: "hlink-0", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "file-0", Size: 123456789, Mode: 0600, ModTime: testDate},
-				{Name: "hlink-a", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "/file-a", Size: 23, Mode: 0600, ModTime: testDate},
-				{Name: "hlink-b", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "../file-b", Size: 23, Mode: 0600, ModTime: testDate},
-				{Name: "subdir-a", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
-				{Name: "subdir-a/file-n", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 108, Mode: 0660, ModTime: testDate},
-				{Name: "subdir-a/file-o", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 34, Mode: 0660, ModTime: testDate},
-				{Name: "subdir-a/file-a", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0777, ModTime: testDate},
-				{Name: "subdir-a/file-b", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../../file-b", Size: 23, Mode: 0777, ModTime: testDate},
-				{Name: "subdir-a/file-c", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "/file-c", Size: 23, Mode: 0777, ModTime: testDate},
-				{Name: "subdir-b", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
-				{Name: "subdir-b/file-n", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 216, Mode: 0660, ModTime: testDate},
-				{Name: "subdir-b/file-o", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 45, Mode: 0660, ModTime: testDate},
-				{Name: "subdir-c", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
-				{Name: "subdir-c/file-n", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 432, Mode: 0666, ModTime: testDate},
-				{Name: "subdir-c/file-o", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 56, Mode: 0666, ModTime: testDate},
-				{Name: "subdir-d", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
-				{Name: "subdir-d/hlink-0", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "../file-0", Size: 123456789, Mode: 0600, ModTime: testDate},
-				{Name: "subdir-d/hlink-a", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "/file-a", Size: 23, Mode: 0600, ModTime: testDate},
-				{Name: "subdir-d/hlink-b", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "../../file-b", Size: 23, Mode: 0600, ModTime: testDate},
-				{Name: "archive-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
+				{Name: "file-0", Typeflag: tar.TypeReg, Size: 123456789, Mode: 0600, ModTime: testDate},
+				{Name: "file-a", Typeflag: tar.TypeReg, Size: 23, Mode: 0600, ModTime: testDate},
+				{Name: "file-b", Typeflag: tar.TypeReg, Size: 23, Mode: 0600, ModTime: testDate},
+				{Name: "file-c", Typeflag: tar.TypeLink, Linkname: "file-a", Mode: 0600, ModTime: testDate},
+				{Name: "file-u", Typeflag: tar.TypeReg, Size: 23, Mode: cISUID | 0755, ModTime: testDate},
+				{Name: "file-g", Typeflag: tar.TypeReg, Size: 23, Mode: cISGID | 0755, ModTime: testDate},
+				{Name: "file-t", Typeflag: tar.TypeReg, Size: 23, Mode: cISVTX | 0755, ModTime: testDate},
+				{Name: "link-0", Typeflag: tar.TypeSymlink, Linkname: "../file-0", Size: 123456789, Mode: 0777, ModTime: testDate},
+				{Name: "link-a", Typeflag: tar.TypeSymlink, Linkname: "file-a", Size: 23, Mode: 0777, ModTime: testDate},
+				{Name: "link-b", Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0777, ModTime: testDate},
+				{Name: "hlink-0", Typeflag: tar.TypeLink, Linkname: "file-0", Size: 123456789, Mode: 0600, ModTime: testDate},
+				{Name: "hlink-a", Typeflag: tar.TypeLink, Linkname: "/file-a", Size: 23, Mode: 0600, ModTime: testDate},
+				{Name: "hlink-b", Typeflag: tar.TypeLink, Linkname: "../file-b", Size: 23, Mode: 0600, ModTime: testDate},
+				{Name: "subdir-a", Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
+				{Name: "subdir-a/file-n", Typeflag: tar.TypeReg, Size: 108, Mode: 0660, ModTime: testDate},
+				{Name: "subdir-a/file-o", Typeflag: tar.TypeReg, Size: 34, Mode: 0660, ModTime: testDate},
+				{Name: "subdir-a/file-a", Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0777, ModTime: testDate},
+				{Name: "subdir-a/file-b", Typeflag: tar.TypeSymlink, Linkname: "../../file-b", Size: 23, Mode: 0777, ModTime: testDate},
+				{Name: "subdir-a/file-c", Typeflag: tar.TypeSymlink, Linkname: "/file-c", Size: 23, Mode: 0777, ModTime: testDate},
+				{Name: "subdir-b", Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
+				{Name: "subdir-b/file-n", Typeflag: tar.TypeReg, Size: 216, Mode: 0660, ModTime: testDate},
+				{Name: "subdir-b/file-o", Typeflag: tar.TypeReg, Size: 45, Mode: 0660, ModTime: testDate},
+				{Name: "subdir-c", Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
+				{Name: "subdir-c/file-n", Typeflag: tar.TypeReg, Size: 432, Mode: 0666, ModTime: testDate},
+				{Name: "subdir-c/file-o", Typeflag: tar.TypeReg, Size: 56, Mode: 0666, ModTime: testDate},
+				{Name: "subdir-d", Typeflag: tar.TypeDir, Mode: 0700, ModTime: testDate},
+				{Name: "subdir-d/hlink-0", Typeflag: tar.TypeLink, Linkname: "../file-0", Size: 123456789, Mode: 0600, ModTime: testDate},
+				{Name: "subdir-d/hlink-a", Typeflag: tar.TypeLink, Linkname: "/file-a", Size: 23, Mode: 0600, ModTime: testDate},
+				{Name: "subdir-d/hlink-b", Typeflag: tar.TypeLink, Linkname: "../../file-b", Size: 23, Mode: 0600, ModTime: testDate},
+				{Name: "archive-a", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 			},
 			contents: map[string][]byte{
 				"archive-a": testArchiveSlice,
@@ -404,8 +403,8 @@ var (
 			name:     "devices",
 			rootOnly: true,
 			headers: []tar.Header{
-				{Name: "char-dev", Uid: uid, Gid: gid, Typeflag: tar.TypeChar, Devmajor: 0, Devminor: 0, Mode: 0600, ModTime: testDate},
-				{Name: "blk-dev", Uid: uid, Gid: gid, Typeflag: tar.TypeBlock, Devmajor: 0, Devminor: 0, Mode: 0600, ModTime: testDate},
+				{Name: "char-dev", Typeflag: tar.TypeChar, Devmajor: 0, Devminor: 0, Mode: 0600, ModTime: testDate},
+				{Name: "blk-dev", Typeflag: tar.TypeBlock, Devmajor: 0, Devminor: 0, Mode: 0600, ModTime: testDate},
 			},
 		},
 	}
@@ -491,7 +490,7 @@ func testPut(t *testing.T) {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
 
-				tmp, err := ioutil.TempDir("", "copier-test-")
+				tmp, err := os.MkdirTemp("", "copier-test-")
 				require.NoErrorf(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 
@@ -532,7 +531,7 @@ func testPut(t *testing.T) {
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
+				tmp, err := os.MkdirTemp("", "copier-test-")
 				require.NoErrorf(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
@@ -558,7 +557,7 @@ func testPut(t *testing.T) {
 					{Name: "link", Typeflag: tar.TypeLink, Size: 0, Mode: 0600, ModTime: testDate, Linkname: "test"},
 					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
+				tmp, err := os.MkdirTemp("", "copier-test-")
 				require.NoErrorf(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
@@ -652,7 +651,7 @@ func testStat(t *testing.T) {
 								result := st.Results[glob]
 
 								switch testItem.Typeflag {
-								case tar.TypeReg, tar.TypeRegA:
+								case tar.TypeReg, tar.TypeRegA: //nolint:staticcheck
 									if actualContent, ok := testArchive.contents[testItem.Name]; ok {
 										testItem.Size = int64(len(actualContent))
 									}
@@ -721,7 +720,7 @@ func testGetSingle(t *testing.T) {
 					}
 					t.Run(fmt.Sprintf("absolute=%t,topdir=%s,archive=%s,item=%s", absolute, topdir, testArchive.name, name), func(t *testing.T) {
 						// check if we can get this one item
-						err := Get(root, topdir, getOptions, []string{name}, ioutil.Discard)
+						err := Get(root, topdir, getOptions, []string{name}, io.Discard)
 						// if we couldn't read that content, check if it's one of the expected failures
 						if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testItem.Name, testArchive.expectedGetErrors) {
 							return
@@ -842,32 +841,32 @@ func testGetMultiple(t *testing.T) {
 		{
 			name: "regular",
 			headers: []tar.Header{
-				{Name: "file-0", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 123456789, Mode: 0600},
-				{Name: "file-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600},
-				{Name: "file-b", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600},
-				{Name: "link-a", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "file-a", Size: 23, Mode: 0600},
-				{Name: "link-c", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "subdir-c", Mode: 0700, ModTime: testDate},
-				{Name: "archive-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 0, Mode: 0600},
-				{Name: "non-archive-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 1199, Mode: 0600},
-				{Name: "hlink-0", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "file-0", Size: 123456789, Mode: 0600},
-				{Name: "something-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 34, Mode: 0600},
-				{Name: "subdir-a", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700},
-				{Name: "subdir-a/file-n", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 108, Mode: 0660},
-				{Name: "subdir-a/file-o", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 45, Mode: 0660},
-				{Name: "subdir-a/file-a", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0600},
-				{Name: "subdir-a/file-b", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../../file-b", Size: 23, Mode: 0600},
-				{Name: "subdir-a/file-c", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 56, Mode: 0600},
-				{Name: "subdir-b", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700},
-				{Name: "subdir-b/file-n", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 216, Mode: 0660},
-				{Name: "subdir-b/file-o", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 67, Mode: 0660},
-				{Name: "subdir-c", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700},
-				{Name: "subdir-c/file-p", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 432, Mode: 0666},
-				{Name: "subdir-c/file-q", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 78, Mode: 0666},
-				{Name: "subdir-d", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700},
-				{Name: "subdir-d/hlink-0", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "../file-0", Size: 123456789, Mode: 0600},
-				{Name: "subdir-e", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700},
-				{Name: "subdir-e/subdir-f", Uid: uid, Gid: gid, Typeflag: tar.TypeDir, Mode: 0700},
-				{Name: "subdir-e/subdir-f/hlink-b", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "../../file-b", Size: 23, Mode: 0600},
+				{Name: "file-0", Typeflag: tar.TypeReg, Size: 123456789, Mode: 0600},
+				{Name: "file-a", Typeflag: tar.TypeReg, Size: 23, Mode: 0600},
+				{Name: "file-b", Typeflag: tar.TypeReg, Size: 23, Mode: 0600},
+				{Name: "link-a", Typeflag: tar.TypeSymlink, Linkname: "file-a", Size: 23, Mode: 0600},
+				{Name: "link-c", Typeflag: tar.TypeSymlink, Linkname: "subdir-c", Mode: 0700, ModTime: testDate},
+				{Name: "archive-a", Typeflag: tar.TypeReg, Size: 0, Mode: 0600},
+				{Name: "non-archive-a", Typeflag: tar.TypeReg, Size: 1199, Mode: 0600},
+				{Name: "hlink-0", Typeflag: tar.TypeLink, Linkname: "file-0", Size: 123456789, Mode: 0600},
+				{Name: "something-a", Typeflag: tar.TypeReg, Size: 34, Mode: 0600},
+				{Name: "subdir-a", Typeflag: tar.TypeDir, Mode: 0700},
+				{Name: "subdir-a/file-n", Typeflag: tar.TypeReg, Size: 108, Mode: 0660},
+				{Name: "subdir-a/file-o", Typeflag: tar.TypeReg, Size: 45, Mode: 0660},
+				{Name: "subdir-a/file-a", Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0600},
+				{Name: "subdir-a/file-b", Typeflag: tar.TypeSymlink, Linkname: "../../file-b", Size: 23, Mode: 0600},
+				{Name: "subdir-a/file-c", Typeflag: tar.TypeReg, Size: 56, Mode: 0600},
+				{Name: "subdir-b", Typeflag: tar.TypeDir, Mode: 0700},
+				{Name: "subdir-b/file-n", Typeflag: tar.TypeReg, Size: 216, Mode: 0660},
+				{Name: "subdir-b/file-o", Typeflag: tar.TypeReg, Size: 67, Mode: 0660},
+				{Name: "subdir-c", Typeflag: tar.TypeDir, Mode: 0700},
+				{Name: "subdir-c/file-p", Typeflag: tar.TypeReg, Size: 432, Mode: 0666},
+				{Name: "subdir-c/file-q", Typeflag: tar.TypeReg, Size: 78, Mode: 0666},
+				{Name: "subdir-d", Typeflag: tar.TypeDir, Mode: 0700},
+				{Name: "subdir-d/hlink-0", Typeflag: tar.TypeLink, Linkname: "../file-0", Size: 123456789, Mode: 0600},
+				{Name: "subdir-e", Typeflag: tar.TypeDir, Mode: 0700},
+				{Name: "subdir-e/subdir-f", Typeflag: tar.TypeDir, Mode: 0700},
+				{Name: "subdir-e/subdir-f/hlink-b", Typeflag: tar.TypeLink, Linkname: "../../file-b", Size: 23, Mode: 0600},
 			},
 			contents: map[string][]byte{
 				"archive-a": testArchiveSlice,
@@ -1347,7 +1346,7 @@ func testGetMultiple(t *testing.T) {
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {
 					// ensure that we can get stuff using this spec
-					err := Get(root, topdir, getOptions, []string{testCase.pattern}, ioutil.Discard)
+					err := Get(root, topdir, getOptions, []string{testCase.pattern}, io.Discard)
 					if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testCase.pattern, testArchive.expectedGetErrors) {
 						return
 					}
@@ -1395,7 +1394,7 @@ func TestEvalNoChroot(t *testing.T) {
 }
 
 func testEval(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "copier-test-")
+	tmp, err := os.MkdirTemp("", "copier-test-")
 	if err != nil {
 		require.NoError(t, err, "error creating temporary directory")
 	}

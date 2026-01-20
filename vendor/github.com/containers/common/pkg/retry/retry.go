@@ -12,25 +12,39 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	errcodev2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-// RetryOptions defines the option to retry
-type RetryOptions struct {
-	MaxRetry int           // The number of times to possibly retry
-	Delay    time.Duration // The delay to use between retries, if set
+// Options defines the option to retry.
+type Options struct {
+	MaxRetry         int           // The number of times to possibly retry.
+	Delay            time.Duration // The delay to use between retries, if set.
+	IsErrorRetryable func(error) bool
 }
 
-// RetryIfNecessary retries the operation in exponential backoff with the retryOptions
-func RetryIfNecessary(ctx context.Context, operation func() error, retryOptions *RetryOptions) error {
+// RetryOptions is deprecated, use Options.
+type RetryOptions = Options // nolint:revive
+
+// RetryIfNecessary deprecated function use IfNecessary.
+func RetryIfNecessary(ctx context.Context, operation func() error, options *Options) error { // nolint:revive
+	return IfNecessary(ctx, operation, options)
+}
+
+// IfNecessary retries the operation in exponential backoff with the retry Options.
+func IfNecessary(ctx context.Context, operation func() error, options *Options) error {
+	var isRetryable func(error) bool
+	if options.IsErrorRetryable != nil {
+		isRetryable = options.IsErrorRetryable
+	} else {
+		isRetryable = IsErrorRetryable
+	}
 	err := operation()
-	for attempt := 0; err != nil && isRetryable(err) && attempt < retryOptions.MaxRetry; attempt++ {
+	for attempt := 0; err != nil && isRetryable(err) && attempt < options.MaxRetry; attempt++ {
 		delay := time.Duration(int(math.Pow(2, float64(attempt)))) * time.Second
-		if retryOptions.Delay != 0 {
-			delay = retryOptions.Delay
+		if options.Delay != 0 {
+			delay = options.Delay
 		}
-		logrus.Warnf("failed, retrying in %s ... (%d/%d). Error: %v", delay, attempt+1, retryOptions.MaxRetry, err)
+		logrus.Warnf("Failed, retrying in %s ... (%d/%d). Error: %v", delay, attempt+1, options.MaxRetry, err)
 		select {
 		case <-time.After(delay):
 			break
@@ -42,11 +56,17 @@ func RetryIfNecessary(ctx context.Context, operation func() error, retryOptions 
 	return err
 }
 
-func isRetryable(err error) bool {
-	err = errors.Cause(err)
-
-	if err == context.Canceled || err == context.DeadlineExceeded {
+// IsErrorRetryable makes a HEURISTIC determination whether it is worth retrying upon encountering an error.
+// That heuristic is NOT STABLE and it CAN CHANGE AT ANY TIME.
+// Callers that have a hard requirement for specific treatment of a class of errors should make their own check
+// instead of relying on this function maintaining its past behavior.
+func IsErrorRetryable(err error) bool {
+	switch err {
+	case nil:
 		return false
+	case context.Canceled, context.DeadlineExceeded:
+		return false
+	default: // continue
 	}
 
 	type unwrapper interface {
@@ -54,26 +74,26 @@ func isRetryable(err error) bool {
 	}
 
 	switch e := err.(type) {
-
 	case errcode.Error:
 		switch e.Code {
-		case errcode.ErrorCodeUnauthorized, errcodev2.ErrorCodeNameUnknown, errcodev2.ErrorCodeManifestUnknown:
+		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeDenied,
+			errcodev2.ErrorCodeNameUnknown, errcodev2.ErrorCodeManifestUnknown:
 			return false
 		}
 		return true
 	case *net.OpError:
-		return isRetryable(e.Err)
+		return IsErrorRetryable(e.Err)
 	case *url.Error: // This includes errors returned by the net/http client.
 		if e.Err == io.EOF { // Happens when a server accepts a HTTP connection and sends EOF
 			return true
 		}
-		return isRetryable(e.Err)
+		return IsErrorRetryable(e.Err)
 	case syscall.Errno:
 		return isErrnoRetryable(e)
 	case errcode.Errors:
 		// if this error is a group of errors, process them all in turn
 		for i := range e {
-			if !isRetryable(e[i]) {
+			if !IsErrorRetryable(e[i]) {
 				return false
 			}
 		}
@@ -81,14 +101,22 @@ func isRetryable(err error) bool {
 	case *multierror.Error:
 		// if this error is a group of errors, process them all in turn
 		for i := range e.Errors {
-			if !isRetryable(e.Errors[i]) {
+			if !IsErrorRetryable(e.Errors[i]) {
 				return false
 			}
 		}
 		return true
-	case unwrapper:
+	case net.Error:
+		if e.Timeout() {
+			return true
+		}
+		if unwrappable, ok := e.(unwrapper); ok {
+			err = unwrappable.Unwrap()
+			return IsErrorRetryable(err)
+		}
+	case unwrapper: // Test this last, because various error types might implement .Unwrap()
 		err = e.Unwrap()
-		return isRetryable(err)
+		return IsErrorRetryable(err)
 	}
 
 	return false

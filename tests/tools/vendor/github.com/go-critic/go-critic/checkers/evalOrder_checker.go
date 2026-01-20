@@ -5,18 +5,19 @@ import (
 	"go/token"
 	"go/types"
 
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/typep"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "evalOrder"
-	info.Tags = []string{"diagnostic", "experimental"}
+	info.Tags = []string{linter.DiagnosticTag, linter.ExperimentalTag}
 	info.Summary = "Detects unwanted dependencies on the evaluation order"
 	info.Before = `return x, f(&x)`
 	info.After = `
@@ -24,14 +25,14 @@ err := f(&x)
 return x, err
 `
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForStmt(&evalOrderChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForStmt(&evalOrderChecker{ctx: ctx}), nil
 	})
 }
 
 type evalOrderChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 }
 
 func (c *evalOrderChecker) VisitStmt(stmt ast.Stmt) {
@@ -75,7 +76,7 @@ func (c *evalOrderChecker) VisitStmt(stmt ast.Stmt) {
 }
 
 func (c *evalOrderChecker) hasPtrRecv(fn *ast.Ident) bool {
-	sig, ok := c.ctx.TypesInfo.TypeOf(fn).(*types.Signature)
+	sig, ok := c.ctx.TypeOf(fn).(*types.Signature)
 	if !ok {
 		return false
 	}

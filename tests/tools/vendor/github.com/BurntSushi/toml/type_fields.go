@@ -25,10 +25,8 @@ type field struct {
 // breaking ties with index sequence.
 type byName []field
 
-func (x byName) Len() int { return len(x) }
-
+func (x byName) Len() int      { return len(x) }
 func (x byName) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-
 func (x byName) Less(i, j int) bool {
 	if x[i].name != x[j].name {
 		return x[i].name < x[j].name
@@ -45,10 +43,8 @@ func (x byName) Less(i, j int) bool {
 // byIndex sorts field by index sequence.
 type byIndex []field
 
-func (x byIndex) Len() int { return len(x) }
-
+func (x byIndex) Len() int      { return len(x) }
 func (x byIndex) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-
 func (x byIndex) Less(i, j int) bool {
 	for k, xik := range x[i].index {
 		if k >= len(x[j].index) {
@@ -70,8 +66,8 @@ func typeFields(t reflect.Type) []field {
 	next := []field{{typ: t}}
 
 	// Count of queued names for current level and the next.
-	count := map[reflect.Type]int{}
-	nextCount := map[reflect.Type]int{}
+	var count map[reflect.Type]int
+	var nextCount map[reflect.Type]int
 
 	// Types already visited at an earlier level.
 	visited := map[reflect.Type]bool{}

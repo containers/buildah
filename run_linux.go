@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,8 +46,8 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
+	terminal "golang.org/x/term"
 )
 
 // ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/configs.Device structures.
@@ -63,7 +63,7 @@ func setChildProcess() error {
 
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
-	p, err := ioutil.TempDir("", define.Package)
+	p, err := os.MkdirTemp("", define.Package)
 	if err != nil {
 		return err
 	}
@@ -167,6 +167,24 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	spec := g.Config
 	g = nil
 
+	// Override a buggy resource limit default that containers/common could supply before
+	// https://github.com/containers/common/pull/2199 fixed it.
+	if kernelPidMaxBytes, err := os.ReadFile("/proc/sys/kernel/pid_max"); err == nil {
+		kernelPidMaxString := strings.TrimSpace(string(kernelPidMaxBytes))
+		if kernelPidMaxValue, err := strconv.ParseUint(kernelPidMaxString, 10, 64); err == nil {
+			const rlimitDefaultValue = 1024 * 1024
+			var filteredLimits []specs.POSIXRlimit
+			for _, rlimit := range spec.Process.Rlimits {
+				if rlimit.Type == "RLIMIT_NPROC" && rlimit.Soft == kernelPidMaxValue && rlimit.Hard == kernelPidMaxValue {
+					rlimit.Soft, rlimit.Hard = rlimitDefaultValue, rlimitDefaultValue
+					logrus.Debugf("overrode RLIMIT_NPROC set to kernel system-wide process limit with %d", rlimitDefaultValue)
+				}
+				filteredLimits = append(filteredLimits, rlimit)
+			}
+			spec.Process.Rlimits = filteredLimits
+		}
+	}
+
 	// Set the seccomp configuration using the specified profile name.  Some syscalls are
 	// allowed if certain capabilities are to be granted (example: CAP_SYS_CHROOT and chroot),
 	// so we sorted out the capabilities lists first.
@@ -253,7 +271,7 @@ rootless=%d
 
 	defer func() {
 		if err := cleanupRunMounts(runMountTargets, mountPoint); err != nil {
-			options.Logger.Errorf("unabe to cleanup run mounts %v", err)
+			options.Logger.Errorf("unable to cleanup run mounts %v", err)
 		}
 	}()
 
@@ -269,6 +287,33 @@ rootless=%d
 		options.CNIPluginPath = b.CNIPluginPath
 		if b.CNIPluginPath == "" {
 			options.CNIPluginPath = define.DefaultCNIPluginPath
+		}
+	}
+
+	// Handle mount flags that request that the source locations for "bind" mountpoints be
+	// relabeled, and filter those flags out of the list of mount options we pass to the
+	// runtime.
+	for i := range spec.Mounts {
+		switch spec.Mounts[i].Type {
+		default:
+			continue
+		case "bind", "rbind":
+			// all good, keep going
+		}
+		zflag := ""
+		for _, opt := range spec.Mounts[i].Options {
+			if opt == "z" || opt == "Z" {
+				zflag = opt
+			}
+		}
+		if zflag == "" {
+			continue
+		}
+		spec.Mounts[i].Options = slices.DeleteFunc(spec.Mounts[i].Options, func(opt string) bool {
+			return opt == "z" || opt == "Z"
+		})
+		if err := label.Relabel(spec.Mounts[i].Source, b.MountLabel, zflag == "z"); err != nil {
+			return fmt.Errorf("setting file label %q on %q: %w", b.MountLabel, spec.Mounts[i].Source, err)
 		}
 	}
 
@@ -334,7 +379,7 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 		return errors.Wrapf(err, "failed to get container config")
 	}
 	// Other process resource limits
-	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits); err != nil {
+	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits.Get()); err != nil {
 		return err
 	}
 
@@ -393,7 +438,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 				return nil, err
 			}
 			logrus.Debugf("populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
-			if err = extractWithTar(mountPoint, srcPath, volumePath); err != nil && !os.IsNotExist(errors.Cause(err)) {
+			if err = extractWithTar(mountPoint, srcPath, volumePath); err != nil && !os.IsNotExist(unwrapError(err)) {
 				return nil, errors.Wrapf(err, "error populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
 			}
 		}
@@ -562,7 +607,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 	if err != nil {
 		return "", err
 	}
-	contents, err := ioutil.ReadFile(hostPath)
+	contents, err := os.ReadFile(hostPath)
 	if err != nil {
 		return "", err
 	}
@@ -575,7 +620,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get container config")
 	}
-	dnsSearch = append(defaultContainerConfig.Containers.DNSSearches, dnsSearch...)
+	dnsSearch = append(defaultContainerConfig.Containers.DNSSearches.Get(), dnsSearch...)
 	if len(dnsSearch) > 0 {
 		search = dnsSearch
 	}
@@ -589,7 +634,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		}
 	}
 
-	dnsServers = append(defaultContainerConfig.Containers.DNSServers, dnsServers...)
+	dnsServers = append(defaultContainerConfig.Containers.DNSServers.Get(), dnsServers...)
 	if len(dnsServers) != 0 {
 		dns, err := getDNSIP(dnsServers)
 		if err != nil {
@@ -601,7 +646,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		}
 	}
 
-	dnsOptions = append(defaultContainerConfig.Containers.DNSOptions, dnsOptions...)
+	dnsOptions = append(defaultContainerConfig.Containers.DNSOptions.Get(), dnsOptions...)
 	if len(dnsOptions) != 0 {
 		options = dnsOptions
 	}
@@ -636,7 +681,7 @@ func (b *Builder) generateHosts(rdir, hostname string, addHosts []string, chownO
 	}
 
 	hosts := bytes.NewBufferString("# Generated by Buildah\n")
-	orig, err := ioutil.ReadFile(hostPath)
+	orig, err := os.ReadFile(hostPath)
 	if err != nil {
 		return "", err
 	}
@@ -843,7 +888,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	}()
 
 	// Make sure we read the container's exit status when it exits.
-	pidValue, err := ioutil.ReadFile(pidFile)
+	pidValue, err := os.ReadFile(pidFile)
 	if err != nil {
 		return 1, err
 	}
@@ -922,8 +967,9 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 			return 1, errors.Wrapf(err, "error parsing container state %q from %s", string(stateOutput), runtime)
 		}
 		switch state.Status {
-		case "running":
-		case "stopped":
+		case specs.StateCreating, specs.StateCreated, specs.StateRunning:
+			// all fine
+		case specs.StateStopped:
 			stopped = true
 		default:
 			return 1, errors.Errorf("container status unexpectedly changed to %q", state.Status)
@@ -1011,7 +1057,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	defer rootlessSlirpSyncR.Close()
 
 	// Be sure there are no fds inherited to slirp4netns except the sync pipe
-	files, err := ioutil.ReadDir("/proc/self/fd")
+	files, err := os.ReadDir("/proc/self/fd")
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot list open fds")
 	}
@@ -1504,6 +1550,9 @@ func runUsingRuntimeMain() {
 		fmt.Fprintf(os.Stderr, "error decoding options: %v\n", err)
 		os.Exit(1)
 	}
+	if options.Options.Logger == nil {
+		options.Options.Logger = logrus.StandardLogger()
+	}
 	// Set ourselves up to read the container's exit status.  We're doing this in a child process
 	// so that we won't mess with the setting in a caller of the library.
 	if err := setChildProcess(); err != nil {
@@ -1760,16 +1809,19 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			if err := label.Relabel(host, mountLabel, true); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "z" })
 		}
 		if foundZ {
 			if err := label.Relabel(host, mountLabel, false); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "Z" })
 		}
 		if foundU {
 			if err := chown.ChangeHostPathOwnership(host, true, processUID, processGID); err != nil {
 				return specs.Mount{}, err
 			}
+			options = slices.DeleteFunc(options, func(o string) bool { return o == "U" })
 		}
 		if foundO {
 			containerDir, err := b.store.ContainerDirectory(b.ContainerID)
@@ -1880,9 +1932,6 @@ func setupCapAdd(g *generate.Generator, caps ...string) error {
 		if err := g.AddProcessCapabilityPermitted(cap); err != nil {
 			return errors.Wrapf(err, "error adding %q to the permitted capability set", cap)
 		}
-		if err := g.AddProcessCapabilityAmbient(cap); err != nil {
-			return errors.Wrapf(err, "error adding %q to the ambient capability set", cap)
-		}
 	}
 	return nil
 }
@@ -1897,9 +1946,6 @@ func setupCapDrop(g *generate.Generator, caps ...string) error {
 		}
 		if err := g.DropProcessCapabilityPermitted(cap); err != nil {
 			return errors.Wrapf(err, "error removing %q from the permitted capability set", cap)
-		}
-		if err := g.DropProcessCapabilityAmbient(cap); err != nil {
-			return errors.Wrapf(err, "error removing %q from the ambient capability set", cap)
 		}
 	}
 	return nil
@@ -2359,14 +2405,14 @@ func getSecretMount(tokens []string, secrets map[string]string, mountlabel strin
 	ctrFileOnHost := filepath.Join(containerWorkingDir, "secrets", id)
 	_, err = os.Stat(ctrFileOnHost)
 	if os.IsNotExist(err) {
-		data, err := ioutil.ReadFile(src)
+		data, err := os.ReadFile(src)
 		if err != nil {
 			return nil, err
 		}
 		if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0644); err != nil {
 			return nil, err
 		}
-		if err := ioutil.WriteFile(ctrFileOnHost, data, 0644); err != nil {
+		if err := os.WriteFile(ctrFileOnHost, data, 0644); err != nil {
 			return nil, err
 		}
 	}

@@ -5,16 +5,17 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/linter"
+
 	"github.com/go-toolsmith/astequal"
 	"github.com/go-toolsmith/typep"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "dupSubExpr"
-	info.Tags = []string{"diagnostic"}
+	info.Tags = []string{linter.DiagnosticTag}
 	info.Summary = "Detects suspicious duplicated sub-expressions"
 	info.Before = `
 sort.Slice(xs, func(i, j int) bool {
@@ -25,7 +26,7 @@ sort.Slice(xs, func(i, j int) bool {
 	return xs[i].v < xs[j].v
 })`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		c := &dupSubExprChecker{ctx: ctx}
 
 		ops := []struct {
@@ -59,13 +60,13 @@ sort.Slice(xs, func(i, j int) bool {
 			}
 		}
 
-		return astwalk.WalkerForExpr(c)
+		return astwalk.WalkerForExpr(c), nil
 	})
 }
 
 type dupSubExprChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	// opSet is a set of binary operations that do not make
 	// sense with duplicated (same) RHS and LHS.
@@ -93,7 +94,7 @@ func (c *dupSubExprChecker) checkBinaryExpr(expr *ast.BinaryExpr) {
 }
 
 func (c *dupSubExprChecker) resultIsFloat(expr ast.Expr) bool {
-	typ, ok := c.ctx.TypesInfo.TypeOf(expr).(*types.Basic)
+	typ, ok := c.ctx.TypeOf(expr).(*types.Basic)
 	return ok && typ.Info()&types.IsFloat != 0
 }
 

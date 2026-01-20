@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -101,6 +100,10 @@ type CommitOptions struct {
 	// integers in the slice represent 0-indexed layer indices, with support for negative
 	// indexing. i.e. 0 is the first layer, -1 is the last (top-most) layer.
 	OciEncryptLayers *[]int
+	// CompatSetParent causes the "parent" field to be set when committing
+	// the image in Docker format.  Newer BuildKit-based builds don't set
+	// this field.
+	CompatSetParent types.OptionalBool
 }
 
 var (
@@ -353,7 +356,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
 			if err != nil {
 				return imgID, nil, "", errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -366,8 +369,8 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 	}
 
-	img, err := is.Transport.GetStoreImage(b.store, dest)
-	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
+	img, err := is.Transport.GetStoreImage(b.store, dest) //nolint:staticcheck
+	if err != nil && !errors.Is(errors.Cause(err), storage.ErrImageUnknown) {
 		return imgID, nil, "", errors.Wrapf(err, "error locating image %q in local storage", transports.ImageName(dest))
 	}
 	if err == nil {
@@ -390,7 +393,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			dest = dest2
 		}
 		if options.IIDFile != "" {
-			if err = ioutil.WriteFile(options.IIDFile, []byte("sha256:"+img.ID), 0644); err != nil {
+			if err = os.WriteFile(options.IIDFile, []byte("sha256:"+img.ID), 0644); err != nil {
 				return imgID, nil, "", err
 			}
 		}

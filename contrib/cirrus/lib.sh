@@ -124,7 +124,7 @@ remove_packaged_buildah_files() {
     warn "Removing packaged buildah files to prevent conflicts with source build and testing."
     req_env_vars OS_RELEASE_ID
 
-    if [[ "$OS_RELEASE_ID" =~ "ubuntu" ]]
+    if [[ "$OS_RELEASE_ID" =~ "ubuntu" ]] || [[ "$OS_RELEASE_ID" =~ "debian" ]]
     then
         LISTING_CMD="dpkg-query -L buildah"
     else
@@ -137,7 +137,8 @@ remove_packaged_buildah_files() {
         # Sub-directories may contain unrelated/valuable stuff
         if [[ -d "$fullpath" ]]; then continue; fi
         # As of Ubuntu 2010, policy.json in buildah, not containers-common package
-        if [[ "$OS_RELEASE_ID" == "ubuntu" ]] && \
+        if ( [[ "$OS_RELEASE_ID" == "ubuntu" ]] || \
+             [[ "$OS_RELEASE_ID" == "debian" ]] ) && \
             grep -q '/etc/containers'<<<"$fullpath"; then
 
             warn "Not removing $fullpath (from buildah package)"
@@ -177,7 +178,6 @@ in_podman() {
         echo "$envarg" | tee -a $envfile | indent
     done
     showrun podman run -i --name="$IN_PODMAN_NAME" \
-                   --net=host \
                    --net="container:registry" \
                    --security-opt=label=disable \
                    --security-opt=seccomp=unconfined \

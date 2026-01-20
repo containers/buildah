@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -647,7 +646,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 	// Before doing a remote lookup, attempt to resolve the manifest list
 	// locally.
 	manifestList, err := runtime.LookupManifestList(imageSpec)
-	switch errors.Cause(err) {
+	switch unwrapError(errors.Cause(err)) {
 	case storage.ErrImageUnknown, libimage.ErrNotAManifestList:
 		// We need to do the remote inspection below.
 	case nil:
@@ -821,7 +820,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 	}
 
 	if opts.digestfile != "" {
-		if err = ioutil.WriteFile(opts.digestfile, []byte(digest.String()), 0644); err != nil {
+		if err = os.WriteFile(opts.digestfile, []byte(digest.String()), 0644); err != nil {
 			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", opts.digestfile))
 		}
 	}

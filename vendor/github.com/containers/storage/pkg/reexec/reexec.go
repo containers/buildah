@@ -7,7 +7,10 @@ import (
 	"path/filepath"
 )
 
-var registeredInitializers = make(map[string]func())
+var (
+	registeredInitializers = make(map[string]func())
+	initWasCalled          = false
+)
 
 // Register adds an initialization func under the specified name
 func Register(name string, initializer func()) {
@@ -22,6 +25,7 @@ func Register(name string, initializer func()) {
 // initialization function was called.
 func Init() bool {
 	initializer, exists := registeredInitializers[os.Args[0]]
+	initWasCalled = true
 	if exists {
 		initializer()
 
@@ -30,7 +34,22 @@ func Init() bool {
 	return false
 }
 
-func naiveSelf() string {
+func panicIfNotInitialized() {
+	if !initWasCalled {
+		// The reexec package is used to run subroutines in
+		// subprocesses which would otherwise have unacceptable side
+		// effects on the main thread.  If you found this error, then
+		// your program uses a package which needs to do this.  In
+		// order for that to work, main() should start with this
+		// boilerplate, or an equivalent:
+		//     if reexec.Init() {
+		//         return
+		//     }
+		panic("a library subroutine needed to run a subprocess, but reexec.Init() was not called in main()")
+	}
+}
+
+func naiveSelf() string { //nolint: unused
 	name := os.Args[0]
 	if filepath.Base(name) == name {
 		if lp, err := exec.LookPath(name); err == nil {

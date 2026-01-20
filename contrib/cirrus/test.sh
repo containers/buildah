@@ -33,7 +33,7 @@ else
                 export GITVALIDATE_EPOCH="$CIRRUS_LAST_GREEN_CHANGE"
             fi
             echo "Linting & Validating from ${GITVALIDATE_EPOCH:-default EPOCH}"
-            showrun make lint LINTFLAGS="--deadline=20m --color=always -j1"
+            showrun make lint LINTFLAGS="--timeout=20m --color=always -j1"
             showrun make validate
             ;;
         unit)
@@ -45,6 +45,7 @@ else
             # of docker, against images built with buildah. Runtime installs
             # are required to ensure the latest docker version is used.
             [[ "$OS_RELEASE_ID" == "ubuntu" ]] || \
+            [[ "$OS_RELEASE_ID" == "debian" ]] || \
                 bad_os_id_ver
             warn "Installing previously downloaded/cached docker packages"
             ooe.sh dpkg -i \

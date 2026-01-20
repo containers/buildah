@@ -9,6 +9,7 @@ env:
     DEST_BRANCH: "release-1.21"
     GOPATH: "/var/tmp/go"
     GOSRC: "${GOPATH}/src/github.com/containers/buildah"
+    GOCACHE: "/var/tmp/go-build"
     # Overrides default location (/tmp/cirrus) for repo clone
     CIRRUS_WORKING_DIR: "${GOSRC}"
     # Shell used to execute all script commands
@@ -19,6 +20,10 @@ env:
     CIRRUS_CLONE_DEPTH: 50
     # Unless set by in_podman.sh, default to operating outside of a podman container
     IN_PODMAN: 'false'
+    # root or rootless
+    PRIV_NAME: root
+    # default "mention the $BUILDAH_RUNTIME in the task alias, with initial whitespace" value
+    RUNTIME_N: ""
 
     ####
     #### Cache-image names to test with
@@ -26,16 +31,14 @@ env:
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
     # See https://github.com/containers/podman/blob/master/contrib/cirrus/README.md#test_build_cache_images_task-task
-    FEDORA_NAME: "fedora-34"
-    PRIOR_FEDORA_NAME: "fedora-33"
-    UBUNTU_NAME: "ubuntu-2104"
-    PRIOR_UBUNTU_NAME: "ubuntu-2010"
+    FEDORA_NAME: "fedora-41"
+    PRIOR_FEDORA_NAME: "fedora-40"
+    DEBIAN_NAME: "debian-13"
 
-    IMAGE_SUFFIX: "c6032583541653504"
+    IMAGE_SUFFIX: "c20250107t132430z-f41f40d13"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
-    UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}-a"
-    PRIOR_UBUNTU_CACHE_IMAGE_NAME: "prior-ubuntu-${IMAGE_SUFFIX}"
+    DEBIAN_CACHE_IMAGE_NAME: "debian-${IMAGE_SUFFIX}"
 
     IN_PODMAN_IMAGE: "quay.io/libpod/fedora_podman:${IMAGE_SUFFIX}"
 
@@ -76,8 +79,7 @@ meta_task:
         IMGNAMES: |-
             ${FEDORA_CACHE_IMAGE_NAME}
             ${PRIOR_FEDORA_CACHE_IMAGE_NAME}
-            ${UBUNTU_CACHE_IMAGE_NAME}
-            ${PRIOR_UBUNTU_CACHE_IMAGE_NAME}
+            ${DEBIAN_CACHE_IMAGE_NAME}
         BUILDID: "${CIRRUS_BUILD_ID}"
         REPOREF: "${CIRRUS_CHANGE_IN_REPO}"
         GCPJSON: ENCRYPTED[d3614d6f5cc0e66be89d4252b3365fd84f14eee0259d4eb47e25fc0bc2842c7937f5ee8c882b7e547b4c5ec4b6733b14]
@@ -121,7 +123,7 @@ vendor_task:
 
     # Runs within Cirrus's "community cluster"
     container:
-        image: docker.io/library/golang:1.13
+        image: docker.io/library/golang:1.22
         cpu: 1
         memory: 1
 
@@ -131,15 +133,53 @@ vendor_task:
         - 'make vendor'
         - './hack/tree_status.sh'
 
+unit_task:
+    name: 'Unit tests w/ $STORAGE_DRIVER'
+    alias: unit
+    skip: &not_build_docs >-
+        $CIRRUS_CHANGE_TITLE =~ '.*CI:DOCS.*' ||
+        $CIRRUS_CHANGE_TITLE =~ '.*CI:BUILD.*'
+    depends_on: &smoke_vendor
+      - smoke
+      - vendor
+
+    timeout_in: 90m
+
+    matrix:
+        - env:
+              STORAGE_DRIVER: 'vfs'
+        - env:
+              STORAGE_DRIVER: 'overlay'
+
+    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
+    unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP}'
+
+cross_build_task:
+    name: "Cross Compile"
+    gce_instance:
+        cpu: 8
+        memory: "24G"
+    alias: cross_build
+    skip: *not_build_docs
+    env:
+        HOME: /root
+    script:
+        - go version
+        - make cross CGO_ENABLED=0
+    binary_artifacts:
+        path: ./bin/*
 
 conformance_task:
     name: 'Build Conformance w/ $STORAGE_DRIVER'
     alias: conformance
     depends_on:
       - vendor
+    skip: *not_build_docs
 
     gce_instance:
-        image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
+        cpu: 4
+        memory: "8Gb"
+        image_name: "${DEBIAN_CACHE_IMAGE_NAME}"
 
     timeout_in: 25m
 
@@ -151,6 +191,215 @@ conformance_task:
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
+
+integration_task:
+    name: "Integration $DISTRO_NV$RUNTIME_N w/ $STORAGE_DRIVER"
+    alias: integration
+    depends_on:
+      - vendor
+    skip: *not_build_docs
+
+    matrix:
+        # VFS
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${DEBIAN_NAME}"
+            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+        # OVERLAY
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${DEBIAN_NAME}"
+            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+
+    gce_instance:
+        image_name: "$IMAGE_NAME"
+        cpu: 4
+
+    # Separate scripts for separate outputs, makes debugging easier.
+    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
+    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
+    integration_test_script: '${SCRIPT_BASE}/test.sh integration |& ${_TIMESTAMP}'
+
+    binary_artifacts:
+        path: ./bin/*
+
+    always: &standardlogs
+        audit_log_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh audit'
+        df_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh df'
+        journal_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh journal'
+        podman_system_info_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh podman'
+        buildah_version_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh buildah_version'
+        buildah_info_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh buildah_info'
+        package_versions_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh packages'
+        golang_version_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh golang'
+
+integration_rootless_task:
+    name: "Integration rootless $DISTRO_NV$RUNTIME_N w/ $STORAGE_DRIVER"
+    alias: integration_rootless
+    depends_on:
+      - vendor
+    skip: *not_build_docs
+
+    matrix:
+        # Running rootless tests on overlay
+        # OVERLAY
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${DEBIAN_NAME}"
+            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
+        # VFS
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: runc
+            RUNTIME_N: " using runc"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+            BUILDAH_RUNTIME: crun
+            RUNTIME_N: " using crun"
+        - env:
+            DISTRO_NV: "${DEBIAN_NAME}"
+            IMAGE_NAME: "${DEBIAN_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+            PRIV_NAME: rootless
+
+    gce_instance:
+        image_name: "$IMAGE_NAME"
+        cpu: 4
+
+    # Separate scripts for separate outputs, makes debugging easier.
+    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
+    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
+    integration_test_script: '${SCRIPT_BASE}/test.sh integration |& ${_TIMESTAMP}'
+
+    binary_artifacts:
+        path: ./bin/*
+
+    always:
+        <<: *standardlogs
+
+in_podman_task:
+    name: "Containerized Integration"
+    alias: in_podman
+    depends_on:
+      - vendor
+    skip: *not_build_docs
+
+    gce_instance:
+        cpu: 4
+
+    env:
+        # This is key, cause the scripts to re-execute themselves inside a container.
+        IN_PODMAN: 'true'
+        BUILDAH_ISOLATION: 'chroot'
+        STORAGE_DRIVER: 'vfs'
+
+    # Separate scripts for separate outputs, makes debugging easier.
+    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
+    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
+    integration_test_script: '${SCRIPT_BASE}/test.sh integration |& ${_TIMESTAMP}'
+
+    binary_artifacts:
+        path: ./bin/*
+
+    always:
+        <<: *standardlogs
 
 
 # Status aggregator for all tests.  This task simply ensures a defined
@@ -164,7 +413,12 @@ success_task:
       - meta
       - smoke
       - vendor
+      - unit
+      - cross_build
       - conformance
+      - integration
+      - integration_rootless
+      - in_podman
 
     container:
         image: "quay.io/libpod/alpine:latest"

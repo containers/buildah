@@ -4,15 +4,15 @@ import (
 	"go/ast"
 	"go/types"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "rangeExprCopy"
-	info.Tags = []string{"performance"}
-	info.Params = lintpack.CheckerParams{
+	info.Tags = []string{linter.PerformanceTag}
+	info.Params = linter.CheckerParams{
 		"sizeThreshold": {
 			Value: 512,
 			Usage: "size in bytes that makes the warning trigger",
@@ -36,17 +36,17 @@ for _, x := range &xs { // No copy
 }`
 	info.Note = "See Go issue for details: https://github.com/golang/go/issues/15812."
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		c := &rangeExprCopyChecker{ctx: ctx}
 		c.sizeThreshold = int64(info.Params.Int("sizeThreshold"))
 		c.skipTestFuncs = info.Params.Bool("skipTestFuncs")
-		return astwalk.WalkerForStmt(c)
+		return astwalk.WalkerForStmt(c), nil
 	})
 }
 
 type rangeExprCopyChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	sizeThreshold int64
 	skipTestFuncs bool
@@ -69,7 +69,7 @@ func (c *rangeExprCopyChecker) VisitStmt(stmt ast.Stmt) {
 	if _, ok := tv.Type.(*types.Array); !ok {
 		return
 	}
-	if size := c.ctx.SizesInfo.Sizeof(tv.Type); size >= c.sizeThreshold {
+	if size, ok := c.ctx.SizeOf(tv.Type); ok && size >= c.sizeThreshold {
 		c.warn(rng, size)
 	}
 }

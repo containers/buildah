@@ -1,9 +1,12 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package version
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -64,7 +67,6 @@ func newVersion(v string, pattern *regexp.Regexp) (*Version, error) {
 	}
 	segmentsStr := strings.Split(matches[1], ".")
 	segments := make([]int64, len(segmentsStr))
-	si := 0
 	for i, str := range segmentsStr {
 		val, err := strconv.ParseInt(str, 10, 64)
 		if err != nil {
@@ -72,8 +74,7 @@ func newVersion(v string, pattern *regexp.Regexp) (*Version, error) {
 				"Error parsing version: %s", err)
 		}
 
-		segments[i] = int64(val)
-		si++
+		segments[i] = val
 	}
 
 	// Even though we could support more than three segments, if we
@@ -92,7 +93,7 @@ func newVersion(v string, pattern *regexp.Regexp) (*Version, error) {
 		metadata: matches[10],
 		pre:      pre,
 		segments: segments,
-		si:       si,
+		si:       len(segmentsStr),
 		original: v,
 	}, nil
 }
@@ -119,11 +120,8 @@ func (v *Version) Compare(other *Version) int {
 		return 0
 	}
 
-	segmentsSelf := v.Segments64()
-	segmentsOther := other.Segments64()
-
 	// If the segments are the same, we must compare on prerelease info
-	if reflect.DeepEqual(segmentsSelf, segmentsOther) {
+	if v.equalSegments(other) {
 		preSelf := v.Prerelease()
 		preOther := other.Prerelease()
 		if preSelf == "" && preOther == "" {
@@ -139,6 +137,8 @@ func (v *Version) Compare(other *Version) int {
 		return comparePrereleases(preSelf, preOther)
 	}
 
+	segmentsSelf := v.Segments64()
+	segmentsOther := other.Segments64()
 	// Get the highest specificity (hS), or if they're equal, just use segmentSelf length
 	lenSelf := len(segmentsSelf)
 	lenOther := len(segmentsOther)
@@ -162,7 +162,7 @@ func (v *Version) Compare(other *Version) int {
 			// this means Other had the lower specificity
 			// Check to see if the remaining segments in Self are all zeros -
 			if !allZero(segmentsSelf[i:]) {
-				//if not, it means that Self has to be greater than Other
+				// if not, it means that Self has to be greater than Other
 				return 1
 			}
 			break
@@ -180,6 +180,21 @@ func (v *Version) Compare(other *Version) int {
 
 	// if we got this far, they're equal
 	return 0
+}
+
+func (v *Version) equalSegments(other *Version) bool {
+	segmentsSelf := v.Segments64()
+	segmentsOther := other.Segments64()
+
+	if len(segmentsSelf) != len(segmentsOther) {
+		return false
+	}
+	for i, v := range segmentsSelf {
+		if v != segmentsOther[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func allZero(segs []int64) bool {
@@ -278,8 +293,20 @@ func comparePrereleases(v string, other string) int {
 	return 0
 }
 
+// Core returns a new version constructed from only the MAJOR.MINOR.PATCH
+// segments of the version, without prerelease or metadata.
+func (v *Version) Core() *Version {
+	segments := v.Segments64()
+	segmentsOnly := fmt.Sprintf("%d.%d.%d", segments[0], segments[1], segments[2])
+	return Must(NewVersion(segmentsOnly))
+}
+
 // Equal tests if two versions are equal.
 func (v *Version) Equal(o *Version) bool {
+	if v == nil || o == nil {
+		return v == o
+	}
+
 	return v.Compare(o) == 0
 }
 
@@ -288,7 +315,7 @@ func (v *Version) GreaterThan(o *Version) bool {
 	return v.Compare(o) > 0
 }
 
-// GreaterThanOrEqualTo tests if this version is greater than or equal to another version.
+// GreaterThanOrEqual tests if this version is greater than or equal to another version.
 func (v *Version) GreaterThanOrEqual(o *Version) bool {
 	return v.Compare(o) >= 0
 }
@@ -298,7 +325,7 @@ func (v *Version) LessThan(o *Version) bool {
 	return v.Compare(o) < 0
 }
 
-// LessThanOrEqualTo tests if this version is less than or equal to another version.
+// LessThanOrEqual tests if this version is less than or equal to another version.
 func (v *Version) LessThanOrEqual(o *Version) bool {
 	return v.Compare(o) <= 0
 }
@@ -377,4 +404,38 @@ func (v *Version) String() string {
 // potential whitespace, `v` prefix, etc.
 func (v *Version) Original() string {
 	return v.original
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler interface.
+func (v *Version) UnmarshalText(b []byte) error {
+	temp, err := NewVersion(string(b))
+	if err != nil {
+		return err
+	}
+
+	*v = *temp
+
+	return nil
+}
+
+// MarshalText implements encoding.TextMarshaler interface.
+func (v *Version) MarshalText() ([]byte, error) {
+	return []byte(v.String()), nil
+}
+
+// Scan implements the sql.Scanner interface.
+func (v *Version) Scan(src interface{}) error {
+	switch src := src.(type) {
+	case string:
+		return v.UnmarshalText([]byte(src))
+	case nil:
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T as Version", src)
+	}
+}
+
+// Value implements the driver.Valuer interface.
+func (v *Version) Value() (driver.Value, error) {
+	return v.String(), nil
 }

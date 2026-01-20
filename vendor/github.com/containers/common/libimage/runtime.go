@@ -1,12 +1,18 @@
+//go:build !remote
+// +build !remote
+
 package libimage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
+	"github.com/containers/common/libimage/define"
+	"github.com/containers/common/libimage/platform"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/pkg/shortnames"
 	storageTransport "github.com/containers/image/v5/storage"
@@ -14,9 +20,26 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	deepcopy "github.com/jinzhu/copier"
-	"github.com/pkg/errors"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
+
+// Faster than the standard library, see https://github.com/json-iterator/go.
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+// tmpdir returns a path to a temporary directory.
+func tmpdir() (string, error) {
+	var tmpdir string
+	defaultContainerConfig, err := config.Default()
+	if err == nil {
+		tmpdir, err = defaultContainerConfig.ImageCopyTmpDir()
+		if err == nil {
+			return tmpdir, nil
+		}
+	}
+	return tmpdir, err
+}
 
 // RuntimeOptions allow for creating a customized Runtime.
 type RuntimeOptions struct {
@@ -54,9 +77,14 @@ type Runtime struct {
 }
 
 // Returns a copy of the runtime's system context.
+func (r *Runtime) SystemContext() *types.SystemContext {
+	return r.systemContextCopy()
+}
+
+// Returns a copy of the runtime's system context.
 func (r *Runtime) systemContextCopy() *types.SystemContext {
 	var sys types.SystemContext
-	deepcopy.Copy(&sys, &r.systemContext)
+	_ = deepcopy.Copy(&sys, &r.systemContext)
 	return &sys
 }
 
@@ -85,14 +113,14 @@ func RuntimeFromStore(store storage.Store, options *RuntimeOptions) (*Runtime, e
 		systemContext = types.SystemContext{}
 	}
 	if systemContext.BigFilesTemporaryDir == "" {
-		systemContext.BigFilesTemporaryDir = tmpdir()
+		tmpdir, err := tmpdir()
+		if err != nil {
+			return nil, err
+		}
+		systemContext.BigFilesTemporaryDir = tmpdir
 	}
 
 	setRegistriesConfPath(&systemContext)
-
-	if systemContext.BlobInfoCacheDir == "" {
-		systemContext.BlobInfoCacheDir = filepath.Join(store.GraphRoot(), "cache")
-	}
 
 	return &Runtime{
 		store:         store,
@@ -137,8 +165,8 @@ func (r *Runtime) storageToImage(storageImage *storage.Image, ref types.ImageRef
 // Exists returns true if the specicifed image exists in the local containers
 // storage.  Note that it may return false if an image corrupted.
 func (r *Runtime) Exists(name string) (bool, error) {
-	image, _, err := r.LookupImage(name, &LookupImageOptions{IgnorePlatform: true})
-	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
+	image, _, err := r.LookupImage(name, nil)
+	if err != nil && !errors.Is(err, storage.ErrImageUnknown) {
 		return false, err
 	}
 	if image == nil {
@@ -153,21 +181,44 @@ func (r *Runtime) Exists(name string) (bool, error) {
 
 // LookupImageOptions allow for customizing local image lookups.
 type LookupImageOptions struct {
-	// If set, the image will be purely looked up by name.  No matching to
-	// the current platform will be performed.  This can be helpful when
-	// the platform does not matter, for instance, for image removal.
-	IgnorePlatform bool
+	// Lookup an image matching the specified architecture.
+	Architecture string
+	// Lookup an image matching the specified OS.
+	OS string
+	// Lookup an image matching the specified variant.
+	Variant string
+
+	// Controls the behavior when checking the platform of an image.
+	PlatformPolicy define.PlatformPolicy
 
 	// If set, do not look for items/instances in the manifest list that
 	// match the current platform but return the manifest list as is.
+	// only check for manifest list, return ErrNotAManifestList if not found.
 	lookupManifest bool
+
+	// If matching images resolves to a manifest list, return manifest list
+	// instead of resolving to image instance, if manifest list is not found
+	// try resolving image.
+	ManifestList bool
+
+	// If the image resolves to a manifest list, we usually lookup a
+	// matching instance and error if none could be found.  In this case,
+	// just return the manifest list.  Required for image removal.
+	returnManifestIfNoInstance bool
 }
 
-// Lookup Image looks up `name` in the local container storage matching the
-// specified SystemContext.  Returns the image and the name it has been found
-// with.  Note that name may also use the `containers-storage:` prefix used to
-// refer to the containers-storage transport.  Returns storage.ErrImageUnknown
-// if the image could not be found.
+var errNoHexValue = errors.New("invalid format: no 64-byte hexadecimal value")
+
+// Lookup Image looks up `name` in the local container storage.  Returns the
+// image and the name it has been found with.  Note that name may also use the
+// `containers-storage:` prefix used to refer to the containers-storage
+// transport.  Returns storage.ErrImageUnknown if the image could not be found.
+//
+// Unless specified via the options, the image will be looked up by name only
+// without matching the architecture, os or variant.  An exception is if the
+// image resolves to a manifest list, where an instance of the manifest list
+// matching the local or specified platform (via options.{Architecture,OS,Variant})
+// is returned.
 //
 // If the specified name uses the `containers-storage` transport, the resolved
 // name is empty.
@@ -182,7 +233,7 @@ func (r *Runtime) LookupImage(name string, options *LookupImageOptions) (*Image,
 	storageRef, err := alltransports.ParseImageName(name)
 	if err == nil {
 		if storageRef.Transport().Name() != storageTransport.Transport.Name() {
-			return nil, "", errors.Errorf("unsupported transport %q for looking up local images", storageRef.Transport().Name())
+			return nil, "", fmt.Errorf("unsupported transport %q for looking up local images", storageRef.Transport().Name())
 		}
 		img, err := storageTransport.Transport.GetStoreImage(r.store, storageRef)
 		if err != nil {
@@ -191,36 +242,59 @@ func (r *Runtime) LookupImage(name string, options *LookupImageOptions) (*Image,
 		logrus.Debugf("Found image %q in local containers storage (%s)", name, storageRef.StringWithinTransport())
 		return r.storageToImage(img, storageRef), "", nil
 	}
-
-	originalName := name
-	idByDigest := false
-	if strings.HasPrefix(name, "sha256:") {
-		// Strip off the sha256 prefix so it can be parsed later on.
-		idByDigest = true
-		name = strings.TrimPrefix(name, "sha256:")
-	}
-
-	// First, check if we have an exact match in the storage. Maybe an ID
-	// or a fully-qualified image name.
-	img, err := r.lookupImageInLocalStorage(name, name, options)
+	// Docker compat: strip off the tag iff name is tagged and digested
+	// (e.g., fedora:latest@sha256...).  In that case, the tag is stripped
+	// off and entirely ignored.  The digest is the sole source of truth.
+	normalizedName, possiblyUnqualifiedNamedReference, err := normalizeTaggedDigestedString(name)
 	if err != nil {
 		return nil, "", err
 	}
-	if img != nil {
-		return img, originalName, nil
+	name = normalizedName
+
+	byDigest := false
+	originalName := name
+	if strings.HasPrefix(name, "sha256:") {
+		byDigest = true
+		name = strings.TrimPrefix(name, "sha256:")
+	}
+	byFullID := reference.IsFullIdentifier(name)
+
+	if byDigest && !byFullID {
+		return nil, "", fmt.Errorf("%s: %v", originalName, errNoHexValue)
 	}
 
-	// If the name clearly referred to a local image, there's nothing we can
-	// do anymore.
-	if storageRef != nil || idByDigest {
-		return nil, "", errors.Wrap(storage.ErrImageUnknown, originalName)
+	// If the name clearly refers to a local image, try to look it up.
+	if byFullID || byDigest {
+		img, err := r.lookupImageInLocalStorage(originalName, name, nil, options)
+		if err != nil {
+			return nil, "", err
+		}
+		if img != nil {
+			return img, originalName, nil
+		}
+		return nil, "", fmt.Errorf("%s: %w", originalName, storage.ErrImageUnknown)
 	}
+
+	// Unless specified, set the platform specified in the system context
+	// for later platform matching.  Builder likes to set these things via
+	// the system context at runtime creation.
+	if options.Architecture == "" {
+		options.Architecture = r.systemContext.ArchitectureChoice
+	}
+	if options.OS == "" {
+		options.OS = r.systemContext.OSChoice
+	}
+	if options.Variant == "" {
+		options.Variant = r.systemContext.VariantChoice
+	}
+	// Normalize platform to be OCI compatible (e.g., "aarch64" -> "arm64").
+	options.OS, options.Architecture, options.Variant = platform.Normalize(options.OS, options.Architecture, options.Variant)
 
 	// Second, try out the candidates as resolved by shortnames. This takes
 	// "localhost/" prefixed images into account as well.
 	candidates, err := shortnames.ResolveLocally(&r.systemContext, name)
 	if err != nil {
-		return nil, "", errors.Wrap(storage.ErrImageUnknown, originalName)
+		return nil, "", fmt.Errorf("%s: %w", name, storage.ErrImageUnknown)
 	}
 	// Backwards compat: normalize to docker.io as some users may very well
 	// rely on that.
@@ -229,7 +303,7 @@ func (r *Runtime) LookupImage(name string, options *LookupImageOptions) (*Image,
 	}
 
 	for _, candidate := range candidates {
-		img, err := r.lookupImageInLocalStorage(name, candidate.String(), options)
+		img, err := r.lookupImageInLocalStorage(name, candidate.String(), candidate, options)
 		if err != nil {
 			return nil, "", err
 		}
@@ -238,21 +312,61 @@ func (r *Runtime) LookupImage(name string, options *LookupImageOptions) (*Image,
 		}
 	}
 
-	return r.lookupImageInDigestsAndRepoTags(originalName, options)
+	// The specified name may refer to a short ID. Note that this *must*
+	// happen after the short-name expansion as done above.
+	img, err := r.lookupImageInLocalStorage(name, name, nil, options)
+	if err != nil {
+		return nil, "", err
+	}
+	if img != nil {
+		return img, name, err
+	}
+
+	return r.lookupImageInDigestsAndRepoTags(name, possiblyUnqualifiedNamedReference, options)
 }
 
 // lookupImageInLocalStorage looks up the specified candidate for name in the
 // storage and checks whether it's matching the system context.
-func (r *Runtime) lookupImageInLocalStorage(name, candidate string, options *LookupImageOptions) (*Image, error) {
+func (r *Runtime) lookupImageInLocalStorage(name, candidate string, namedCandidate reference.Named, options *LookupImageOptions) (*Image, error) {
 	logrus.Debugf("Trying %q ...", candidate)
-	img, err := r.store.Image(candidate)
-	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
-		return nil, err
+
+	var err error
+	var img *storage.Image
+	var ref types.ImageReference
+
+	// FIXME: the lookup logic for manifest lists needs improvement.
+	// See https://github.com/containers/common/pull/1505#discussion_r1242677279
+	// for details.
+
+	// For images pulled by tag, Image.Names does not currently contain a
+	// repo@digest value, so such an input would not match directly in
+	// c/storage.
+	if namedCandidate != nil {
+		namedCandidate = reference.TagNameOnly(namedCandidate)
+		ref, err = storageTransport.Transport.NewStoreReference(r.store, namedCandidate, "")
+		if err != nil {
+			return nil, err
+		}
+		img, err = storageTransport.Transport.GetStoreImage(r.store, ref)
+		if err != nil {
+			if errors.Is(err, storage.ErrImageUnknown) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		// NOTE: we must reparse the reference another time below since
+		// an ordinary image may have resolved into a per-platform image
+		// without any regard to options.{Architecture,OS,Variant}.
+	} else {
+		img, err = r.store.Image(candidate)
+		if err != nil {
+			if errors.Is(err, storage.ErrImageUnknown) {
+				return nil, nil
+			}
+			return nil, err
+		}
 	}
-	if img == nil {
-		return nil, nil
-	}
-	ref, err := storageTransport.Transport.ParseStoreReference(r.store, img.ID)
+	ref, err = storageTransport.Transport.ParseStoreReference(r.store, img.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -264,19 +378,22 @@ func (r *Runtime) lookupImageInLocalStorage(name, candidate string, options *Loo
 	// find a matching instance in the local containers storage.
 	isManifestList, err := image.IsManifestList(context.Background())
 	if err != nil {
-		if errors.Cause(err) == os.ErrNotExist {
+		if errors.Is(err, os.ErrNotExist) {
 			// We must be tolerant toward corrupted images.
 			// See containers/podman commit fd9dd7065d44.
-			logrus.Warnf("error determining if an image is a manifest list: %v, ignoring the error", err)
+			logrus.Warnf("Failed to determine if an image is a manifest list: %v, ignoring the error", err)
 			return image, nil
 		}
 		return nil, err
 	}
-	if options.lookupManifest {
+	if options.lookupManifest || options.ManifestList {
 		if isManifestList {
 			return image, nil
 		}
-		return nil, errors.Wrapf(ErrNotAManifestList, candidate)
+		// return ErrNotAManifestList if lookupManifest is set otherwise try resolving image.
+		if options.lookupManifest {
+			return nil, fmt.Errorf("%s: %w", candidate, ErrNotAManifestList)
+		}
 	}
 
 	if isManifestList {
@@ -285,15 +402,13 @@ func (r *Runtime) lookupImageInLocalStorage(name, candidate string, options *Loo
 		if err != nil {
 			return nil, err
 		}
-		instance, err := manifestList.LookupInstance(context.Background(), "", "", "")
+		instance, err := manifestList.LookupInstance(context.Background(), options.Architecture, options.OS, options.Variant)
 		if err != nil {
-			// NOTE: If we are not looking for a specific platform
-			// and already found the manifest list, then return it
-			// instead of the error.
-			if options.IgnorePlatform {
+			if options.returnManifestIfNoInstance {
+				logrus.Debug("No matching instance was found: returning manifest list instead")
 				return image, nil
 			}
-			return nil, errors.Wrap(storage.ErrImageUnknown, err.Error())
+			return nil, fmt.Errorf("%v: %w", err, storage.ErrImageUnknown)
 		}
 		ref, err = storageTransport.Transport.ParseStoreReference(r.store, "@"+instance.ID())
 		if err != nil {
@@ -302,93 +417,99 @@ func (r *Runtime) lookupImageInLocalStorage(name, candidate string, options *Loo
 		image = instance
 	}
 
-	if options.IgnorePlatform {
-		return image, nil
-	}
-
-	matches, err := imageReferenceMatchesContext(context.Background(), ref, &r.systemContext)
-	if err != nil {
-		return nil, err
-	}
-
-	// NOTE: if the user referenced by ID we must optimistically assume
-	// that they know what they're doing.  Given, we already did the
-	// manifest limbo above, we may already have resolved it.
-	if !matches && !strings.HasPrefix(image.ID(), candidate) {
-		return nil, nil
-	}
 	// Also print the string within the storage transport.  That may aid in
 	// debugging when using additional stores since we see explicitly where
 	// the store is and which driver (options) are used.
 	logrus.Debugf("Found image %q as %q in local containers storage (%s)", name, candidate, ref.StringWithinTransport())
+
+	// Do not perform any further platform checks if the image was
+	// requested by ID.  In that case, we must assume that the user/tool
+	// know what they're doing.
+	if strings.HasPrefix(image.ID(), candidate) {
+		return image, nil
+	}
+
+	// Ignore the (fatal) error since the image may be corrupted, which
+	// will bubble up at other places.  During lookup, we just return it as
+	// is.
+	if matchError, customPlatform, _ := image.matchesPlatform(context.Background(), options.OS, options.Architecture, options.Variant); matchError != nil {
+		if customPlatform {
+			logrus.Debugf("%v", matchError)
+			// Return nil if the user clearly requested a custom
+			// platform and the located image does not match.
+			return nil, nil
+		}
+		switch options.PlatformPolicy {
+		case define.PlatformPolicyDefault:
+			logrus.Debugf("%v", matchError)
+		case define.PlatformPolicyWarn:
+			logrus.Warnf("%v", matchError)
+		}
+	}
+
 	return image, nil
 }
 
 // lookupImageInDigestsAndRepoTags attempts to match name against any image in
 // the local containers storage.  If name is digested, it will be compared
 // against image digests.  Otherwise, it will be looked up in the repo tags.
-func (r *Runtime) lookupImageInDigestsAndRepoTags(name string, options *LookupImageOptions) (*Image, string, error) {
-	// Until now, we've tried very hard to find an image but now it is time
-	// for limbo.  If the image includes a digest that we couldn't detect
-	// verbatim in the storage, we must have a look at all digests of all
-	// images.  Those may change over time (e.g., via manifest lists).
-	// Both Podman and Buildah want us to do that dance.
+func (r *Runtime) lookupImageInDigestsAndRepoTags(name string, possiblyUnqualifiedNamedReference reference.Named, options *LookupImageOptions) (*Image, string, error) {
+	originalName := name // we may change name below
+
+	if possiblyUnqualifiedNamedReference == nil {
+		return nil, "", fmt.Errorf("%s: %w", originalName, storage.ErrImageUnknown)
+	}
+	if !shortnames.IsShortName(name) {
+		return nil, "", fmt.Errorf("%s: %w", originalName, storage.ErrImageUnknown)
+	}
+
+	var requiredDigest digest.Digest // or ""
+	var requiredTag string           // or ""
+
+	possiblyUnqualifiedNamedReference = reference.TagNameOnly(possiblyUnqualifiedNamedReference) // Docker compat: make sure to add the "latest" tag if needed.
+	if digested, ok := possiblyUnqualifiedNamedReference.(reference.Digested); ok {
+		requiredDigest = digested.Digest()
+		name = reference.TrimNamed(possiblyUnqualifiedNamedReference).String()
+	} else if namedTagged, ok := possiblyUnqualifiedNamedReference.(reference.NamedTagged); ok {
+		requiredTag = namedTagged.Tag()
+	} else { // This should never happen after the reference.TagNameOnly above.
+		return nil, "", fmt.Errorf("%s: %w (could not cast to tagged)", originalName, storage.ErrImageUnknown)
+	}
+
 	allImages, err := r.ListImages(context.Background(), nil, nil)
 	if err != nil {
 		return nil, "", err
 	}
 
-	if !shortnames.IsShortName(name) {
-		named, err := reference.ParseNormalizedNamed(name)
-		if err != nil {
-			return nil, "", err
-		}
-		digested, hasDigest := named.(reference.Digested)
-		if !hasDigest {
-			return nil, "", errors.Wrap(storage.ErrImageUnknown, name)
-		}
-
-		logrus.Debug("Looking for image with matching recorded digests")
-		digest := digested.Digest()
-		for _, image := range allImages {
-			for _, d := range image.Digests() {
-				if d == digest {
-					return image, name, nil
-				}
-			}
-		}
-
-		return nil, "", errors.Wrap(storage.ErrImageUnknown, name)
-	}
-
-	// Podman compat: if we're looking for a short name but couldn't
-	// resolve it via the registries.conf dance, we need to look at *all*
-	// images and check if the name we're looking for matches a repo tag.
-	// Split the name into a repo/tag pair
-	split := strings.SplitN(name, ":", 2)
-	repo := split[0]
-	tag := ""
-	if len(split) == 2 {
-		tag = split[1]
-	}
 	for _, image := range allImages {
-		named, err := image.inRepoTags(repo, tag)
+		named, err := image.referenceFuzzilyMatchingRepoAndTag(possiblyUnqualifiedNamedReference, requiredTag)
 		if err != nil {
 			return nil, "", err
 		}
 		if named == nil {
 			continue
 		}
-		img, err := r.lookupImageInLocalStorage(name, named.String(), options)
+		img, err := r.lookupImageInLocalStorage(name, named.String(), named, options)
 		if err != nil {
 			return nil, "", err
 		}
 		if img != nil {
-			return img, named.String(), err
+			if requiredDigest != "" {
+				if !img.hasDigest(requiredDigest) {
+					continue
+				}
+				named = reference.TrimNamed(named)
+				canonical, err := reference.WithDigest(named, requiredDigest)
+				if err != nil {
+					return nil, "", fmt.Errorf("building canonical reference with digest %q and matched %q: %w", requiredDigest.String(), named.String(), err)
+				}
+				return img, canonical.String(), nil
+			}
+			return img, named.String(), nil
 		}
 	}
 
-	return nil, "", errors.Wrap(storage.ErrImageUnknown, name)
+	return nil, "", fmt.Errorf("%s: %w", originalName, storage.ErrImageUnknown)
 }
 
 // ResolveName resolves the specified name.  If the name resolves to a local
@@ -400,8 +521,8 @@ func (r *Runtime) ResolveName(name string) (string, error) {
 	if name == "" {
 		return "", nil
 	}
-	image, resolvedName, err := r.LookupImage(name, &LookupImageOptions{IgnorePlatform: true})
-	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
+	image, resolvedName, err := r.LookupImage(name, nil)
+	if err != nil && !errors.Is(err, storage.ErrImageUnknown) {
 		return "", err
 	}
 
@@ -417,41 +538,16 @@ func (r *Runtime) ResolveName(name string) (string, error) {
 	return normalized.String(), nil
 }
 
-// imageReferenceMatchesContext return true if the specified reference matches
-// the platform (os, arch, variant) as specified by the system context.
-func imageReferenceMatchesContext(ctx context.Context, ref types.ImageReference, sys *types.SystemContext) (bool, error) {
-	if sys == nil {
-		return true, nil
-	}
-	img, err := ref.NewImage(ctx, sys)
-	if err != nil {
-		return false, err
-	}
-	defer img.Close()
-	data, err := img.Inspect(ctx)
-	if err != nil {
-		return false, err
-	}
-	osChoice := sys.OSChoice
-	if osChoice == "" {
-		osChoice = runtime.GOOS
-	}
-	arch := sys.ArchitectureChoice
-	if arch == "" {
-		arch = runtime.GOARCH
-	}
-	if osChoice == data.Os && arch == data.Architecture {
-		if sys.VariantChoice == "" || sys.VariantChoice == data.Variant {
-			return true, nil
-		}
-	}
-	return false, nil
-}
+// IsExternalContainerFunc allows for checking whether the specified container
+// is an external one.  The definition of an external container can be set by
+// callers.
+type IsExternalContainerFunc func(containerID string) (bool, error)
 
 // ListImagesOptions allow for customizing listing images.
 type ListImagesOptions struct {
 	// Filters to filter the listed images.  Supported filters are
 	// * after,before,since=image
+	// * containers=true,false,external
 	// * dangling=true,false
 	// * intermediate=true,false (useful for pruning images)
 	// * id=id
@@ -459,6 +555,13 @@ type ListImagesOptions struct {
 	// * readonly=true,false
 	// * reference=name[:tag] (wildcards allowed)
 	Filters []string
+	// IsExternalContainerFunc allows for checking whether the specified
+	// container is an external one (when containers=external filter is
+	// used).  The definition of an external container can be set by
+	// callers.
+	IsExternalContainerFunc IsExternalContainerFunc
+	// SetListData will populate the Image.ListData fields of returned images.
+	SetListData bool
 }
 
 // ListImages lists images in the local container storage.  If names are
@@ -470,9 +573,8 @@ func (r *Runtime) ListImages(ctx context.Context, names []string, options *ListI
 
 	var images []*Image
 	if len(names) > 0 {
-		lookupOpts := LookupImageOptions{IgnorePlatform: true}
 		for _, name := range names {
-			image, _, err := r.LookupImage(name, &lookupOpts)
+			image, _, err := r.LookupImage(name, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -488,16 +590,41 @@ func (r *Runtime) ListImages(ctx context.Context, names []string, options *ListI
 		}
 	}
 
-	var filters []filterFunc
-	if len(options.Filters) > 0 {
-		compiledFilters, err := r.compileImageFilters(ctx, options.Filters)
+	filtered, err := r.filterImages(ctx, images, options)
+	if err != nil {
+		return nil, err
+	}
+
+	if !options.SetListData {
+		return filtered, nil
+	}
+
+	// If explicitly requested by the user, pre-compute and cache the
+	// dangling and parent information of all filtered images.  That will
+	// considerably speed things up for callers who need this information
+	// as the layer tree will computed once for all instead of once for
+	// each individual image (see containers/podman/issues/17828).
+
+	tree, err := r.layerTree(images)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range filtered {
+		isDangling, err := filtered[i].isDangling(ctx, tree)
 		if err != nil {
 			return nil, err
 		}
-		filters = append(filters, compiledFilters...)
+		filtered[i].ListData.IsDangling = &isDangling
+
+		parent, err := filtered[i].parent(ctx, tree)
+		if err != nil {
+			return nil, err
+		}
+		filtered[i].ListData.Parent = parent
 	}
 
-	return filterImages(images, filters)
+	return filtered, nil
 }
 
 // RemoveImagesOptions allow for customizing image removal.
@@ -506,12 +633,28 @@ type RemoveImagesOptions struct {
 	// using a removed image.  Use RemoveContainerFunc for a custom logic.
 	// If set, all child images will be removed as well.
 	Force bool
+	// LookupManifest will expect all specified names to be manifest lists (no instance look up).
+	// This allows for removing manifest lists.
+	// By default, RemoveImages will attempt to resolve to a manifest instance matching
+	// the local platform (i.e., os, architecture, variant).
+	LookupManifest bool
 	// RemoveContainerFunc allows for a custom logic for removing
 	// containers using a specific image.  By default, all containers in
 	// the local containers storage will be removed (if Force is set).
 	RemoveContainerFunc RemoveContainerFunc
+	// Ignore if a specified image does not exist and do not throw an error.
+	Ignore bool
+	// IsExternalContainerFunc allows for checking whether the specified
+	// container is an external one (when containers=external filter is
+	// used).  The definition of an external container can be set by
+	// callers.
+	IsExternalContainerFunc IsExternalContainerFunc
+	// Remove external containers even when Force is false.  Requires
+	// IsExternalContainerFunc to be specified.
+	ExternalContainers bool
 	// Filters to filter the removed images.  Supported filters are
 	// * after,before,since=image
+	// * containers=true,false,external
 	// * dangling=true,false
 	// * intermediate=true,false (useful for pruning images)
 	// * id=id
@@ -524,10 +667,13 @@ type RemoveImagesOptions struct {
 	// much space was freed. However, computing the size of an image is
 	// comparatively expensive, so it is made optional.
 	WithSize bool
+	// NoPrune will not remove dangling images
+	NoPrune bool
 }
 
-// RemoveImages removes images specified by names.  All images are expected to
-// exist in the local containers storage.
+// RemoveImages removes images specified by names.  If no names are specified,
+// remove images as specified via the options' filters.  All images are
+// expected to exist in the local containers storage.
 //
 // If an image has more names than one name, the image will be untagged with
 // the specified name.  RemoveImages returns a slice of untagged and removed
@@ -538,6 +684,10 @@ type RemoveImagesOptions struct {
 func (r *Runtime) RemoveImages(ctx context.Context, names []string, options *RemoveImagesOptions) (reports []*RemoveImageReport, rmErrors []error) {
 	if options == nil {
 		options = &RemoveImagesOptions{}
+	}
+
+	if options.ExternalContainers && options.IsExternalContainerFunc == nil {
+		return nil, []error{fmt.Errorf("libimage error: cannot remove external containers without callback")}
 	}
 
 	// The logic here may require some explanation.  Image removal is
@@ -560,59 +710,87 @@ func (r *Runtime) RemoveImages(ctx context.Context, names []string, options *Rem
 		rmErrors = append(rmErrors, err)
 	}
 
-	orderedIDs := []string{}                // determinism and relative order
 	deleteMap := make(map[string]*deleteMe) // ID -> deleteMe
-
+	toDelete := []string{}
 	// Look up images in the local containers storage and fill out
-	// orderedIDs and the deleteMap.
+	// toDelete and the deleteMap.
 	switch {
 	case len(names) > 0:
-		lookupOptions := LookupImageOptions{IgnorePlatform: true}
+		// prepare lookupOptions
+		var lookupOptions *LookupImageOptions
+		if options.LookupManifest {
+			// LookupManifest configured as true make sure we only remove manifests and no referenced images.
+			lookupOptions = &LookupImageOptions{lookupManifest: true}
+		} else {
+			lookupOptions = &LookupImageOptions{returnManifestIfNoInstance: true}
+		}
+		// Look up the images one-by-one.  That allows for removing
+		// images that have been looked up successfully while reporting
+		// lookup errors at the end.
 		for _, name := range names {
-			img, resolvedName, err := r.LookupImage(name, &lookupOptions)
+			img, resolvedName, err := r.LookupImage(name, lookupOptions)
 			if err != nil {
+				if options.Ignore && errors.Is(err, storage.ErrImageUnknown) {
+					continue
+				}
 				appendError(err)
 				continue
 			}
 			dm, exists := deleteMap[img.ID()]
 			if !exists {
-				orderedIDs = append(orderedIDs, img.ID())
+				toDelete = append(toDelete, img.ID())
 				dm = &deleteMe{image: img}
 				deleteMap[img.ID()] = dm
 			}
 			dm.referencedBy = append(dm.referencedBy, resolvedName)
 		}
-		if len(orderedIDs) == 0 {
-			return nil, rmErrors
-		}
 
 	default:
-		filteredImages, err := r.ListImages(ctx, nil, &ListImagesOptions{Filters: options.Filters})
+		options := &ListImagesOptions{
+			IsExternalContainerFunc: options.IsExternalContainerFunc,
+			Filters:                 options.Filters,
+		}
+		filteredImages, err := r.ListImages(ctx, nil, options)
 		if err != nil {
 			appendError(err)
 			return nil, rmErrors
 		}
 		for _, img := range filteredImages {
-			orderedIDs = append(orderedIDs, img.ID())
+			toDelete = append(toDelete, img.ID())
 			deleteMap[img.ID()] = &deleteMe{image: img}
 		}
 	}
 
+	// Return early if there's no image to delete.
+	if len(deleteMap) == 0 {
+		return nil, rmErrors
+	}
+
 	// Now remove the images in the given order.
 	rmMap := make(map[string]*RemoveImageReport)
-	for _, id := range orderedIDs {
+	orderedIDs := []string{}
+	visitedIDs := make(map[string]bool)
+	for _, id := range toDelete {
 		del, exists := deleteMap[id]
 		if !exists {
-			appendError(errors.Errorf("internal error: ID %s not in found in image-deletion map", id))
+			appendError(fmt.Errorf("internal error: ID %s not in found in image-deletion map", id))
 			continue
 		}
 		if len(del.referencedBy) == 0 {
 			del.referencedBy = []string{""}
 		}
 		for _, ref := range del.referencedBy {
-			if err := del.image.remove(ctx, rmMap, ref, options); err != nil {
+			processedIDs, err := del.image.remove(ctx, rmMap, ref, options)
+			if err != nil {
 				appendError(err)
-				continue
+			}
+			// NOTE: make sure to add given ID only once to orderedIDs.
+			for _, id := range processedIDs {
+				if visited := visitedIDs[id]; visited {
+					continue
+				}
+				orderedIDs = append(orderedIDs, id)
+				visitedIDs[id] = true
 			}
 		}
 	}
