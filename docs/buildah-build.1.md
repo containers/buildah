@@ -1045,6 +1045,62 @@ will bear exactly the specified timestamp.
 Conflicts with the similar **--timestamp** flag, which also sets its specified
 time on the contents of new layers.
 
+**--source-policy-file** *pathname*
+
+Specifies the path to a BuildKit-compatible source policy JSON file.  When
+specified, source references (e.g., base images in FROM instructions) are
+evaluated against the policy rules before being used.
+
+Source policies allow controlling which images can be used as base images and
+optionally converting image references (e.g., pinning tags to specific digests)
+without modifying Containerfiles.  This is useful for enforcing organizational
+policies and ensuring build reproducibility.
+
+The policy file is a JSON document containing an array of rules.  Each rule has:
+- **action**: The action to take when the rule matches.  Valid actions are:
+  - **ALLOW**: Explicitly allow the source (no transformation).
+  - **DENY**: Block the source and fail the build.
+  - **CONVERT**: Transform the source to a different reference specified in `updates`.
+- **selector**: Specifies which sources the rule applies to.
+  - **identifier**: The source identifier to match (e.g., `docker-image://docker.io/library/alpine:latest`).
+  - **matchType**: How to match the identifier.  Valid types are `EXACT` (default) and `WILDCARD` (supports `*` and `?` glob patterns).
+- **updates**: For `CONVERT` actions, specifies the replacement identifier.
+
+Rules are evaluated in order; the first matching rule wins.  If no rule matches,
+the source is allowed by default.
+
+Example policy file that pins alpine:latest to a specific digest:
+```json
+{
+  "rules": [
+    {
+      "action": "CONVERT",
+      "selector": {
+        "identifier": "docker-image://docker.io/library/alpine:latest"
+      },
+      "updates": {
+        "identifier": "docker-image://docker.io/library/alpine@sha256:..."
+      }
+    }
+  ]
+}
+```
+
+Example policy file that denies all ubuntu images:
+```json
+{
+  "rules": [
+    {
+      "action": "DENY",
+      "selector": {
+        "identifier": "docker-image://docker.io/library/ubuntu:*",
+        "matchType": "WILDCARD"
+      }
+    }
+  ]
+}
+```
+
 **--squash**
 
 Squash all layers, including those from base image(s), into one single layer. (Default is false).
@@ -1426,6 +1482,10 @@ buildah build --secret=id=mysecret,src=MYSECRET,type=env .
 buildah build --secret=id=mysecret,src=.mysecret,type=file .
 
 buildah build --secret=id=mysecret,src=.mysecret .
+
+### Building an image with a source policy
+
+buildah build --source-policy-file /etc/buildah/source-policy.json -t imageName .
 
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 

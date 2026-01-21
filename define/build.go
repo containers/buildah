@@ -204,6 +204,12 @@ type BuildOptions struct {
 	// specified, indicating that the shared, system-wide default policy
 	// should be used.
 	SignaturePolicyPath string
+	// SourcePolicyFile specifies the path to a BuildKit-compatible source
+	// policy JSON file. When specified, source references (e.g., base images
+	// in FROM instructions) are evaluated against the policy rules. Rules
+	// can DENY specific sources or CONVERT them to different references
+	// (e.g., pinning tags to digests).
+	SourcePolicyFile string
 	// SkipUnusedStages allows users to skip stages in a multi-stage builds
 	// which do not contribute anything to the target stage. Expected default
 	// value is true.

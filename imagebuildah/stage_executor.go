@@ -25,6 +25,7 @@ import (
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/rusage"
+	"github.com/containers/buildah/pkg/sourcepolicy"
 	"github.com/containers/buildah/util"
 	docker "github.com/fsouza/go-dockerclient"
 	buildkitparser "github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -978,6 +979,55 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		}
 		from = base
 	}
+
+	// Apply source policy if one is configured and this is not "scratch" or a stage reference.
+	// Stage references are handled separately and don't need policy evaluation since they
+	// refer to images built within this same build.
+	if s.executor.sourcePolicy != nil && from != "scratch" {
+		// Check if 'from' references a previous stage by name, index, or image ID
+		isStageRef := false
+		for i, st := range s.stages[:s.index] {
+			if st.Name == from || strconv.Itoa(i) == from {
+				isStageRef = true
+				break
+			}
+		}
+		// Also check if 'from' is an image ID that was created by a previous stage
+		// (this happens when execute() resolves stage names to image IDs before calling prepare)
+		if !isStageRef {
+			s.executor.stagesLock.Lock()
+			for _, imgID := range s.executor.imageMap {
+				if imgID == from {
+					isStageRef = true
+					break
+				}
+			}
+			s.executor.stagesLock.Unlock()
+		}
+
+		if !isStageRef {
+			sourceID := sourcepolicy.ImageSourceIdentifier(from)
+			decision, matched, err := s.executor.sourcePolicy.Evaluate(sourceID)
+			if err != nil {
+				return nil, fmt.Errorf("evaluating source policy for %q: %w", from, err)
+			}
+
+			if matched {
+				switch decision.Action {
+				case sourcepolicy.ActionDeny:
+					return nil, fmt.Errorf("source %q denied by source policy: %s", from, decision.Reason)
+				case sourcepolicy.ActionConvert:
+					// Extract the new image reference from the policy decision
+					newFrom := sourcepolicy.ExtractImageRef(decision.TargetRef)
+					logrus.Debugf("source policy: converting %q to %q (%s)", from, newFrom, decision.Reason)
+					from = newFrom
+				case sourcepolicy.ActionAllow:
+					logrus.Debugf("source policy: allowing %q (%s)", from, decision.Reason)
+				}
+			}
+		}
+	}
+
 	sanitizedFrom, err := s.sanitizeFrom(from, tmpdir.GetTempDir())
 	if err != nil {
 		return nil, fmt.Errorf("invalid base image specification %q: %w", from, err)
