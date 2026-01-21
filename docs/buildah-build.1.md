@@ -639,6 +639,20 @@ Write information about the built image to the named file.  When `--platform`
 is specified more than once, attempting to use this option will trigger an
 error.
 
+**--mount** *mount-instruction*
+
+Adds this mount to each `RUN` command in a Containerfile before executing. For example:
+
+`buildah build --mount type=secret,id=mysecret ...`
+
+and a Containerfile entry of:
+
+`RUN cat /run/secrets/mysecret`
+
+Has the same effect as:
+
+`RUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret`
+
 **--network**, **--net**=*mode*
 
 Sets the configuration for network namespaces when handling `RUN` instructions.
