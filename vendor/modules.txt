@@ -160,7 +160,7 @@ github.com/docker/docker/client
 github.com/docker/docker/pkg/homedir
 github.com/docker/docker/pkg/jsonmessage
 github.com/docker/docker/pkg/stdcopy
-# github.com/docker/docker-credential-helpers v0.9.4
+# github.com/docker/docker-credential-helpers v0.9.5
 ## explicit; go 1.21
 github.com/docker/docker-credential-helpers/client
 github.com/docker/docker-credential-helpers/credentials
@@ -232,7 +232,7 @@ github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.18.1
+# github.com/klauspost/compress v1.18.2
 ## explicit; go 1.23
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -266,8 +266,8 @@ github.com/miekg/pkcs11
 # github.com/mistifyio/go-zfs/v4 v4.0.0
 ## explicit; go 1.14
 github.com/mistifyio/go-zfs/v4
-# github.com/moby/buildkit v0.26.3
-## explicit; go 1.24.3
+# github.com/moby/buildkit v0.27.0
+## explicit; go 1.25.0
 github.com/moby/buildkit/frontend/dockerfile/command
 github.com/moby/buildkit/frontend/dockerfile/parser
 github.com/moby/buildkit/frontend/dockerfile/shell
@@ -275,7 +275,7 @@ github.com/moby/buildkit/util/stack
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
 github.com/moby/docker-image-spec/specs-go/v1
-# github.com/moby/go-archive v0.1.0
+# github.com/moby/go-archive v0.2.0
 ## explicit; go 1.23.0
 github.com/moby/go-archive
 github.com/moby/go-archive/compression
@@ -403,8 +403,8 @@ github.com/sigstore/fulcio/pkg/certificate
 # github.com/sigstore/protobuf-specs v0.5.0
 ## explicit; go 1.22.0
 github.com/sigstore/protobuf-specs/gen/pb-go/common/v1
-# github.com/sigstore/sigstore v1.9.6-0.20251111174640-d8ab8afb1326
-## explicit; go 1.24.0
+# github.com/sigstore/sigstore v1.10.0
+## explicit; go 1.25.0
 github.com/sigstore/sigstore/pkg/cryptoutils
 github.com/sigstore/sigstore/pkg/signature
 github.com/sigstore/sigstore/pkg/signature/options
@@ -695,7 +695,6 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ripemd160
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/scrypt
-golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/agent
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
@@ -732,11 +731,11 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/genproto/googleapis/api v0.0.0-20250929231259-57b25ae835d4
+# google.golang.org/genproto/googleapis/api v0.0.0-20251103181224-f26f9409b101
 ## explicit; go 1.24.0
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20251103181224-f26f9409b101
 ## explicit; go 1.24.0
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.76.0
@@ -801,7 +800,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.36.10
+# google.golang.org/protobuf v1.36.11
 ## explicit; go 1.23
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
