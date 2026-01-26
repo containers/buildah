@@ -1506,6 +1506,18 @@ buildah build --secret=id=mysecret,src=.mysecret .
 
 buildah build --source-policy-file /etc/buildah/source-policy.json -t imageName .
 
+### Using FROM --after for explicit stage dependencies
+
+When using local transports like `FROM oci-archive:file.ociarchive` where the file is produced by an earlier stage, Buildah cannot automatically detect the dependency. Use the `--after` flag on the FROM instruction to declare explicit stage dependencies:
+
+```Dockerfile
+FROM quay.io/skopeo/stable AS builder
+RUN --mount=type=bind,target=/src,rw skopeo copy docker://quay.io/fedora/fedora-minimal oci-archive:/src/fedora.ociarchive
+
+FROM --after=builder oci-archive:fedora.ociarchive
+# This stage will wait for builder to complete before evaluating FROM
+```
+
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 
 buildah build --arch arm --manifest myimage /tmp/mysrc
