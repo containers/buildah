@@ -19,6 +19,7 @@ import (
 	"github.com/containers/buildah/internal/metadata"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/pkg/sourcepolicy"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	encconfig "github.com/containers/ocicrypt/config"
@@ -92,6 +93,7 @@ type executor struct {
 	out                            io.Writer
 	err                            io.Writer
 	signaturePolicyPath            string
+	sourcePolicy                   *sourcepolicy.Policy
 	skipUnusedStages               types.OptionalBool
 	systemContext                  *types.SystemContext
 	reportWriter                   io.Writer
@@ -226,6 +228,15 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		return nil, err
 	}
 
+	// Load source policy if specified
+	var srcPolicy *sourcepolicy.Policy
+	if options.SourcePolicyFile != "" {
+		srcPolicy, err = sourcepolicy.LoadFromFile(options.SourcePolicyFile)
+		if err != nil {
+			return nil, fmt.Errorf("loading source policy: %w", err)
+		}
+	}
+
 	writer := options.ReportWriter
 	if options.Quiet {
 		writer = io.Discard
@@ -275,6 +286,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		outputFormat:                            options.OutputFormat,
 		additionalTags:                          options.AdditionalTags,
 		signaturePolicyPath:                     options.SignaturePolicyPath,
+		sourcePolicy:                            srcPolicy,
 		skipUnusedStages:                        options.SkipUnusedStages,
 		systemContext:                           options.SystemContext,
 		log:                                     options.Log,

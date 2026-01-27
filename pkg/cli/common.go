@@ -130,6 +130,7 @@ type BudResults struct {
 	SourceDateEpoch     string
 	RewriteTimestamp    bool
 	CreatedAnnotation   bool
+	SourcePolicyFile    string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -314,6 +315,7 @@ newer:   only pull base and SBOM scanner images when newer images exist on the r
 	if err := fs.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking the signature-policy flag as hidden: %v", err))
 	}
+	fs.StringVar(&flags.SourcePolicyFile, "source-policy-file", "", "`pathname` of source policy file for controlling source references during build")
 	fs.BoolVar(&flags.SkipUnusedStages, "skip-unused-stages", true, "skips stages in multi-stage builds which do not affect the final target")
 	sourceDateEpochUsageDefault := ", defaults to current time"
 	if v := os.Getenv(internal.SourceDateEpochName); v != "" {
@@ -383,6 +385,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["secret"] = commonComp.AutocompleteNone
 	flagCompletion["sign-by"] = commonComp.AutocompleteNone
 	flagCompletion["signature-policy"] = commonComp.AutocompleteNone
+	flagCompletion["source-policy-file"] = commonComp.AutocompleteDefault
 	flagCompletion["ssh"] = commonComp.AutocompleteNone
 	flagCompletion["source-date-epoch"] = commonComp.AutocompleteNone
 	flagCompletion["tag"] = commonComp.AutocompleteNone
