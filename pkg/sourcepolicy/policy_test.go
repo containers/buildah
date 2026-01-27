@@ -317,7 +317,8 @@ func TestEvaluate(t *testing.T) {
 					{
 						"action": "DENY",
 						"selector": {
-							"identifier": "docker-image://docker.io/library/alpine:latest"
+							"identifier": "docker-image://docker.io/library/alpine:latest",
+							"matchType": "EXACT"
 						}
 					}
 				]
@@ -333,7 +334,8 @@ func TestEvaluate(t *testing.T) {
 					{
 						"action": "DENY",
 						"selector": {
-							"identifier": "docker-image://docker.io/library/ubuntu:latest"
+							"identifier": "docker-image://docker.io/library/ubuntu:latest",
+							"matchType": "EXACT"
 						}
 					}
 				]
@@ -348,7 +350,8 @@ func TestEvaluate(t *testing.T) {
 					{
 						"action": "CONVERT",
 						"selector": {
-							"identifier": "docker-image://docker.io/library/alpine:latest"
+							"identifier": "docker-image://docker.io/library/alpine:latest",
+							"matchType": "EXACT"
 						},
 						"updates": {
 							"identifier": "docker-image://docker.io/library/alpine:latest@sha256:abc123"

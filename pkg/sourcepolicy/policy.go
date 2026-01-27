@@ -204,7 +204,7 @@ func (p *Policy) Evaluate(sourceIdentifier string) (Decision, bool, error) {
 func (r *Rule) Matches(sourceIdentifier string) (bool, error) {
 	matchType := r.Selector.MatchType
 	if matchType == "" {
-		matchType = MatchTypeExact
+		matchType = MatchTypeWildcard
 	}
 
 	switch matchType {
