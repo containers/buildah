@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"go.podman.io/image/v5/docker/reference"
 )
 
 // Action represents the action to take when a rule matches.
@@ -282,26 +284,14 @@ func normalizeImageRef(ref string) string {
 		return ref
 	}
 
-	// Split into registry/repo:tag components
-	parts := strings.SplitN(ref, "/", 2)
-
-	// Check if first part looks like a registry (contains . or :, or is localhost)
-	hasRegistry := len(parts) == 2 && (strings.Contains(parts[0], ".") ||
-		strings.Contains(parts[0], ":") ||
-		parts[0] == "localhost")
-
-	if !hasRegistry {
-		// Add docker.io as default registry
-		if len(parts) == 1 {
-			// Single name like "alpine" or "alpine:3.18"
-			ref = "docker.io/library/" + ref
-		} else {
-			// Name with one slash like "myuser/myimage" (user namespace)
-			ref = "docker.io/" + ref
-		}
+	// Use go.podman.io/image/v5/docker/reference for proper normalization
+	named, err := reference.ParseNormalizedNamed(ref)
+	if err != nil {
+		// If parsing fails, return the original reference
+		return ref
 	}
 
-	return ref
+	return named.String()
 }
 
 // ExtractImageRef extracts the image reference from a BuildKit-style source identifier.

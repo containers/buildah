@@ -620,9 +620,9 @@ func TestImageSourceIdentifier(t *testing.T) {
 		// Scratch (special case)
 		{"scratch", "docker-image://scratch"},
 
-		// With digest
-		{"alpine@sha256:abc123", "docker-image://docker.io/library/alpine@sha256:abc123"},
-		{"docker.io/library/alpine@sha256:abc123", "docker-image://docker.io/library/alpine@sha256:abc123"},
+		// With digest (using valid 64-character hex digests)
+		{"alpine@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "docker-image://docker.io/library/alpine@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+		{"docker.io/library/alpine@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "docker-image://docker.io/library/alpine@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
 	}
 
 	for _, tt := range tests {
