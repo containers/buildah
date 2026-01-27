@@ -1205,6 +1205,11 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 	stage := s.stage
 	ib := stage.Builder
 	checkForLayers := s.executor.layers && s.executor.useCache
+	// When --cache-stages is used, disable cache lookup to ensure a fresh build.
+	// Subsequent builds without --cache-stages still can use these intermediate images as cache.
+	if s.executor.cacheStages {
+		checkForLayers = false
+	}
 	moreStages := s.index < len(s.stages)-1
 	lastStage := !moreStages
 	onlyBaseImage := false

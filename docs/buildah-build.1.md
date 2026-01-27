@@ -150,8 +150,10 @@ Preserve intermediate stage images instead of removing them after the build comp
 This option keeps those images, which can be useful for debugging multi-stage builds or
 for reusing intermediate stages in subsequent builds.
 
-Note: This option cannot be used together with `--layers`. Use `--layers` for build caching
-or `--cache-stages` for preserving stage artifacts, but not both.
+When `--cache-stages` is used, cache lookup is disabled to ensure a fresh build every time.
+This means the build will not reuse cached intermediate images from previous builds. On the
+other hand when `--cache-stages` is used with `--layers` in a first build, subsequent builds without
+`--cache-stages` but with `--layers` can still use the preserved intermediate layers as cache.
 
 When combined with `--stage-labels`, intermediate images will include metadata labels
 for easier identification and management.
@@ -613,8 +615,6 @@ Cache intermediate images during the build process (Default is `false`).
 
 Note: You can also override the default value of layers by setting the BUILDAH\_LAYERS
 environment variable. `export BUILDAH_LAYERS=true`
-
-This option cannot be used together with `--cache-stages`.
 
 **--logfile** *filename*
 

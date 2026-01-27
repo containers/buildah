@@ -9245,14 +9245,6 @@ EOF
   expect_output --substring "writing build ID to file"
 }
 
-@test "bud with --layers and --cache-stages should error" {
-  _prefetch alpine
-  target="layers-cache-stages-error-test-$(safename)"
-
-  run_buildah 125 build $WITH_POLICY_JSON --layers --cache-stages -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
-  expect_output --substring "'layers' and 'cache-stages' cannot be used together"
-}
-
 @test "bud with --cache-stages on single-stage Dockerfile should not create intermediate images" {
   _prefetch alpine
   target="single-stage-test-$(safename)"
@@ -9571,3 +9563,60 @@ EOF
   run_buildah rmi --all
 }
 
+@test "bud with --layers --cache-stages stores labeled layers and subsequent --layers build reuses them" {
+  _prefetch alpine
+  target="cache-reuse-test-$(safename)"
+  build_id_file="${TEST_SCRATCH_DIR}/cache-reuse-build-id.txt"
+
+  run_buildah build $WITH_POLICY_JSON --layers --cache-stages --stage-labels --build-id-file ${build_id_file} -t ${target}-first -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+
+  first_build_id=$(cat ${build_id_file})
+
+  # Get all intermediate layers from first build and store their image IDs and build IDs
+  run_buildah images -a
+  all_intermediate_layers_first=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  # Create associative array: image_id -> build_id
+  declare -A first_build_image_to_build_id
+  for image_id in $all_intermediate_layers_first; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+    build_id_label="$output"
+    if [[ -n "$build_id_label" ]]; then
+      first_build_image_to_build_id[$image_id]="$build_id_label"
+      assert "$build_id_label" == "$first_build_id" "all intermediate layers from first build should have build ID: $first_build_id"
+    fi
+  done
+
+  first_intermediate_count=$(echo "$all_intermediate_layers_first" | wc -w)
+  assert "$first_intermediate_count" -gt 0 "first build should create intermediate layers"
+
+  # Remove the final tagged image but keep all intermediate layers for cache
+  run_buildah rmi ${target}-first
+
+  # Second should reuse the layers created by first build (cache hit not creating more)
+  run_buildah build $WITH_POLICY_JSON --layers -t ${target}-second -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+
+  expect_output --substring "Using cache"
+
+  run_buildah images -a
+  all_intermediate_layers_second=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  # Verify that intermediate layers with matching image IDs have matching build IDs
+  cached_layers_count=0
+  for image_id in $all_intermediate_layers_second; do
+    if [[ -n "${first_build_image_to_build_id[$image_id]}" ]]; then
+      cached_layers_count=$((cached_layers_count + 1))
+
+      run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+      current_build_id="$output"
+      expected_build_id="${first_build_image_to_build_id[$image_id]}"
+
+      assert "$current_build_id" == "$expected_build_id" "image $image_id reused from cache must have same build ID: $expected_build_id"
+    fi
+  done
+  
+  # COPY --from=... layers are not reused
+  assert "$cached_layers_count" -eq 3 "intermediate layers should be reused from cache (have matching image IDs)"
+
+  run_buildah rmi --all
+}
