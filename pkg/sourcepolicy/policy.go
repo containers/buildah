@@ -4,7 +4,7 @@
 // Source policies allow users to:
 //   - Pin base image tags to specific digests at build time
 //   - Deny specific sources from being used
-//   - Transform source references without modifying Dockerfiles
+//   - Transform source references without modifying Containerfiles or Dockerfiles
 //
 // The policy file format is compatible with BuildKit's source policy JSON schema.
 package sourcepolicy
