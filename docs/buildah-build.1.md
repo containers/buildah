@@ -1063,11 +1063,16 @@ The policy file is a JSON document containing an array of rules.  Each rule has:
   - **CONVERT**: Transform the source to a different reference specified in `updates`.
 - **selector**: Specifies which sources the rule applies to.
   - **identifier**: The source identifier to match (e.g., `docker-image://docker.io/library/alpine:latest`).
-  - **matchType**: How to match the identifier.  Valid types are `EXACT` (default) and `WILDCARD` (supports `*` and `?` glob patterns).
+  - **matchType**: How to match the identifier.  Valid types are `EXACT` and `WILDCARD` (supports `*` and `?` glob patterns).  Defaults to `WILDCARD` if not specified.
 - **updates**: For `CONVERT` actions, specifies the replacement identifier.
 
 Rules are evaluated in order; the first matching rule wins.  If no rule matches,
 the source is allowed by default.
+
+Note: Source policy CONVERT rules are processed after **--build-context** substitutions
+but before any substitutions specified in **containers-registries.conf(5)**.  This provides
+multiple ways to override which base image is used for a particular stage, in order of
+precedence: `--build-context`, then source policy, then registries.conf.
 
 Example policy file that pins alpine:latest to a specific digest:
 ```json
