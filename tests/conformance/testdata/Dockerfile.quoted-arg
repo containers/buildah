@@ -1,0 +1,12 @@
+FROM quay.io/libpod/centos:7 AS lower
+
+ARG quoted="words with quotes"
+ARG expanded=$quoted
+
+RUN printf "%q\n" lower: $quoted >> /arg-expansion.txt
+RUN printf "%q\n" lower: $expanded >> /arg-expansion.txt
+
+FROM lower AS upper
+
+RUN printf "%q\n" upper: $quoted >> /arg-expansion.txt
+RUN printf "%q\n" upper: $expanded >> /arg-expansion.txt
