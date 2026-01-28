@@ -109,6 +109,17 @@ type Secret struct {
 	SourceType string
 }
 
+func (s Secret) ResolveValue() ([]byte, error) {
+	switch s.SourceType {
+	case "env":
+		return []byte(os.Getenv(s.Source)), nil
+	case "file":
+		return os.ReadFile(s.Source)
+	default:
+		return nil, errors.New("invalid secret type")
+	}
+}
+
 // BuildOutputOptions contains the the outcome of parsing the value of a build --output flag
 // Deprecated: This structure is now internal
 type BuildOutputOption struct {
