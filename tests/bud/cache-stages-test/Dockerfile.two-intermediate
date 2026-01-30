@@ -1,0 +1,10 @@
+FROM alpine AS layer1
+RUN echo "layer1" > /file1.txt
+
+FROM alpine AS layer2
+RUN echo "layer2" > /file2.txt
+
+FROM alpine
+COPY --from=layer1 /file1.txt /app/file1.txt
+COPY --from=layer2 /file2.txt /app/file2.txt
+RUN cat /app/file1.txt /app/file2.txt
