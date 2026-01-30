@@ -1,0 +1,154 @@
+name: 'Open downstream PRs'
+
+on:
+  pull_request_target:
+    branches:
+      - 'main'
+    paths:
+      - '**/*.go'
+      - '!vendor/**'
+      - '!**/*_test.go'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout Self'
+        uses: actions/checkout@v5
+        # Because we use pull_request_target, this checks out the code from the default branch, NOT the PR branch
+
+      - name: 'Setup Go'
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - name: 'Checkout forked podman'
+        uses: actions/checkout@v5
+        with:
+          repository: 'podmanbot/podman' # The target repository
+          path: 'podman'                 # Checkout into a sub-directory
+          fetch-depth: '1'
+          token: ${{ secrets.VENDOR_TOKEN_PODMANBOT }} # We need to push into podmanbot/podman
+
+      - name: 'Vendor Code from this repo to podman'
+        run: |
+          # Get the current commit SHA from the PR
+          COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "Using commit SHA: $COMMIT_SHA"
+
+          cd podman
+          # Create a unique branch name based on the buildah PR number
+          BRANCH_NAME="sync/buildah-${{ github.event.pull_request.number }}"
+          git switch -c $BRANCH_NAME
+          git remote add upstream https://github.com/containers/podman.git
+          git fetch upstream
+          git rebase upstream/main
+
+          # Function to update module and verify
+          update_module() {
+            local module=$1
+            echo "Updating module: $module"
+            go mod edit -replace ${module}=github.com/${{ github.event.pull_request.head.repo.full_name }}@${COMMIT_SHA}
+            GOWORK=off go mod tidy
+          }
+
+          # Update buildah module
+          update_module "github.com/containers/buildah"
+          GOWORK=off go mod vendor
+          GOWORK=off go mod verify
+
+          echo "Updated go.mod:"
+          cat go.mod
+
+      - name: 'Commit and Push to podman'
+        run: |
+          cd podman
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH_NAME="sync/buildah-${{ github.event.pull_request.number }}"
+          git switch $BRANCH_NAME
+
+          # Check if there are any changes to commit
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to commit, skipping..."
+            echo "SKIP_PR=true" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          git add .
+          git commit -m "dnm: Vendor changes from containers/buildah#${{ github.event.pull_request.number }}"
+
+          # Force push to update the branch if the action re-runs on 'synchronize'
+          git push origin $BRANCH_NAME --force
+
+          # Verify the branch exists remotely
+          if ! git ls-remote --heads origin $BRANCH_NAME | grep -q $BRANCH_NAME; then
+            echo "Failed to push branch $BRANCH_NAME"
+            exit 1
+          fi
+
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: 'Create or Update Pull Request in Podman'
+        id: create_pr
+        if: env.SKIP_PR != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.VENDOR_TOKEN_PODMANBOT }}
+          SELF_REPO_PR_NUMBER: ${{ github.event.pull_request.number }}
+          SELF_REPO_PR_URL: ${{ github.event.pull_request.html_url }}
+          SELF_REPO_PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          cd podman
+
+          BRANCH_NAME="sync/buildah-${{ github.event.pull_request.number }}"
+          PR_TITLE="Sync: ${SELF_REPO_PR_TITLE}"
+          PR_BODY="This PR automatically vendors changes from [buildah#${SELF_REPO_PR_NUMBER}](${SELF_REPO_PR_URL}).
+
+          This PR is intended solely for testing purposes and should not be merged. Ideally, upstream maintainers ( @containers/buildah-maintainers )  should review any failing tests here and close this PR once the upstream PR is merged. Maintainers of this repository do not need to take any action, but may review the changes and notify upstream maintainers of any breaking issues if they wish.
+
+          This PR is generated from a github actions workflow, please report any issues on https://github.com/containers/buildah"
+
+          # Check if PR already exists for this branch
+          echo "Searching for existing PR with branch: $BRANCH_NAME"
+
+          EXISTING_PR_URL=$(gh pr list --repo containers/podman --head "$BRANCH_NAME" --json url --jq '.[0].url // empty' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_PR_URL" ]; then
+            echo "Found existing PR: $EXISTING_PR_URL"
+            # Update existing PR title and body
+            gh pr edit $EXISTING_PR_URL \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY"
+            echo "Updated existing PR: $EXISTING_PR_URL"
+            echo "pr_url=$EXISTING_PR_URL" >> $GITHUB_OUTPUT
+            echo "pr_action=updated" >> $GITHUB_OUTPUT
+          else
+            # Create new PR
+            echo "Creating new PR with head: podmanbot:$BRANCH_NAME"
+            NEW_PR_URL=$(gh pr create \
+              --repo containers/podman \
+              --draft \
+              --base main \
+              --head "podmanbot:$BRANCH_NAME" \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY")
+            echo "Created new PR: $NEW_PR_URL"
+            echo "pr_url=$NEW_PR_URL" >> $GITHUB_OUTPUT
+            echo "pr_action=created" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 'Comment on buildah PR with the link to podman PR'
+        if: env.SKIP_PR != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.VENDOR_TOKEN_PODMANBOT }}
+          SELF_REPO_PR_NUMBER: ${{ github.event.pull_request.number }}
+          TARGET_REPO_PR_URL: ${{ steps.create_pr.outputs.pr_url }}
+          PR_ACTION: ${{ steps.create_pr.outputs.pr_action }}
+        run: |
+          if [ "${{ env.PR_ACTION }}" = "created" ]; then
+            COMMENT_BODY="✅ A new PR has been created in podman to vendor these changes: **${{ env.TARGET_REPO_PR_URL }}**"
+            gh pr comment ${{ env.SELF_REPO_PR_NUMBER }} \
+              --repo ${{ github.repository }} \
+              --body "$COMMENT_BODY"
+          fi
