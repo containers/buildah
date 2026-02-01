@@ -34,9 +34,9 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
-	go.podman.io/common v0.66.2-0.20260123202709-b5801a635dfa
-	go.podman.io/image/v5 v5.38.1-0.20260123202709-b5801a635dfa
-	go.podman.io/storage v1.61.1-0.20260123202709-b5801a635dfa
+	go.podman.io/common v0.66.2-0.20260130150631-28c83ab6f016
+	go.podman.io/image/v5 v5.38.1-0.20260130150631-28c83ab6f016
+	go.podman.io/storage v1.61.1-0.20260130150631-28c83ab6f016
 	golang.org/x/crypto v0.47.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.40.0
@@ -63,7 +63,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.2.3 // indirect
 	github.com/containernetworking/plugins v1.9.0 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
-	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/disiqueira/gotree/v3 v3.0.2 // indirect
@@ -94,8 +94,8 @@ require (
 	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
-	github.com/moby/moby/api v1.52.0 // indirect
-	github.com/moby/moby/client v0.2.1 // indirect
+	github.com/moby/moby/api v1.53.0 // indirect
+	github.com/moby/moby/client v0.2.2 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
