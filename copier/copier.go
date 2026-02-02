@@ -1532,7 +1532,17 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 					}
 				}
 
-				if err := copierHandlerGetOne(info, "", name, item, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
+				// If following link, pass symlink target for
+				// the link to be generated at the destination
+				var symlinkTarget string
+				if req.GetOptions.NoDerefSymlinks && info.Mode()&os.ModeType == os.ModeSymlink {
+					symlinkTarget, err = os.Readlink(item)
+					if err != nil {
+						return err
+					}
+				}
+
+				if err := copierHandlerGetOne(info, symlinkTarget, name, item, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
 					if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
 						continue
 					}
