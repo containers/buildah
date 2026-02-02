@@ -1,12 +1,10 @@
 package stdcopy
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"sync"
 )
 
 // StdType is the type of standard stream
@@ -14,16 +12,13 @@ import (
 type StdType byte
 
 const (
-	// Stdin represents standard input stream type.
-	Stdin StdType = iota
-	// Stdout represents standard output stream type.
-	Stdout
-	// Stderr represents standard error steam type.
-	Stderr
-	// Systemerr represents errors originating from the system that make it
-	// into the multiplexed stream.
-	Systemerr
+	Stdin     StdType = 0 // Stdin represents standard input stream. It is present for completeness and should NOT be used. When reading the stream with [StdCopy] it is output on [Stdout].
+	Stdout    StdType = 1 // Stdout represents standard output stream.
+	Stderr    StdType = 2 // Stderr represents standard error steam.
+	Systemerr StdType = 3 // Systemerr represents errors originating from the system. When reading the stream with [StdCopy] it is returned as an error.
+)
 
+const (
 	stdWriterPrefixLen = 8
 	stdWriterFdIndex   = 0
 	stdWriterSizeIndex = 4
@@ -31,67 +26,28 @@ const (
 	startingBufLen = 32*1024 + stdWriterPrefixLen + 1
 )
 
-var bufPool = &sync.Pool{New: func() interface{} { return bytes.NewBuffer(nil) }}
-
-// stdWriter is wrapper of io.Writer with extra customized info.
-type stdWriter struct {
-	io.Writer
-	prefix byte
-}
-
-// Write sends the buffer to the underneath writer.
-// It inserts the prefix header before the buffer,
-// so stdcopy.StdCopy knows where to multiplex the output.
-// It makes stdWriter to implement io.Writer.
-func (w *stdWriter) Write(p []byte) (int, error) {
-	if w == nil || w.Writer == nil {
-		return 0, errors.New("writer not instantiated")
-	}
-	if p == nil {
-		return 0, nil
-	}
-
-	header := [stdWriterPrefixLen]byte{stdWriterFdIndex: w.prefix}
-	binary.BigEndian.PutUint32(header[stdWriterSizeIndex:], uint32(len(p)))
-	buf := bufPool.Get().(*bytes.Buffer)
-	buf.Write(header[:])
-	buf.Write(p)
-
-	n, err := w.Writer.Write(buf.Bytes())
-	n -= stdWriterPrefixLen
-	if n < 0 {
-		n = 0
-	}
-
-	buf.Reset()
-	bufPool.Put(buf)
-	return n, err
-}
-
-// NewStdWriter instantiates a new Writer.
-// Everything written to it will be encapsulated using a custom format,
-// and written to the underlying `w` stream.
-// This allows multiple write streams (e.g. stdout and stderr) to be muxed into a single connection.
-// `t` indicates the id of the stream to encapsulate.
-// It can be stdcopy.Stdin, stdcopy.Stdout, stdcopy.Stderr.
-func NewStdWriter(w io.Writer, t StdType) io.Writer {
-	return &stdWriter{
-		Writer: w,
-		prefix: byte(t),
-	}
-}
-
-// StdCopy is a modified version of io.Copy.
+// StdCopy is a modified version of [io.Copy] to de-multiplex messages
+// from "multiplexedSource" and copy them to destination streams
+// "destOut" and "destErr".
 //
-// StdCopy will demultiplex `src`, assuming that it contains two streams,
-// previously multiplexed together using a StdWriter instance.
-// As it reads from `src`, StdCopy will write to `dstout` and `dsterr`.
+// StdCopy demultiplexes "multiplexedSource", assuming that it contains
+// two streams, previously multiplexed using a writer created with
+// [NewStdWriter].
 //
-// StdCopy will read until it hits EOF on `src`. It will then return a nil error.
-// In other words: if `err` is non nil, it indicates a real underlying error.
+// As it reads from "multiplexedSource", StdCopy writes [Stdout] messages
+// to "destOut", and [Stderr] message to "destErr]. For backward-compatibility,
+// [Stdin] messages are output to "destOut". The [Systemerr] stream provides
+// errors produced by the daemon. It is returned as an error, and terminates
+// processing the stream.
 //
-// `written` will hold the total number of bytes written to `dstout` and `dsterr`.
-func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
+// StdCopy it reads until it hits [io.EOF] on "multiplexedSource", after
+// which it returns a nil error. In other words: any error returned indicates
+// a real underlying error, which may be when an unknown [StdType] stream
+// is received.
+//
+// The "written" return holds the total number of bytes written to "destOut"
+// and "destErr" combined.
+func StdCopy(destOut, destErr io.Writer, multiplexedSource io.Reader) (written int64, _ error) {
 	var (
 		buf       = make([]byte, startingBufLen)
 		bufLen    = len(buf)
@@ -105,7 +61,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
 		// Make sure we have at least a full header
 		for nr < stdWriterPrefixLen {
 			var nr2 int
-			nr2, err = src.Read(buf[nr:])
+			nr2, err = multiplexedSource.Read(buf[nr:])
 			nr += nr2
 			if errors.Is(err, io.EOF) {
 				if nr < stdWriterPrefixLen {
@@ -118,24 +74,24 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
 			}
 		}
 
-		stream := StdType(buf[stdWriterFdIndex])
 		// Check the first byte to know where to write
+		stream := StdType(buf[stdWriterFdIndex])
 		switch stream {
 		case Stdin:
 			fallthrough
 		case Stdout:
 			// Write on stdout
-			out = dstout
+			out = destOut
 		case Stderr:
 			// Write on stderr
-			out = dsterr
+			out = destErr
 		case Systemerr:
 			// If we're on Systemerr, we won't write anywhere.
 			// NB: if this code changes later, make sure you don't try to write
 			// to outstream if Systemerr is the stream
 			out = nil
 		default:
-			return 0, fmt.Errorf("Unrecognized input header: %d", buf[stdWriterFdIndex])
+			return 0, fmt.Errorf("unrecognized stream: %d", stream)
 		}
 
 		// Retrieve the size of the frame
@@ -151,7 +107,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
 		// While the amount of bytes read is less than the size of the frame + header, we keep reading
 		for nr < frameSize+stdWriterPrefixLen {
 			var nr2 int
-			nr2, err = src.Read(buf[nr:])
+			nr2, err = multiplexedSource.Read(buf[nr:])
 			nr += nr2
 			if errors.Is(err, io.EOF) {
 				if nr < frameSize+stdWriterPrefixLen {
