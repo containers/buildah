@@ -2,6 +2,14 @@
 
 # Changelog
 
+## Unreleased
+
+    Add support for Dockerfile/Containerfile ADD --unpack flag
+    Implements BuildKit-compatible --unpack[=true|false] flag for ADD instruction
+    --unpack=true enables extraction of remote archives (HTTP/HTTPS URLs)
+    --unpack=false disables automatic extraction of local archives
+    Default behavior (without flag) remains unchanged for backward compatibility
+
 ## v1.42.0 (2025-10-17)
 
     Bump to storage v1.61.0, image v5.38.0, common v0.66.0
