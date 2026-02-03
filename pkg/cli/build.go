@@ -454,6 +454,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		Target:                  iopts.Target,
 		Timestamp:               timestamp,
 		TransientMounts:         iopts.Volumes,
+		TransientRunMounts:      iopts.TransientRunMounts,
 		UnsetEnvs:               iopts.UnsetEnvs,
 		UnsetLabels:             iopts.UnsetLabels,
 		UnsetAnnotations:        iopts.UnsetAnnotations,
