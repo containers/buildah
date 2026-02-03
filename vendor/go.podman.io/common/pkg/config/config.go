@@ -21,8 +21,6 @@ import (
 )
 
 const (
-	// userOverrideContainersConfig holds the containers config path overridden by the rootless user.
-	userOverrideContainersConfig = ".config/" + _configPath
 	// Token prefix for looking for helper binary under $BINDIR.
 	bindirPrefix = "$BINDIR"
 )
