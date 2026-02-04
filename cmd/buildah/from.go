@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.podman.io/common/pkg/auth"
+	"go.podman.io/image/v5/types"
 )
 
 type fromReply struct {
@@ -109,7 +110,7 @@ newer: only pull images when newer images exist on the registry than those in th
 	rootCmd.AddCommand(fromCommand)
 }
 
-func onBuild(builder *buildah.Builder, quiet bool) error {
+func onBuild(builder *buildah.Builder, systemContext *types.SystemContext, quiet bool) error {
 	ctr := 0
 	for _, onBuildSpec := range builder.OnBuild() {
 		ctr = ctr + 1
@@ -128,7 +129,7 @@ func onBuild(builder *buildah.Builder, quiet bool) error {
 				dest = args[size-1]
 				args = args[:size-1]
 			}
-			if err := builder.Add(dest, command == "ADD", buildah.AddAndCopyOptions{}, args...); err != nil {
+			if err := builder.Add(dest, command == "ADD", buildah.AddAndCopyOptions{BaseTLSConfig: systemContext.BaseTLSConfig}, args...); err != nil {
 				return err
 			}
 		case "ANNOTATION":
@@ -306,7 +307,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
-	if err := onBuild(builder, iopts.quiet); err != nil {
+	if err := onBuild(builder, systemContext, iopts.quiet); err != nil {
 		return err
 	}
 

@@ -592,6 +592,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			// much more generic.
 			CertPath:              s.systemContext.DockerCertPath,
 			InsecureSkipTLSVerify: s.systemContext.DockerInsecureSkipTLSVerify,
+			BaseTLSConfig:         s.systemContext.BaseTLSConfig,
 			MaxRetries:            s.executor.maxPullPushRetries,
 			RetryDelay:            s.executor.retryPullPushDelay,
 			Parents:               copy.Parents,
