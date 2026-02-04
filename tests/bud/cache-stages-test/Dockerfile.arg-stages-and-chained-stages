@@ -1,0 +1,13 @@
+ARG FIRST_STAGE=first-stage
+ARG SECOND_STAGE=second-stage
+
+FROM alpine AS ${FIRST_STAGE}
+RUN echo "first-stage content" > /output.txt
+
+FROM ${FIRST_STAGE} AS ${SECOND_STAGE}
+RUN echo "second-stage content" >> /output.txt
+
+FROM alpine
+ARG SECOND_STAGE=second-stage
+COPY --from=${SECOND_STAGE} /output.txt /app/output.txt
+RUN cat /app/output.txt

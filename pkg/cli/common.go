@@ -26,8 +26,10 @@ import (
 
 // LayerResults represents the results of the layer flags
 type LayerResults struct {
-	ForceRm bool
-	Layers  bool
+	CacheStages bool
+	ForceRm     bool
+	Layers      bool
+	StageLabels bool
 }
 
 // UserNSResults represents the results for the UserNS flags
@@ -59,6 +61,7 @@ type BudResults struct {
 	BuildArg            []string
 	BuildArgFile        []string
 	BuildContext        []string
+	BuildIDFile         string
 	CacheFrom           []string
 	CacheTo             []string
 	CacheTTL            string
@@ -220,6 +223,8 @@ func GetLayerFlags(flags *LayerResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
 	fs.BoolVar(&flags.ForceRm, "force-rm", false, "always remove intermediate containers after a build, even if the build is unsuccessful.")
 	fs.BoolVar(&flags.Layers, "layers", UseLayers(), "use intermediate layers during build. Use BUILDAH_LAYERS environment variable to override.")
+	fs.BoolVar(&flags.CacheStages, "cache-stages", false, "preserve intermediate stage images.")
+	fs.BoolVar(&flags.StageLabels, "stage-labels", false, "add metadata labels to intermediate stage images (requires --cache-stages).")
 	return fs
 }
 
@@ -257,6 +262,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Format, "format", DefaultFormat(), "`format` of the built image's manifest and metadata. Use BUILDAH_FORMAT environment variable to override.")
 	fs.StringVar(&flags.Iidfile, "iidfile", "", "`file` to write the image ID to")
 	fs.StringVar(&flags.IidfileRaw, "iidfile-raw", "", "`file` to write the image ID to (without algorithm prefix)")
+	fs.StringVar(&flags.BuildIDFile, "build-id-file", "", "`file` to write the build ID to")
 	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
 	fs.StringArrayVar(&flags.Label, "label", []string{}, "set metadata for an image (default [])")
 	fs.StringArrayVar(&flags.LayerLabel, "layer-label", []string{}, "set metadata for an intermediate image (default [])")
@@ -364,6 +370,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["ignorefile"] = commonComp.AutocompleteDefault
 	flagCompletion["iidfile"] = commonComp.AutocompleteDefault
 	flagCompletion["iidfile-raw"] = commonComp.AutocompleteDefault
+	flagCompletion["build-id-file"] = commonComp.AutocompleteDefault
 	flagCompletion["jobs"] = commonComp.AutocompleteNone
 	flagCompletion["label"] = commonComp.AutocompleteNone
 	flagCompletion["layer-label"] = commonComp.AutocompleteNone

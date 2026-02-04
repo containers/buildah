@@ -112,6 +112,13 @@ The value of `[name]` is matched with the following priority order:
 * Stage defined with AS [name] inside Containerfile
 * Image [name], either local or in a remote registry
 
+**--build-id-file** *BuildIDfile*
+
+Write a unique build ID (UUID) to the file. This build ID is generated once per
+build and is added to intermediate stage images as a label (`io.buildah.build.id`)
+when `--stage-labels` is enabled. This allows grouping all intermediate images
+from a single build together. This option requires `--stage-labels` to be enabled.
+
 **--cache-from**
 
 Repository to utilize as a potential list of cache sources. When specified, Buildah will try to look for
@@ -135,6 +142,21 @@ distributed cache mechanism pulls intermediate images from the remote registry i
 the intermediate image is stored in the image itself. Buildah's approach is similar to kaniko, which
 does not inflate the size of the original image with intermediate images.  Also, intermediate images can truly be
 kept distributed across one or more remote registries using Buildah's caching mechanism.
+
+**--cache-stages** *bool-value*
+
+Preserve intermediate stage images instead of removing them after the build completes
+(Default is `false`). By default, Buildah removes intermediate stage images to save space.
+This option keeps those images, which can be useful for debugging multi-stage builds or
+for reusing intermediate stages in subsequent builds.
+
+When `--cache-stages` is used, cache lookup is disabled to ensure a fresh build every time.
+This means the build will not reuse cached intermediate images from previous builds. On the
+other hand when `--cache-stages` is used with `--layers` in a first build, subsequent builds without
+`--cache-stages` but with `--layers` can still use the preserved intermediate layers as cache.
+
+When combined with `--stage-labels`, intermediate images will include metadata labels
+for easier identification and management.
 
 **--cache-to**
 
@@ -1136,6 +1158,21 @@ To later use the ssh agent, use the --mount flag in a `RUN` instruction within a
 
 `RUN --mount=type=secret,id=id mycmd`
 
+
+**--stage-labels** *bool-value*
+
+Add metadata labels to intermediate stage images (Default is `false`). This option
+requires `--cache-stages` to be enabled.
+
+When enabled, intermediate stage images will be labeled with:
+  - `io.buildah.stage.name`: The stage name (from `FROM ... AS name`)
+  - `io.buildah.stage.base`: The base image used by this stage
+  - `io.buildah.stage.parent_name`: The parent stage name (if this stage uses another stage as base)
+  - `io.buildah.build.id`: A unique build ID shared across all stages in a single build
+
+These labels make it easier to identify, query, and manage intermediate images from
+multi-stage builds.
+
 **--stdin**
 
 Pass stdin into the RUN containers. Sometimes commands being RUN within a Containerfile
@@ -1468,6 +1505,10 @@ buildah build -v /var/lib/dnf:/var/lib/dnf:O -t imageName .
 
 buildah build --layers -t imageName .
 
+buildah build --cache-stages --stage-labels -t imageName .
+
+buildah build --cache-stages --stage-labels --build-id-file /tmp/build-id.txt -t imageName .
+
 buildah build --no-cache -t imageName .
 
 buildah build -f Containerfile --layers --force-rm -t imageName .
@@ -1529,6 +1570,21 @@ buildah build --output type=local,dest=out .
 buildah build --output type=tar,dest=out.tar .
 
 buildah build -o - . > out.tar
+
+### Preserving and querying intermediate stage images
+
+Build a multi-stage image while preserving intermediate stages with metadata labels:
+
+buildah build --cache-stages --stage-labels --build-id-file /tmp/build-id.txt -t myapp .
+
+Query intermediate images from a specific build using the build ID:
+
+BUILD_ID=$(cat /tmp/build-id.txt)
+buildah images --filter "label=io.buildah.build.id=${BUILD_ID}"
+
+Find an intermediate image for a specific stage name:
+
+buildah images --filter "label=io.buildah.stage.name=builder"
 
 ### Building an image using a URL
 
