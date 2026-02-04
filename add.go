@@ -22,8 +22,8 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal/tmpdir"
-	"github.com/containers/buildah/pkg/download"
 	"github.com/containers/buildah/pkg/chrootuser"
+	"github.com/containers/buildah/pkg/download"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/sys/userns"
@@ -619,7 +619,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					defer wg.Done()
 					defer pipeWriter.Close()
 					var cloneDir, subdir string
-					cloneDir, subdir, getErr = download.TempDirForURL(tmpdir.GetTempDir(), "", src)
+					cloneDir, subdir, getErr = download.TempDirForURL(tmpdir.GetTempDir(), "", src, options.BaseTLSConfig)
 					if getErr != nil {
 						return
 					}
