@@ -191,6 +191,9 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 			if err != nil {
 				return nil, fmt.Errorf("error: Determining base image: %v", err)
 			}
+			if b.After != "" {
+				return nil, fmt.Errorf("the --after flag in FROM is not supported by the dockerclient executor")
+			}
 			if prereq := e.Named[from]; prereq != nil {
 				b, ok := stages.ByName(from)
 				if !ok {
@@ -267,6 +270,9 @@ func (e *ClientExecutor) Prepare(b *imagebuilder.Builder, node *parser.Node, fro
 		from, err = b.From(node)
 		if err != nil {
 			return err
+		}
+		if b.After != "" {
+			return fmt.Errorf("the --after flag in FROM is not supported by the dockerclient executor")
 		}
 	}
 
