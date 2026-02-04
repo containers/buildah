@@ -130,9 +130,6 @@ func SendRegistrationRequest(workloadConfig WorkloadConfig, diskEncryptionPassph
 		return err
 	}
 	parsedURL.Path = path.Join(parsedURL.Path, "/kbs/v0/register_workload")
-	if err != nil {
-		return err
-	}
 	url := parsedURL.String()
 	requestContentType := "application/json"
 	requestBody := bytes.NewReader(registrationRequestBytes)
