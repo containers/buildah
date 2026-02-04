@@ -3,6 +3,7 @@ package download
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -26,7 +27,9 @@ import (
 // build context (which may be empty or ".").  Removal of the temporary
 // directory is the responsibility of the caller.  If the string doesn't look
 // like a URL or "-", TempDirForURL returns empty strings and a nil error code.
-func TempDirForURL(dir, prefix, url string) (name string, subdir string, err error) {
+//
+// If baseTLSConfig is not nil, it may contain TLS _algorithm_ options (e.g. TLS version, cipher suites, “curves”, etc.).
+func TempDirForURL(dir, prefix, url string, baseTLSConfig *tls.Config) (name string, subdir string, err error) {
 	if !strings.HasPrefix(url, "http://") &&
 		!strings.HasPrefix(url, "https://") &&
 		!strings.HasPrefix(url, "git://") &&
@@ -64,7 +67,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 		subdir = path.Base(ghurl) + "-master"
 	}
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		err = downloadToDirectory(url, downloadDir)
+		err = downloadToDirectory(url, downloadDir, baseTLSConfig)
 		if err != nil {
 			if err2 := os.RemoveAll(name); err2 != nil {
 				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
@@ -153,9 +156,22 @@ func cloneToDirectory(url, dir string) ([]byte, string, error) {
 	return combinedOutput, gitSubdir, nil
 }
 
-func downloadToDirectory(url, dir string) error {
+func downloadToDirectory(url, dir string, baseTLSConfig *tls.Config) error {
 	logrus.Debugf("extracting %q to %q", url, dir)
-	resp, err := http.Get(url)
+	// nil means http.DefaultTransport.
+	// This variable must have type http.RoundTripper, not *http.Transport, to avoid https://go.dev/doc/faq#nil_error .
+	var transport http.RoundTripper
+	if baseTLSConfig != nil {
+		t := &http.Transport{
+			TLSClientConfig: baseTLSConfig,
+		}
+		defer t.CloseIdleConnections()
+		transport = t
+	}
+	client := &http.Client{
+		Transport: transport,
+	}
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
@@ -167,7 +183,7 @@ func downloadToDirectory(url, dir string) error {
 		return fmt.Errorf("no contents in %q", url)
 	}
 	if err := chrootarchive.Untar(resp.Body, dir, nil); err != nil {
-		resp1, err := http.Get(url)
+		resp1, err := client.Get(url)
 		if err != nil {
 			return err
 		}
