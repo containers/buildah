@@ -34,12 +34,20 @@ func (m measurementError) Error() string {
 	return fmt.Sprintf("generating measurement for attestation: %v", m.err)
 }
 
+func (m measurementError) Unwrap() error {
+	return m.err
+}
+
 type attestationError struct {
 	err error
 }
 
 func (a attestationError) Error() string {
 	return fmt.Sprintf("registering workload: %v", a.err)
+}
+
+func (a attestationError) Unwrap() error {
+	return a.err
 }
 
 type httpError struct {
@@ -64,7 +72,7 @@ func SendRegistrationRequest(workloadConfig WorkloadConfig, diskEncryptionPassph
 	measurement, err := GenerateMeasurement(workloadConfig, firmwareLibrary)
 	if err != nil {
 		if !ignoreAttestationErrors {
-			return &measurementError{err}
+			return measurementError{err}
 		}
 		logger.Warnf("generating measurement for attestation: %v", err)
 	}
@@ -145,16 +153,16 @@ func SendRegistrationRequest(workloadConfig WorkloadConfig, diskEncryptionPassph
 		switch resp.StatusCode {
 		default:
 			if !ignoreAttestationErrors {
-				return &attestationError{&httpError{resp.StatusCode}}
+				return attestationError{httpError{resp.StatusCode}}
 			}
-			logger.Warn(attestationError{&httpError{resp.StatusCode}}.Error())
+			logger.Warn(attestationError{httpError{resp.StatusCode}}.Error())
 		case http.StatusOK, http.StatusAccepted:
 			// great!
 		}
 	}
 	if err != nil {
 		if !ignoreAttestationErrors {
-			return &attestationError{err}
+			return attestationError{err}
 		}
 		logger.Warn(attestationError{err}.Error())
 	}
