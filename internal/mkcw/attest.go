@@ -3,6 +3,7 @@ package mkcw
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,7 +56,9 @@ func (h httpError) Error() string {
 
 // SendRegistrationRequest registers a workload with the specified decryption
 // passphrase with the service whose location is part of the WorkloadConfig.
-func SendRegistrationRequest(workloadConfig WorkloadConfig, diskEncryptionPassphrase, firmwareLibrary string, ignoreAttestationErrors bool, logger *logrus.Logger) error {
+//
+// If baseTLSConfig is not nil, it may contain TLS _algorithm_ options (e.g. TLS version, cipher suites, “curves”, etc.).
+func SendRegistrationRequest(workloadConfig WorkloadConfig, diskEncryptionPassphrase, firmwareLibrary string, ignoreAttestationErrors bool, baseTLSConfig *tls.Config, logger *logrus.Logger) error {
 	if workloadConfig.AttestationURL == "" {
 		return errors.New("attestation URL not provided")
 	}
@@ -133,8 +136,13 @@ func SendRegistrationRequest(workloadConfig WorkloadConfig, diskEncryptionPassph
 	url := parsedURL.String()
 	requestContentType := "application/json"
 	requestBody := bytes.NewReader(registrationRequestBytes)
-	defer http.DefaultClient.CloseIdleConnections()
-	resp, err := http.Post(url, requestContentType, requestBody)
+	client := http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: baseTLSConfig, // may be nil
+		},
+	}
+	defer client.CloseIdleConnections()
+	resp, err := client.Post(url, requestContentType, requestBody)
 	if resp != nil {
 		if resp.Body != nil {
 			resp.Body.Close()

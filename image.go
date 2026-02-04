@@ -173,7 +173,7 @@ func expectedDockerDiffIDs(image docker.V2Image) int {
 
 // Extract the container's whole filesystem as a filesystem image, wrapped
 // in LUKS-compatible encryption.
-func (i *containerImageRef) extractConfidentialWorkloadFS(options ConfidentialWorkloadOptions) (io.ReadCloser, error) {
+func (i *containerImageRef) extractConfidentialWorkloadFS(options ConfidentialWorkloadOptions, systemContext *types.SystemContext) (io.ReadCloser, error) {
 	var image v1.Image
 	if err := json.Unmarshal(i.oconfig, &image); err != nil {
 		return nil, fmt.Errorf("recreating OCI configuration for %q: %w", i.containerID, err)
@@ -211,6 +211,9 @@ func (i *containerImageRef) extractConfidentialWorkloadFS(options ConfidentialWo
 		FirmwareLibrary:          options.FirmwareLibrary,
 		GraphOptions:             i.store.GraphOptions(),
 		ExtraImageContent:        i.extraImageContent,
+	}
+	if systemContext != nil {
+		archiveOptions.BaseTLSConfig = systemContext.BaseTLSConfig
 	}
 	rc, _, err := mkcw.Archive(mountPoint, &image, archiveOptions)
 	if err != nil {
@@ -852,7 +855,7 @@ func (i containerImageRef) filterExclusionsByImage(ctx context.Context, exclusio
 	return paths, nil
 }
 
-func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemContext) (src types.ImageSource, err error) {
+func (i *containerImageRef) NewImageSource(ctx context.Context, systemContext *types.SystemContext) (src types.ImageSource, err error) {
 	// These maps will let us check if a layer ID is part of one group or another.
 	parentLayerIDs := make(map[string]bool)
 	apiLayerIDs := make(map[string]bool)
@@ -1019,7 +1022,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 		var layerExclusions []copier.ConditionalRemovePath
 		if i.confidentialWorkload.Convert {
 			// Convert the root filesystem into an encrypted disk image.
-			rc, err = i.extractConfidentialWorkloadFS(i.confidentialWorkload)
+			rc, err = i.extractConfidentialWorkloadFS(i.confidentialWorkload, systemContext)
 			if err != nil {
 				return nil, err
 			}
