@@ -119,7 +119,24 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 
 		if strings.HasPrefix(dfile, "http://") || strings.HasPrefix(dfile, "https://") {
 			logger.Debugf("reading remote Dockerfile %q", dfile)
-			resp, err := http.Get(dfile)
+			// nil means http.DefaultTransport.
+			// This variable must have type http.RoundTripper, not *http.Transport, to avoid https://go.dev/doc/faq#nil_error .
+			var transport http.RoundTripper
+			if options.SystemContext != nil && options.SystemContext.BaseTLSConfig != nil {
+				t := &http.Transport{
+					TLSClientConfig: options.SystemContext.BaseTLSConfig,
+				}
+				defer t.CloseIdleConnections()
+				transport = t
+			}
+			client := &http.Client{
+				Transport: transport,
+			}
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, dfile, nil)
+			if err != nil {
+				return "", nil, fmt.Errorf("preparing to download %q: %w", dfile, err)
+			}
+			resp, err := client.Do(req)
 			if err != nil {
 				return "", nil, err
 			}
