@@ -262,6 +262,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		// with more generic-sounding names.
 		CertPath:              systemContext.DockerCertPath,
 		InsecureSkipTLSVerify: systemContext.DockerInsecureSkipTLSVerify,
+		BaseTLSConfig:         systemContext.BaseTLSConfig,
 		MaxRetries:            iopts.retry,
 		Parents:               iopts.parents,
 		Timestamp:             timestamp,
