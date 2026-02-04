@@ -135,7 +135,7 @@ func cloneToDirectory(url, dir string) ([]byte, string, error) {
 	}
 
 	logrus.Debugf("fetching repo %q and branch (or commit ID) %q to %q", gitRepo, gitRef, dir)
-	args := []string{"fetch", "-u", "--depth=1", "origin", "--", gitRef}
+	args := []string{"fetch", "-u", "--depth=1", "origin", "--", gitRef} // NOTE: this does not respect baseTLSConfig.
 	cmd = exec.Command("git", args...)
 	cmd.Dir = dir
 	combinedOutput, err = cmd.CombinedOutput()
