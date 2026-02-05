@@ -11,7 +11,7 @@ load helpers
   run jq -r .manifests[0].mediaType $srcdir/index.json
   expect_output "application/vnd.oci.image.manifest.v1+json"
   run jq -r .mediaType $srcdir/index.json
-  expect_output null # TODO: common#839 will change this to "application/vnd.oci.image.index.v1+json"
+  expect_output "application/vnd.oci.image.index.v1+json"
   # Digest of manifest
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigest=${output//sha256:/} # strip off the sha256 prefix
