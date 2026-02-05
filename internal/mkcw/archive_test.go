@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -100,83 +101,102 @@ func TestArchive(t *testing.T) {
 	}
 	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
 		for _, ignoreChainRetrievalErrors := range []bool{false, true} {
-			for _, ignoreAttestationErrors := range []bool{false, true} {
-				t.Run(fmt.Sprintf("status=%d,ignoreChainRetrievalErrors=%v,ignoreAttestationErrors=%v", status, ignoreChainRetrievalErrors, ignoreAttestationErrors), func(t *testing.T) {
-					// listen on a system-assigned port
-					listener, err := net.Listen("tcp", ":0")
-					require.NoError(t, err)
-					// keep track of our listener address
-					addr := listener.Addr()
-					// serve requests on that listener
-					handler := &dummyAttestationHandler{t: t, status: status}
-					server := http.Server{
-						Handler: handler,
-					}
-					go func() {
-						if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-							t.Logf("serve: %v", err)
-						}
-					}()
-					// clean up at the end of this test
-					t.Cleanup(func() { assert.NoError(t, server.Close()) })
-					// generate the container rootfs using a temporary empty directory
-					archiveOptions := ArchiveOptions{
-						CPUs:                    4,
-						Memory:                  256,
-						TempDir:                 t.TempDir(),
-						AttestationURL:          "http://" + addr.String(),
-						IgnoreAttestationErrors: ignoreAttestationErrors,
-					}
-					inputPath := t.TempDir()
-					rc, workloadConfig, err := Archive(inputPath, ociConfig, archiveOptions)
-					// bail now if we got an error we didn't expect
-					if err != nil {
-						if errors.As(err, &chainRetrievalError{}) {
-							if !ignoreChainRetrievalErrors {
+			for _, ignoreMeasurementErrors := range []bool{false, true} {
+				for _, ignoreAttestationErrors := range []bool{false, true} {
+					for _, requestIgnoreAttestationErrors := range []bool{false, true} {
+						t.Run(fmt.Sprintf("status_%d+ignoreChainRetrievalErrors_%v+ignoreMeasurementErrors_%v+ignoreAttestationErrors_%v+requestIgnoreAttestationErrors_%v", status, ignoreChainRetrievalErrors, ignoreMeasurementErrors, ignoreAttestationErrors, requestIgnoreAttestationErrors), func(t *testing.T) {
+							// listen on a system-assigned port
+							listener, err := net.Listen("tcp", ":0")
+							require.NoError(t, err)
+							// keep track of our listener address
+							addr := listener.Addr()
+							// serve requests on that listener
+							handler := &dummyAttestationHandler{t: t, status: status}
+							server := http.Server{
+								Handler: handler,
+							}
+							go func() {
+								if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+									t.Logf("serve: %v", err)
+								}
+							}()
+							// clean up at the end of this test
+							t.Cleanup(func() { assert.NoError(t, server.Close()) })
+							// generate the container rootfs using a temporary empty directory
+							archiveOptions := ArchiveOptions{
+								CPUs:                    4,
+								Memory:                  256,
+								TempDir:                 t.TempDir(),
+								AttestationURL:          "http://" + addr.String(),
+								IgnoreAttestationErrors: requestIgnoreAttestationErrors,
+							}
+							inputPath := t.TempDir()
+							rc, workloadConfig, err := Archive(inputPath, ociConfig, archiveOptions)
+							// bail now if we got an error we didn't expect
+							if errors.As(err, &chainRetrievalError{}) {
+								if !ignoreChainRetrievalErrors {
+									if errors.Is(err, exec.ErrNotFound) {
+										t.Skip("sevctl not found")
+									}
+									require.NoError(t, err)
+								}
 								return
 							}
-						}
-						if errors.As(err, &attestationError{}) {
-							if !ignoreAttestationErrors {
+							if errors.As(err, &measurementError{}) {
+								if !ignoreMeasurementErrors {
+									if errors.Is(err, os.ErrNotExist) {
+										t.Skip("firmware shared library not found")
+									}
+									require.NoError(t, err)
+								}
+								return
+							}
+							if errors.As(err, &attestationError{}) {
+								if !ignoreAttestationErrors {
+									if status != http.StatusInternalServerError {
+										// not an intentionally-returned error
+										require.NoError(t, err)
+									}
+								}
+								return
+							}
+							if err != nil {
 								require.NoError(t, err)
 							}
-						}
-						return
+							defer rc.Close()
+							// read each archive entry's contents into a map
+							contents := make(map[string][]byte)
+							tr := tar.NewReader(rc)
+							hdr, err := tr.Next()
+							for hdr != nil {
+								contents[hdr.Name], err = io.ReadAll(tr)
+								require.NoError(t, err)
+								hdr, err = tr.Next()
+							}
+							if err != nil {
+								require.ErrorIs(t, err, io.EOF)
+							}
+							// check that krun-sev.json is a JSON-encoded copy of the workload config
+							var writtenWorkloadConfig WorkloadConfig
+							err = json.Unmarshal(contents["krun-sev.json"], &writtenWorkloadConfig)
+							require.NoError(t, err)
+							assert.Equal(t, workloadConfig, writtenWorkloadConfig)
+							// save the disk image to a file
+							encryptedFile := filepath.Join(t.TempDir(), "encrypted.img")
+							err = os.WriteFile(encryptedFile, contents["disk.img"], 0o600)
+							require.NoError(t, err)
+							// check that we have a configuration footer in there
+							_, err = ReadWorkloadConfigFromImage(encryptedFile)
+							require.NoError(t, err)
+							// check that the attestation server got the encryption passphrase
+							handler.passphrasesLock.Lock()
+							passphrase := handler.passphrases[workloadConfig.WorkloadID]
+							handler.passphrasesLock.Unlock()
+							err = CheckLUKSPassphrase(encryptedFile, passphrase)
+							require.NoError(t, err)
+						})
 					}
-					if err == nil {
-						defer rc.Close()
-					}
-					// read each archive entry's contents into a map
-					contents := make(map[string][]byte)
-					tr := tar.NewReader(rc)
-					hdr, err := tr.Next()
-					for hdr != nil {
-						contents[hdr.Name], err = io.ReadAll(tr)
-						require.NoError(t, err)
-						hdr, err = tr.Next()
-					}
-					if err != nil {
-						require.ErrorIs(t, err, io.EOF)
-					}
-					// check that krun-sev.json is a JSON-encoded copy of the workload config
-					var writtenWorkloadConfig WorkloadConfig
-					err = json.Unmarshal(contents["krun-sev.json"], &writtenWorkloadConfig)
-					require.NoError(t, err)
-					assert.Equal(t, workloadConfig, writtenWorkloadConfig)
-					// save the disk image to a file
-					encryptedFile := filepath.Join(t.TempDir(), "encrypted.img")
-					err = os.WriteFile(encryptedFile, contents["disk.img"], 0o600)
-					require.NoError(t, err)
-					// check that we have a configuration footer in there
-					_, err = ReadWorkloadConfigFromImage(encryptedFile)
-					require.NoError(t, err)
-					// check that the attestation server got the encryption passphrase
-					handler.passphrasesLock.Lock()
-					passphrase := handler.passphrases[workloadConfig.WorkloadID]
-					handler.passphrasesLock.Unlock()
-					err = CheckLUKSPassphrase(encryptedFile, passphrase)
-					require.NoError(t, err)
-				})
+				}
 			}
 		}
 	}
