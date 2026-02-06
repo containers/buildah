@@ -6675,28 +6675,37 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
+  for shares in 2 200 2000 12345 20000 200000 ; do
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
 FROM alpine
 RUN printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
 _EOF
-    # there's an old way to convert the value, and a new way to convert the value, and we don't know
-    # which one our runtime is using, so accept the values that either would compute for ${shares}
-    local oldexpect="weight $((1 + ((${shares} - 2) * 9999) / 262142))"
-    local newconverted=$(awk '{if ($1 <= 2) { print "1"} else if ($1 >= 262144) {print "10000"} else {l=log($1)/log(2); e=((((l+125)*l)/612.0) - 7.0/34.0); p = exp(e*log(10)); print int(p+1)}}' <<< "${shares}")
-    local newexpect="weight ${newconverted}"
-    expect="($oldexpect|$newexpect)"
-  else
-    cat > $mytmpdir/Containerfile << _EOF
+      # https://kubernetes.io/blog/2026/01/30/new-cgroup-v1-to-v2-cpu-conversion-formula/
+      # there's an old way to convert the value, and a new way to convert the value, and we
+      # don't know which one our runtime is using, so accept the values that either would
+      # compute for ${shares}
+      local oldconverted="$((1 + ((${shares} - 2) * 9999) / 262142))"
+      test -n "$oldconverted"
+      local oldexpect="weight ${oldconverted}"
+      local newconverted=$(awk '{if ($1 <= 2) { print "1"} else if ($1 >= 262144) {print "10000"} else {l=log($1)/log(2); e=((((l+125)*l)/612.0) - 7.0/34.0); p = exp(e*log(10)); if ( p == int(p) ) {print p} else { print int(p+1) }}}' <<< "${shares}")
+      test -n "$newconverted"
+      local newexpect="weight ${newconverted}"
+      local expect="($oldexpect|$newexpect)"
+    else
+      cat > $mytmpdir/Containerfile << _EOF
 FROM alpine
 RUN printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
 _EOF
-    expect="weight ${shares}"
-  fi
+      local expect="weight ${shares}"
+    fi
 
-  run_buildah build --cpu-shares=${shares} -t testcpu \
-                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
-  expect_output --from="${lines[2]}" --substring "${expect}"
+    echo requesting "${shares}" shares
+    run_buildah build --cpu-shares=${shares} -t testcpu \
+                    $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
+    echo expected "${expect}"
+    expect_output --from="${lines[2]}" --substring "${expect}"
+  done
 }
 
 @test "bud with --cpuset-cpus" {
