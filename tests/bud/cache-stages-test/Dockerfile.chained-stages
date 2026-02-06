@@ -1,0 +1,9 @@
+FROM alpine AS builder
+RUN echo "builder intermediate stage" > /output.txt
+
+FROM builder AS final-stage
+RUN echo "final intermediate stage" >> /output.txt
+
+FROM alpine
+COPY --from=final-stage /output.txt /app/output.txt
+RUN cat /app/output.txt
