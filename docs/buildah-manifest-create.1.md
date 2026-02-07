@@ -31,13 +31,21 @@ image from such a list will be added to the newly-created list or index.
 
 **--amend**
 
-If a manifest list named *listNameOrIndexName* already exists, modify the
-preexisting list instead of exiting with an error.  The contents of
-*listNameOrIndexName* are not modified if no *imageName*s are given.
+Instead of exiting with an error when *listNameOrIndexName* already exists,
+amend the existing image. When *listNameOrIndexName* is a manifest list, the
+contents of *listNameOrIndexName* are not modified unless *imageName*s are
+given. When *listNameOrIndexName* is a regular image, that image is converted
+into a manifest list with the original image as its first entry.
 
 **--annotation** *annotation=value*
 
 Set an annotation on the newly-created image index.
+
+**--replace**
+
+If an image named *listNameOrIndexName* already exists, remove the name from the
+existing image before creating the new manifest list.  This option cannot be
+used together with **--amend**.
 
 **--tls-verify** *bool-value*
 
