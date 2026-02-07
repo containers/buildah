@@ -32,6 +32,76 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah 1 manifest exists foo2
 }
 
+@test "manifest-create-amend-nonlist" {
+    run_buildah bud $WITH_POLICY_JSON -t amend-test:v1 $BUDFILES/from-scratch
+    run_buildah images -q amend-test:v1
+    originalid="$output"
+
+    # --amend should convert a non-list image into a manifest list
+    run_buildah manifest create --amend amend-test:v1
+    listid="$output"
+    # the list ID should differ from the original image
+    assert "$listid" != "$originalid" "list ID should differ from original image ID"
+    run_buildah manifest inspect amend-test:v1
+    # the original image should be the sole entry in the manifest list
+    nmanifests=$(jq '.manifests | length' <<< "$output")
+    assert "$nmanifests" -eq 1 "expected exactly 1 manifest entry"
+}
+
+@test "manifest-create-amend-nonlist-with-images" {
+    run_buildah bud $WITH_POLICY_JSON -t amend-add-test:v1 $BUDFILES/from-scratch
+    run_buildah bud $WITH_POLICY_JSON -t scratch-for-amend $BUDFILES/from-scratch
+
+    # --amend with a non-list image and additional images to add
+    run_buildah manifest create --amend amend-add-test:v1 scratch-for-amend
+    run_buildah manifest inspect amend-add-test:v1
+    # should contain the converted original + the added scratch image
+    nmanifests=$(jq '.manifests | length' <<< "$output")
+    assert "$nmanifests" -ge 2 "expected at least 2 manifest entries (converted + added)"
+}
+
+@test "manifest-create-replace" {
+    run_buildah bud $WITH_POLICY_JSON -t replace-test:v1 $BUDFILES/from-scratch
+    run_buildah images -q replace-test:v1
+    originalid="$output"
+
+    # --replace should untag the existing image and create a fresh empty list
+    run_buildah manifest create --replace replace-test:v1
+    listid="$output"
+    assert "$listid" != "$originalid" "list ID should differ from original image ID"
+    run_buildah manifest inspect replace-test:v1
+    # the new list should have no entries
+    nmanifests=$(jq '.manifests | length' <<< "$output")
+    assert "$nmanifests" -eq 0 "expected empty manifest list"
+    # the original image should still exist (just untagged from replace-test:v1)
+    run_buildah inspect "$originalid"
+}
+
+@test "manifest-create-replace-existing-list" {
+    _prefetch busybox
+    # create a list with an entry so it's non-empty
+    run_buildah manifest create replace-list-test:v1
+    originalid="$output"
+    run_buildah manifest add replace-list-test:v1 busybox
+    run_buildah manifest inspect replace-list-test:v1
+    noriginal=$(jq '.manifests | length' <<< "$output")
+    assert "$noriginal" -gt 0 "setup: original list should have entries"
+
+    # --replace should discard the old list and create a fresh empty one
+    run_buildah manifest create --replace replace-list-test:v1
+    newid="$output"
+    assert "$newid" != "$originalid" "new list ID should differ from original"
+    run_buildah manifest inspect replace-list-test:v1
+    nmanifests=$(jq '.manifests | length' <<< "$output")
+    assert "$nmanifests" -eq 0 "expected empty manifest list after replace"
+}
+
+@test "manifest-create-amend-replace-conflict" {
+    # --amend and --replace together should fail
+    run_buildah 125 manifest create --amend --replace fail-test:v1
+    assert "$output" =~ "mutually exclusive"
+}
+
 @test "manifest-inspect-id" {
     run_buildah manifest create foo
     cid=$output
