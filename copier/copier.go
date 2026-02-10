@@ -2329,7 +2329,7 @@ func copierHandlerEnsure(req request, idMappings *idtools.IDMappings) *response 
 	for _, item := range req.EnsureOptions.Paths {
 		uid, gid := 0, 0
 		if item.Chown != nil {
-			uid, gid = item.Chown.UID, item.Chown.UID
+			uid, gid = item.Chown.UID, item.Chown.GID
 		}
 		var mode os.FileMode
 		switch item.Typeflag {
