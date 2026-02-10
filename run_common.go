@@ -1740,20 +1740,27 @@ func (b *Builder) getTmpfsMount(tokens []string, idMaps IDMaps, workDir string) 
 	return &volumes[0], nil
 }
 
-func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secret, idMaps IDMaps, workdir string) (rv struct {
-	Mount       *specs.Mount // set if mount created
-	EnvFile     string       // set if caller mount created from temp created env file
-	EnvVariable string       // set if caller should add to env variable list
-}, retErr error,
-) {
+type secretMountOrEnv struct {
+	// set if mount created
+	Mount *specs.Mount
+
+	// set if caller mount created from temp created env file
+	EnvFile string
+
+	// set if caller should add to env variable list
+	EnvVariable string
+}
+
+func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secret, idMaps IDMaps, workdir string) (_ secretMountOrEnv, retErr error) {
 	errInvalidSyntax := errors.New("secret should have syntax id=id[,target=path,required=bool,mode=uint,uid=uint,gid=uint,env=dstVarName")
 	if len(tokens) == 0 {
-		return rv, errInvalidSyntax
+		return secretMountOrEnv{}, errInvalidSyntax
 	}
 	var id, target, env string
 	var required bool
 	var uid, gid uint32
 	var mode uint32 = 0o400
+	var rv secretMountOrEnv
 	for _, val := range tokens {
 		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
@@ -1773,52 +1780,52 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 				var err error
 				required, err = strconv.ParseBool(kv[1])
 				if err != nil {
-					return rv, errInvalidSyntax
+					return secretMountOrEnv{}, errInvalidSyntax
 				}
 			}
 		case "mode":
 			mode64, err := strconv.ParseUint(kv[1], 8, 32)
 			if err != nil {
-				return rv, errInvalidSyntax
+				return secretMountOrEnv{}, errInvalidSyntax
 			}
 			mode = uint32(mode64)
 		case "uid":
 			uid64, err := strconv.ParseUint(kv[1], 10, 32)
 			if err != nil {
-				return rv, errInvalidSyntax
+				return secretMountOrEnv{}, errInvalidSyntax
 			}
 			uid = uint32(uid64)
 		case "gid":
 			gid64, err := strconv.ParseUint(kv[1], 10, 32)
 			if err != nil {
-				return rv, errInvalidSyntax
+				return secretMountOrEnv{}, errInvalidSyntax
 			}
 			gid = uint32(gid64)
 		case "env":
 			if kv[1] == "" {
-				return rv, errInvalidSyntax
+				return secretMountOrEnv{}, errInvalidSyntax
 			}
 			env = kv[1]
 		default:
-			return rv, errInvalidSyntax
+			return secretMountOrEnv{}, errInvalidSyntax
 		}
 	}
 
 	if id == "" {
-		return rv, errInvalidSyntax
+		return secretMountOrEnv{}, errInvalidSyntax
 	}
 
 	// first fetch the secret data
 	secr, ok := secrets[id]
 	if !ok {
 		if required {
-			return rv, fmt.Errorf("secret required but no secret with id %q found", id)
+			return secretMountOrEnv{}, fmt.Errorf("secret required but no secret with id %q found", id)
 		}
 		return rv, nil
 	}
 	data, err := secr.ResolveValue()
 	if err != nil {
-		return rv, err
+		return secretMountOrEnv{}, err
 	}
 
 	// if env is set, then we can return now
@@ -1839,7 +1846,7 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	case "env":
 		tmpFile, err := os.CreateTemp(tmpdir.GetTempDir(), "buildah*")
 		if err != nil {
-			return rv, err
+			return secretMountOrEnv{}, err
 		}
 		defer func() {
 			if retErr != nil {
@@ -1851,34 +1858,34 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	case "file":
 		containerWorkingDir, err := b.store.ContainerDirectory(b.ContainerID)
 		if err != nil {
-			return rv, err
+			return secretMountOrEnv{}, err
 		}
 		ctrFileOnHost = filepath.Join(containerWorkingDir, "secrets", digest.FromString(id).Encoded()[:16])
 	default:
-		return rv, errors.New("invalid source secret type")
+		return secretMountOrEnv{}, errors.New("invalid source secret type")
 	}
 
 	// Copy secrets to container working dir (or tmp dir if it's an env), since we need to chmod,
 	// chown and relabel it for the container user and we don't want to mess with the original file
 	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0o755); err != nil {
-		return rv, err
+		return secretMountOrEnv{}, err
 	}
 	if err := os.WriteFile(ctrFileOnHost, data, 0o644); err != nil {
-		return rv, err
+		return secretMountOrEnv{}, err
 	}
 
 	if err := relabel(ctrFileOnHost, b.MountLabel, false); err != nil {
-		return rv, err
+		return secretMountOrEnv{}, err
 	}
 	hostUID, hostGID, err := util.GetHostIDs(idMaps.uidmap, idMaps.gidmap, uid, gid)
 	if err != nil {
-		return rv, err
+		return secretMountOrEnv{}, err
 	}
 	if err := os.Lchown(ctrFileOnHost, int(hostUID), int(hostGID)); err != nil {
-		return rv, err
+		return secretMountOrEnv{}, err
 	}
 	if err := os.Chmod(ctrFileOnHost, os.FileMode(mode)); err != nil {
-		return rv, err
+		return secretMountOrEnv{}, err
 	}
 	rv.Mount = &specs.Mount{
 		Destination: target,
