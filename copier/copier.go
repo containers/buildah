@@ -2405,7 +2405,7 @@ func copierHandlerEnsure(req request, idMappings *idtools.IDMappings) *response 
 					createdLeaf = strings.TrimPrefix(createdLeaf, string(os.PathSeparator))
 				}
 				created = append(created, createdLeaf)
-				if err = chown(filepath.Join(req.Root, leaf), uid, uid); err != nil {
+				if err = chown(filepath.Join(req.Root, leaf), uid, gid); err != nil {
 					return errorResponse("copier: ensure: error setting owner of %q to %d:%d: %v", leaf, uid, gid, err)
 				}
 				if err = chmod(filepath.Join(req.Root, leaf), mode); err != nil {
