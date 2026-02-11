@@ -33,7 +33,7 @@ image from such a list will be added to the newly-created list or index.
 
 Instead of exiting with an error when *listNameOrIndexName* already exists,
 amend the existing image. When *listNameOrIndexName* is a manifest list, the
-contents of *listNameOrIndexName* are not modified unless *imageName*s are
+contents of *listNameOrIndexName* are not modified unless *imageNames* are
 given. When *listNameOrIndexName* is a regular image, that image is converted
 into a manifest list with the original image as its first entry.
 
