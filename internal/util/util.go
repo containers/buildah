@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containers/buildah/internal/parse"
+	"github.com/containers/buildah/internal/output"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.podman.io/common/libimage"
 	lplatform "go.podman.io/common/libimage/platform"
@@ -51,11 +51,11 @@ func NormalizePlatform(platform v1.Platform) v1.Platform {
 }
 
 // ExportFromReader reads bytes from given reader and exports to external tar, directory or stdout.
-func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
+func ExportFromReader(input io.Reader, opts output.BuildOutputOption) error {
 	var err error
 
 	// Only process path for types that require it.
-	if opts.Type == parse.BuildOutputLocalDir || opts.Type == parse.BuildOutputTar {
+	if opts.Type == output.BuildOutputLocalDir || opts.Type == output.BuildOutputTar {
 		if !filepath.IsAbs(opts.Path) {
 			if opts.Path, err = filepath.Abs(opts.Path); err != nil {
 				return err
@@ -65,7 +65,7 @@ func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 
 	// Process output type
 	switch opts.Type {
-	case parse.BuildOutputLocalDir:
+	case output.BuildOutputLocalDir:
 		// In order to keep this feature as close as possible to
 		// buildkit it was decided to preserve ownership when
 		// invoked as root since caller already has access to artifacts
@@ -85,11 +85,11 @@ func ExportFromReader(input io.Reader, opts parse.BuildOutputOption) error {
 		if err = chrootarchive.Untar(input, opts.Path, &archive.TarOptions{NoLchown: noLChown}); err != nil {
 			return fmt.Errorf("failed while performing untar at %q: %w", opts.Path, err)
 		}
-	case parse.BuildOutputStdout:
+	case output.BuildOutputStdout:
 		if _, err = io.Copy(os.Stdout, input); err != nil {
 			return fmt.Errorf("failed while writing to stdout: %w", err)
 		}
-	case parse.BuildOutputTar:
+	case output.BuildOutputTar:
 		outFile, err := os.Create(opts.Path)
 		if err != nil {
 			return fmt.Errorf("failed while creating destination tar at %q: %w", opts.Path, err)
