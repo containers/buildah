@@ -205,6 +205,8 @@ type runMountArtifacts struct {
 	TargetLocks []*lockfile.LockFile
 	// Intermediate mount points, which should be Unmount()ed and Removed()d
 	IntermediateMounts []string
+	// Environment variables that should be set for RUN that contain secrets, each is name=value form
+	SecretEnvVars []string
 }
 
 // RunMountInfo are the available run mounts for this run

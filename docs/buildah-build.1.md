@@ -995,6 +995,10 @@ The location of the secret in the container can be overridden using the
 
 `RUN --mount=type=secret,id=mysecret,target=/run/secrets/myothersecret cat /run/secrets/myothersecret`
 
+The secret may alternatively be exposed as an environment variable to the process:
+
+`RUN --mount=type=secret,id=mysecret,env=FOO sh -c 'echo "Hello $FOO"'`
+
 Note: changing the contents of secret files will not trigger a rebuild of layers that use said secrets.
 
 **--security-opt**=[]
