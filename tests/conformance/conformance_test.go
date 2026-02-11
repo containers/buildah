@@ -3728,6 +3728,13 @@ var internalTestCases = []testCase{
 		dockerfile:        "Dockerfile.mount",
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:              "quoted and inherited arg",
+		dockerfile:        "Dockerfile.quoted-arg",
+		fsSkip:            []string{"(dir):arg-expansion.txt:mtime"},
+		dockerUseBuildKit: true,
+	},
 }
 
 func TestCommit(t *testing.T) {
