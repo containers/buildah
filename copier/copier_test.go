@@ -2438,3 +2438,86 @@ func TestSortedExtendedGlob(t *testing.T) {
 	require.NoError(t, err, "globbing")
 	require.ElementsMatch(t, expect, matched, "sorted globbing")
 }
+
+func TestTarPut(t *testing.T) {
+	testCases := []struct {
+		name               string
+		trailingNullsBytes int
+	}{
+		{
+			name:               "without-trailing-nulls",
+			trailingNullsBytes: 0,
+		},
+		{
+			name:               "with-trailing-nulls",
+			trailingNullsBytes: 8192,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testDir := t.TempDir()
+
+			var tarBuf bytes.Buffer
+			tw := tar.NewWriter(&tarBuf)
+
+			hdr := &tar.Header{
+				Name:    "testfile.txt",
+				Mode:    0o644,
+				Size:    11,
+				ModTime: time.Now(),
+			}
+			err := tw.WriteHeader(hdr)
+			require.NoError(t, err, "failed to write tar header")
+
+			_, err = tw.Write([]byte("hello world"))
+			require.NoError(t, err, "failed to write tar content")
+
+			err = tw.Close()
+			require.NoError(t, err, "failed to close tar writer")
+
+			// Add extra trailing null bytes to simulate what many tar implementations do.
+			// This reproduces issue https://github.com/containers/buildah/issues/6573 where
+			// tar.Reader returns EOF after the standard EOF marker but before all trailing nulls
+			// are consumed, causing broken pipe.
+			if tc.trailingNullsBytes > 0 {
+				extraNulls := make([]byte, tc.trailingNullsBytes)
+				tarBuf.Write(extraNulls)
+			}
+
+			pipeReader, pipeWriter := io.Pipe()
+			writeErrChan := make(chan error, 1)
+
+			go func() {
+				defer pipeWriter.Close()
+				_, err := io.Copy(pipeWriter, &tarBuf)
+				writeErrChan <- err
+			}()
+
+			req := request{
+				Root:      testDir,
+				Directory: "/",
+				Request:   requestPut,
+			}
+
+			resp, cb, err := copierHandlerPut(pipeReader, req, nil)
+			require.NoError(t, err, "copierHandlerPut returned error")
+			require.Empty(t, resp.Error, "copierHandlerPut returned error response")
+			require.NotNil(t, cb, "expected callback to be returned")
+
+			require.NoError(t, cb(), "callback returned error")
+
+			select {
+			case writeErr := <-writeErrChan:
+				require.NoError(t, writeErr, "write to pipe failed (broken pipe)")
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout waiting for write to complete")
+			}
+
+			extractedFile := filepath.Join(testDir, "testfile.txt")
+			content, err := os.ReadFile(extractedFile)
+			require.NoError(t, err, "failed to read extracted file")
+			require.Equal(t, "hello world", string(content), "extracted file content mismatch")
+		})
+	}
+}
