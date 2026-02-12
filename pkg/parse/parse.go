@@ -1,4 +1,4 @@
-package parse
+package parse //nolint:revive,nolintlint
 
 // this package should contain functions that parse and validate
 // user input and is shared either amongst buildah subcommands or
@@ -19,7 +19,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/containers/buildah/define"
 	mkcwtypes "github.com/containers/buildah/internal/mkcw/types"
-	internalParse "github.com/containers/buildah/internal/parse"
+	internalParse "github.com/containers/buildah/internal/parsevolume"
 	"github.com/containers/buildah/internal/sbom"
 	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/containers/buildah/pkg/sshagent"

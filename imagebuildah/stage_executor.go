@@ -20,7 +20,7 @@ import (
 	buildahdocker "github.com/containers/buildah/docker"
 	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/internal/metadata"
-	internalParse "github.com/containers/buildah/internal/parse"
+	"github.com/containers/buildah/internal/output"
 	"github.com/containers/buildah/internal/sanitize"
 	"github.com/containers/buildah/internal/tmpdir"
 	internalUtil "github.com/containers/buildah/internal/util"
@@ -1361,11 +1361,11 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 	}
 
 	// Parse and populate buildOutputOption if needed
-	var buildOutputOptions []internalParse.BuildOutputOption
+	var buildOutputOptions []output.BuildOutputOption
 	if lastStage && len(s.executor.buildOutputs) > 0 {
 		for _, buildOutput := range s.executor.buildOutputs {
 			logrus.Debugf("generating custom build output with options %q", buildOutput)
-			buildOutputOption, err := internalParse.GetBuildOutput(buildOutput)
+			buildOutputOption, err := output.GetBuildOutput(buildOutput)
 			if err != nil {
 				return "", nil, false, fmt.Errorf("failed to parse build output %q: %w", buildOutput, err)
 			}
@@ -2672,7 +2672,7 @@ func (s *stageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	return results.ImageID, results, nil
 }
 
-func (s *stageExecutor) generateBuildOutput(buildOutputOpts internalParse.BuildOutputOption) error {
+func (s *stageExecutor) generateBuildOutput(buildOutputOpts output.BuildOutputOption) error {
 	forceTimestamp := s.executor.timestamp
 	if s.executor.sourceDateEpoch != nil {
 		forceTimestamp = s.executor.sourceDateEpoch

@@ -1,4 +1,4 @@
-package parse
+package parse //nolint:revive,nolintlint
 
 import (
 	"fmt"
