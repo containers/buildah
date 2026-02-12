@@ -9189,3 +9189,458 @@ EOF
   # should be the same, as the ephemeral run mount should not affect the result
   diff "${out_path}.a" "${out_path}.b"
 }
+
+@test "bud with --build-id-file writes UUID to file" {
+  _prefetch alpine
+  target="build-id-test-$(safename)"
+  run_buildah build $WITH_POLICY_JSON --cache-stages=true --stage-labels=true --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+  test -f ${TEST_SCRATCH_DIR}/build-id.txt
+  build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
+  assert "$build_id" =~ "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" "build ID should be valid UUID format"
+  run_buildah rmi ${target}
+}
+
+@test "bud with --build-id-file overwrites file on multiple builds" {
+  _prefetch alpine
+  target1="build-id-overwrite-test1-$(safename)"
+  target2="build-id-overwrite-test2-$(safename)"
+  build_id_file="${TEST_SCRATCH_DIR}/shared-build-id.txt"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${build_id_file} -t ${target1} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate $BUDFILES/cache-stages-test
+  test -f ${build_id_file}
+  first_build_id=$(cat ${build_id_file})
+  assert "$first_build_id" =~ "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" "first build ID should be valid UUID"
+
+  # Verify all intermediate images from first build share the same build.id
+  run_buildah images --all --format '{{.ID}}'
+  for img_id in "${lines[@]}"; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' ${img_id}
+    if [[ -n "$output" ]]; then
+      assert "$output" "==" "$first_build_id" "all intermediate images in first build should share build.id"
+    fi
+  done
+  run_buildah rmi --all
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${build_id_file} -t ${target2} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate $BUDFILES/cache-stages-test
+  second_build_id=$(cat ${build_id_file})
+  assert "$second_build_id" =~ "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" "second build ID should be valid UUID"
+
+  # Verify all intermediate images from second build share the same build.id
+  run_buildah images --all --format '{{.ID}}'
+  for img_id in "${lines[@]}"; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' ${img_id}
+    if [[ -n "$output" ]]; then
+      assert "$output" "==" "$second_build_id" "all intermediate images in second build should share build.id"
+    fi
+  done
+
+  # Verify UUIDs differ between builds
+  assert "$first_build_id" "!=" "$second_build_id" "each build should have unique UUID"
+
+  # Verify file was overwritten with second UUID
+  file_content=$(cat ${build_id_file})
+  assert "$file_content" "==" "$second_build_id" "file should contain only second UUID (overwritten)"
+
+  run_buildah rmi ${target2}
+}
+
+@test "bud with --stage-labels without --cache-stages should error" {
+  _prefetch alpine
+  target="stage-labels-error-test-$(safename)"
+
+  run_buildah 125 build $WITH_POLICY_JSON --stage-labels -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+  expect_output --substring "'stage-labels' requires 'cache-stages'"
+}
+
+@test "bud with --build-id-file without --stage-labels should error" {
+  _prefetch alpine
+  target="build-id-file-requires-labels-test-$(safename)"
+
+  run_buildah 125 build $WITH_POLICY_JSON --cache-stages --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+  expect_output --substring "'build-id-file' requires 'stage-labels'"
+}
+
+@test "bud with --build-id-file with invalid path should error" {
+  _prefetch alpine
+  target="build-id-file-error-test-$(safename)"
+
+  run_buildah 125 build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file /nonexistent/path/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+  expect_output --substring "writing build ID to file"
+}
+
+@test "bud with --cache-stages on single-stage Dockerfile should not create intermediate images" {
+  _prefetch alpine
+  target="single-stage-test-$(safename)"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.simple $BUDFILES/cache-stages-test
+
+  run_buildah images -a
+  intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  intermediate_count=$(echo "$intermediate_images" | wc -w)
+  assert "$intermediate_count" == "0" "single-stage build should not create intermediate images"
+
+  run_buildah rmi ${target}
+}
+
+@test "bud with --cache-stages preserves intermediate images" {
+  _prefetch alpine
+  target="cache-stages-test-$(safename)"
+
+  # Build without --cache-stages (baseline - should have 0 intermediate images)
+  run_buildah build $WITH_POLICY_JSON -t ${target}-no-cache -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate-one-unused $BUDFILES/cache-stages-test
+  run_buildah images -a
+  baseline_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  baseline_count=$(echo "$baseline_images" | wc -w)
+  assert "$baseline_count" == "0" "without cache-stages should have 0 intermediate images"
+  run_buildah rmi ${target}-no-cache
+
+  # Build with --cache-stages (should have 1 intermediate image: 'intermediate' stage)
+  # Note: 'builder' stage is skipped due to --skip-unused-stages=true (default)
+  run_buildah build $WITH_POLICY_JSON --cache-stages -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate-one-unused $BUDFILES/cache-stages-test
+  run_buildah images -a
+  cache_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  cache_count=$(echo "$cache_images" | wc -w)
+  assert "$cache_count" == "1" "with cache-stages should have 1 intermediate image (intermediate stage)"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages=false does not preserve intermediate images" {
+  _prefetch alpine
+  target="cache-stages-test-$(safename)"
+
+  # Build with --cache-stages=false
+  run_buildah build $WITH_POLICY_JSON --cache-stages=false -t ${target}-no-cache -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate-one-unused $BUDFILES/cache-stages-test
+  run_buildah images -a
+  baseline_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  baseline_count=$(echo "$baseline_images" | wc -w)
+  assert "$baseline_count" == "0" "without cache-stages should have 0 intermediate images"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages and --stage-labels=false does not label intermediate images" {
+  _prefetch alpine
+  target="cache-stages-test-$(safename)"
+
+  # Build with --stage-labels=false
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels=false -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate-one-unused $BUDFILES/cache-stages-test
+  run_buildah images -a
+  intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  intermediate_count=$(echo "$intermediate_images" | wc -w)
+  assert "$intermediate_count" == "1" "should have 1 intermediate image"
+
+  # Verify that intermediate image does NOT have stage labels
+  for image_id in $intermediate_images; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.name"}}' $image_id
+    assert "$output" == "" "stage.name label should not be present when --stage-labels=false"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+    assert "$output" == "" "build.id label should not be present when --stage-labels=false"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.base"}}' $image_id
+    assert "$output" == "" "stage.base label should not be present when --stage-labels=false"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
+    assert "$output" == "" "stage.parent_name label should not be present when --stage-labels=false"
+  done
+
+  run_buildah rmi --all
+}
+
+@test "bud with --stage-labels adds metadata to intermediate image" {
+  _prefetch alpine
+  target="stage-labels-test-$(safename)"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+  build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
+  run_buildah images -a
+  intermediate_image=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+  intermediate_count=$(echo "$intermediate_image" | wc -w)
+
+  assert "$intermediate_count" == "1" "should have exactly 1 intermediate image"
+
+  run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.name"}}' $intermediate_image
+  assert "$output" "==" "intermediate" "stage.name should be 'intermediate'"
+
+  run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $intermediate_image
+  assert "$output" "==" "$build_id" "build.id label should match build ID file"
+
+  run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.base"}}' $intermediate_image
+  assert "$output" "=~" "alpine" "stage.base should reference alpine image"
+
+  run_buildah rmi --all
+}
+
+@test "bud chain of two stages - one stage is used as base for another" {
+  _prefetch alpine
+  target="chained-stages-test-$(safename)"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.chained-stages $BUDFILES/cache-stages-test
+
+  # Get the build ID from file
+  build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
+
+  run_buildah images -a
+  all_intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  parent_image_id=""
+  parent_name=""
+  child_image_id=""
+  child_name=""
+  child_parent_name=""
+  child_base=""
+
+  for image_id in $all_intermediate_images; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.name"}}' $image_id
+    name="$output"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.base"}}' $image_id
+    base="$output"
+
+    # Check if base is in the list of intermediate images (stage is used by another stage as base)
+    if echo "$all_intermediate_images" | grep -q "$base"; then
+      # This is a child stage: its base is another intermediate image
+      child_image_id="$image_id"
+      child_name="$name"
+      child_base="$base"
+
+      run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
+      child_parent_name="$output"
+    else
+      # This is a parent stage that serves as base for another stage
+      parent_image_id="$image_id"
+      parent_name="$name"
+    fi
+  done
+
+  assert "$parent_image_id" "!=" "" "parent stage should be present"
+  assert "$child_image_id" "!=" "" "child stage should be present"
+
+  assert "$parent_name" "==" "builder" "parent stage name should be 'builder'"
+  assert "$child_name" "==" "final-stage" "child stage name should be 'final-stage'"
+
+  assert "$child_parent_name" "==" "$parent_name" "child parent_name should match parent stage name"
+  assert "$child_parent_name" "==" "builder" "child parent_name should be 'builder'"
+
+  assert "$child_base" "==" "$parent_image_id" "child stage.base should reference parent image ID"
+
+  run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $parent_image_id
+  assert "$output" "==" "$build_id" "parent build.id should match build ID file"
+
+  run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $child_image_id
+  assert "$output" "==" "$build_id" "child build.id should match build ID file"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages and two independent intermediate layers" {
+  _prefetch alpine
+  target="two-layers-test-$(safename)"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate $BUDFILES/cache-stages-test
+  build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
+
+  run_buildah images -a
+  all_intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  intermediate_count=$(echo "$all_intermediate_images" | wc -w)
+  assert "$intermediate_count" == "2" "should have exactly 2 intermediate images"
+
+  layer_names=""
+  for image_id in $all_intermediate_images; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.name"}}' $image_id
+    layer_name="$output"
+    layer_names="$layer_names $layer_name"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.base"}}' $image_id
+    assert "$output" "=~" "alpine" "layer base should be alpine"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+    assert "$output" "==" "$build_id" "layer build.id should match build ID file"
+
+    # Should not have parent_name label (independent layers, not using another stage as base)
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
+    assert "$output" == "" "independent layer should not have parent_name label"
+  done
+
+  assert "$layer_names" "=~" "layer1" "should have layer1 stage"
+  assert "$layer_names" "=~" "layer2" "should have layer2 stage"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages and chain of multiple stages" {
+  _prefetch alpine
+  target="chained-multiple-stages-test-$(safename)"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.chained-multiple-stages $BUDFILES/cache-stages-test
+  build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
+  run_buildah images -a
+  all_intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  intermediate_count=$(echo "$all_intermediate_images" | wc -w)
+  assert "$intermediate_count" == "3" "should have exactly 3 intermediate images in chain"
+
+  declare -A stage_ids
+  declare -A stage_bases
+  declare -A stage_parent_names
+
+  for image_id in $all_intermediate_images; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.name"}}' $image_id
+    stage_name="$output"
+    stage_ids[$stage_name]="$image_id"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.base"}}' $image_id
+    stage_bases[$stage_name]="$output"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
+    stage_parent_names[$stage_name]="$output"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+    assert "$output" "==" "$build_id" "$stage_name build.id should match build ID file"
+  done
+
+  assert "${stage_ids[base]}" "!=" "" "should have base stage"
+  assert "${stage_ids[stage1]}" "!=" "" "should have stage1 stage"
+  assert "${stage_ids[stage2]}" "!=" "" "should have stage2 stage"
+
+  assert "${stage_parent_names[base]}" == "" "base should not have parent_name"
+  assert "${stage_bases[base]}" "=~" "alpine" "base should use alpine as base"
+
+  assert "${stage_parent_names[stage1]}" "==" "base" "stage1 parent_name should be 'base'"
+  assert "${stage_bases[stage1]}" "==" "${stage_ids[base]}" "stage1 base should be base image ID"
+
+  assert "${stage_parent_names[stage2]}" "==" "stage1" "stage2 parent_name should be 'stage1'"
+  assert "${stage_bases[stage2]}" "==" "${stage_ids[stage1]}" "stage2 base should be stage1 image ID"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages and ARG in stage names resolves correctly" {
+  _prefetch alpine
+  target="arg-stages-chained-stages-test-$(safename)"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels --build-id-file ${TEST_SCRATCH_DIR}/build-id.txt -t ${target} -f $BUDFILES/cache-stages-test/Dockerfile.arg-stages-and-chained-stages $BUDFILES/cache-stages-test
+
+  build_id=$(cat ${TEST_SCRATCH_DIR}/build-id.txt)
+  run_buildah images -a
+  all_intermediate_images=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  intermediate_count=$(echo "$all_intermediate_images" | wc -w)
+  assert "$intermediate_count" == "2" "should have exactly 2 intermediate images"
+
+  declare -A stage_ids
+  declare -A stage_parent_names
+
+  for image_id in $all_intermediate_images; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.name"}}' $image_id
+    stage_name="$output"
+    stage_ids[$stage_name]="$image_id"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.stage.parent_name"}}' $image_id
+    stage_parent_names[$stage_name]="$output"
+
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+    assert "$output" "==" "$build_id" "$stage_name build.id should match build ID file"
+
+    assert "$stage_name" "!~" '\$\{' "stage name should not contain unresolved ARG placeholders like \${...}"
+  done
+
+  assert "${stage_ids[first-stage]}" "!=" "" "should have 'first-stage' stage (resolved from \${FIRST_STAGE})"
+  assert "${stage_ids[second-stage]}" "!=" "" "should have 'second-stage' stage (resolved from \${SECOND_STAGE})"
+
+  assert "${stage_parent_names[first-stage]}" == "" "first-stage should not have parent_name"
+  assert "${stage_parent_names[second-stage]}" "==" "first-stage" "second-stage parent_name should be resolved 'first-stage', not \${FIRST_STAGE}"
+
+  assert "${stage_parent_names[second-stage]}" "!~" '\$\{' "parent_name should not contain unresolved ARG placeholders"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --cache-stages preserves final image layer count" {
+  _prefetch alpine
+  target_cache="cache-stages-layer-count-$(safename)"
+  target_normal="normal-layer-count-$(safename)"
+  target_layers="with-layers-count-$(safename)"
+
+  run_buildah build $WITH_POLICY_JSON --cache-stages --stage-labels -t ${target_cache} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate $BUDFILES/cache-stages-test
+  run_buildah inspect --format '{{len .OCIv1.RootFS.DiffIDs}}' ${target_cache}
+  cache_stages_count=$output
+
+  run_buildah build $WITH_POLICY_JSON -t ${target_normal} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate $BUDFILES/cache-stages-test
+  run_buildah inspect --format '{{len .OCIv1.RootFS.DiffIDs}}' ${target_normal}
+  normal_count=$output
+
+
+  run_buildah build $WITH_POLICY_JSON --layers -t ${target_layers} -f $BUDFILES/cache-stages-test/Dockerfile.two-intermediate $BUDFILES/cache-stages-test
+  run_buildah inspect --format '{{len .OCIv1.RootFS.DiffIDs}}' ${target_layers}
+  layers_count=$output
+
+  assert "$cache_stages_count" == "$normal_count" "--cache-stages should have same layer count as normal build"
+  assert "$cache_stages_count" == "2" "--cache-stages build should have exactly 2 layers"
+  assert "$normal_count" == "2" "normal build should have exactly 2 layers"
+
+  assert "$layers_count" == "4" "--layers should create exactly 4 layers (one per instruction)"
+
+  run_buildah rmi --all
+}
+
+@test "bud with --layers --cache-stages stores labeled layers and subsequent --layers build reuses them" {
+  _prefetch alpine
+  target="cache-reuse-test-$(safename)"
+  build_id_file="${TEST_SCRATCH_DIR}/cache-reuse-build-id.txt"
+
+  run_buildah build $WITH_POLICY_JSON --layers --cache-stages --stage-labels --build-id-file ${build_id_file} -t ${target}-first -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+
+  first_build_id=$(cat ${build_id_file})
+
+  # Get all intermediate layers from first build and store their image IDs and build IDs
+  run_buildah images -a
+  all_intermediate_layers_first=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  # Create associative array: image_id -> build_id
+  declare -A first_build_image_to_build_id
+  for image_id in $all_intermediate_layers_first; do
+    run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+    build_id_label="$output"
+    if [[ -n "$build_id_label" ]]; then
+      first_build_image_to_build_id[$image_id]="$build_id_label"
+      assert "$build_id_label" == "$first_build_id" "all intermediate layers from first build should have build ID: $first_build_id"
+    fi
+  done
+
+  first_intermediate_count=$(echo "$all_intermediate_layers_first" | wc -w)
+  assert "$first_intermediate_count" -gt 0 "first build should create intermediate layers"
+
+  # Remove the final tagged image but keep all intermediate layers for cache
+  run_buildah rmi ${target}-first
+
+  # Second should reuse the layers created by first build (cache hit not creating more)
+  run_buildah build $WITH_POLICY_JSON --layers -t ${target}-second -f $BUDFILES/cache-stages-test/Dockerfile.single-intermediate $BUDFILES/cache-stages-test
+
+  expect_output --substring "Using cache"
+
+  run_buildah images -a
+  all_intermediate_layers_second=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
+
+  # Verify that intermediate layers with matching image IDs have matching build IDs
+  cached_layers_count=0
+  for image_id in $all_intermediate_layers_second; do
+    if [[ -n "${first_build_image_to_build_id[$image_id]}" ]]; then
+      cached_layers_count=$((cached_layers_count + 1))
+
+      run_buildah inspect --format '{{index .OCIv1.Config.Labels "io.buildah.build.id"}}' $image_id
+      current_build_id="$output"
+      expected_build_id="${first_build_image_to_build_id[$image_id]}"
+
+      assert "$current_build_id" == "$expected_build_id" "image $image_id reused from cache must have same build ID: $expected_build_id"
+    fi
+  done
+  
+  # COPY --from=... layers are not reused
+  assert "$cached_layers_count" -eq 2 "intermediate layers should be reused from cache (have matching image IDs)"
+
+  run_buildah rmi --all
+}
+

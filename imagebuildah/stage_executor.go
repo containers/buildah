@@ -83,6 +83,7 @@ type stageExecutor struct {
 	argsFromContainerfile []string
 	hasLink               bool
 	isLastStep            bool
+	fromName              string // original FROM value (stage name or image name) before resolution to image ID
 }
 
 // Preserve informs the stage executor that from this point on, it needs to
@@ -1254,6 +1255,11 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 	stage := s.stage
 	ib := stage.Builder
 	checkForLayers := s.executor.layers && s.executor.useCache
+	// When --cache-stages is used, disable cache lookup to ensure a fresh build.
+	// Subsequent builds without --cache-stages still can use these intermediate images as cache.
+	if s.executor.cacheStages {
+		checkForLayers = false
+	}
 	moreStages := s.index < len(s.stages)-1
 	lastStage := !moreStages
 	onlyBaseImage := false
@@ -1272,6 +1278,12 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		return "", nil, false, err
 	}
 	pullPolicy := s.executor.pullPolicy
+	// Capture the original FROM value (stage/image name) before it's converted to image ID.
+	// Needed for indication in stage labels when an
+	// intermediate stage uses another stage as its base.
+	if s.fromName == "" {
+		s.fromName = base
+	}
 	s.executor.stagesLock.Lock()
 	var preserveBaseImageAnnotationsAtStageStart bool
 	if stageImage, isPreviousStage := s.executor.imageMap[base]; isPreviousStage {
@@ -1886,6 +1898,30 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		}
 
 		s.hasLink = false
+	}
+
+	// If --cache-stages is enabled and this is not the last stage, commit the intermediate stage image.
+	// However, skip committing if this stage is a parent stage used as a base
+	// by another intermediate stage - only commit the final stage in such a chain.
+	if s.executor.cacheStages && !lastStage {
+		// Check if this stage is used as base by another intermediate stage
+		_, isParentStage := s.executor.intermediateStageParents[s.name]
+		if isParentStage {
+			logrus.Debugf("Skipping commit for intermediate stage %s (index %d) - used as base by another intermediate stage", s.name, s.index)
+		} else {
+			logrus.Debugf("Committing intermediate stage %s (index %d) for --cache-stages", s.name, s.index)
+			createdBy := fmt.Sprintf("/bin/sh -c #(nop) STAGE %s", s.name)
+			// Determine if we need a new layer or just metadata:
+			// - If stage was already committed (imgID != ""), only add labels (emptyLayer=true)
+			// - If not yet committed (imgID == ""), capture filesystem changes (emptyLayer=false)
+			emptyLayer := imgID != ""
+			// Commit the stage without squashing, using empty output name (intermediate image)
+			imgID, commitResults, err = s.commit(ctx, createdBy, emptyLayer, "", false, false)
+			if err != nil {
+				return "", nil, false, fmt.Errorf("committing intermediate stage %s: %w", s.name, err)
+			}
+			logrus.Debugf("Committed intermediate stage %s with ID %s", s.name, imgID)
+		}
 	}
 
 	return imgID, commitResults, onlyBaseImage, nil
@@ -2598,6 +2634,23 @@ func (s *stageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	}
 	for k, v := range config.Labels {
 		s.builder.SetLabel(k, v)
+	}
+	// Add stage metadata labels if --cache-stages and --stage-labels are enabled.
+	// IMPORTANT: This must be done AFTER copying config.Labels to ensure stage labels
+	// are not overwritten by inherited labels from parent stages (stages that serve as base).
+	if output == "" && s.executor.cacheStages && s.executor.stageLabels {
+		s.builder.SetLabel("io.buildah.stage.name", s.name)
+		s.builder.SetLabel("io.buildah.stage.base", s.builder.FromImage)
+
+		// Check if this stage uses another stage as its base (using the original FROM value).
+		// s.fromName contains the stage name before resolution to image ID.
+		if s.fromName != "" && s.executor.stages[s.fromName] != nil {
+			s.builder.SetLabel("io.buildah.stage.parent_name", s.fromName)
+		}
+
+		if s.executor.buildID != "" {
+			s.builder.SetLabel("io.buildah.build.id", s.executor.buildID)
+		}
 	}
 	switch s.executor.commonBuildOptions.IdentityLabel {
 	case types.OptionalBoolTrue:

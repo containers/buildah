@@ -23,6 +23,7 @@ import (
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	encconfig "github.com/containers/ocicrypt/config"
+	"github.com/google/uuid"
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/imagebuilder"
@@ -115,6 +116,10 @@ type executor struct {
 	layerLabels                             []string
 	annotations                             []string
 	layers                                  bool
+	cacheStages                             bool
+	stageLabels                             bool
+	buildID                                 string
+	intermediateStageParents                map[string]struct{} // Tracks which intermediate stages are used as base by other intermediate stages
 	noHostname                              bool
 	noHosts                                 bool
 	useCache                                bool
@@ -261,6 +266,19 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		buildOutputs = append(buildOutputs, options.BuildOutput) //nolint:staticcheck
 	}
 
+	// Generate unique build ID for stage labels (also used by --build-id-file)
+	var buildID string
+	if options.StageLabels {
+		buildID = uuid.New().String()
+
+		// Write build ID to file if requested
+		if options.BuildIDFile != "" {
+			if err := os.WriteFile(options.BuildIDFile, []byte(buildID), 0o644); err != nil {
+				return nil, fmt.Errorf("writing build ID to file %q: %w", options.BuildIDFile, err)
+			}
+		}
+	}
+
 	exec := executor{
 		args:                                    options.Args,
 		cacheFrom:                               options.CacheFrom,
@@ -316,6 +334,10 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		mountLabel:                              mountLabel,
 		annotations:                             slices.Clone(options.Annotations),
 		layers:                                  options.Layers,
+		cacheStages:                             options.CacheStages,
+		stageLabels:                             options.StageLabels,
+		buildID:                                 buildID,
+		intermediateStageParents:                make(map[string]struct{}),
 		noHostname:                              options.CommonBuildOpts.NoHostname,
 		noHosts:                                 options.CommonBuildOpts.NoHosts,
 		useCache:                                !options.NoCache,
@@ -856,6 +878,15 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 									currentStageInfo.Needs = append(currentStageInfo.Needs, baseWithArg)
 								}
 							}
+							// Track if this base is another intermediate stage (used as parent by current intermediate stage)
+							if stageIndex < len(stages)-1 {
+								// Only mark if the base is actually a stage, not an external image
+								if _, ok := dependencyMap[baseWithArg]; ok {
+									b.intermediateStageParents[baseWithArg] = struct{}{}
+									logrus.Debugf("stage %d (%s) uses stage %q as base - marking %q as intermediate parent",
+										stageIndex, stage.Name, baseWithArg, baseWithArg)
+								}
+							}
 						}
 					}
 				case "ADD", "COPY":
@@ -1054,9 +1085,10 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.
-			// Only remove intermediate image is `--layers` is not provided
-			// or following stage was not only a base image ( i.e a different image ).
-			if !b.layers && !r.OnlyBaseImage {
+			// Only remove intermediate image if `--layers` is not provided,
+			// `--cache-stages` is not enabled, or following stage was not
+			// only a base image (i.e. a different image).
+			if !b.layers && !b.cacheStages && !r.OnlyBaseImage {
 				cleanupImages = append(cleanupImages, r.ImageID)
 			}
 		}
