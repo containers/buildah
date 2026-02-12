@@ -9189,3 +9189,78 @@ EOF
   # should be the same, as the ephemeral run mount should not affect the result
   diff "${out_path}.a" "${out_path}.b"
 }
+
+@test "bud with FROM --after" {
+  # This tests the 'FROM --after' workflow, i.e. that:
+  # - --after is enough to pull in the builder stage as a dep
+  # - even with --jobs=4, --after forces us to wait before even trying to import
+  #   the image
+  # - build arguments for --after are handled correctly
+  # - the final "built" image matches the after stage output exactly
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  copy containers-storage:busybox oci-archive:"${contextdir}"/busybox.ociarchive
+  # Re-import it so we have it in OCI format and not v2s2 so we can compare
+  # image IDs later on.
+  copy oci-archive:"${contextdir}"/busybox.ociarchive containers-storage:busybox-oci
+  cat > "${contextdir}"/Containerfile << 'EOF'
+ARG TESTARG=builder
+FROM busybox AS builder
+# copy it to a different name as proof that this RUN stage must've run
+RUN --mount=type=bind,target=/src,rw cp /src/busybox.ociarchive /src/out.ociarchive
+
+FROM --after=${TESTARG} oci-archive:out.ociarchive
+EOF
+  run_buildah build $WITH_POLICY_JSON --jobs=4 -t test-after "${contextdir}"
+  # Verify the final image is identical to the OCI-converted busybox
+  run_buildah inspect --format '{{.FromImageID}}' busybox-oci
+  local busybox_id="$output"
+  run_buildah inspect --format '{{.FromImageID}}' test-after
+  local test_after_id="$output"
+  assert "$busybox_id" == "$test_after_id"
+}
+
+@test "bud with FROM --after and COPY --from" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Containerfile << 'EOF'
+FROM busybox AS builder
+RUN echo "Artifact Created" > /data.txt
+
+FROM busybox AS verifier
+COPY --from=builder /data.txt /data.txt
+RUN echo "Artifact Appended" >> /data.txt
+
+# this must wait until the builder stage is finished
+FROM --after=builder busybox AS final
+# this must wait until the verifier stage is finished
+COPY --from=verifier /data.txt /root/data.txt
+RUN grep "Artifact Created" /root/data.txt
+RUN grep "Artifact Appended" /root/data.txt
+EOF
+  run_buildah build $WITH_POLICY_JSON --jobs=4 -t test-after-copy-from "${contextdir}"
+}
+
+@test "bud with FROM --after error cases" {
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+
+  # self-reference should fail
+  cat > "${contextdir}"/Containerfile << 'EOF'
+FROM --after=self scratch AS self
+EOF
+  run_buildah 125 build $WITH_POLICY_JSON "${contextdir}"
+  expect_output --substring "FROM --after=self: cannot depend on later stage"
+
+  # attempt a circular dependency
+  cat > "${contextdir}"/Containerfile << 'EOF'
+FROM --after=second busybox AS first
+RUN echo first
+FROM first AS second
+RUN echo second
+EOF
+  run_buildah 125 build $WITH_POLICY_JSON "${contextdir}"
+  expect_output --substring "FROM --after=second: stage \"second\" not found"
+}

@@ -124,6 +124,7 @@ type executor struct {
 	containerMap                            map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
 	baseMap                                 map[string]struct{}         // Holds the names of every base image, as given.
 	rootfsMap                               map[string]struct{}         // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
+	afterDependency                         map[string]string           // Maps stage names to their --after dependency.
 	blobDirectory                           string
 	excludes                                []string
 	groupAdd                                []string
@@ -547,6 +548,16 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 	stage := stages[stageIndex]
 	ib := stage.Builder
 	node := stage.Node
+
+	// Wait for any --after deps before ib.From(node) which may try to access images
+	// via local transports (like oci-archive:) populated by those deps.
+	if afterDep, ok := b.afterDependency[stage.Name]; ok {
+		logrus.Debugf("stage %d (%s): waiting for --after dependency %q", stageIndex, stage.Name, afterDep)
+		if isStage, err := b.waitForStage(ctx, afterDep, stages[:stageIndex]); isStage && err != nil {
+			return "", nil, false, fmt.Errorf("waiting for --after=%s: %w", afterDep, err)
+		}
+	}
+
 	base, err := ib.From(node)
 	if err != nil {
 		logrus.Debugf("buildStage(node.Children=%#v)", node.Children)
@@ -808,6 +819,8 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	// dependencyInfo is used later to mark if a particular
 	// stage is needed by target or not.
 	dependencyMap := make(map[string]*stageDependencyInfo)
+	// Initialize afterDependency map to track --after= dependency per stage
+	b.afterDependency = make(map[string]string)
 	// Build maps of every named base image and every referenced stage root
 	// filesystem.  Individual stages can use them to determine whether or
 	// not they can skip certain steps near the end of their stages.
@@ -856,6 +869,40 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 									currentStageInfo.Needs = append(currentStageInfo.Needs, baseWithArg)
 								}
 							}
+						}
+					}
+					// Parse any --after= flag for explicit stage dependency
+					for _, flag := range child.Flags {
+						if after, ok := strings.CutPrefix(flag, "--after="); ok {
+							// only allow one --after flag per FROM for now; nothing necessarily
+							// semantically wrong with multiple --after, but keeping it conservative until a
+							// use case shows up
+							if _, exists := b.afterDependency[stage.Name]; exists {
+								return "", nil, fmt.Errorf("FROM --after=%s: only one --after flag is allowed per FROM instruction", after)
+							}
+							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
+							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
+							userArgs := argsMapToSlice(stage.Builder.Args)
+							userArgs = append(builtinArgs, append(userArgs, headingArgs...)...)
+							afterResolved, err := imagebuilder.ProcessWord(after, userArgs)
+							if err != nil {
+								return "", nil, fmt.Errorf("while replacing arg variables with values for --after=%q: %w", after, err)
+							}
+							// If --after=<index> convert index to name
+							if index, err := strconv.Atoi(afterResolved); err == nil && index >= 0 && index < stageIndex {
+								afterResolved = stages[index].Name
+							}
+							if depInfo, ok := dependencyMap[afterResolved]; !ok {
+								return "", nil, fmt.Errorf("FROM --after=%s: stage %q not found", after, afterResolved)
+							} else if depInfo.Position >= stageIndex {
+								return "", nil, fmt.Errorf("FROM --after=%s: cannot depend on later stage %q", after, afterResolved)
+							}
+							// Mark the stage as a dep so we actually build it
+							currentStageInfo := dependencyMap[stage.Name]
+							currentStageInfo.Needs = append(currentStageInfo.Needs, afterResolved)
+							// And mark it on the stage executor itself so it knows to wait before even pulling
+							b.afterDependency[stage.Name] = afterResolved
+							logrus.Debugf("stage %d: explicit dependency on %q via --after", stageIndex, afterResolved)
 						}
 					}
 				case "ADD", "COPY":
