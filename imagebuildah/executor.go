@@ -852,7 +852,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// append heading args so if --build-arg key=value is not
 							// specified but default value is set in Containerfile
 							// via `ARG key=value` so default value can be used.
-							userArgs = append(builtinArgs, append(userArgs, headingArgs...)...)
+							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs)
 							baseWithArg, err := imagebuilder.ProcessWord(base, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
@@ -883,7 +883,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
-							userArgs = append(builtinArgs, append(userArgs, headingArgs...)...)
+							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs)
 							afterResolved, err := imagebuilder.ProcessWord(after, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for --after=%q: %w", after, err)
@@ -925,7 +925,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// append heading args so if --build-arg key=value is not
 							// specified but default value is set in Containerfile
 							// via `ARG key=value` so default value can be used.
-							userArgs = append(builtinArgs, append(userArgs, headingArgs...)...)
+							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs)
 							baseWithArg, err := imagebuilder.ProcessWord(stageName, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", stageName, err)
