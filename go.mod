@@ -1,5 +1,9 @@
 module github.com/containers/buildah
 
+// Note the replace at the bottom of this file in order
+// to keep the Go command at a lower level to help with
+// OCP Builder dependencies.
+
 go 1.24.0
 
 require (
@@ -148,3 +152,5 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	tags.cncf.io/container-device-interface v0.6.2 // indirect
 )
+
+replace golang.org/x/crypto => github.com/Atharva-Shinde/golang-crypto v0.24.1-0.20260202090237-3429eecb33f5
