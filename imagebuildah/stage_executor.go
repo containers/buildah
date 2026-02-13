@@ -34,7 +34,6 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
-	"github.com/openshift/imagebuilder/dockerfile/command"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
 	"github.com/sirupsen/logrus"
 	config "go.podman.io/common/pkg/config"
@@ -83,6 +82,7 @@ type stageExecutor struct {
 	argsFromContainerfile []string
 	hasLink               bool
 	isLastStep            bool
+	unpackFlag            *bool // nil=unspecified; true/false=explicit for current instruction
 }
 
 // Preserve informs the stage executor that from this point on, it needs to
@@ -607,7 +607,15 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			options.Excludes = nil
 			options.IgnoreFile = ""
 		}
-		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
+		// Determine extract behavior and set Unpack option
+		extract := copy.Download // default: ADD extracts, COPY doesn't
+		if copy.Download && s.unpackFlag != nil {
+			// Override extract for ADD when --unpack is specified
+			extract = *s.unpackFlag
+			// Set Unpack option for remote source handling
+			options.Unpack = s.unpackFlag
+		}
+		if err := s.builder.Add(copy.Dest, extract, options, sources...); err != nil {
 			return err
 		}
 	}
@@ -1248,6 +1256,36 @@ func (s *stageExecutor) getContentSummaryAfterAddingContent() string {
 	return summary
 }
 
+// parseAddUnpackFlag parses --unpack flag from ADD instruction flags.
+// Returns nil if no --unpack flag is present, true/false otherwise.
+// Implements last-one-wins semantics when multiple --unpack flags are present.
+// Returns an error if the flag value is invalid (not true/false).
+func parseAddUnpackFlag(flags []string) (*bool, error) {
+	var result *bool
+	for _, flag := range flags {
+		if flag == "--unpack" {
+			// bare --unpack means true
+			t := true
+			result = &t
+		} else if value, ok := strings.CutPrefix(flag, "--unpack="); ok {
+			if value == "" {
+				return nil, fmt.Errorf("--unpack flag requires a value (true or false)")
+			}
+			switch value {
+			case "true":
+				t := true
+				result = &t
+			case "false":
+				f := false
+				result = &f
+			default:
+				return nil, fmt.Errorf("invalid value %q for --unpack flag, must be true or false", value)
+			}
+		}
+	}
+	return result, nil
+}
+
 // Execute runs each of the steps in the stage's parsed tree, in turn.
 func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string, commitResults *buildah.CommitResults, onlyBaseImg bool, err error) {
 	var resourceUsage rusage.Rusage
@@ -1423,6 +1461,8 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		if err := step.Resolve(node); err != nil {
 			return "", nil, false, fmt.Errorf("resolving step %+v: %w", *node, err)
 		}
+		// Reset unpackFlag for each instruction to prevent leakage
+		s.unpackFlag = nil
 		logrus.Debugf("Parsed Step: %+v", *step)
 		if !s.executor.quiet {
 			logMsg := step.Original
@@ -1449,12 +1489,16 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		// Also check the chmod and the chown flags for validity.
 		for _, flag := range step.Flags {
 			command := strings.ToUpper(step.Command)
+			// COPY does not support --unpack
+			if command == "COPY" && (flag == "--unpack" || strings.HasPrefix(flag, "--unpack=")) {
+				return "", nil, false, fmt.Errorf("COPY does not support the --unpack flag")
+			}
 			// chmod, chown and from flags should have an '=' sign, '--chmod=', '--chown=' or '--from=' or '--exclude='
 			if command == "COPY" && (flag == "--chmod" || flag == "--chown" || flag == "--from" || flag == "--exclude") {
 				return "", nil, false, fmt.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> --from=<image|stage> and the --exclude=<pattern> flags")
 			}
 			if command == "ADD" && (flag == "--chmod" || flag == "--chown" || flag == "--checksum" || flag == "--exclude") {
-				return "", nil, false, fmt.Errorf("ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and --checksum=<checksum> --exclude=<pattern> flags")
+				return "", nil, false, fmt.Errorf("ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, --checksum=<checksum>, --exclude=<pattern>, and --unpack=<bool> flags")
 			}
 			if strings.Contains(flag, "--from") && command == "COPY" {
 				arr := strings.Split(flag, "=")
@@ -1506,6 +1550,16 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 				}
 				break
 			}
+		}
+
+		// Parse --unpack flag for ADD commands
+		command := strings.ToUpper(step.Command)
+		if command == "ADD" {
+			unpackFlag, err := parseAddUnpackFlag(step.Flags)
+			if err != nil {
+				return "", nil, false, err
+			}
+			s.unpackFlag = unpackFlag
 		}
 
 		// Determine if there are any RUN instructions to be run after
@@ -1644,7 +1698,8 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 			// the content that's copied in.  We need to compute that information so that
 			// it can be used to evaluate the cache, which means we need to go ahead
 			// and copy the content.
-			canMatchCacheOnlyAfterRun = (step.Command == command.Add || step.Command == command.Copy)
+			stepCmd := strings.ToUpper(step.Command)
+			canMatchCacheOnlyAfterRun = (stepCmd == "ADD" || stepCmd == "COPY")
 			if canMatchCacheOnlyAfterRun {
 				if err = ib.Run(step, s, noRunsRemaining); err != nil {
 					logrus.Debugf("Error building at step %+v: %v", *step, err)
