@@ -64,9 +64,13 @@ type chainRetrievalError struct {
 
 func (c chainRetrievalError) Error() string {
 	if trimmed := strings.TrimSpace(c.stderr); trimmed != "" {
-		return fmt.Sprintf("retrieving SEV certificate chain: sevctl: %v: %v", strings.TrimSpace(c.stderr), c.err)
+		return fmt.Sprintf("retrieving SEV certificate chain: sevctl: %v: %v", trimmed, c.err)
 	}
 	return fmt.Sprintf("retrieving SEV certificate chain: sevctl: %v", c.err)
+}
+
+func (c chainRetrievalError) Unwrap() error {
+	return c.err
 }
 
 // Archive generates a WorkloadConfig for a specified directory and produces a
