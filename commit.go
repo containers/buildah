@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.podman.io/common/libimage"
 	"go.podman.io/common/libimage/manifests"
+	cp "go.podman.io/image/v5/copy"
 	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
@@ -482,8 +483,21 @@ func (b *Builder) CommitResults(ctx context.Context, dest types.ImageReference, 
 		systemContext.OSChoice = b.OS()
 	}
 
+	sourceCtx := getSystemContext(b.store, nil, "")
+	destinationCtx := getSystemContext(b.store, nil, "")
+	if systemContext != nil {
+		*destinationCtx = *systemContext
+	}
 	var manifestBytes []byte
-	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy, options.OciEncryptLayers, options.OciEncryptConfig, nil, destinationTimestamp), options.MaxRetries, options.RetryDelay); err != nil {
+	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, &cp.Options{
+		ReportWriter:         options.ReportWriter,
+		SourceCtx:            sourceCtx,
+		DestinationCtx:       destinationCtx,
+		SignBy:               options.SignBy,
+		OciEncryptConfig:     options.OciEncryptConfig,
+		OciEncryptLayers:     options.OciEncryptLayers,
+		DestinationTimestamp: destinationTimestamp,
+	}, options.MaxRetries, options.RetryDelay); err != nil {
 		return nil, fmt.Errorf("copying layers and metadata for container %q: %w", b.ContainerID, err)
 	}
 	// If we've got more names to attach, and we know how to do that for
