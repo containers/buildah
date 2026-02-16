@@ -484,15 +484,11 @@ func (b *Builder) CommitResults(ctx context.Context, dest types.ImageReference, 
 	}
 
 	sourceCtx := getSystemContext(b.store, nil, "")
-	destinationCtx := getSystemContext(b.store, nil, "")
-	if systemContext != nil {
-		*destinationCtx = *systemContext
-	}
 	var manifestBytes []byte
 	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, &cp.Options{
 		ReportWriter:         options.ReportWriter,
 		SourceCtx:            sourceCtx,
-		DestinationCtx:       destinationCtx,
+		DestinationCtx:       systemContext,
 		SignBy:               options.SignBy,
 		OciEncryptConfig:     options.OciEncryptConfig,
 		OciEncryptLayers:     options.OciEncryptLayers,
