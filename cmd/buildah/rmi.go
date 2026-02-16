@@ -13,9 +13,10 @@ import (
 )
 
 type rmiOptions struct {
-	all   bool
-	prune bool
-	force bool
+	all        bool
+	prune      bool
+	force      bool
+	tlsDetails string
 }
 
 func init() {
@@ -42,6 +43,7 @@ func init() {
 	flags.BoolVarP(&opts.all, "all", "a", false, "remove all images")
 	flags.BoolVarP(&opts.prune, "prune", "p", false, "prune dangling images")
 	flags.BoolVarP(&opts.force, "force", "f", false, "force removal of the image and any containers using the image")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 
 	rootCmd.AddCommand(rmiCommand)
 }

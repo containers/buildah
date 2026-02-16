@@ -35,6 +35,7 @@ type runInputOptions struct {
 	noHostname   bool
 	noHosts      bool
 	noPivot      bool
+	tlsDetails   string
 	terminal     bool
 	volumes      []string
 	workingDir   string
@@ -84,8 +85,8 @@ func init() {
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
 	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 	flags.StringArrayVar(&opts.mounts, "mount", []string{}, "attach a filesystem mount to the container (default [])")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.StringVar(&opts.workingDir, "workingdir", "", "temporarily set working directory for command (default to container's workingdir)")
-
 	userFlags := getUserFlags()
 	namespaceFlags := buildahcli.GetNameSpaceFlags(&namespaceResults)
 

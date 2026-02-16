@@ -93,4 +93,5 @@ func init() {
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
+	flags.String("tls-details", "", "path to a containers-tls-details.yaml file") // Parsed by SystemContextFromOptions, not directly in CWConvertImageOptions.
 }

@@ -286,6 +286,15 @@ consult the manpages of the selected container runtime.
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
+**--tls-details** *path*
+
+Path to a `containers-tls-details.yaml(5)` file, affecting TLS behavior throughout the program.
+
+If not set, defaults to a reasonable default that may change over time (depending on system’s global policy,
+version of the program, version of the Go language, and the like).
+
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
 **--tty**, **--terminal**, **-t**
 
 By default a pseudo-TTY is allocated only when buildah's standard input is

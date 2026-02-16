@@ -25,6 +25,7 @@ type pullOptions struct {
 	signaturePolicy  string
 	quiet            bool
 	removeSignatures bool
+	tlsDetails       string
 	tlsVerify        bool
 	decryptionKeys   []string
 	pullPolicy       string
@@ -73,6 +74,7 @@ func init() {
 	flags.String("arch", runtime.GOARCH, "prefer `ARCH` instead of the architecture of the machine for choosing images")
 	flags.StringSlice("platform", []string{parse.DefaultPlatform()}, "prefer OS/ARCH instead of the current operating system and architecture for choosing images")
 	flags.String("variant", "", "override the `variant` of the specified image")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.IntVar(&opts.retry, "retry", int(defaultContainerConfig.Engine.Retry), "number of times to retry in case of failure when performing pull")
 	flags.StringVar(&opts.retryDelay, "retry-delay", defaultContainerConfig.Engine.RetryDelay, "delay between retries in case of pull failures")

@@ -60,6 +60,7 @@ type commitInputOptions struct {
 	signaturePolicy    string
 	signBy             string
 	squash             bool
+	tlsDetails         string
 	tlsVerify          bool
 	identityLabel      bool
 	encryptionKeys     []string
@@ -190,6 +191,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	}
 
 	flags.BoolVar(&opts.squash, "squash", false, "produce an image with only one layer")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 
 	flags.StringSliceVar(&opts.unsetenvs, "unsetenv", nil, "unset env from final image")

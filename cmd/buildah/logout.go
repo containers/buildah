@@ -10,11 +10,18 @@ import (
 	"go.podman.io/common/pkg/auth"
 )
 
+type logoutOptions struct {
+	logoutOpts auth.LogoutOptions
+	tlsDetails string
+}
+
 func init() {
 	var (
-		opts = auth.LogoutOptions{
-			Stdout:             os.Stdout,
-			AcceptRepositories: true,
+		opts = logoutOptions{
+			logoutOpts: auth.LogoutOptions{
+				Stdout:             os.Stdout,
+				AcceptRepositories: true,
+			},
 		}
 		logoutDescription = "Remove the cached username and password for the registry."
 	)
@@ -29,17 +36,19 @@ func init() {
 	}
 	logoutCommand.SetUsageTemplate(UsageTemplate())
 
-	flags := auth.GetLogoutFlags(&opts)
-	flags.SetInterspersed(false)
-	logoutCommand.Flags().AddFlagSet(flags)
+	flags := logoutCommand.Flags()
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
+	logoutFlags := auth.GetLogoutFlags(&opts.logoutOpts)
+	logoutFlags.SetInterspersed(false)
+	flags.AddFlagSet(logoutFlags)
 	rootCmd.AddCommand(logoutCommand)
 }
 
-func logoutCmd(c *cobra.Command, args []string, iopts *auth.LogoutOptions) error {
+func logoutCmd(c *cobra.Command, args []string, opts *logoutOptions) error {
 	if len(args) > 1 {
 		return errors.New("too many arguments, logout takes at most 1 argument")
 	}
-	if len(args) == 0 && !iopts.All {
+	if len(args) == 0 && !opts.logoutOpts.All {
 		return errors.New("registry must be given")
 	}
 
@@ -55,5 +64,5 @@ func logoutCmd(c *cobra.Command, args []string, iopts *auth.LogoutOptions) error
 	// that’s fair enough for reads, but incorrect for writes (the two files have incompatible formats),
 	// and it interferes with the auth.Logout’s own argument parsing.
 	systemContext.AuthFilePath = ""
-	return auth.Logout(systemContext, iopts, args)
+	return auth.Logout(systemContext, &opts.logoutOpts, args)
 }
