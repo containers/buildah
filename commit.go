@@ -257,9 +257,8 @@ func checkRegistrySourcesAllows(forWhat string, dest types.ImageReference) (inse
 	return false, nil
 }
 
-func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpec string) (string, error) {
+func (b *Builder) addManifest(ctx context.Context, systemContext *types.SystemContext, manifestName string, imageSpec string) (string, error) {
 	var create bool
-	systemContext := &types.SystemContext{}
 	var list manifests.List
 	runtime, err := libimage.RuntimeFromStore(b.store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -589,7 +588,7 @@ func (b *Builder) CommitResults(ctx context.Context, dest types.ImageReference, 
 	}
 
 	if options.Manifest != "" {
-		manifestID, err := b.addManifest(ctx, options.Manifest, imgID)
+		manifestID, err := b.addManifest(ctx, options.SystemContext, options.Manifest, imgID)
 		if err != nil {
 			return nil, err
 		}

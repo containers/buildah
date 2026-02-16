@@ -375,7 +375,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	id, ref = instances[0].ID, instances[0].Ref
 
 	if manifestList != "" {
-		rt, err := libimage.RuntimeFromStore(store, nil)
+		rt, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: options.SystemContext})
 		if err != nil {
 			return "", nil, err
 		}
