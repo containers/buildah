@@ -29,6 +29,7 @@ type fromReply struct {
 	pullNever       bool
 	quiet           bool
 	signaturePolicy string
+	tlsDetails      string
 	tlsVerify       bool
 	*cli.FromAndBudResults
 	*cli.UserNSResults
@@ -96,6 +97,7 @@ newer: only pull images when newer images exist on the registry than those in th
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 
 	// Add in the common flags

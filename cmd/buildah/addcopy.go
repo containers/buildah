@@ -34,6 +34,7 @@ type addCopyResults struct {
 	signaturePolicy  string
 	authfile         string
 	creds            string
+	tlsDetails       string
 	tlsVerify        bool
 	certDir          string
 	retry            int
@@ -90,6 +91,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	flags.IntVar(&opts.retry, "retry", cli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
 	flags.StringVar(&opts.retryDelay, "retry-delay", cli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing registries when pulling images, and when retrieving sources from HTTPS URLs. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pulling image")
 	if err := flags.MarkHidden("remove-signatures"); err != nil {
