@@ -562,9 +562,9 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		instanceDigest, err = list.Add(getContext(), systemContext, ref, opts.all)
 		if err != nil {
 			var storeErr error
-			// Retry without a custom system context.  A user may want to add
+			// Retry without a custom system context with platform options.  A user may want to add
 			// a custom platform (see #3511).
-			if ref, _, storeErr = util.FindImage(store, "", nil, imageSpec); storeErr != nil {
+			if ref, _, storeErr = util.FindImage(store, "", &types.SystemContext{BaseTLSConfig: systemContext.BaseTLSConfig}, imageSpec); storeErr != nil {
 				logrus.Errorf("Error while trying to find image on local storage: %v", storeErr)
 				return err
 			}
