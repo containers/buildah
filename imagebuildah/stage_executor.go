@@ -2705,6 +2705,7 @@ func (s *stageExecutor) generateBuildOutput(buildOutputOpts output.BuildOutputOp
 		HistoryTimestamp:     s.executor.timestamp,
 		SourceDateEpoch:      s.executor.sourceDateEpoch,
 		RewriteTimestamp:     s.executor.rewriteTimestamp,
+		SystemContext:        s.systemContext,
 		CompatLayerOmissions: s.executor.compatLayerOmissions,
 	}, extractRootfsOpts)
 	if err != nil {
