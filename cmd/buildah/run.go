@@ -157,6 +157,11 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		}
 	}
 
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return fmt.Errorf("building system context: %w", err)
+	}
+
 	options := buildah.RunOptions{
 		Hostname:         iopts.hostname,
 		Runtime:          iopts.runtime,
@@ -175,6 +180,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		DropCapabilities: iopts.capDrop,
 		WorkingDir:       iopts.workingDir,
 		DeviceSpecs:      iopts.devices,
+		SystemContext:    systemContext,
 		CDIConfigDir:     iopts.cdiConfigDir,
 	}
 
@@ -188,10 +194,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 
 	options.Env = buildahcli.LookupEnvVarReferences(iopts.env, os.Environ())
 
-	systemContext, err := parse.SystemContextFromOptions(c)
-	if err != nil {
-		return fmt.Errorf("building system context: %w", err)
-	}
 	mounts, mountedImages, intermediateMounts, _, targetLocks, err := volumes.GetVolumes(systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, builder.IDMappingOptions, iopts.workingDir, tmpDir)
 	if err != nil {
 		return err

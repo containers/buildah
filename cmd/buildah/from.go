@@ -172,7 +172,7 @@ func onBuild(builder *buildah.Builder, systemContext *types.SystemContext, quiet
 			if quiet {
 				stdout = io.Discard
 			}
-			if err := builder.Run(args, buildah.RunOptions{Stdout: stdout}); err != nil {
+			if err := builder.Run(args, buildah.RunOptions{Stdout: stdout, SystemContext: systemContext}); err != nil {
 				return err
 			}
 		case "SHELL":
