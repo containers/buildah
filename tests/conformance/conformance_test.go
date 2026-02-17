@@ -889,7 +889,7 @@ type FSTree struct {
 type Layer struct {
 	UncompressedDigest digest.Digest `json:"uncompressed-digest,omitempty"`
 	CompressedDigest   digest.Digest `json:"compressed-digest,omitempty"`
-	Headers            []FSHeader    `json:"-,omitempty"`
+	Headers            []FSHeader    `json:"-"`
 }
 
 // FSHeader is the parts of the tar.Header for an entry in a layer blob that
@@ -1345,10 +1345,10 @@ func compareJSON(a, b map[string]any, skip []string) (missKeys, leftKeys, diffKe
 func configCompareResult(miss, left, diff []string, notDocker string) string {
 	var buffer bytes.Buffer
 	if len(miss) > 0 {
-		buffer.WriteString(fmt.Sprintf("Fields missing from %s version: %s\n", notDocker, strings.Join(miss, " ")))
+		fmt.Fprintf(&buffer, "Fields missing from %s version: %s\n", notDocker, strings.Join(miss, " "))
 	}
 	if len(left) > 0 {
-		buffer.WriteString(fmt.Sprintf("Fields which only exist in %s version: %s\n", notDocker, strings.Join(left, " ")))
+		fmt.Fprintf(&buffer, "Fields which only exist in %s version: %s\n", notDocker, strings.Join(left, " "))
 	}
 	if len(diff) > 0 {
 		buffer.WriteString("Fields present in both versions have different values:\n")
@@ -1377,10 +1377,10 @@ func fsCompareResult(miss, left, diff []string, notDocker string) string {
 		return n
 	}
 	if len(miss) > 0 {
-		buffer.WriteString(fmt.Sprintf("Content missing from %s version: %s\n", notDocker, strings.Join(fixup(miss), " ")))
+		fmt.Fprintf(&buffer, "Content missing from %s version: %s\n", notDocker, strings.Join(fixup(miss), " "))
 	}
 	if len(left) > 0 {
-		buffer.WriteString(fmt.Sprintf("Content which only exists in %s version: %s\n", notDocker, strings.Join(fixup(left), " ")))
+		fmt.Fprintf(&buffer, "Content which only exists in %s version: %s\n", notDocker, strings.Join(fixup(left), " "))
 	}
 	if len(diff) > 0 {
 		buffer.WriteString("File attributes in both versions have different values:\n")
