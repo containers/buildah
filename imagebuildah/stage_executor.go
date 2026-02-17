@@ -811,7 +811,7 @@ func (s *stageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 			args = []string{full}
 		}
 	}
-	stageMountPoints, err := s.runStageMountPoints(run.Mounts)
+	stageMountPoints, err := s.runStageMountPoints(slices.Concat(run.Mounts, s.executor.transientRunMounts))
 	if err != nil {
 		return err
 	}

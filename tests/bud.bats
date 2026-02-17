@@ -9190,6 +9190,17 @@ EOF
   diff "${out_path}.a" "${out_path}.b"
 }
 
+@test "build-with-run-image-mount" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p "${contextdir}"
+  cat > "${contextdir}"/Containerfile << _EOF
+  FROM busybox
+  RUN cat /alpine/etc/os-release | tee /alpine.os-release
+_EOF
+  run_buildah build --mount=type=bind,from=alpine,target=/alpine "${contextdir}"
+}
+
 @test "bud with FROM --after" {
   # This tests the 'FROM --after' workflow, i.e. that:
   # - --after is enough to pull in the builder stage as a dep
