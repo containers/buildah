@@ -9264,3 +9264,215 @@ EOF
   run_buildah 125 build $WITH_POLICY_JSON "${contextdir}"
   expect_output --substring "FROM --after=second: stage \"second\" not found"
 }
+
+@test "bud-windows-host-process-container" {
+  skip_if_rootless_environment
+  # Test building a Windows container image on Linux
+  # This validates that the Windows layer mutations are applied correctly
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/windows-context
+  mkdir -p ${contextdir}
+
+  # Create a test file to copy into the Windows image
+  echo "test" > ${contextdir}/testfile
+
+  # Create inline Dockerfile for Windows container
+  cat > ${contextdir}/Dockerfile << _EOF
+FROM alpine as build
+RUN echo "test" > testfile
+
+FROM --platform=windows/amd64 mcr.microsoft.com/oss/kubernetes/windows-host-process-containers-base-image:v1.0.0
+COPY --from=build testfile /testfile
+ENV PATH="C:\Windows\system32;C:\Windows;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;"
+USER ContainerAdministrator
+_EOF
+
+  # Build the Windows container image directly to OCI format
+  local ocidir=${TEST_SCRATCH_DIR}/oci-windows
+  run_buildah build $WITH_POLICY_JSON -t oci:${ocidir} ${contextdir}
+
+  # Create a container from the OCI image and mount it
+  run_buildah from --quiet oci:${ocidir}
+  # Extract just the container ID (last line), ignoring warning messages
+  cid=$(echo "$output" | tail -1)
+  run_buildah mount ${cid}
+  root=$(echo "$output" | tail -1)
+
+  # Verify the Windows-specific directory structure was created
+  # The Windows mutator should create /Hives and /Files directories
+  test -d ${root}/Hives/
+  test -d ${root}/Files/
+
+  # Verify that the copied testfile exists in the correct location
+  # The COPY instruction copies to /testfile, but the Windows mutator
+  # should relocate it to /Files/testfile
+  test -f ${root}/Files/testfile
+
+  # Verify Windows-specific PAX attributes are present in the layer
+  # Get the last layer blob using helper function
+  local layer_file=${ocidir}/$(oci_image_last_diff ${ocidir})
+
+  # Decompress the layer and check for Windows-specific PAX headers
+  # The layer contains PAX extended headers with MSWINDOWS.fileattr
+  local layer_tar=${TEST_SCRATCH_DIR}/layer.tar
+  gzip -dc ${layer_file} > ${layer_tar} 2>/dev/null || cat ${layer_file} > ${layer_tar}
+
+  # Verify the layer contains the expected Windows structure
+  run tar -tf ${layer_tar}
+  expect_output --substring "Hives/"
+  expect_output --substring "Files/testfile"
+
+  # Check for Windows-specific PAX headers on all expected paths
+  # Each file/directory should have: MSWINDOWS.fileattr, MSWINDOWS.rawsd, and LIBARCHIVE.creationtime
+  # Use tar's verbose output which shows when it encounters these headers
+  local required_paths=("Hives/" "Files/" "Files/testfile")
+
+  # Run tar and capture its stderr which contains PAX header warnings
+  local tar_output=${TEST_SCRATCH_DIR}/tar_output.txt
+  tar -tvf ${layer_tar} 2>&1 | tee ${tar_output}
+
+  # For each path, verify that the PAX headers appear immediately before it
+  for path in "${required_paths[@]}"; do
+    # Extract lines before this path entry (PAX warnings appear just before the file)
+    # We need to find the block of PAX warnings that precede this specific path
+    local line_num=$(grep -n "^.*${path}\$" ${tar_output} | head -1 | cut -d: -f1)
+
+    if [ -z "${line_num}" ]; then
+      echo "ERROR: Path ${path} not found in tar listing"
+      false
+    fi
+
+    # Get the preceding 10 lines which should contain PAX header warnings
+    local context_start=$((line_num - 10))
+    if [ ${context_start} -lt 1 ]; then
+      context_start=1
+    fi
+    local preceding_lines=$(sed -n "${context_start},$((line_num - 1))p" ${tar_output})
+
+    # Check for required headers in the preceding PAX warnings
+    if ! echo "${preceding_lines}" | grep -q "MSWINDOWS.fileattr" ; then
+      echo "ERROR: MSWINDOWS.fileattr not found for ${path}"
+      echo "Context around ${path}:"
+      sed -n "${context_start},${line_num}p" ${tar_output}
+      false
+    fi
+
+    if ! echo "${preceding_lines}" | grep -q "LIBARCHIVE.creationtime" ; then
+      echo "ERROR: LIBARCHIVE.creationtime not found for ${path}"
+      echo "Context around ${path}:"
+      sed -n "${context_start},${line_num}p" ${tar_output}
+      false
+    fi
+
+    # MSWINDOWS.rawsd should be present for all paths (files and directories)
+    if ! echo "${preceding_lines}" | grep -q "MSWINDOWS.rawsd" ; then
+      echo "ERROR: MSWINDOWS.rawsd not found for ${path}"
+      echo "Context around ${path}:"
+      sed -n "${context_start},${line_num}p" ${tar_output}
+      false
+    fi
+  done
+
+  # Cleanup
+  run_buildah umount ${cid}
+  run_buildah rm ${cid}
+}
+
+@test "bud-windows-with-timestamp-reproducible" {
+  skip_if_rootless_environment
+
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/windows-context
+  mkdir -p ${contextdir}
+
+  cat > ${contextdir}/Dockerfile << _EOF
+FROM alpine as build
+RUN echo "test" > testfile
+
+FROM --platform=windows/amd64 mcr.microsoft.com/oss/kubernetes/windows-host-process-containers-base-image:v1.0.0
+COPY --from=build testfile /testfile
+_EOF
+
+  # Build twice with the same timestamp - should produce identical results
+  local timestamp=86400
+  run_buildah build $WITH_POLICY_JSON --timestamp=${timestamp} -t oci:${TEST_SCRATCH_DIR}/windows-a ${contextdir}
+  sleep 1.1 # sleep at least 1 second, so that timestamps are incremented
+  run_buildah build $WITH_POLICY_JSON --timestamp=${timestamp} -t oci:${TEST_SCRATCH_DIR}/windows-b ${contextdir}
+
+  # should be the same (all timestamps including Hives and Files directories should be identical)
+  diff -r "${TEST_SCRATCH_DIR}/windows-a" "${TEST_SCRATCH_DIR}/windows-b"
+
+  # Verify that all files in the layer have the correct timestamp
+  local layer=${TEST_SCRATCH_DIR}/windows-a/$(oci_image_last_diff ${TEST_SCRATCH_DIR}/windows-a)
+  mkdir -p ${TEST_SCRATCH_DIR}/layer
+  gzip -dc ${layer} > ${TEST_SCRATCH_DIR}/layer.tar 2>/dev/null || cat ${layer} > ${TEST_SCRATCH_DIR}/layer.tar
+  tar -C ${TEST_SCRATCH_DIR}/layer -xvf ${TEST_SCRATCH_DIR}/layer.tar
+
+  # Check timestamps on all files including Hives and Files directories
+  for file in $(find ${TEST_SCRATCH_DIR}/layer/* -print) ; do
+    run stat -c %Y $file
+    assert $status = 0 "checking datestamp on $file in layer"
+    assert "$output" = "$timestamp" "unexpected datestamp on $file in layer (expected ${timestamp}, got ${output})"
+  done
+}
+
+@test "bud-windows-with-source-date-epoch-reproducible" {
+  skip_if_rootless_environment
+
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/windows-context
+  mkdir -p ${contextdir}
+
+  # Create files with different timestamps to test clamping behavior
+  local old_timestamp=10000  # Older than source-date-epoch (should be preserved)
+  local source_date_epoch=86400  # The clamping threshold
+
+  # Create an old file (timestamp older than source-date-epoch)
+  echo "old" > ${contextdir}/oldfile
+  touch -d @${old_timestamp} ${contextdir}/oldfile
+
+  # Create a new file (timestamp will be current time, newer than source-date-epoch)
+  echo "new" > ${contextdir}/newfile
+
+  cat > ${contextdir}/Dockerfile << _EOF
+FROM --platform=windows/amd64 mcr.microsoft.com/oss/kubernetes/windows-host-process-containers-base-image:v1.0.0
+COPY oldfile /oldfile
+COPY newfile /newfile
+_EOF
+
+  # Build twice with the same source-date-epoch and rewrite-timestamp
+  run_buildah build $WITH_POLICY_JSON --source-date-epoch=${source_date_epoch} --rewrite-timestamp -t oci:${TEST_SCRATCH_DIR}/windows-a ${contextdir}
+  sleep 1.1 # sleep at least 1 second, so that timestamps are incremented
+  run_buildah build $WITH_POLICY_JSON --source-date-epoch=${source_date_epoch} --rewrite-timestamp -t oci:${TEST_SCRATCH_DIR}/windows-b ${contextdir}
+
+  # should be the same (reproducible builds)
+  diff -r "${TEST_SCRATCH_DIR}/windows-a" "${TEST_SCRATCH_DIR}/windows-b"
+
+  # Verify timestamp clamping behavior
+  local layer=${TEST_SCRATCH_DIR}/windows-a/$(oci_image_last_diff ${TEST_SCRATCH_DIR}/windows-a)
+  mkdir -p ${TEST_SCRATCH_DIR}/layer
+  gzip -dc ${layer} > ${TEST_SCRATCH_DIR}/layer.tar 2>/dev/null || cat ${layer} > ${TEST_SCRATCH_DIR}/layer.tar
+  tar -C ${TEST_SCRATCH_DIR}/layer -xvf ${TEST_SCRATCH_DIR}/layer.tar
+
+  # Check that Hives and Files directories are clamped to source-date-epoch
+  run stat -c %Y ${TEST_SCRATCH_DIR}/layer/Hives
+  assert $status = 0 "checking datestamp on Hives directory"
+  assert "$output" = "$source_date_epoch" "Hives directory should be clamped to source-date-epoch (expected ${source_date_epoch}, got ${output})"
+
+  run stat -c %Y ${TEST_SCRATCH_DIR}/layer/Files
+  assert $status = 0 "checking datestamp on Files directory"
+  assert "$output" = "$source_date_epoch" "Files directory should be clamped to source-date-epoch (expected ${source_date_epoch}, got ${output})"
+
+  # Check that oldfile preserves its old timestamp (older than source-date-epoch)
+  run stat -c %Y ${TEST_SCRATCH_DIR}/layer/Files/oldfile
+  assert $status = 0 "checking datestamp on oldfile"
+  assert "$output" = "$old_timestamp" "oldfile should preserve old timestamp (expected ${old_timestamp}, got ${output})"
+
+  # Check that newfile is clamped to source-date-epoch (was newer, got clamped)
+  run stat -c %Y ${TEST_SCRATCH_DIR}/layer/Files/newfile
+  assert $status = 0 "checking datestamp on newfile"
+  assert "$output" = "$source_date_epoch" "newfile should be clamped to source-date-epoch (expected ${source_date_epoch}, got ${output})"
+}

@@ -296,12 +296,18 @@ func TestCommitCompression(t *testing.T) {
 		name           string
 		expectError    bool
 		layerMediaType string
+		os             string
 	}{
-		{archive.Uncompressed, "uncompressed", false, v1.MediaTypeImageLayer},
-		{archive.Gzip, "gzip", false, v1.MediaTypeImageLayerGzip},
-		{archive.Bzip2, "bz2", true, ""},
-		{archive.Xz, "xz", true, ""},
-		{archive.Zstd, "zstd", false, v1.MediaTypeImageLayerZstd},
+		{archive.Uncompressed, "uncompressed", false, v1.MediaTypeImageLayer, ""},
+		{archive.Uncompressed, "uncompressed-win", false, v1.MediaTypeImageLayer, "windows"},
+		{archive.Gzip, "gzip", false, v1.MediaTypeImageLayerGzip, ""},
+		{archive.Gzip, "gzip-win", false, v1.MediaTypeImageLayerGzip, "windows"},
+		{archive.Bzip2, "bz2", true, "", ""},
+		{archive.Bzip2, "bz2-win", true, "", "windows"},
+		{archive.Xz, "xz", true, "", ""},
+		{archive.Xz, "xz-win", true, "", "windows"},
+		{archive.Zstd, "zstd", false, v1.MediaTypeImageLayerZstd, ""},
+		{archive.Zstd, "zstd-win", false, v1.MediaTypeImageLayerZstd, "windows"},
 	} {
 		t.Run(compressor.name, func(t *testing.T) {
 			var ref types.ImageReference
@@ -310,6 +316,7 @@ func TestCommitCompression(t *testing.T) {
 				SystemContext:         &testSystemContext,
 				Compression:           compressor.compression,
 			}
+			b.OCIv1.OS = compressor.os
 			imageName := compressor.name
 			ref, err := imageStorage.Transport.ParseStoreReference(store, imageName)
 			require.NoErrorf(t, err, "parsing reference for to-be-committed local image %q", imageName)
