@@ -129,12 +129,6 @@ type RunOptions struct {
 	// namespace), effectively deciding whether or not the process has a
 	// usable network.
 	ConfigureNetwork define.NetworkConfigurationPolicy
-	// CNIPluginPath is the location of CNI plugin helpers, if they should be
-	// run from a location other than the default location.
-	CNIPluginPath string
-	// CNIConfigDir is the location of CNI configuration files, if the files in
-	// the default configuration directory shouldn't be used.
-	CNIConfigDir string
 	// Terminal provides a way to specify whether or not the command should
 	// be run with a pseudoterminal.  By default (DefaultTerminal), a
 	// terminal is used if os.Stdout is connected to a terminal, but that

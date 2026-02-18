@@ -226,8 +226,6 @@ Version:         1.36.0
 Go Version:      go1.22.3
 Image Spec:      1.1.0
 Runtime Spec:    1.2.0
-CNI Spec:        1.0.0
-libcni Version:
 image Version:   5.31.0
 Git Commit:
 Built:           Mon May 27 13:11:54 2024
