@@ -14,6 +14,11 @@ Builds an image using instructions from one or more Containerfiles or Dockerfile
 build context directory.  A Containerfile uses the same syntax as a Dockerfile internally.  For this
 document, a file referred to as a Containerfile can be a file named either 'Containerfile' or 'Dockerfile'.
 
+The `ADD` instruction in Containerfiles/Dockerfiles supports the `--unpack[=true|false]` flag to control
+archive extraction behavior. By default, local archives are extracted but remote archives (HTTP/HTTPS URLs)
+are not. Use `--unpack=true` to extract remote archives, or `--unpack=false` to prevent extraction of local
+archives.
+
 The build context directory can be specified as the http(s) URL of an archive, git repository or Containerfile.
 
 If no context directory is specified, then Buildah will assume the current working directory as build context, which should contain a Containerfile.
