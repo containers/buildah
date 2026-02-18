@@ -24,6 +24,7 @@ const (
 type inspectResults struct {
 	format      string
 	inspectType string
+	tlsDetails  string
 }
 
 func init() {
@@ -49,6 +50,7 @@ func init() {
 	flags.SetInterspersed(false)
 	flags.StringVarP(&opts.format, "format", "f", "", "use `format` as a Go template to format the output")
 	flags.StringVarP(&opts.inspectType, "type", "t", inspectTypeContainer, "look at the item of the specified `type` (container or image) and name")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 
 	rootCmd.AddCommand(inspectCommand)
 }

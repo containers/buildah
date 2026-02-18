@@ -35,6 +35,7 @@ type manifestCreateOpts struct {
 	os, arch                        string
 	all, tlsVerify, insecure, amend bool
 	annotations                     []string
+	tlsDetails                      string
 }
 
 type manifestAddOpts struct {
@@ -45,20 +46,33 @@ type manifestAddOpts struct {
 	artifactType, artifactLayerType                        string
 	artifactConfigType, artifactConfigFile                 string
 	artifactSubject                                        string
+	tlsDetails                                             string
 }
 
-type manifestRemoveOpts struct{}
+type manifestExistsOpts struct {
+	tlsDetails string
+}
+
+type manifestRemoveOpts struct {
+	tlsDetails string
+}
 
 type manifestAnnotateOpts struct {
 	os, arch, variant, osVersion      string
 	features, osFeatures, annotations []string
 	index                             bool
 	subject                           string
+	tlsDetails                        string
 }
 
 type manifestInspectOpts struct {
-	authfile  string
-	tlsVerify bool
+	authfile   string
+	tlsVerify  bool
+	tlsDetails string
+}
+
+type manifestRmOpts struct {
+	tlsDetails string
 }
 
 func init() {
@@ -74,10 +88,12 @@ func init() {
 		manifestExistsDescription   = "\n  Check if a manifest list exists in local storage."
 		manifestCreateOpts          manifestCreateOpts
 		manifestAddOpts             manifestAddOpts
+		manifestExistsOpts          manifestExistsOpts
 		manifestRemoveOpts          manifestRemoveOpts
 		manifestAnnotateOpts        manifestAnnotateOpts
 		manifestInspectOpts         manifestInspectOpts
 		manifestPushOpts            pushOptions
+		manifestRmOpts              manifestRmOpts
 	)
 	manifestCommand := &cobra.Command{
 		Use:   "manifest",
@@ -124,6 +140,7 @@ func init() {
 	if err := flags.MarkHidden("insecure"); err != nil {
 		panic(fmt.Sprintf("error marking insecure as hidden: %v", err))
 	}
+	flags.StringVar(&manifestCreateOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&manifestCreateOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestCreateCommand)
@@ -164,6 +181,7 @@ func init() {
 	if err := flags.MarkHidden("insecure"); err != nil {
 		panic(fmt.Sprintf("error marking insecure as hidden: %v", err))
 	}
+	flags.StringVar(&manifestAddOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&manifestAddOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVar(&manifestAddOpts.all, "all", false, "add all of the list's images if the image is a list")
 	flags.SetNormalizeFunc(cli.AliasFlags)
@@ -180,6 +198,8 @@ func init() {
 		Args:    cobra.MinimumNArgs(2),
 	}
 	manifestRemoveCommand.SetUsageTemplate(UsageTemplate())
+	flags = manifestRemoveCommand.Flags()
+	flags.StringVar(&manifestRemoveOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	manifestCommand.AddCommand(manifestRemoveCommand)
 
 	manifestExistsCommand := &cobra.Command{
@@ -188,11 +208,13 @@ func init() {
 		Long:  manifestExistsDescription,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return manifestExistsCmd(cmd, args)
+			return manifestExistsCmd(cmd, args, manifestExistsOpts)
 		},
 		Example: "buildah manifest exists mylist",
 	}
 	manifestExistsCommand.SetUsageTemplate(UsageTemplate())
+	flags = manifestExistsCommand.Flags()
+	flags.StringVar(&manifestExistsOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	manifestCommand.AddCommand(manifestExistsCommand)
 
 	manifestAnnotateCommand := &cobra.Command{
@@ -215,6 +237,7 @@ func init() {
 	flags.StringSliceVar(&manifestAnnotateOpts.osFeatures, "os-features", nil, "override the os `features` of the specified image")
 	flags.StringSliceVar(&manifestAnnotateOpts.annotations, "annotation", nil, "set an `annotation` for the specified image")
 	flags.StringVar(&manifestAnnotateOpts.subject, "subject", "", "set a subject for the image index")
+	flags.StringVar(&manifestAnnotateOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	manifestAnnotateCommand.SetUsageTemplate(UsageTemplate())
 	manifestCommand.AddCommand(manifestAnnotateCommand)
 
@@ -230,6 +253,7 @@ func init() {
 	}
 	flags = manifestInspectCommand.Flags()
 	flags.StringVar(&manifestInspectOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&manifestInspectOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&manifestInspectOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	manifestInspectCommand.SetUsageTemplate(UsageTemplate())
 	manifestCommand.AddCommand(manifestInspectCommand)
@@ -267,6 +291,7 @@ func init() {
 	if err := flags.MarkHidden("insecure"); err != nil {
 		panic(fmt.Sprintf("error marking insecure as hidden: %v", err))
 	}
+	flags.StringVar(&manifestPushOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&manifestPushOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&manifestPushOpts.quiet, "quiet", "q", false, "don't output progress information when pushing lists")
 	flags.IntVar(&manifestPushOpts.retry, "retry", int(defaultContainerConfig.Engine.Retry), "number of times to retry in case of failure when performing push")
@@ -279,16 +304,18 @@ func init() {
 		Short: "Remove manifest list or image index",
 		Long:  manifestRmDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return manifestRmCmd(cmd, args)
+			return manifestRmCmd(cmd, args, manifestRmOpts)
 		},
 		Example: `buildah manifest rm mylist:v1.11`,
 		Args:    cobra.MinimumNArgs(1),
 	}
 	manifestRmCommand.SetUsageTemplate(UsageTemplate())
+	flags = manifestRmCommand.Flags()
+	flags.StringVar(&manifestRmOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	manifestCommand.AddCommand(manifestRmCommand)
 }
 
-func manifestExistsCmd(c *cobra.Command, args []string) error {
+func manifestExistsCmd(c *cobra.Command, args []string, _ manifestExistsOpts) error {
 	if len(args) == 0 {
 		return errors.New("at least a name must be specified for the list")
 	}
@@ -562,9 +589,9 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		instanceDigest, err = list.Add(getContext(), systemContext, ref, opts.all)
 		if err != nil {
 			var storeErr error
-			// Retry without a custom system context.  A user may want to add
+			// Retry without a custom system context with platform options.  A user may want to add
 			// a custom platform (see #3511).
-			if ref, _, storeErr = util.FindImage(store, "", nil, imageSpec); storeErr != nil {
+			if ref, _, storeErr = util.FindImage(store, "", &types.SystemContext{BaseTLSConfig: systemContext.BaseTLSConfig}, imageSpec); storeErr != nil {
 				logrus.Errorf("Error while trying to find image on local storage: %v", storeErr)
 				return err
 			}
@@ -705,7 +732,7 @@ func manifestRemoveCmd(c *cobra.Command, args []string, _ manifestRemoveOpts) er
 	return nil
 }
 
-func manifestRmCmd(c *cobra.Command, args []string) error {
+func manifestRmCmd(c *cobra.Command, args []string, _ manifestRmOpts) error {
 	store, err := getStore(c)
 	if err != nil {
 		return err

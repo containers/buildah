@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 
@@ -20,6 +21,8 @@ import (
 type PullOptions struct {
 	// Require HTTPS and verify certificates when accessing the registry.
 	TLSVerify bool
+	// If not nil, may contain TLS _algorithm_ options (e.g. TLS version, cipher suites, “curves”, etc.)
+	BaseTLSConfig *tls.Config
 	// [username[:password] to use when connecting to the registry.
 	Credentials string
 	// Quiet the progress bars when pushing.
@@ -42,6 +45,7 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 	}
 
 	sysCtx := &types.SystemContext{
+		BaseTLSConfig:               options.BaseTLSConfig,
 		DockerInsecureSkipTLSVerify: types.NewOptionalBool(!options.TLSVerify),
 	}
 	if options.Credentials != "" {
@@ -66,7 +70,8 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 	}
 
 	copyOpts := copy.Options{
-		SourceCtx: sysCtx,
+		SourceCtx:      sysCtx,
+		DestinationCtx: sysCtx,
 	}
 	if !options.Quiet {
 		copyOpts.ReportWriter = os.Stderr

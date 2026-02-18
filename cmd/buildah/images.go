@@ -45,15 +45,16 @@ type imageOutputParams struct {
 }
 
 type imageOptions struct {
-	all       bool
-	digests   bool
-	format    string
-	json      bool
-	noHeading bool
-	truncate  bool
-	quiet     bool
-	readOnly  bool
-	history   bool
+	all        bool
+	digests    bool
+	format     string
+	json       bool
+	noHeading  bool
+	tlsDetails string
+	truncate   bool
+	quiet      bool
+	readOnly   bool
+	history    bool
 }
 
 type imageResults struct {
@@ -99,7 +100,9 @@ func init() {
 	flags.BoolVarP(&opts.noHeading, "noheading", "n", false, "do not print column headings")
 	// TODO needs alias here -- to `notruncate`
 	flags.BoolVar(&opts.truncate, "no-trunc", false, "do not truncate output")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "display only image IDs")
+	// No --tls-details option because this really shouldn’t contact external servers.
 	flags.BoolVarP(&opts.history, "history", "", false, "display the image name history")
 
 	rootCmd.AddCommand(imagesCommand)

@@ -39,6 +39,15 @@ Instead of updating the default credentials file, update the one at *path*, and 
 
 Print usage statement
 
+**--tls-details** *path*
+
+Path to a `containers-tls-details.yaml(5)` file.
+
+If not set, defaults to a reasonable default that may change over time (depending on system’s global policy,
+version of the program, version of the Go language, and the like).
+
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
 ## EXAMPLES
 
 ```

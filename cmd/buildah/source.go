@@ -5,7 +5,18 @@ import (
 
 	"github.com/containers/buildah/internal/source"
 	"github.com/spf13/cobra"
+	"go.podman.io/image/v5/pkg/cli/basetls/tlsdetails"
 )
+
+type sourcePullOptions struct {
+	source.PullOptions
+	tlsDetails string
+}
+
+type sourcePushOptions struct {
+	source.PushOptions
+	tlsDetails string
+}
 
 var (
 	// buildah source
@@ -57,7 +68,7 @@ var (
 	}
 
 	// buildah source pull
-	sourcePullOptions     = source.PullOptions{}
+	sourcePullOpts        = sourcePullOptions{}
 	sourcePullDescription = `  Pull a source image from a registry to a specified path.  The pull operation will fail if the image does not comply with a source-image OCI artifact.
 
   Note that the buildah-source command and all its subcommands are experimental and may be subject to future changes.
@@ -68,13 +79,13 @@ var (
 		Short:   "Pull a source image from a registry to a specified path",
 		Long:    sourcePullDescription,
 		Example: "buildah source pull quay.io/sourceimage/example:latest /tmp/sourceimage:latest",
-		RunE: func(_ *cobra.Command, args []string) error {
-			return source.Pull(context.Background(), args[0], args[1], sourcePullOptions)
+		RunE: func(c *cobra.Command, args []string) error {
+			return sourcePullCmd(c, args, sourcePullOpts)
 		},
 	}
 
 	// buildah source push
-	sourcePushOptions     = source.PushOptions{}
+	sourcePushOpts        = sourcePushOptions{}
 	sourcePushDescription = `  Push a source image from a specified path to a registry.
 
   Note that the buildah-source command and all its subcommands are experimental and may be subject to future changes.
@@ -85,11 +96,29 @@ var (
 		Short:   "Push a source image from a specified path to a registry",
 		Long:    sourcePushDescription,
 		Example: "buildah source push /tmp/sourceimage:latest quay.io/sourceimage/example:latest",
-		RunE: func(_ *cobra.Command, args []string) error {
-			return source.Push(context.Background(), args[0], args[1], sourcePushOptions)
+		RunE: func(c *cobra.Command, args []string) error {
+			return sourcePushCmd(c, args, sourcePushOpts)
 		},
 	}
 )
+
+func sourcePullCmd(_ *cobra.Command, args []string, opts sourcePullOptions) error {
+	baseTLSConfig, err := tlsdetails.BaseTLSFromOptionalFile(opts.tlsDetails)
+	if err != nil {
+		return err
+	}
+	opts.PullOptions.BaseTLSConfig = baseTLSConfig.TLSConfig()
+	return source.Pull(context.Background(), args[0], args[1], opts.PullOptions)
+}
+
+func sourcePushCmd(_ *cobra.Command, args []string, opts sourcePushOptions) error {
+	baseTLSConfig, err := tlsdetails.BaseTLSFromOptionalFile(opts.tlsDetails)
+	if err != nil {
+		return err
+	}
+	opts.PushOptions.BaseTLSConfig = baseTLSConfig.TLSConfig()
+	return source.Push(context.Background(), args[0], args[1], opts.PushOptions)
+}
 
 func init() {
 	// buildah source
@@ -113,16 +142,18 @@ func init() {
 	sourcePullCommand.SetUsageTemplate(UsageTemplate())
 	sourceCommand.AddCommand(sourcePullCommand)
 	sourcePullFlags := sourcePullCommand.Flags()
-	sourcePullFlags.StringVar(&sourcePullOptions.Credentials, "creds", "", "use `[username[:password]]` for accessing the registry")
-	sourcePullFlags.BoolVar(&sourcePullOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
-	sourcePullFlags.BoolVarP(&sourcePullOptions.Quiet, "quiet", "q", false, "don't output pull progress information")
+	sourcePullFlags.StringVar(&sourcePullOpts.PullOptions.Credentials, "creds", "", "use `[username[:password]]` for accessing the registry")
+	sourcePullFlags.StringVar(&sourcePullOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
+	sourcePullFlags.BoolVar(&sourcePullOpts.PullOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
+	sourcePullFlags.BoolVarP(&sourcePullOpts.PullOptions.Quiet, "quiet", "q", false, "don't output pull progress information")
 
 	// buildah source push
 	sourcePushCommand.SetUsageTemplate(UsageTemplate())
 	sourceCommand.AddCommand(sourcePushCommand)
 	sourcePushFlags := sourcePushCommand.Flags()
-	sourcePushFlags.StringVar(&sourcePushOptions.Credentials, "creds", "", "use `[username[:password]]` for accessing the registry")
-	sourcePushFlags.StringVar(&sourcePushOptions.DigestFile, "digestfile", "", "after copying the artifact, write the digest of the resulting image to the file")
-	sourcePushFlags.BoolVar(&sourcePushOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
-	sourcePushFlags.BoolVarP(&sourcePushOptions.Quiet, "quiet", "q", false, "don't output push progress information")
+	sourcePushFlags.StringVar(&sourcePushOpts.PushOptions.Credentials, "creds", "", "use `[username[:password]]` for accessing the registry")
+	sourcePushFlags.StringVar(&sourcePushOpts.PushOptions.DigestFile, "digestfile", "", "after copying the artifact, write the digest of the resulting image to the file")
+	sourcePushFlags.StringVar(&sourcePushOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
+	sourcePushFlags.BoolVar(&sourcePushOpts.PushOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
+	sourcePushFlags.BoolVarP(&sourcePushOpts.PushOptions.Quiet, "quiet", "q", false, "don't output push progress information")
 }

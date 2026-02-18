@@ -31,16 +31,15 @@ github.com/acarl005/stripansi
 # github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6
 ## explicit
 github.com/aead/serpent
+# github.com/cespare/xxhash/v2 v2.3.0
+## explicit; go 1.11
+github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/clipperhouse/stringish v0.1.1
-## explicit; go 1.18
-github.com/clipperhouse/stringish
-# github.com/clipperhouse/uax29/v2 v2.3.0
+# github.com/clipperhouse/uax29/v2 v2.7.0
 ## explicit; go 1.18
 github.com/clipperhouse/uax29/v2/graphemes
-github.com/clipperhouse/uax29/v2/internal/iterators
 # github.com/containerd/errdefs v1.0.0
 ## explicit; go 1.20
 github.com/containerd/errdefs
@@ -135,16 +134,10 @@ github.com/docker/distribution/registry/api/errcode
 github.com/docker/distribution/registry/api/v2
 # github.com/docker/docker v28.5.2+incompatible
 ## explicit
-github.com/docker/docker/api
-github.com/docker/docker/api/types
 github.com/docker/docker/api/types/blkiodev
-github.com/docker/docker/api/types/build
-github.com/docker/docker/api/types/checkpoint
 github.com/docker/docker/api/types/common
 github.com/docker/docker/api/types/container
-github.com/docker/docker/api/types/events
 github.com/docker/docker/api/types/filters
-github.com/docker/docker/api/types/image
 github.com/docker/docker/api/types/mount
 github.com/docker/docker/api/types/network
 github.com/docker/docker/api/types/registry
@@ -152,11 +145,7 @@ github.com/docker/docker/api/types/storage
 github.com/docker/docker/api/types/strslice
 github.com/docker/docker/api/types/swarm
 github.com/docker/docker/api/types/swarm/runtime
-github.com/docker/docker/api/types/system
-github.com/docker/docker/api/types/time
 github.com/docker/docker/api/types/versions
-github.com/docker/docker/api/types/volume
-github.com/docker/docker/client
 github.com/docker/docker/pkg/homedir
 github.com/docker/docker/pkg/jsonmessage
 github.com/docker/docker/pkg/stdcopy
@@ -232,7 +221,7 @@ github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.18.3
+# github.com/klauspost/compress v1.18.4
 ## explicit; go 1.23
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -251,13 +240,13 @@ github.com/klauspost/pgzip
 github.com/manifoldco/promptui
 github.com/manifoldco/promptui/list
 github.com/manifoldco/promptui/screenbuf
-# github.com/mattn/go-runewidth v0.0.19
+# github.com/mattn/go-runewidth v0.0.20
 ## explicit; go 1.20
 github.com/mattn/go-runewidth
 # github.com/mattn/go-shellwords v1.0.12
 ## explicit; go 1.13
 github.com/mattn/go-shellwords
-# github.com/mattn/go-sqlite3 v1.14.33
+# github.com/mattn/go-sqlite3 v1.14.34
 ## explicit; go 1.19
 github.com/mattn/go-sqlite3
 # github.com/miekg/pkcs11 v1.1.1
@@ -447,7 +436,7 @@ github.com/ulikunitz/xz/lzma
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vbauerster/mpb/v8 v8.11.3
+# github.com/vbauerster/mpb/v8 v8.12.0
 ## explicit; go 1.24.0
 github.com/vbauerster/mpb/v8
 github.com/vbauerster/mpb/v8/cwriter
@@ -470,16 +459,17 @@ go.etcd.io/bbolt/internal/freelist
 ## explicit; go 1.24.0
 go.opentelemetry.io/auto/sdk
 go.opentelemetry.io/auto/sdk/internal/telemetry
-# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
-## explicit; go 1.23.0
+# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0
+## explicit; go 1.24.0
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/request
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/semconv
-# go.opentelemetry.io/otel v1.38.0
-## explicit; go 1.23.0
+# go.opentelemetry.io/otel v1.40.0
+## explicit; go 1.24.0
 go.opentelemetry.io/otel
 go.opentelemetry.io/otel/attribute
 go.opentelemetry.io/otel/attribute/internal
+go.opentelemetry.io/otel/attribute/internal/xxhash
 go.opentelemetry.io/otel/baggage
 go.opentelemetry.io/otel/codes
 go.opentelemetry.io/otel/internal/baggage
@@ -487,18 +477,19 @@ go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/v1.37.0
 go.opentelemetry.io/otel/semconv/v1.37.0/httpconv
-# go.opentelemetry.io/otel/metric v1.38.0
-## explicit; go 1.23.0
+go.opentelemetry.io/otel/semconv/v1.39.0
+# go.opentelemetry.io/otel/metric v1.40.0
+## explicit; go 1.24.0
 go.opentelemetry.io/otel/metric
 go.opentelemetry.io/otel/metric/embedded
 go.opentelemetry.io/otel/metric/noop
-# go.opentelemetry.io/otel/trace v1.38.0
-## explicit; go 1.23.0
+# go.opentelemetry.io/otel/trace v1.40.0
+## explicit; go 1.24.0
 go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# go.podman.io/common v0.66.2-0.20260130150631-28c83ab6f016
+# go.podman.io/common v0.66.2-0.20260130150631-28c83ab6f016 => github.com/mtrmac/container-libs/common v0.0.0-20260218203207-3542be707b94
 ## explicit; go 1.24.6
 go.podman.io/common/internal
 go.podman.io/common/internal/attributedstring
@@ -551,7 +542,7 @@ go.podman.io/common/pkg/umask
 go.podman.io/common/pkg/util
 go.podman.io/common/pkg/version
 go.podman.io/common/version
-# go.podman.io/image/v5 v5.38.1-0.20260130150631-28c83ab6f016
+# go.podman.io/image/v5 v5.39.1 => github.com/mtrmac/container-libs/image/v5 v5.0.0-20260218203207-3542be707b94
 ## explicit; go 1.24.6
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
@@ -598,6 +589,8 @@ go.podman.io/image/v5/pkg/blobinfocache/internal/prioritize
 go.podman.io/image/v5/pkg/blobinfocache/memory
 go.podman.io/image/v5/pkg/blobinfocache/none
 go.podman.io/image/v5/pkg/blobinfocache/sqlite
+go.podman.io/image/v5/pkg/cli/basetls
+go.podman.io/image/v5/pkg/cli/basetls/tlsdetails
 go.podman.io/image/v5/pkg/compression
 go.podman.io/image/v5/pkg/compression/internal
 go.podman.io/image/v5/pkg/compression/types
@@ -620,7 +613,7 @@ go.podman.io/image/v5/transports
 go.podman.io/image/v5/transports/alltransports
 go.podman.io/image/v5/types
 go.podman.io/image/v5/version
-# go.podman.io/storage v1.61.1-0.20260130150631-28c83ab6f016
+# go.podman.io/storage v1.62.1-0.20260213181138-b602a1b889e2
 ## explicit; go 1.24.0
 go.podman.io/storage
 go.podman.io/storage/drivers
@@ -645,6 +638,7 @@ go.podman.io/storage/pkg/chunked/internal/minimal
 go.podman.io/storage/pkg/chunked/internal/path
 go.podman.io/storage/pkg/chunked/toc
 go.podman.io/storage/pkg/config
+go.podman.io/storage/pkg/configfile
 go.podman.io/storage/pkg/directory
 go.podman.io/storage/pkg/fileutils
 go.podman.io/storage/pkg/fsutils
@@ -859,3 +853,5 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# go.podman.io/image/v5 => github.com/mtrmac/container-libs/image/v5 v5.0.0-20260218203207-3542be707b94
+# go.podman.io/common => github.com/mtrmac/container-libs/common v0.0.0-20260218203207-3542be707b94

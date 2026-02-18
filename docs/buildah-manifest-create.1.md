@@ -39,6 +39,15 @@ preexisting list instead of exiting with an error.  The contents of
 
 Set an annotation on the newly-created image index.
 
+**--tls-details** *path*
+
+Path to a `containers-tls-details.yaml(5)` file.
+
+If not set, defaults to a reasonable default that may change over time (depending on system's global policy,
+version of the program, version of the Go language, and the like).
+
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
 **--tls-verify** *bool-value*
 
 Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.

@@ -35,6 +35,7 @@ type runInputOptions struct {
 	noHostname   bool
 	noHosts      bool
 	noPivot      bool
+	tlsDetails   string
 	terminal     bool
 	volumes      []string
 	workingDir   string
@@ -84,8 +85,8 @@ func init() {
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
 	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 	flags.StringArrayVar(&opts.mounts, "mount", []string{}, "attach a filesystem mount to the container (default [])")
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.StringVar(&opts.workingDir, "workingdir", "", "temporarily set working directory for command (default to container's workingdir)")
-
 	userFlags := getUserFlags()
 	namespaceFlags := buildahcli.GetNameSpaceFlags(&namespaceResults)
 
@@ -156,6 +157,11 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		}
 	}
 
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return fmt.Errorf("building system context: %w", err)
+	}
+
 	options := buildah.RunOptions{
 		Hostname:         iopts.hostname,
 		Runtime:          iopts.runtime,
@@ -174,6 +180,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		DropCapabilities: iopts.capDrop,
 		WorkingDir:       iopts.workingDir,
 		DeviceSpecs:      iopts.devices,
+		SystemContext:    systemContext,
 		CDIConfigDir:     iopts.cdiConfigDir,
 	}
 
@@ -187,10 +194,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 
 	options.Env = buildahcli.LookupEnvVarReferences(iopts.env, os.Environ())
 
-	systemContext, err := parse.SystemContextFromOptions(c)
-	if err != nil {
-		return fmt.Errorf("building system context: %w", err)
-	}
 	mounts, mountedImages, intermediateMounts, _, targetLocks, err := volumes.GetVolumes(systemContext, store, builder.MountLabel, iopts.volumes, iopts.mounts, iopts.contextDir, builder.IDMappingOptions, iopts.workingDir, tmpDir)
 	if err != nil {
 		return err
