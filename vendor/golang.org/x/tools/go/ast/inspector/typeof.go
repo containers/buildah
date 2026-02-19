@@ -216,7 +216,7 @@ func typeOf(n ast.Node) uint64 {
 }
 
 func maskOf(nodes []ast.Node) uint64 {
-	if len(nodes) == 0 {
+	if nodes == nil {
 		return math.MaxUint64 // match all node types
 	}
 	var mask uint64
