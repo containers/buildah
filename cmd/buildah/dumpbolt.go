@@ -32,7 +32,7 @@ func dumpBoltCmd(_ *cobra.Command, args []string) error {
 		var b strings.Builder
 		for i := range value {
 			if value[i] <= 32 || value[i] >= 127 {
-				b.WriteString(fmt.Sprintf("\\%03o", value[i]))
+				fmt.Fprintf(&b, "\\%03o", value[i])
 			} else {
 				b.WriteByte(value[i])
 			}
