@@ -32,9 +32,9 @@ import (
 )
 
 type manifestCreateOpts struct {
-	os, arch                        string
-	all, tlsVerify, insecure, amend bool
-	annotations                     []string
+	os, arch                                 string
+	all, tlsVerify, insecure, amend, replace bool
+	annotations                              []string
 }
 
 type manifestAddOpts struct {
@@ -111,6 +111,7 @@ func init() {
 	flags := manifestCreateCommand.Flags()
 	flags.BoolVar(&manifestCreateOpts.all, "all", false, "add all of the lists' images if the images to add are lists")
 	flags.BoolVar(&manifestCreateOpts.amend, "amend", false, "modify an existing list if one with the desired name already exists")
+	flags.BoolVar(&manifestCreateOpts.replace, "replace", false, "replace an existing image with the desired name")
 	flags.StringSliceVar(&manifestCreateOpts.annotations, "annotation", nil, "set an `annotation` for the image index")
 	flags.StringVar(&manifestCreateOpts.os, "os", "", "if any of the specified images is a list, choose the one for `os`")
 	if err := flags.MarkHidden("os"); err != nil {
@@ -323,6 +324,9 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 	if len(args) == 0 {
 		return errors.New("at least a name must be specified for the list")
 	}
+	if opts.amend && opts.replace {
+		return errors.New("amend and replace are mutually exclusive")
+	}
 	listImageSpec := args[0]
 	imageSpecs := args[1:]
 
@@ -348,22 +352,33 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 		return fmt.Errorf("encountered while expanding image name %q: %w", listImageSpec, err)
 	}
 	if manifestListID, err = list.SaveToImage(store, "", names, ""); err != nil {
-		if errors.Is(err, storage.ErrDuplicateName) && opts.amend {
-			for _, name := range names {
-				manifestList, err := runtime.LookupManifestList(listImageSpec)
-				if err != nil {
-					logrus.Debugf("no list named %q found: %v", listImageSpec, err)
-					continue
-				}
-				if _, list, err = manifests.LoadFromImage(store, manifestList.ID()); err != nil {
-					logrus.Debugf("no list found in %q", name)
-					continue
-				}
-				manifestListID = manifestList.ID()
-				break
+		if !errors.Is(err, storage.ErrDuplicateName) {
+			return err
+		}
+		if opts.amend {
+			img, _, lookupErr := runtime.LookupImage(listImageSpec, &libimage.LookupImageOptions{ManifestList: true})
+			if lookupErr != nil {
+				return fmt.Errorf("looking up image to amend %q: %w", listImageSpec, lookupErr)
 			}
-			if list == nil {
-				return fmt.Errorf("--amend specified but no matching manifest list found with name %q", listImageSpec)
+			if manifestList, err := img.ToManifestList(); err == nil {
+				manifestListID = manifestList.ID()
+			} else {
+				converted, convertErr := img.ConvertToManifestList(getContext())
+				if convertErr != nil {
+					return fmt.Errorf("converting image %q to manifest list: %w", listImageSpec, convertErr)
+				}
+				manifestListID = converted.ID()
+			}
+		} else if opts.replace {
+			img, _, lookupErr := runtime.LookupImage(listImageSpec, &libimage.LookupImageOptions{ManifestList: true})
+			if lookupErr != nil {
+				return fmt.Errorf("looking up image to replace %q: %w", listImageSpec, lookupErr)
+			}
+			if err := store.RemoveNames(img.ID(), names); err != nil {
+				return fmt.Errorf("removing name from image %s: %w", img.ID(), err)
+			}
+			if manifestListID, err = list.SaveToImage(store, "", names, ""); err != nil {
+				return err
 			}
 		} else {
 			return err
