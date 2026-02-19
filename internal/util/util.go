@@ -17,21 +17,29 @@ import (
 	"go.podman.io/storage/pkg/unshare"
 )
 
-// LookupImage returns *Image to corresponding imagename or id
-func LookupImage(ctx *types.SystemContext, store storage.Store, image string) (*libimage.Image, error) {
+// LookupImage returns the *libimage.Image and an ImageReference for a local image record with the
+// corresponding image name or ID.  Wraps libimage.Runtime.LookupImage() to do most of the work.
+func LookupImage(ctx *types.SystemContext, store storage.Store, image string, preferList bool) (*libimage.Image, types.ImageReference, error) {
 	systemContext := ctx
 	if systemContext == nil {
 		systemContext = &types.SystemContext{}
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	localImage, _, err := runtime.LookupImage(image, nil)
+	options := &libimage.LookupImageOptions{
+		ManifestList: preferList,
+	}
+	localImage, _, err := runtime.LookupImage(image, options)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return localImage, nil
+	storageRef, err := localImage.StorageReference()
+	if err != nil {
+		return nil, nil, err
+	}
+	return localImage, storageRef, nil
 }
 
 // NormalizePlatform validates and translate the platform to the canonical value.

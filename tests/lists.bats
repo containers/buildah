@@ -112,6 +112,14 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST}
     expect_output --substring ${IMAGE_LIST_PPC64LE_INSTANCE_DIGEST}
     expect_output --substring ${IMAGE_LIST_S390X_INSTANCE_DIGEST}
+    run_buildah manifest create foo2
+    run_buildah manifest add --all foo2 foo
+    run_buildah manifest inspect foo2
+    expect_output --substring ${IMAGE_LIST_AMD64_INSTANCE_DIGEST}
+    expect_output --substring ${IMAGE_LIST_ARM_INSTANCE_DIGEST}
+    expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST}
+    expect_output --substring ${IMAGE_LIST_PPC64LE_INSTANCE_DIGEST}
+    expect_output --substring ${IMAGE_LIST_S390X_INSTANCE_DIGEST}
 }
 
 @test "manifest-annotate global annotation" {

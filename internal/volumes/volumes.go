@@ -255,7 +255,7 @@ func GetBindMount(sys *types.SystemContext, args []string, contextDir string, st
 		// if mountPoint of image was not found in additionalMap
 		// or additionalMap was nil, try mounting image
 		if mountPoint == "" {
-			image, err := internalUtil.LookupImage(sys, store, fromWhere)
+			image, _, err := internalUtil.LookupImage(sys, store, fromWhere, false)
 			if err != nil {
 				return newMount, "", "", "", err
 			}
@@ -525,7 +525,7 @@ func GetCacheMount(sys *types.SystemContext, args []string, store storage.Store,
 		// it's not an additional build context, stage, or
 		// already-mounted image, but it might still be an image
 		if mountPoint == "" {
-			image, err := internalUtil.LookupImage(sys, store, fromWhere)
+			image, _, err := internalUtil.LookupImage(sys, store, fromWhere, false)
 			if err != nil {
 				return newMount, "", "", "", nil, err
 			}
