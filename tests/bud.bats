@@ -6669,34 +6669,31 @@ _EOF
 
   _prefetch alpine
 
-  local shares=12345
-  local expect=
-
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
+  for shares in 2 200 2000 12345 20000 200000 ; do
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
 FROM alpine
 RUN printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
 _EOF
-    # there's an old way to convert the value, and a new way to convert the value, and we don't know
-    # which one our runtime is using, so accept the values that either would compute for ${shares}
-    local oldexpect="weight $((1 + ((${shares} - 2) * 9999) / 262142))"
-    local newconverted=$(awk '{if ($1 <= 2) { print "1"} else if ($1 >= 262144) {print "10000"} else {l=log($1)/log(2); e=((((l+125)*l)/612.0) - 7.0/34.0); p = exp(e*log(10)); print int(p+1)}}' <<< "${shares}")
-    local newexpect="weight ${newconverted}"
-    expect="($oldexpect|$newexpect)"
-  else
-    cat > $mytmpdir/Containerfile << _EOF
+      local converted="$(convert_v1_shares_to_v2_weight ${shares})"
+      local expect="(weight ${converted##* }|weight ${converted%% *})"
+    else
+      cat > $mytmpdir/Containerfile << _EOF
 FROM alpine
 RUN printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
 _EOF
-    expect="weight ${shares}"
-  fi
+      local expect="weight ${shares}"
+    fi
 
-  run_buildah build --cpu-shares=${shares} -t testcpu \
-                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
-  expect_output --from="${lines[2]}" --substring "${expect}"
+    echo requesting "${shares}" shares
+    run_buildah build --cpu-shares=${shares} -t testcpu \
+                    $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
+    echo expected "${expect}"
+    expect_output --from="${lines[2]}" --substring "${expect}"
+  done
 }
 
 @test "bud with --cpuset-cpus" {

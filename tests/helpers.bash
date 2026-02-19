@@ -1098,3 +1098,19 @@ function dir_image_last_diff() {
   local output=$(dir_image_diff "$1" - 1)
   echo "$output"
 }
+
+####################################
+#  convert_v1_shares_to_v2_weight  #
+####################################
+function convert_v1_shares_to_v2_weight() {
+  # https://kubernetes.io/blog/2026/01/30/new-cgroup-v1-to-v2-cpu-conversion-formula/
+  # there's an old way to convert the value, and a new way to convert the value, and we
+  # don't know which one our runtime is using, so return the values we would get from
+  # using both methods
+  local shares="$1"
+  local oldconverted="$((1 + ((${shares} - 2) * 9999) / 262142))"
+  test -n "$oldconverted"
+  local newconverted=$(awk '{if ($1 <= 2) { print "1"} else if ($1 >= 262144) {print "10000"} else {l=log($1)/log(2); e=((((l+125)*l)/612.0) - 7.0/34.0); p = exp(e*log(10)); if ( p == int(p) ) {print p} else { print int(p+1) }}}' <<< "${shares}")
+  test -n "$newconverted"
+  echo "$oldconverted" "$newconverted"
+}
