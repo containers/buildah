@@ -876,7 +876,7 @@ func (s *stageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 	}
 
 	if run.Shell {
-		if len(config.Shell) > 0 && s.builder.Format == define.Dockerv2ImageManifest {
+		if len(config.Shell) > 0 {
 			args = append(config.Shell, args...)
 		} else {
 			args = append([]string{"/bin/sh", "-c"}, args...)

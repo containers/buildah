@@ -3699,7 +3699,10 @@ function validate_instance_compression {
   _prefetch ubuntu
   target=ubuntu-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/shell/Dockerfile.build-shell-custom $BUDFILES/shell
-  expect_output --substring "SHELL is not supported for OCI image format, \[/bin/bash -c\] will be ignored."
+  expect_output --substring "SHELL=/bin/bash"
+
+  # should work, but should also emit warning that it won't be persisted into saved image
+  expect_output --substring "SHELL is not persisted in the OCI image format, \[/bin/bash -c\]"
 }
 
 @test "bud with symlinks" {
