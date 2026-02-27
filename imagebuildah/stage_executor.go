@@ -1412,6 +1412,7 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		logImageID(imgID)
 	}
 
+	executedLayerStep := false
 	for i, node := range children {
 		logRusage()
 		moreInstructions := i < len(children)-1
@@ -1521,6 +1522,9 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		// instruction.
 		if !s.executor.layers {
 			s.didExecute = true
+			if s.stepRequiresLayer(step) {
+				executedLayerStep = true
+			}
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
 				logrus.Debugf("Error building at step %+v: %v", *step, err)
@@ -1555,7 +1559,7 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 				if err != nil {
 					return "", nil, false, fmt.Errorf("unable to get createdBy for the node: %w", err)
 				}
-				imgID, commitResults, err = s.commit(ctx, createdBy, false, s.output, s.executor.squash, lastStage && lastInstruction)
+				imgID, commitResults, err = s.commit(ctx, createdBy, !executedLayerStep, s.output, s.executor.squash, lastStage && lastInstruction)
 				if err != nil {
 					return "", nil, false, fmt.Errorf("committing container for step %+v: %w", *step, err)
 				}
