@@ -83,7 +83,14 @@ load helpers
     run_buildah from --quiet $WITH_POLICY_JSON alpine
     cid="$output"
     run_buildah --log-level=error run $cid sh -c 'df /dev/shm | awk '\''/shm/{print $4}'\'''
-    expect_output "200"
+    # On architectures with 64k page size (e.g. ppc64le), the
+    # kernel rounds shm sizes up to the nearest page boundary.
+    pagesize="$(getconf PAGESIZE)"
+    expected=200
+    if [ "$pagesize" -eq 65536 ]; then
+        expected=256
+    fi
+    expect_output "$expected"
 }
 
 @test "containers.conf custom runtime" {
