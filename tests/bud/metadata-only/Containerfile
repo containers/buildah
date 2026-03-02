@@ -1,0 +1,5 @@
+FROM alpine
+LABEL testlabel=testvalue
+ENV TESTVAR=testvalue
+USER nobody
+CMD ["/bin/sh"]

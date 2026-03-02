@@ -141,6 +141,20 @@ _EOF
   expect_output "0" "layer should not exist"
 }
 
+@test "no empty layer for metadata-only instructions without --layers" {
+  _prefetch alpine
+  imgname="img-$(safename)"
+
+  # Get the base image layer count
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' alpine
+  base_layers="$output"
+
+  # Build without --layers (single-layer mode) with only metadata instructions
+  run_buildah build --layers=false -t $imgname -f $BUDFILES/metadata-only/Containerfile
+  run_buildah inspect -f '{{len .Docker.RootFS.DiffIDs}}' $imgname
+  expect_output "$base_layers" "metadata-only instructions should not add a layer"
+}
+
 @test "bud and test --inherit-annotations" {
   base=quay.io/libpod/testimage:20241011
   _prefetch $base
