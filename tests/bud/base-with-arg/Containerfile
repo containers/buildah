@@ -16,5 +16,11 @@ ENV BUILT_FOR=arm/v7
 FROM build AS platform-arm/v6
 ENV BUILT_FOR=arm/v6
 
+FROM build AS platform-ppc64le
+ENV BUILT_FOR=ppc64le
+
+FROM build AS platform-s390x
+ENV BUILT_FOR=s390x
+
 FROM platform-${TARGETARCH} AS final
 RUN echo "This is built for ${BUILT_FOR}"
