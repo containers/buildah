@@ -93,6 +93,8 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 }
 
 @test "manifest-add-one" {
+    # This test must be run on amd64 to get an error when pulling an image from a different platform
+    skip_unless_arch amd64
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST_INSTANCE}
     run_buildah manifest inspect foo

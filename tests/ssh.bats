@@ -14,6 +14,8 @@ function teardown(){
 }
 
 @test "bud with ssh key" {
+  # quay.io/hummingbird/git is only available on these arches:
+  skip_unless_arch amd64 arm64
   _prefetch quay.io/hummingbird/git
 
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
@@ -31,7 +33,9 @@ function teardown(){
 }
 
 @test "bud with ssh key secret accessed on second RUN" {
- _prefetch quay.io/hummingbird/git
+  # quay.io/hummingbird/git is only available on these arches:
+  skip_unless_arch amd64 arm64
+  _prefetch quay.io/hummingbird/git
 
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
   mkdir -p ${mytmpdir}
@@ -43,6 +47,8 @@ function teardown(){
 }
 
 @test "bud with containerfile ssh options" {
+  # quay.io/hummingbird/git is only available on these arches:
+  skip_unless_arch amd64 arm64
   _prefetch quay.io/hummingbird/git
 
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
@@ -57,6 +63,8 @@ function teardown(){
 }
 
 @test "bud with ssh sock" {
+  # quay.io/hummingbird/git is only available on these arches:
+  skip_unless_arch amd64 arm64
   _prefetch quay.io/hummingbird/git
 
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
