@@ -1852,6 +1852,7 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 		if err != nil {
 			return secretMountOrEnv{}, err
 		}
+		tmpFile.Close()
 		defer func() {
 			if retErr != nil {
 				os.Remove(tmpFile.Name())
