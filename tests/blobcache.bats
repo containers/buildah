@@ -102,8 +102,8 @@ function _check_matches() {
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
-	ctr="$output"
+	run_buildah from --quiet --cidfile ${TEST_SCRATCH_DIR}/cid --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
+	ctr="$(< ${TEST_SCRATCH_DIR}/cid)"
 	run_buildah add ${ctr} $BUDFILES/add-file/file /
 	# Commit the image without using the blob cache, using compression so that uncompressed blobs
 	# in the cache which we inherited from our base image won't be matched.
@@ -131,8 +131,8 @@ function _check_matches() {
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
-	ctr="$output"
+	run_buildah from --quiet --cidfile ${TEST_SCRATCH_DIR}/cid --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
+	ctr="$(< ${TEST_SCRATCH_DIR}/cid)"
 	run_buildah add ${ctr} $BUDFILES/add-file/file /
 	# Commit the image using the blob cache.
 	ls -l ${blobcachedir}

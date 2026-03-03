@@ -755,6 +755,24 @@ function skip_if_no_unshare() {
 }
 
 ######################
+#  skip_unless_arch  #
+######################
+function skip_unless_arch() {
+  local goarch
+  goarch="$(go env GOARCH 2>/dev/null)"
+
+  [ -z "$goarch" ] && return 0
+
+  for arch in "$@"; do
+    if [ "$arch" = "$goarch" ]; then
+      return 0
+    fi
+  done
+
+  skip "test requires one of these architectures: $* (current: $goarch)"
+}
+
+######################
 #  start_git_daemon  #
 ######################
 function start_git_daemon() {

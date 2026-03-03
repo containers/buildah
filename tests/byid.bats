@@ -65,9 +65,9 @@ load helpers
     mkdir -p $TARGET $TARGET-truncated
 
     # Pull down the image, if we have to.
-    run_buildah from --quiet --pull=false $WITH_POLICY_JSON $image
-    expect_output "${image##*/}-working-container"  # image, w/o registry prefix
-    run_buildah rm $output
+    run_buildah from --quiet --cidfile ${TEST_SCRATCH_DIR}/cid --pull=false $WITH_POLICY_JSON $image
+    cid="$(< ${TEST_SCRATCH_DIR}/cid)"
+    run_buildah rm $cid
 
     # Get the image's ID.
     run_buildah images -q $image

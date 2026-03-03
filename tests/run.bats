@@ -571,8 +571,8 @@ function configure_and_check_user() {
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
 	_prefetch quay.io/libpod/registry:volume_omitted
-	run_buildah from --quiet --pull=ifmissing $WITH_POLICY_JSON quay.io/libpod/registry:volume_omitted
-	cid=$output
+	run_buildah from --quiet --cidfile ${TEST_SCRATCH_DIR}/cid --pull=ifmissing $WITH_POLICY_JSON quay.io/libpod/registry:volume_omitted
+	cid="$(< ${TEST_SCRATCH_DIR}/cid)"
 	run_buildah mount $cid
 	mnt=$output
 	# By default, the mountpoint should not be there.

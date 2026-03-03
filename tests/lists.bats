@@ -93,6 +93,8 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 }
 
 @test "manifest-add-one" {
+    # This test must be run on amd64 to get an error when pulling an image from a different platform
+    skip_unless_arch amd64
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST_INSTANCE}
     run_buildah manifest inspect foo
@@ -258,26 +260,26 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 
 @test "manifest-from-tag" {
     run_buildah from $WITH_POLICY_JSON --name test-container ${IMAGE_LIST}
-    run_buildah inspect --format ''{{.OCIv1.Architecture}}' ${IMAGE_LIST}
-    expect_output --substring $(go env GOARCH)
-    run_buildah inspect --format ''{{.OCIv1.Architecture}}' test-container
-    expect_output --substring $(go env GOARCH)
+    run_buildah inspect --format '{{.OCIv1.Architecture}}' ${IMAGE_LIST#docker://}
+    expect_output --substring amd64
+    run_buildah inspect --format '{{.OCIv1.Architecture}}' test-container
+    expect_output --substring amd64
 }
 
 @test "manifest-from-digest" {
     run_buildah from $WITH_POLICY_JSON --name test-container ${IMAGE_LIST_DIGEST}
-    run_buildah inspect --format ''{{.OCIv1.Architecture}}' ${IMAGE_LIST_DIGEST}
-    expect_output --substring $(go env GOARCH)
-    run_buildah inspect --format ''{{.OCIv1.Architecture}}' test-container
-    expect_output --substring $(go env GOARCH)
+    run_buildah inspect --format '{{.OCIv1.Architecture}}' ${IMAGE_LIST_DIGEST#docker://}
+    expect_output --substring amd64
+    run_buildah inspect --format '{{.OCIv1.Architecture}}' test-container
+    expect_output --substring amd64
 }
 
 @test "manifest-from-instance" {
     run_buildah from $WITH_POLICY_JSON --name test-container ${IMAGE_LIST_INSTANCE}
-    run_buildah inspect --format ''{{.OCIv1.Architecture}}' ${IMAGE_LIST_INSTANCE}
-    expect_output --substring arm64
-    run_buildah inspect --format ''{{.OCIv1.Architecture}}' test-container
-    expect_output --substring arm64
+    run_buildah inspect --format '{{.OCIv1.Architecture}}' ${IMAGE_LIST_INSTANCE#docker://}
+    expect_output --substring amd64
+    run_buildah inspect --format '{{.OCIv1.Architecture}}' test-container
+    expect_output --substring amd64
 }
 
 @test "manifest-no-matching-instance" {

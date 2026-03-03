@@ -5,8 +5,8 @@ load helpers
 fromreftest() {
   local img=$1
 
-  run_buildah from --quiet --pull $WITH_POLICY_JSON $img
-  cid=$output
+  run_buildah from --quiet --cidfile ${TEST_SCRATCH_DIR}/cid --pull $WITH_POLICY_JSON $img
+  cid="$(< ${TEST_SCRATCH_DIR}/cid)"
 
   # If image includes '_v2sN', verify that image is schema version N
   local expected_schemaversion=$(expr "$img" : '.*_v2s\([0-9]\)')

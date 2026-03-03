@@ -2365,6 +2365,9 @@ _EOF
 }
 
 @test "bud-multistage-copy-final-slash" {
+  # This test requires a statically linked busybox which is not
+  # the case for quay.io/libpod/busybox on ppc64le & s390x
+  skip_unless_arch amd64 arm64
   _prefetch busybox
   target=foo
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/dest-final-slash
@@ -7967,6 +7970,8 @@ _EOF
 }
 
 @test "bud with ADD with git repository source" {
+  # quay.io/hummingbird/git is only available on these arches:
+  skip_unless_arch amd64 arm64
   _prefetch quay.io/hummingbird/git # any image with git preinstalled would do
 
   local repodir=${TEST_SCRATCH_DIR}/repository
@@ -9037,6 +9042,9 @@ _EOF
 }
 
 @test "bud with exec-form RUN instruction" {
+  # This test requires a statically linked busybox which is not
+  # the case for quay.io/libpod/busybox on ppc64le & s390x
+  skip_unless_arch amd64 arm64
   baseimage=busybox
   _prefetch $baseimage
   local contextdir=${TEST_SCRATCH_DIR}/context
