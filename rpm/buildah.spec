@@ -126,8 +126,7 @@ CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-specs=\/usr\/lib\/rpm\/redhat\/redhat-an
 export CGO_CFLAGS+=" -m64 -mtune=generic -fcf-protection=full"
 %endif
 
-export CNI_VERSION=`grep '^# github.com/containernetworking/cni ' src/modules.txt | sed 's,.* ,,'`
-export LDFLAGS="-X main.buildInfo=`date +%s` -X main.cniVersion=${CNI_VERSION}"
+export LDFLAGS="-X main.buildInfo=`date +%s`"
 
 export BUILDTAGS="seccomp $(hack/systemd_tag.sh) $(hack/libsubid_tag.sh) libsqlite3"
 %if !%{defined build_with_btrfs}

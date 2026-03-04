@@ -5,8 +5,6 @@ STORAGETAGS := $(shell ./btrfs_installed_tag.sh) $(shell ./hack/libsubid_tag.sh)
 SECURITYTAGS ?= seccomp $(APPARMORTAG)
 TAGS ?= $(SECURITYTAGS) $(STORAGETAGS) $(shell ./hack/systemd_tag.sh) $(shell ./hack/sqlite_tag.sh)
 ifeq ($(shell uname -s),FreeBSD)
-# FreeBSD needs CNI until netavark is supported
-TAGS += cni
 endif
 BUILDTAGS += $(TAGS) $(EXTRA_BUILD_TAGS)
 PREFIX := /usr/local
@@ -35,11 +33,9 @@ SOURCE_DATE_EPOCH ?= $(if $(shell date +%s),$(shell date +%s),$(error "date fail
 # strings, while the 4.x we have on Linux doesn't. this is the documented
 # workaround
 COMMENT := \#
-CNI_COMMIT := $(shell sed -n 's;^$(COMMENT) github.com/containernetworking/cni \([^ \n]*\).*$$;\1;p' vendor/modules.txt)
-
 SEQUOIA_SONAME_DIR =
 EXTRA_LDFLAGS ?=
-BUILDAH_LDFLAGS := $(GO_LDFLAGS) '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(SOURCE_DATE_EPOCH) -X main.cniVersion=$(CNI_COMMIT) -X go.podman.io/image/v5/signature/internal/sequoia.sequoiaLibraryDir="$(SEQUOIA_SONAME_DIR)" $(EXTRA_LDFLAGS)'
+BUILDAH_LDFLAGS := $(GO_LDFLAGS) '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(SOURCE_DATE_EPOCH) -X go.podman.io/image/v5/signature/internal/sequoia.sequoiaLibraryDir="$(SEQUOIA_SONAME_DIR)" $(EXTRA_LDFLAGS)'
 
 # This isn't what we actually build; it's a superset, used for target
 # dependencies. Basically: all *.go and *.c files, except *_test.go,
