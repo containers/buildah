@@ -49,7 +49,6 @@ var untar = chrootarchive.UntarUncompressed
 
 const (
 	defaultPerms         = os.FileMode(0o555)
-	selinuxLabelTest     = "system_u:object_r:container_file_t:s0"
 	mountProgramFlagFile = ".has-mount-program"
 )
 
@@ -244,7 +243,7 @@ func checkAndRecordOverlaySupport(home, runhome string) (bool, error) {
 			return false, errors.New(overlayCacheText)
 		}
 	} else {
-		supportsDType, err = supportsOverlay(home, 0, 0)
+		supportsDType, err = supportsOverlay(home, idtools.IDPair{UID: 0, GID: 0})
 		if err != nil {
 			os.Remove(filepath.Join(home, linkDir))
 			os.Remove(home)
@@ -333,7 +332,7 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 	}
 
 	if options.ImageStore != "" {
-		if err := idtools.MkdirAllAs(path.Join(options.ImageStore, linkDir), 0o755, 0, 0); err != nil {
+		if err := idtools.MkdirAllAndChown(path.Join(options.ImageStore, linkDir), 0o755, idtools.IDPair{UID: 0, GID: 0}); err != nil {
 			return nil, err
 		}
 	}
@@ -664,7 +663,7 @@ func SupportsNativeOverlay(home, runhome string) (bool, error) {
 
 	for _, dir := range []string{home, runhome} {
 		if err := fileutils.Exists(dir); err != nil {
-			_ = idtools.MkdirAllAs(dir, 0o700, 0, 0)
+			_ = idtools.MkdirAllAndChown(dir, 0o700, idtools.IDPair{UID: 0, GID: 0})
 		}
 	}
 
@@ -672,7 +671,7 @@ func SupportsNativeOverlay(home, runhome string) (bool, error) {
 	return supportsDType, nil
 }
 
-func supportsOverlay(home string, rootUID, rootGID int) (supportsDType bool, err error) {
+func supportsOverlay(home string, rootIDPair idtools.IDPair) (supportsDType bool, err error) {
 	selinuxLabelTest := selinux.PrivContainerMountLabel()
 
 	logLevel := logrus.ErrorLevel
@@ -715,12 +714,12 @@ func supportsOverlay(home string, rootUID, rootGID int) (supportsDType bool, err
 			_ = os.RemoveAll(layerDir)
 			_ = os.Remove(home)
 		}()
-		_ = idtools.MkdirAs(mergedDir, 0o700, rootUID, rootGID)
-		_ = idtools.MkdirAs(lower1Dir, 0o700, rootUID, rootGID)
-		_ = idtools.MkdirAs(lower2Dir, 0o700, rootUID, rootGID)
-		_ = idtools.MkdirAs(lower2Subdir, 0o700, rootUID, rootGID)
-		_ = idtools.MkdirAs(upperDir, 0o700, rootUID, rootGID)
-		_ = idtools.MkdirAs(workDir, 0o700, rootUID, rootGID)
+		_ = idtools.MkdirAndChown(mergedDir, 0o700, rootIDPair)
+		_ = idtools.MkdirAndChown(lower1Dir, 0o700, rootIDPair)
+		_ = idtools.MkdirAndChown(lower2Dir, 0o700, rootIDPair)
+		_ = idtools.MkdirAndChown(lower2Subdir, 0o700, rootIDPair)
+		_ = idtools.MkdirAndChown(upperDir, 0o700, rootIDPair)
+		_ = idtools.MkdirAndChown(workDir, 0o700, rootIDPair)
 		f, err := os.Create(lower2SubdirFile)
 		if err != nil {
 			logrus.Debugf("Unable to create test file: %v", err)
@@ -1052,7 +1051,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, readOnl
 	}
 
 	// Make the link directory if it does not exist
-	if err := idtools.MkdirAllAs(path.Join(homedir, linkDir), 0o755, 0, 0); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(homedir, linkDir), 0o755, idtools.IDPair{UID: 0, GID: 0}); err != nil {
 		return err
 	}
 
@@ -1109,7 +1108,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, readOnl
 	}
 
 	diff := path.Join(dir, "diff")
-	if err := idtools.MkdirAs(diff, forcedSt.Mode, forcedSt.IDs.UID, forcedSt.IDs.GID); err != nil {
+	if err := idtools.MkdirAndChown(diff, forcedSt.Mode, forcedSt.IDs); err != nil {
 		return err
 	}
 
@@ -1132,16 +1131,16 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, readOnl
 		return err
 	}
 
-	if err := idtools.MkdirAs(path.Join(dir, "work"), 0o700, forcedSt.IDs.UID, forcedSt.IDs.GID); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, "work"), 0o700, forcedSt.IDs); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAs(path.Join(dir, "merged"), 0o700, forcedSt.IDs.UID, forcedSt.IDs.GID); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, "merged"), 0o700, forcedSt.IDs); err != nil {
 		return err
 	}
 
 	// if no parent directory, create a dummy lower directory and skip writing a "lowers" file
 	if parent == "" {
-		return idtools.MkdirAs(path.Join(dir, "empty"), 0o700, forcedSt.IDs.UID, forcedSt.IDs.GID)
+		return idtools.MkdirAndChown(path.Join(dir, "empty"), 0o700, forcedSt.IDs)
 	}
 
 	lower, err := d.getLower(parent)
@@ -1293,25 +1292,25 @@ func (d *Driver) optsAppendMappings(opts string, uidMaps, gidMaps []idtools.IDMa
 	if uidMaps != nil {
 		var uids, gids bytes.Buffer
 		if len(uidMaps) == 1 && uidMaps[0].Size == 1 {
-			uids.WriteString(fmt.Sprintf("squash_to_uid=%d", uidMaps[0].HostID))
+			fmt.Fprintf(&uids, "squash_to_uid=%d", uidMaps[0].HostID)
 		} else {
 			uids.WriteString("uidmapping=")
 			for _, i := range uidMaps {
 				if uids.Len() > 0 {
 					uids.WriteString(":")
 				}
-				uids.WriteString(fmt.Sprintf("%d:%d:%d", i.ContainerID, i.HostID, i.Size))
+				fmt.Fprintf(&uids, "%d:%d:%d", i.ContainerID, i.HostID, i.Size)
 			}
 		}
 		if len(gidMaps) == 1 && gidMaps[0].Size == 1 {
-			gids.WriteString(fmt.Sprintf("squash_to_gid=%d", gidMaps[0].HostID))
+			fmt.Fprintf(&gids, "squash_to_gid=%d", gidMaps[0].HostID)
 		} else {
 			gids.WriteString("gidmapping=")
 			for _, i := range gidMaps {
 				if gids.Len() > 0 {
 					gids.WriteString(":")
 				}
-				gids.WriteString(fmt.Sprintf("%d:%d:%d", i.ContainerID, i.HostID, i.Size))
+				fmt.Fprintf(&gids, "%d:%d:%d", i.ContainerID, i.HostID, i.Size)
 			}
 		}
 		return fmt.Sprintf("%s,%s,%s", opts, uids.String(), gids.String())
@@ -1404,7 +1403,7 @@ func (d *Driver) recreateSymlinks() error {
 		return fmt.Errorf("reading driver home directory %q: %w", d.home, err)
 	}
 	// This makes the link directory if it doesn't exist
-	if err := idtools.MkdirAllAs(path.Join(d.home, linkDir), 0o755, 0, 0); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(d.home, linkDir), 0o755, idtools.IDPair{UID: 0, GID: 0}); err != nil {
 		return err
 	}
 	// Keep looping as long as we take some corrective action in each iteration
@@ -1516,10 +1515,11 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 	if err != nil {
 		return "", err
 	}
+	rootIDs := idtools.IDPair{UID: rootUID, GID: rootGID}
 
 	mergedDir := d.getMergedDir(id, dir, inAdditionalStore)
 	// Attempt to create the merged dir if it doesn't exist, but don't chown an already existing directory (it might be in an additional store)
-	if err := idtools.MkdirAllAndChownNew(mergedDir, 0o700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAndChownNew(mergedDir, 0o700, rootIDs); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 
@@ -1769,7 +1769,7 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		absLowers = append(absLowers, path.Join(dir, "empty"))
 	}
 
-	if err := idtools.MkdirAllAs(diffDir, perms, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChown(diffDir, perms, rootIDs); err != nil {
 		if !inAdditionalStore {
 			return "", err
 		}
@@ -2046,17 +2046,17 @@ func (d *Driver) Put(id string) error {
 			}
 		}
 	} else {
-		uid, gid := int(0), int(0)
+		idPair := idtools.IDPair{UID: 0, GID: 0}
 		fi, err := os.Stat(mountpoint)
 		if err != nil {
 			return err
 		}
 		if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-			uid, gid = int(stat.Uid), int(stat.Gid)
+			idPair = idtools.IDPair{UID: int(stat.Uid), GID: int(stat.Gid)}
 		}
 
 		tmpMountpoint := path.Join(dir, "merged.1")
-		if err := idtools.MkdirAs(tmpMountpoint, 0o700, uid, gid); err != nil && !errors.Is(err, os.ErrExist) {
+		if err := idtools.MkdirAndChown(tmpMountpoint, 0o700, idPair); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}
 		// rename(2) can be used on an empty directory, as it is the mountpoint after umount, and it retains
@@ -2420,7 +2420,7 @@ func (d *Driver) StartStagingDiffToApply(parent string, options graphdriver.Appl
 		return t.Cleanup, nil, -1, err
 	}
 
-	if err := idtools.MkdirAs(sa.Path, forcedSt.Mode, forcedSt.IDs.UID, forcedSt.IDs.GID); err != nil {
+	if err := idtools.MkdirAndChown(sa.Path, forcedSt.Mode, forcedSt.IDs); err != nil {
 		return t.Cleanup, nil, -1, err
 	}
 
@@ -2597,12 +2597,13 @@ func (d *Driver) UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMapp
 	dir := d.dir(id)
 	diffDir := filepath.Join(dir, "diff")
 
-	rootUID, rootGID := 0, 0
+	rootIDs := idtools.IDPair{UID: 0, GID: 0}
 	if toHost != nil {
-		rootUID, rootGID, err = idtools.GetRootUIDGID(toHost.UIDs(), toHost.GIDs())
+		rootUID, rootGID, err := idtools.GetRootUIDGID(toHost.UIDs(), toHost.GIDs())
 		if err != nil {
 			return err
 		}
+		rootIDs = idtools.IDPair{UID: rootUID, GID: rootGID}
 	}
 
 	// Mount the new layer and handle ownership changes and possible copy_ups in it.
@@ -2653,13 +2654,13 @@ func (d *Driver) UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMapp
 	// to the old upper layer in the index.
 	workDir := filepath.Join(dir, "work")
 	if err := os.RemoveAll(workDir); err == nil {
-		if err := idtools.MkdirAs(workDir, defaultPerms, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAndChown(workDir, defaultPerms, rootIDs); err != nil {
 			return err
 		}
 	}
 
 	// Re-create the directory that we're going to use as the upper layer.
-	if err := idtools.MkdirAs(diffDir, perms, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAndChown(diffDir, perms, rootIDs); err != nil {
 		return err
 	}
 	return nil
