@@ -11,6 +11,9 @@ environment:
     TUTORIAL_BINARY: /usr/bin/buildah-tutorial
     DUMPSPEC_BINARY: /usr/bin/buildah-dumpspec
     PASSWD_BINARY: /usr/bin/buildah-passwd
+    GRPCNOOP_BINARY: /usr/bin/buildah-grpcnoop
+    WAIT_BINARY: /usr/bin/buildah-wait
+    CRASH_BINARY: /usr/bin/buildah-crash
     TMPDIR: /var/tmp
 
 adjust:
