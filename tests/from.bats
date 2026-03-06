@@ -211,16 +211,20 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  shares=2
-  run_buildah from --quiet --cpu-shares=${shares} --pull $WITH_POLICY_JSON alpine
-  cid=$output
-  if is_cgroupsv2; then
-    run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight"
-    expect_output "$((1 + ((${shares} - 2) * 9999) / 262142))"
-  else
-    run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
-    expect_output "${shares}"
-  fi
+  for shares in 2 200 2000 12345 20000 200000 ; do
+    run_buildah from --quiet --cpu-shares=${shares} --pull $WITH_POLICY_JSON alpine
+    cid=$output
+    if is_cgroupsv2; then
+      local converted="$(convert_v1_shares_to_v2_weight ${shares})"
+      local expect="(weight ${converted##* }|weight ${converted%% *})"
+      run_buildah run $cid /bin/sh -c "echo -n 'weight '; cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight"
+      echo expected "${expect}"
+      expect_output --substring "${expect}"
+    else
+      run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
+      expect_output "${shares}"
+    fi
+  done
 }
 
 @test "from cpuset-cpus test" {
