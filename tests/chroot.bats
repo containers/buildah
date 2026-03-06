@@ -63,6 +63,7 @@ load helpers
   echo export XDG_CONFIG_HOME=$xdgconfighome >> ${TEST_SCRATCH_DIR}/script.sh
   echo export XDG_DATA_HOME=$xdgdatahome >> ${TEST_SCRATCH_DIR}/script.sh
   echo export CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf >> ${TEST_SCRATCH_DIR}/script.sh
+  echo export CONTAINERS_STORAGE_CONF=/dev/null >> ${TEST_SCRATCH_DIR}/script.sh
   # give our would-be user ownership of that directory
   echo chown --recursive ${subid}:${subid} ${storagedir} >> ${TEST_SCRATCH_DIR}/script.sh
   # make newuidmap/newgidmap, invoked by unshare even for uid=0, happy
@@ -198,6 +199,7 @@ EOF
   set -x
   export _CONTAINERS_USERNS_CONFIGURED=done
   export CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf
+  export CONTAINERS_STORAGE_CONF=/dev/null # needed to avoid file lookup permission errors under /root/...
   cat /proc/self/uid_map
   cat /proc/self/gid_map
   mount --make-shared /
