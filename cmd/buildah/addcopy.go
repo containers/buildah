@@ -102,7 +102,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	flags.StringVar(&opts.timestamp, "timestamp", "", "set timestamps on new content to `seconds` after the epoch")
 }
 
-func init() {
+func addcopyInit() {
 	var (
 		addDescription  = "\n  Adds the contents of a file, URL, or directory to a container's working\n  directory.  If a local file appears to be an archive, its contents are\n  extracted and added instead of the archive file itself."
 		copyDescription = "\n  Copies the contents of a file, URL, or directory into a container's working\n  directory."

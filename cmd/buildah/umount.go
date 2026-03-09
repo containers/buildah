@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
+func umountInit() {
 	umountCommand := &cobra.Command{
 		Use:     "umount",
 		Aliases: []string{"unmount"},

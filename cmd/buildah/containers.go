@@ -63,7 +63,7 @@ type containersResults struct {
 	quiet      bool
 }
 
-func init() {
+func containersInit() {
 	var (
 		containersDescription = "\n  Lists containers which appear to be " + define.Package + " working containers, their\n  names and IDs, and the names and IDs of the images from which they were\n  initialized."
 		opts                  containersResults

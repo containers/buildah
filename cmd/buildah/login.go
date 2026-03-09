@@ -16,7 +16,7 @@ type loginReply struct {
 	tlsVerify bool
 }
 
-func init() {
+func loginInit() {
 	var (
 		opts = loginReply{
 			loginOpts: auth.LoginOptions{

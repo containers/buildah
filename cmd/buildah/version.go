@@ -41,7 +41,7 @@ type versionOptions struct {
 	json bool
 }
 
-func init() {
+func versionInit() {
 	var opts versionOptions
 
 	// cli command to print out the version info of buildah

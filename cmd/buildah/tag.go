@@ -51,7 +51,7 @@ func tagCmd(c *cobra.Command, args []string) error {
 	return nil
 }
 
-func init() {
+func tagInit() {
 	tagCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(tagCommand)
 }

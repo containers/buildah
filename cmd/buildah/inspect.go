@@ -26,7 +26,7 @@ type inspectResults struct {
 	inspectType string
 }
 
-func init() {
+func inspectInit() {
 	var (
 		opts               inspectResults
 		inspectDescription = "\n  Inspects a build container's or built image's configuration."

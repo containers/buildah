@@ -66,7 +66,7 @@ var (
 	defaultContainerConfig *config.Config
 )
 
-func init() {
+func mainInit() {
 	var defaultStoreDriverOptions []string
 	storageOptions, err := storage.DefaultStoreOptions()
 	if err != nil {
@@ -230,6 +230,37 @@ func main() {
 	if buildah.InitReexec() {
 		return
 	}
+
+	mainInit()
+
+	addcopyInit()
+	buildInit()
+	commitInit()
+	configInit()
+	containersInit()
+	dumpboltInit()
+	fromInit()
+	imagesInit()
+	infoInit()
+	inspectInit()
+	loginInit()
+	logoutInit()
+	manifestInit()
+	mkcwInit()
+	mountInit()
+	pruneInit()
+	pullInit()
+	pushInit()
+	renameInit()
+	rmiInit()
+	rmInit()
+	rpcInit()
+	runInit()
+	sourceInit()
+	tagInit()
+	umountInit()
+	unshareInit()
+	versionInit()
 
 	// Hard code TMPDIR functions to use $TMPDIR or /var/tmp
 	os.Setenv("TMPDIR", parse.GetTempDir())

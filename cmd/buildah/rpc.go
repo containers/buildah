@@ -84,7 +84,7 @@ func rpcCmd(c *cobra.Command, args []string) error {
 	return cmd.Run()
 }
 
-func init() {
+func rpcInit() {
 	var rpcOptions struct {
 		envVar     string
 		listenPath string

@@ -41,7 +41,7 @@ type runInputOptions struct {
 	*buildahcli.NameSpaceResults
 }
 
-func init() {
+func runInit() {
 	var (
 		runDescription = "\n  Runs a specified command using the container's root filesystem as a root\n  filesystem, using configuration settings inherited from the container's\n  image or as specified using previous calls to the config command."
 		opts           runInputOptions

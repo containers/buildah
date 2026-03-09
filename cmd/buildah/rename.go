@@ -20,7 +20,7 @@ var (
 	}
 )
 
-func init() {
+func renameInit() {
 	renameCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(renameCommand)
 }

@@ -36,7 +36,7 @@ type fromReply struct {
 
 var suffix string
 
-func init() {
+func fromInit() {
 	var (
 		fromDescription = "\n  Creates a new working container, either from scratch or using a specified\n  image as a starting point."
 		opts            fromReply

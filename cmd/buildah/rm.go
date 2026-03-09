@@ -14,7 +14,7 @@ type rmResults struct {
 	all bool
 }
 
-func init() {
+func rmInit() {
 	var (
 		rmDescription = "\n  Removes one or more working containers, unmounting them if necessary."
 		opts          rmResults

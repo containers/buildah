@@ -19,7 +19,7 @@ type mountOptions struct {
 	json bool
 }
 
-func init() {
+func mountInit() {
 	var (
 		mountDescription = `buildah mount
   mounts a working container's root filesystem for manipulation.

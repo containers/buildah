@@ -61,7 +61,7 @@ type manifestInspectOpts struct {
 	tlsVerify bool
 }
 
-func init() {
+func manifestInit() {
 	var (
 		manifestDescription         = "\n  Creates, modifies, and pushes manifest lists and image indexes."
 		manifestCreateDescription   = "\n  Creates manifest lists and image indexes."

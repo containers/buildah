@@ -72,7 +72,7 @@ type commitInputOptions struct {
 	metadataFile       string
 }
 
-func init() {
+func commitInit() {
 	var (
 		opts              commitInputOptions
 		commitDescription = "\n  Writes a new image using the container's read-write layer and, if it is based\n  on an image, the layers of that image."

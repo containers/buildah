@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
+func unshareInit() {
 	unshareCommand := cobra.Command{
 		Use:    "unshare",
 		Hidden: true,

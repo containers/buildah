@@ -49,7 +49,7 @@ type pushOptions struct {
 	addCompression         []string
 }
 
-func init() {
+func pushInit() {
 	var (
 		opts            pushOptions
 		pushDescription = fmt.Sprintf(`

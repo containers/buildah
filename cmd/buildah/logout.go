@@ -10,7 +10,7 @@ import (
 	"go.podman.io/common/pkg/auth"
 )
 
-func init() {
+func logoutInit() {
 	var (
 		opts = auth.LogoutOptions{
 			Stdout:             os.Stdout,
