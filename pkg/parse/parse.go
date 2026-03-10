@@ -522,6 +522,20 @@ func SystemContextFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name strin
 		ctx.VariantChoice = variant
 	}
 
+	// If no platform-related flags were explicitly set, fall back to the
+	// default platform from containers.conf [engine] platform.
+	if ctx.OSChoice == "" && ctx.ArchitectureChoice == "" && ctx.VariantChoice == "" {
+		if defaultPlatform, err := defaultPlatformFromConfig(); err == nil && defaultPlatform != "" {
+			os, arch, variant, err := Platform(defaultPlatform)
+			if err != nil {
+				return nil, fmt.Errorf("parsing containers.conf platform %q: %w", defaultPlatform, err)
+			}
+			ctx.OSChoice = os
+			ctx.ArchitectureChoice = arch
+			ctx.VariantChoice = variant
+		}
+	}
+
 	ctx.BigFilesTemporaryDir = GetTempDir()
 	return ctx, nil
 }
@@ -671,12 +685,33 @@ func PlatformsFromOptions(c *cobra.Command) (platforms []struct{ OS, Arch, Varia
 			platforms = append(platforms, struct{ OS, Arch, Variant string }{os, arch, variant})
 		}
 	}
+	// If no platform-related flags were explicitly set, fall back to the
+	// default platform from containers.conf [engine] platform.
+	if len(platforms) == 1 && platforms[0].OS == "" && platforms[0].Arch == "" && platforms[0].Variant == "" {
+		if defaultPlatform, err := defaultPlatformFromConfig(); err == nil && defaultPlatform != "" {
+			os, arch, variant, err := Platform(defaultPlatform)
+			if err != nil {
+				return nil, fmt.Errorf("parsing containers.conf platform %q: %w", defaultPlatform, err)
+			}
+			platforms = []struct{ OS, Arch, Variant string }{{os, arch, variant}}
+		}
+	}
 	return platforms, nil
 }
 
 // DefaultPlatform returns the standard platform for the current system
 func DefaultPlatform() string {
 	return platforms.DefaultString()
+}
+
+// defaultPlatformFromConfig returns the default platform from
+// containers.conf [engine] platform, if set.
+func defaultPlatformFromConfig() (string, error) {
+	cfg, err := config.Default()
+	if err != nil {
+		return "", err
+	}
+	return cfg.Engine.Platform, nil
 }
 
 // Platform separates the platform string into os, arch and variant,

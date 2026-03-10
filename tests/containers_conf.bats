@@ -173,3 +173,38 @@ EOF
     expect_output --substring "retry.*\(default 10\)"
     expect_output --substring "retry-delay.*\(default \"5s\"\)"
 }
+
+
+@test "containers.conf engine.platform" {
+    cat >${TEST_SCRATCH_DIR}/containers.conf << EOF
+[engine]
+platform = "linux/amd64"
+EOF
+    local context="$TEST_SCRATCH_DIR"/context
+    mkdir -p "$context"
+    cat > "$context"/Containerfile << _EOF
+FROM scratch
+COPY . .
+_EOF
+
+    # Build with the custom containers.conf and push to an OCI layout
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah build \
+        $WITH_POLICY_JSON -t localhost/testplatform \
+        -f "$context"/Containerfile "$context"
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah push \
+        $WITH_POLICY_JSON localhost/testplatform oci:"$TEST_SCRATCH_DIR"/output
+
+    # Verify the image platform matches what we set in containers.conf
+    run jq -r '.manifests[0].digest' "$TEST_SCRATCH_DIR"/output/index.json
+    assert $status -eq 0
+    local alg="${output%%:*}"
+    local hex="${output##*:}"
+    run jq -r '.config.digest' "$TEST_SCRATCH_DIR"/output/blobs/"$alg"/"$hex"
+    assert $status -eq 0
+    alg="${output%%:*}"
+    hex="${output##*:}"
+    run jq -r '.os' "$TEST_SCRATCH_DIR"/output/blobs/"$alg"/"$hex"
+    assert "$output" = "linux" "os should be linux"
+    run jq -r '.architecture' "$TEST_SCRATCH_DIR"/output/blobs/"$alg"/"$hex"
+    assert "$output" = "amd64" "architecture should be amd64"
+}
