@@ -676,13 +676,13 @@ load helpers
 
   _prefetch busybox
   run_buildah from --cidfile ${TEST_SCRATCH_DIR}/cid busybox
-  cid=$(cat ${TEST_SCRATCH_DIR}/cid)
+  cid=$(< ${TEST_SCRATCH_DIR}/cid)
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah copy ${cid} ${TEST_SCRATCH_DIR}/randomfile /
   run_buildah commit --iidfile ${TEST_SCRATCH_DIR}/iid ${cid}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iid)
+  iid=$(< ${TEST_SCRATCH_DIR}/iid)
   run_buildah from --cidfile ${TEST_SCRATCH_DIR}/cid2 ${iid}
-  cid2=$(cat ${TEST_SCRATCH_DIR}/cid2)
+  cid2=$(< ${TEST_SCRATCH_DIR}/cid2)
   run_buildah run ${cid2} cat /etc/hosts
   truncated=${iid##*:}
   truncated="${truncated:0:12}"

@@ -361,7 +361,7 @@ function configure_and_check_user() {
 	run_buildah run -v ${TEST_SCRATCH_DIR}/lower:/test:O,upperdir=${TEST_SCRATCH_DIR}/upperdir,workdir=${TEST_SCRATCH_DIR}/workdir${zflag:+:${zflag}}  $cid sh -c 'echo "world" > /test/world'
 
 	#upper dir should persist content
-	result="$(cat ${TEST_SCRATCH_DIR}/upperdir/world)"
+	result="$(< ${TEST_SCRATCH_DIR}/upperdir/world)"
 	test "$result" == "world"
 }
 
@@ -1021,7 +1021,7 @@ _EOF
   assert "$output" = $(cut -c1-12 < ${TEST_SCRATCH_DIR}/cid)
   CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah run "$cname" hostname
   expect_output "$sanitizedname"
-  CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah run "$(cat ${TEST_SCRATCH_DIR}/cid)" hostname
+  CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah run "$(< ${TEST_SCRATCH_DIR}/cid)" hostname
   expect_output "$sanitizedname"
 }
 
@@ -1042,7 +1042,7 @@ _EOF
   wc -l < ${TEST_SCRATCH_DIR}/mountinfo2 > ${TEST_SCRATCH_DIR}/mountinfo3
   echo "# mountinfo count:"
   cat ${TEST_SCRATCH_DIR}/mountinfo3
-  assert $(cat ${TEST_SCRATCH_DIR}/mountinfo3) -eq 1
+  assert $(< ${TEST_SCRATCH_DIR}/mountinfo3) -eq 1
 }
 
 @test "run reaps stray processes" {

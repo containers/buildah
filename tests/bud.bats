@@ -2662,24 +2662,24 @@ _EOF
 @test "bud with --env" {
   target=scratch-image
   run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env PATH $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
   expect_output "[PATH=$PATH]"
 
   run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env PATH=foo $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
   expect_output "[PATH=foo]"
 
   # --unsetenv takes precedence over --env, since we don't know the relative order of the two
   run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --unsetenv PATH --env PATH=foo --env PATH= $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
   expect_output "[]"
 
   # Reference foo=baz from process environment
   foo=baz run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env foo $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
   expect_output --substring "foo=baz"
 }
@@ -2836,7 +2836,7 @@ _EOF
 
 @test "bud-from-scratch-untagged" {
   run_buildah build --iidfile ${TEST_SCRATCH_DIR}/output.iid $WITH_POLICY_JSON $BUDFILES/from-scratch
-  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   expect_output --substring --from="$iid" '^sha256:[0-9a-f]{64}$'
   run_buildah from ${iid}
   buildctr="$output"
@@ -2872,7 +2872,7 @@ _EOF
 @test "bud-from-scratch-iid" {
   target=scratch-image
   run_buildah build --iidfile ${TEST_SCRATCH_DIR}/output.iid $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   expect_output --substring --from="$iid" '^sha256:[0-9a-f]{64}$'
   run_buildah from ${iid}
   expect_output "${target}-working-container"
@@ -3201,7 +3201,7 @@ _EOF
   want_output='map["created_by":"world" "io.buildah.version":"'$buildah_version'"]'
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
   expect_output "$want_output"
-  assert "$(cat ${TEST_SCRATCH_DIR}/inherit_false_1)" = "$(cat ${TEST_SCRATCH_DIR}/inherit_false_2)" "expected image ids to not change"
+  assert "$(< ${TEST_SCRATCH_DIR}/inherit_false_1)" = "$(< ${TEST_SCRATCH_DIR}/inherit_false_2)" "expected image ids to not change"
 
   # Now build same file with  --inherit-labels=true and verify if using the cache
   run_buildah build $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/id2 --layers --inherit-labels=true -t exp -f $BUDFILES/base-with-labels/Containerfile.layer
@@ -3211,7 +3211,7 @@ _EOF
   run_buildah inspect --format '{{ index .Docker.Config.Labels "created_by"}}' exp
   expect_output "world" "created_by must be world from Containerfile"
   # Final image id should be exactly same as the one image which was built in the past.
-  assert "$(cat ${TEST_SCRATCH_DIR}/id1)" = "$(cat ${TEST_SCRATCH_DIR}/id2)" "expected image ids to not change"
+  assert "$(< ${TEST_SCRATCH_DIR}/id1)" = "$(< ${TEST_SCRATCH_DIR}/id2)" "expected image ids to not change"
 
   # Now build same file with  --inherit-labels=false and verify if target stage did not inherit any labels from base stage.
   run_buildah build $WITH_POLICY_JSON --layers --inherit-labels=false -t exp -f $BUDFILES/base-with-labels/Containerfile.multi-stage
@@ -3230,7 +3230,7 @@ _EOF
   want_output='map["created_by":"world" "io.buildah.version":"'$buildah_version'"]'
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' exp
   expect_output "$want_output"
-  assert "$(cat ${TEST_SCRATCH_DIR}/id3)" = "$(cat ${TEST_SCRATCH_DIR}/id4)" "expected image ids to not change"
+  assert "$(< ${TEST_SCRATCH_DIR}/id3)" = "$(< ${TEST_SCRATCH_DIR}/id4)" "expected image ids to not change"
 }
 
 @test "build using intermediate images should not inherit label" {
@@ -4679,7 +4679,7 @@ _EOF
   touch $contextdir/file.txt
   run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid2 -f Dockerfile.7 $contextdir
 
-  if [[ $(cat ${TEST_SCRATCH_DIR}/iid1) != $(cat ${TEST_SCRATCH_DIR}/iid2) ]]; then
+  if [[ $(< ${TEST_SCRATCH_DIR}/iid1) != $(< ${TEST_SCRATCH_DIR}/iid2) ]]; then
     echo "Expected image id to not change after touching a file copied into the image" >&2
     false
   fi
@@ -8191,13 +8191,13 @@ EOF
   echo extracting last layer for default $(dir_image_last_diff $TEST_SCRATCH_DIR/default)
   tar -C $TEST_SCRATCH_DIR/default-layer -xvf $TEST_SCRATCH_DIR/default/$(dir_image_last_diff $TEST_SCRATCH_DIR/default)
   # check the contents of files that recorded $SOURCE_DATE_EPOCH before the ARG was declared, which all should have been empty
-  assert "$(cat $TEST_SCRATCH_DIR/explicit-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined yet when --source-date-epoch was specified on the command line"
-  assert "$(cat $TEST_SCRATCH_DIR/implicit-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined yet when \$SOURCE_DATE_EPOCH was set in the environment"
-  assert "$(cat $TEST_SCRATCH_DIR/default-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined at all, since we didn't specify a source date epoch"
+  assert "$(< $TEST_SCRATCH_DIR/explicit-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined yet when --source-date-epoch was specified on the command line"
+  assert "$(< $TEST_SCRATCH_DIR/implicit-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined yet when \$SOURCE_DATE_EPOCH was set in the environment"
+  assert "$(< $TEST_SCRATCH_DIR/default-layer/SOURCE_DATE_EPOCH_BEFORE)" = "" "SOURCE_DATE_EPOCH arg should not have been defined at all, since we didn't specify a source date epoch"
   # check the contents of files that recorded $SOURCE_DATE_EPOCH after the ARG was declared, which should contain a value if it was defined, or be empty
-  assert "$(cat $TEST_SCRATCH_DIR/explicit-layer/SOURCE_DATE_EPOCH_AFTER)" = "$timestamp" "SOURCE_DATE_EPOCH arg should have been correctly defined when --source-date-epoch was specified on the command line"
-  assert "$(cat $TEST_SCRATCH_DIR/implicit-layer/SOURCE_DATE_EPOCH_AFTER)" = "$timestamp" "SOURCE_DATE_EPOCH arg should have been correctly defined when \$SOURCE_DATE_EPOCH was set in the environment"
-  assert "$(cat $TEST_SCRATCH_DIR/default-layer/SOURCE_DATE_EPOCH_AFTER)" = "" "SOURCE_DATE_EPOCH arg should have not been defined at all, since we didn't specify a source date epoch"
+  assert "$(< $TEST_SCRATCH_DIR/explicit-layer/SOURCE_DATE_EPOCH_AFTER)" = "$timestamp" "SOURCE_DATE_EPOCH arg should have been correctly defined when --source-date-epoch was specified on the command line"
+  assert "$(< $TEST_SCRATCH_DIR/implicit-layer/SOURCE_DATE_EPOCH_AFTER)" = "$timestamp" "SOURCE_DATE_EPOCH arg should have been correctly defined when \$SOURCE_DATE_EPOCH was set in the environment"
+  assert "$(< $TEST_SCRATCH_DIR/default-layer/SOURCE_DATE_EPOCH_AFTER)" = "" "SOURCE_DATE_EPOCH arg should have not been defined at all, since we didn't specify a source date epoch"
 }
 
 @test "bud-with-source-date-epoch-env" {
@@ -8361,7 +8361,7 @@ EOF
     mkdir "$TEST_SCRATCH_DIR"/diff-docker-layers-$cliflag
     diff=$(dir_image_last_diff "$TEST_SCRATCH_DIR"/docker-layers-$cliflag)
     tar -C "$TEST_SCRATCH_DIR"/docker-layers-$cliflag -xf "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/"$diff"
-    hostname=$(cat "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/hostname.txt)
+    hostname=$(< "$TEST_SCRATCH_DIR"/docker-layers-$cliflag/hostname.txt)
     assert $hostname = sandbox "expected the hostname to be the static value 'sandbox'"
 
     run_buildah build --"$cliflag"=$timestamp -t dir:"$TEST_SCRATCH_DIR"/docker-squashed-$cliflag --format=docker $TEST_SCRATCH_DIR/context
@@ -8381,7 +8381,7 @@ EOF
     mkdir "$TEST_SCRATCH_DIR"/diff-docker-squashed-$cliflag
     diff=$(dir_image_last_diff "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag)
     tar -C "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag -xf "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/"$diff"
-    hostname=$(cat "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/hostname.txt)
+    hostname=$(< "$TEST_SCRATCH_DIR"/docker-squashed-$cliflag/hostname.txt)
     assert $hostname = sandbox "expected the hostname to be the static value 'sandbox'"
   done
 }
@@ -8467,34 +8467,34 @@ EOF
 EOF
 
   run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/baseiidfile ${contextdir}
-  local baseiid=$(cat ${TEST_SCRATCH_DIR}/baseiidfile) iid
+  local baseiid=$(< ${TEST_SCRATCH_DIR}/baseiidfile) iid
 
   # Try an assortment of layer-mutating flags.
   run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile-sde --source-date-epoch=86400 ${contextdir}
-  local iidsde=$(cat ${TEST_SCRATCH_DIR}/iidfile-sde)
+  local iidsde=$(< ${TEST_SCRATCH_DIR}/iidfile-sde)
   assert "$iidsde" != "$baseiid"
 
   run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile-ts --timestamp=86400 ${contextdir}
-  local iidts=$(cat ${TEST_SCRATCH_DIR}/iidfile-ts)
+  local iidts=$(< ${TEST_SCRATCH_DIR}/iidfile-ts)
   assert "$iidts" != "$baseiid"
   assert "$iidts" != "$basesde"
 
   run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile-rt --source-date-epoch=86400 --rewrite-timestamp ${contextdir}
-  local iidrt=$(cat ${TEST_SCRATCH_DIR}/iidfile-rt)
+  local iidrt=$(< ${TEST_SCRATCH_DIR}/iidfile-rt)
   assert "$iidrt" != "$baseiid"
   assert "$iidrt" != "$basets"
   assert "$iidrt" != "$basesde"
 
   run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile --source-date-epoch=86400 ${contextdir}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid=$(< ${TEST_SCRATCH_DIR}/iidfile)
   assert "$iid" == "$iidsde"
 
   run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile --timestamp=86400 ${contextdir}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid=$(< ${TEST_SCRATCH_DIR}/iidfile)
   assert "$iid" == "$iidts"
 
   run_buildah build --layers=true --iidfile ${TEST_SCRATCH_DIR}/iidfile --source-date-epoch=86400 --rewrite-timestamp ${contextdir}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid=$(< ${TEST_SCRATCH_DIR}/iidfile)
   assert "$iid" == "$iidrt"
 }
 
@@ -8512,7 +8512,7 @@ EOF
 
   # Build an image with a label and an annotation that we don't want in the end.
   run_buildah build --layers=true --annotation=annotation1=annotationvalue1 --annotation=annotation2=annotationvalue2 --label=label1=labelvalue1 --label=label2=labelvalue2 --iidfile ${TEST_SCRATCH_DIR}/baseiidfile ${contextdir}
-  local baseiid=$(cat ${TEST_SCRATCH_DIR}/baseiidfile) iid
+  local baseiid=$(< ${TEST_SCRATCH_DIR}/baseiidfile) iid
   baseiid="${baseiid##*:}"
   assert "${baseiid}" != ""
   # Double-check that the label and annotation made it in.
@@ -8536,12 +8536,12 @@ EOF
 
   # Build a derived image without that annotation.
   run_buildah build --layers=true --unsetannotation=annotation1 --iidfile ${TEST_SCRATCH_DIR}/unsetaiidfile ${contextdir}
-  local unsetaiid=$(cat ${TEST_SCRATCH_DIR}/unsetaiidfile)
+  local unsetaiid=$(< ${TEST_SCRATCH_DIR}/unsetaiidfile)
   unsetaiid="${unsetaiid##*:}"
   assert "${unsetaiid}" != "${baseiid}"
   # Try it again.  We should get cache hits all the way to the end.
   run_buildah build --layers=true --unsetannotation=annotation1 --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid=$(< ${TEST_SCRATCH_DIR}/iidfile)
   iid="${iid##*:}"
   assert "${iid}" == "${unsetaiid}"
   # Double-check that the annotation that we wanted to discard was discarded.
@@ -8553,12 +8553,12 @@ EOF
 
   # Build a derived image without that label.
   run_buildah build --layers=true --unsetlabel=label1 --iidfile ${TEST_SCRATCH_DIR}/unsetliidfile ${contextdir}
-  local unsetliid=$(cat ${TEST_SCRATCH_DIR}/unsetliidfile)
+  local unsetliid=$(< ${TEST_SCRATCH_DIR}/unsetliidfile)
   unsetliid="${unsetliid##*:}"
   assert "${unsetliid}" != "${baseiid}"
   # Try it again.  We should get cache hits all the way to the end.
   run_buildah build --layers=true --unsetlabel=label1 --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid=$(< ${TEST_SCRATCH_DIR}/iidfile)
   iid="${iid##*:}"
   assert "${iid}" == "${unsetliid}"
   # Double-check that the label that we wanted to discard was discarded.
@@ -8570,12 +8570,12 @@ EOF
 
   # Build a derived image without any inherited annotations.
   run_buildah build --layers=true --inherit-annotations=false --iidfile ${TEST_SCRATCH_DIR}/disavowaiidfile ${contextdir}
-  local disavowaiid=$(cat ${TEST_SCRATCH_DIR}/disavowaiidfile)
+  local disavowaiid=$(< ${TEST_SCRATCH_DIR}/disavowaiidfile)
   disavowaiid="${disavowaiid##*:}"
   assert "${disavowaiid}" != "${baseiid}"
   # Try it again.  We should get cache hits all the way to the end.
   run_buildah build --layers=true --inherit-annotations=false --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid=$(< ${TEST_SCRATCH_DIR}/iidfile)
   iid="${iid##*:}"
   assert "${iid}" == "${disavowaiid}"
   assert "${iid}" != "${unsetaiid}"
@@ -8588,12 +8588,12 @@ EOF
 
   # Build a derived image without any inherited labels.
   run_buildah build --layers=true --inherit-labels=false --iidfile ${TEST_SCRATCH_DIR}/disavowliidfile ${contextdir}
-  local disavowliid=$(cat ${TEST_SCRATCH_DIR}/disavowliidfile)
+  local disavowliid=$(< ${TEST_SCRATCH_DIR}/disavowliidfile)
   disavowliid="${disavowliid##*:}"
   assert "${disavowliid}" != "${baseiid}"
   # Try it again.  We should get cache hits all the way to the end.
   run_buildah build --layers=true --inherit-labels=false --iidfile ${TEST_SCRATCH_DIR}/iidfile ${contextdir}
-  iid=$(cat ${TEST_SCRATCH_DIR}/iidfile)
+  iid=$(< ${TEST_SCRATCH_DIR}/iidfile)
   iid="${iid##*:}"
   assert "${iid}" == "${disavowliid}"
   assert "${iid}" != "${unsetliid}"
@@ -9074,7 +9074,7 @@ EOF
         rm -fr "${fsname}"
       fi
       run_buildah build --iidfile "${TEST_SCRATCH_DIR}"/iidfile --no-cache "${layers}" -t "${destination}" "${contextdir}"
-      local iid=$(cat "${TEST_SCRATCH_DIR}"/iidfile)
+      local iid=$(< "${TEST_SCRATCH_DIR}"/iidfile)
       assert "${iid}" != ""
       assert "${iid#sha256:}" != ""
       if test "${fsname}" != "${destination}" ; then
@@ -9100,7 +9100,7 @@ EOF
         rm -fr "${fsname}"
       fi
       run_buildah build --iidfile-raw "${TEST_SCRATCH_DIR}"/iidfile-raw --no-cache "${layers}" -t "${destination}" "${contextdir}"
-      local iid_raw=$(cat "${TEST_SCRATCH_DIR}"/iidfile-raw)
+      local iid_raw=$(< "${TEST_SCRATCH_DIR}"/iidfile-raw)
       # iidfile-raw should contain just the hash without sha256: prefix
       assert "${iid_raw}" != ""
       assert "${iid_raw}" =~ "^[0-9a-f]{64}$"
@@ -9123,8 +9123,8 @@ EOF
 EOF
   # Build with both --iidfile and --iidfile-raw to verify they write the same image ID
   run_buildah build --iidfile "${TEST_SCRATCH_DIR}"/iidfile --iidfile-raw "${TEST_SCRATCH_DIR}"/iidfile-raw -t "${target}" "${contextdir}"
-  local iid=$(cat "${TEST_SCRATCH_DIR}"/iidfile)
-  local iid_raw=$(cat "${TEST_SCRATCH_DIR}"/iidfile-raw)
+  local iid=$(< "${TEST_SCRATCH_DIR}"/iidfile)
+  local iid_raw=$(< "${TEST_SCRATCH_DIR}"/iidfile-raw)
 
   # iid should have sha256: prefix, iid_raw should not
   assert "${iid}" =~ "^sha256:[0-9a-f]{64}$"
@@ -9144,7 +9144,7 @@ EOF
 EOF
   # Test that --raw-iidfile works as an alias for --iidfile-raw
   run_buildah build --raw-iidfile "${TEST_SCRATCH_DIR}"/iidfile-alias -t "${target}" "${contextdir}"
-  local iid_alias=$(cat "${TEST_SCRATCH_DIR}"/iidfile-alias)
+  local iid_alias=$(< "${TEST_SCRATCH_DIR}"/iidfile-alias)
 
   # Should contain just the hash without sha256: prefix
   assert "${iid_alias}" != ""
