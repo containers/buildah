@@ -37,7 +37,7 @@ func mkcwCmd(c *cobra.Command, args []string, options buildah.CWConvertImageOpti
 	return err
 }
 
-func init() {
+func mkcwInit() {
 	var teeType string
 	var addFile []string
 	var options buildah.CWConvertImageOptions

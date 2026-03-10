@@ -19,7 +19,7 @@ type infoResults struct {
 	format string
 }
 
-func init() {
+func infoInit() {
 	var (
 		infoDescription = "\n  Display information about the host and current storage statistics which are useful when reporting issues."
 		opts            infoResults

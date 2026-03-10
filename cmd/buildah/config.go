@@ -52,7 +52,7 @@ type configResults struct {
 	unsetAnnotations         []string
 }
 
-func init() {
+func configInit() {
 	var (
 		configDescription = "\n  Modifies the configuration values which will be saved to the image."
 		opts              configResults

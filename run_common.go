@@ -478,15 +478,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 
 	logrus.Debugf("config = %v", string(specbytes))
 
-	// Decide which runtime to use.
 	runtime := options.Runtime
-	if runtime == "" {
-		runtime = util.Runtime()
-	}
-	localRuntime := util.FindLocalRuntime(runtime)
-	if localRuntime != "" {
-		runtime = localRuntime
-	}
 
 	// Default to just passing down our stdio.
 	getCreateStdio := func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
@@ -1165,6 +1157,17 @@ func runUsingRuntimeMain() {
 func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, networkString string,
 	moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName, buildContainerName, hostsFile, resolvFile string,
 ) (err error) {
+	// Decide which runtime to use in case it was empty.
+	ociRuntime := options.Runtime
+	if ociRuntime == "" {
+		ociRuntime = util.Runtime()
+	}
+	localRuntime := util.FindLocalRuntime(ociRuntime)
+	if localRuntime != "" {
+		ociRuntime = localRuntime
+	}
+	options.Runtime = ociRuntime
+
 	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()

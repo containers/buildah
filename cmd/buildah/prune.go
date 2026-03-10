@@ -17,7 +17,7 @@ type pruneOptions struct {
 	all   bool
 }
 
-func init() {
+func pruneInit() {
 	var (
 		pruneDescription = `
 Cleanup intermediate images as well as build and mount cache.`

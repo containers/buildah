@@ -18,7 +18,7 @@ type rmiOptions struct {
 	force bool
 }
 
-func init() {
+func rmiInit() {
 	var (
 		rmiDescription = "\n  Removes one or more locally stored images."
 		opts           rmiOptions

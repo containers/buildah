@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
+func buildInit() {
 	buildDescription := `
   Builds an OCI image using instructions in one or more Containerfiles.
 

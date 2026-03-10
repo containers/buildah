@@ -91,7 +91,7 @@ var (
 	}
 )
 
-func init() {
+func sourceInit() {
 	// buildah source
 	sourceCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(sourceCommand)

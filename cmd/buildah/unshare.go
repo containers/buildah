@@ -30,7 +30,7 @@ var (
 	unshareMounts []string
 )
 
-func init() {
+func unshareInit() {
 	unshareCommand.SetUsageTemplate(UsageTemplate())
 	flags := unshareCommand.Flags()
 	flags.SetInterspersed(false)

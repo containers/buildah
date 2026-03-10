@@ -69,6 +69,6 @@ func dumpBoltCmd(_ *cobra.Command, args []string) error {
 	})
 }
 
-func init() {
+func dumpboltInit() {
 	rootCmd.AddCommand(dumpBoltCommand)
 }

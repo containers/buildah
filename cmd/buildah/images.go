@@ -71,7 +71,7 @@ var imagesHeader = map[string]string{
 	"History":   "HISTORY",
 }
 
-func init() {
+func imagesInit() {
 	var (
 		opts              imageResults
 		imagesDescription = "\n  Lists locally stored images."

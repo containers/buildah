@@ -32,7 +32,7 @@ type pullOptions struct {
 	retryDelay       string
 }
 
-func init() {
+func pullInit() {
 	var (
 		opts pullOptions
 
