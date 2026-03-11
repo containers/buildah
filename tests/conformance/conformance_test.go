@@ -289,10 +289,9 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 
 	// initialize storage for buildah
 	options := storage.StoreOptions{
-		GraphDriverName:     os.Getenv("STORAGE_DRIVER"),
-		GraphRoot:           rootDir,
-		RunRoot:             runrootDir,
-		RootlessStoragePath: rootDir,
+		GraphDriverName: os.Getenv("STORAGE_DRIVER"),
+		GraphRoot:       rootDir,
+		RunRoot:         runrootDir,
 	}
 	store, err := storage.GetStore(options)
 	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
@@ -4090,10 +4089,9 @@ func TestCommit(t *testing.T) {
 
 	// initialize storage for buildah
 	options := storage.StoreOptions{
-		GraphDriverName:     os.Getenv("STORAGE_DRIVER"),
-		GraphRoot:           rootDir,
-		RunRoot:             runrootDir,
-		RootlessStoragePath: rootDir,
+		GraphDriverName: os.Getenv("STORAGE_DRIVER"),
+		GraphRoot:       rootDir,
+		RunRoot:         runrootDir,
 	}
 	store, err := storage.GetStore(options)
 	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
