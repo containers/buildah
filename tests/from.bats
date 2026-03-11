@@ -173,116 +173,81 @@ load helpers
 @test "from cpu-period test" {
   skip_if_rootless_environment
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
   run_buildah from --quiet --cpu-period=5000 --pull $WITH_POLICY_JSON alpine
   cid=$output
-  if is_cgroupsv2; then
-    run_buildah run $cid /bin/sh -c "cut -d ' ' -f 2 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
-  else
-    run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
-  fi
+  run_buildah run $cid /bin/sh -c "cut -d ' ' -f 2 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
   expect_output "5000"
 }
 
 @test "from cpu-quota test" {
   skip_if_rootless_environment
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
   run_buildah from --quiet --cpu-quota=5000 --pull=false $WITH_POLICY_JSON alpine
   cid=$output
-  if is_cgroupsv2; then
-    run_buildah run $cid /bin/sh -c "cut -d ' ' -f 1 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
-  else
-    run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
-  fi
+  run_buildah run $cid /bin/sh -c "cut -d ' ' -f 1 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
   expect_output "5000"
 }
 
 @test "from cpu-shares test" {
   skip_if_rootless_environment
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
   for shares in 2 200 2000 12345 20000 200000 ; do
     run_buildah from --quiet --cpu-shares=${shares} --pull $WITH_POLICY_JSON alpine
     cid=$output
-    if is_cgroupsv2; then
-      local converted="$(convert_v1_shares_to_v2_weight ${shares})"
-      local expect="(weight ${converted##* }|weight ${converted%% *})"
-      run_buildah run $cid /bin/sh -c "echo -n 'weight '; cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight"
-      echo expected "${expect}"
-      expect_output --substring "${expect}"
-    else
-      run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
-      expect_output "${shares}"
-    fi
+    local converted="$(convert_v1_shares_to_v2_weight ${shares})"
+    local expect="(weight ${converted##* }|weight ${converted%% *})"
+    run_buildah run $cid /bin/sh -c "echo -n 'weight '; cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight"
+    echo expected "${expect}"
+    expect_output --substring "${expect}"
   done
 }
 
 @test "from cpuset-cpus test" {
   skip_if_rootless_environment
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
   run_buildah from --quiet --cpuset-cpus=0 --pull=false $WITH_POLICY_JSON alpine
   cid=$output
-  if is_cgroupsv2; then
-    run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.cpus"
-  else
-    run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
-  fi
+  run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.cpus"
   expect_output "0"
 }
 
 @test "from cpuset-mems test" {
   skip_if_rootless_environment
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
   run_buildah from --quiet --cpuset-mems=0 --pull $WITH_POLICY_JSON alpine
   cid=$output
-  if is_cgroupsv2; then
-   run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.mems"
-  else
-    run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
-  fi
+  run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.mems"
   expect_output "0"
 }
 
 @test "from memory test" {
   skip_if_rootless_environment
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
-
   _prefetch alpine
   run_buildah from --quiet --memory=40m --memory-swap=70m --pull=false $WITH_POLICY_JSON alpine
   cid=$output
 
-  # Life is much more complicated under cgroups v2
-  mpath='/sys/fs/cgroup/memory/memory.limit_in_bytes'
-  spath='/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes'
-  expect_sw=73400320
-  if is_cgroupsv2; then
-      mpath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.max"
-      spath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.swap.max"
-      expect_sw=31457280
-  fi
+  mpath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.max"
+  spath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.swap.max"
   run_buildah run $cid sh -c "cat $mpath"
   expect_output "41943040" "$mpath"
   run_buildah run $cid sh -c "cat $spath"
-  expect_output "$expect_sw" "$spath"
+  expect_output "31457280" "$spath"
 }
 
 @test "from volume test" {

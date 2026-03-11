@@ -908,14 +908,8 @@ _EOF
 
 	if [ -n "$(command -v runc)" ]; then
 		found_runtime=y
-		run_buildah '?' run --runtime=runc --runtime-flag=debug $cid true
-		if [ "$status" -eq 0 ]; then
-			assert "$output" != "" "Output from running 'true' with --runtime-flag=debug"
-		else
-			# runc fully supports cgroup v2 (unified mode) since v1.0.0-rc93.
-			# older runc doesn't work on cgroup v2.
-			expect_output --substring "this version of runc doesn't work on cgroups v2" "should fail by unsupportability for cgroupv2"
-		fi
+		run_buildah run --runtime=runc --runtime-flag=debug $cid true
+		assert "$output" != "" "Output from running 'true' with --runtime-flag=debug"
 	fi
 
 	if [ -n "$(command -v crun)" ]; then

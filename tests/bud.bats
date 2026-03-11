@@ -6484,22 +6484,9 @@ _EOF
   local flag_accepted_rx="level=debug.*msg=.child process in init"
   if [ -n "$(command -v runc)" ]; then
     found_runtime=y
-    if is_cgroupsv2; then
-      # The result with cgroup v2 depends on the version of runc.
-      run_buildah '?' bud --runtime=runc --runtime-flag=debug \
-                        -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
-      if [ "$status" -eq 0 ]; then
-        expect_output --substring "$flag_accepted_rx"
-      else
-        # If it fails, this is because this version of runc doesn't support cgroup v2.
-        expect_output --substring "this version of runc doesn't work on cgroups v2" "should fail by unsupportability for cgroupv2"
-      fi
-    else
-      run_buildah build --runtime=runc --runtime-flag=debug \
-                      -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
-      expect_output --substring "$flag_accepted_rx"
-    fi
-
+    run_buildah build --runtime=runc --runtime-flag=debug \
+                    -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
+    expect_output --substring "$flag_accepted_rx"
   fi
 
   if [ -n "$(command -v crun)" ]; then
@@ -6646,7 +6633,6 @@ _EOF
 
 @test "bud with --cpu-period and --cpu-quota" {
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_rootless_environment
   skip_if_no_runtime
 
@@ -6655,17 +6641,10 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
-  if is_cgroupsv2; then
-    cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run cat /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max
 _EOF
-  else
-    cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run echo "\$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us) \$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us)"
-_EOF
-  fi
 
   run_buildah build --cpu-period=1234 --cpu-quota=5678 -t testcpu \
                   $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
@@ -6673,7 +6652,6 @@ _EOF
 }
 
 @test "bud check mount /sys/fs/cgroup" {
-  skip_if_rootless_and_cgroupv1
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
@@ -6689,7 +6667,6 @@ _EOF
 @test "bud with --cpu-shares, checked" {
   skip_if_chroot
   skip_if_rootless_environment
-  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -6697,21 +6674,14 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
-  for shares in 2 200 2000 12345 20000 200000 ; do
-  if is_cgroupsv2; then
-    cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 FROM alpine
 RUN printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
 _EOF
-      local converted="$(convert_v1_shares_to_v2_weight ${shares})"
-      local expect="(weight ${converted##* }|weight ${converted%% *})"
-    else
-      cat > $mytmpdir/Containerfile << _EOF
-FROM alpine
-RUN printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
-_EOF
-      local expect="weight ${shares}"
-    fi
+
+  for shares in 2 200 2000 12345 20000 200000 ; do
+    local converted="$(convert_v1_shares_to_v2_weight ${shares})"
+    local expect="(weight ${converted##* }|weight ${converted%% *})"
 
     echo requesting "${shares}" shares
     run_buildah build --cpu-shares=${shares} -t testcpu \
@@ -6723,7 +6693,6 @@ _EOF
 
 @test "bud with --cpuset-cpus" {
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_rootless_environment
   skip_if_no_runtime
 
@@ -6732,17 +6701,10 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
-  if is_cgroupsv2; then
-    cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run printf "cpuset-cpus " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.cpus
 _EOF
-  else
-    cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run printf "cpuset-cpus " && cat /sys/fs/cgroup/cpuset/cpuset.cpus
-_EOF
-  fi
 
   run_buildah build --cpuset-cpus=0 -t testcpuset \
                   $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
@@ -6751,7 +6713,6 @@ _EOF
 
 @test "bud with --cpuset-mems" {
   skip_if_chroot
-  skip_if_rootless_and_cgroupv1
   skip_if_rootless_environment
   skip_if_no_runtime
 
@@ -6760,17 +6721,10 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
-  if is_cgroupsv2; then
-    cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run printf "cpuset-mems " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.mems
 _EOF
-  else
-    cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run printf "cpuset-mems " && cat /sys/fs/cgroup/cpuset/cpuset.mems
-_EOF
-  fi
 
   run_buildah build --cpuset-mems=0 -t testcpuset \
                   $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
@@ -6810,7 +6764,6 @@ _EOF
 @test "bud with --memory and --memory-swap" {
   skip_if_chroot
   skip_if_no_runtime
-  skip_if_rootless_and_cgroupv1
   skip_if_rootless_environment
 
   _prefetch alpine
@@ -6818,27 +6771,16 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
-  local expect_swap=
-  if is_cgroupsv2; then
-    cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run printf "memory-max=" && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/memory.max
 run printf "memory-swap-result=" && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/memory.swap.max
 _EOF
-    expect_swap=31457280
-  else
-    cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run printf "memory-max=" && cat /sys/fs/cgroup/memory/memory.limit_in_bytes
-run printf "memory-swap-result=" && cat /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes
-_EOF
-    expect_swap=73400320
-  fi
 
   run_buildah build --memory=40m --memory-swap=70m -t testmemory \
                   $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" "memory-max=41943040"
-  expect_output --from="${lines[4]}" "memory-swap-result=${expect_swap}"
+  expect_output --from="${lines[4]}" "memory-swap-result=31457280"
 }
 
 @test "bud with --shm-size" {
