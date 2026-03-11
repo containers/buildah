@@ -6487,7 +6487,6 @@ _EOF
     run_buildah build --runtime=runc --runtime-flag=debug \
                     -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
     expect_output --substring "$flag_accepted_rx"
-
   fi
 
   if [ -n "$(command -v crun)" ]; then
