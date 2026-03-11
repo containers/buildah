@@ -2,7 +2,7 @@ module github.com/containers/buildah
 
 // Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
 
-go 1.24.6
+go 1.25.0
 
 require (
 	github.com/containerd/platforms v1.0.0-rc.2
@@ -39,7 +39,7 @@ require (
 	go.podman.io/storage v1.61.1-0.20260130150631-28c83ab6f016
 	golang.org/x/crypto v0.48.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.42.0
 	golang.org/x/term v0.40.0
 	google.golang.org/grpc v1.79.2
 	google.golang.org/protobuf v1.36.11
