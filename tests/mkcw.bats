@@ -111,14 +111,14 @@ function mkcw_check_image() {
 
   echo -n "mkcw build" > "$TEST_SCRATCH_DIR"/key
   run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw build" -f bud/env/Dockerfile.check-env bud/env
-  mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
+  mkcw_check_image $(< "$TEST_SCRATCH_DIR"/iid)
 
   run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=sev,ignore_attestation_errors,passphrase="mkcw build" -f bud/env/Dockerfile.check-env bud/env
-  mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
+  mkcw_check_image $(< "$TEST_SCRATCH_DIR"/iid)
 
   # the key thing about this next bit is mixing --layers with a final
   # instruction in the Dockerfile that normally wouldn't produce a layer
   echo -n "mkcw build --layers" > "$TEST_SCRATCH_DIR"/key
   run_buildah build --iidfile "$TEST_SCRATCH_DIR"/iid --cw type=SEV,ignore_attestation_errors,passphrase="mkcw build --layers" --layers -f bud/env/Dockerfile.check-env bud/env
-  mkcw_check_image $(cat "$TEST_SCRATCH_DIR"/iid)
+  mkcw_check_image $(< "$TEST_SCRATCH_DIR"/iid)
 }

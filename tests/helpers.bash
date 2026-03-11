@@ -122,7 +122,7 @@ function starthttpd() { # directoryspecs [working-directory-or-"" [certfile, key
             exit 1
         fi
     done
-    HTTP_SERVER_PID=$(cat ${pidfile})
+    HTTP_SERVER_PID=$(< ${pidfile})
     rm -f ${pidfile}
     waited=0
     while ! test -s ${portfile} ; do
@@ -132,7 +132,7 @@ function starthttpd() { # directoryspecs [working-directory-or-"" [certfile, key
             exit 1
         fi
     done
-    HTTP_SERVER_PORT=$(cat ${portfile})
+    HTTP_SERVER_PORT=$(< ${portfile})
     rm -f ${portfile}
     popd > /dev/null
 }
@@ -795,7 +795,7 @@ function start_git_daemon() {
       exit 1
     fi
   done
-  GITPORT=$(cat ${TEST_SCRATCH_DIR}/git-daemon/port)
+  GITPORT=$(< ${TEST_SCRATCH_DIR}/git-daemon/port)
 }
 
 #####################
@@ -803,7 +803,7 @@ function start_git_daemon() {
 #####################
 function stop_git_daemon() {
   if test -s ${TEST_SCRATCH_DIR}/git-daemon/pid ; then
-    kill $(cat ${TEST_SCRATCH_DIR}/git-daemon/pid)
+    kill $(< ${TEST_SCRATCH_DIR}/git-daemon/pid)
     rm -f ${TEST_SCRATCH_DIR}/git-daemon/pid
   fi
 }
