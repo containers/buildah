@@ -111,14 +111,17 @@ load helpers
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
 
   for img in '' alpine busybox; do
-      # e.g. [ { "id": "xx", ... },{ "id": "yy", ... } ]
-      # We check for the presence of some keys, but not (yet) their values.
-      # FIXME: once we can rely on 'jq' tool being present, improve this test!
       run_buildah images --json $img
-      expect_output --from="${lines[0]}" "[" "first line of JSON output: array"
-      for key in id names digest createdat size readonly history; do
-          expect_output --substring "\"$key\": "
-      done
+      run jq -re 'length > 0 and
+        all(.[]; has("id")
+             and has("names")
+             and has("digest")
+             and has("createdat")
+             and has("size")
+             and has("readonly")
+             and has("history"))' <<<"$output"
+      expect_output "true"
+      assert "$status" -eq 0 "status from jq for $img"
   done
 }
 
