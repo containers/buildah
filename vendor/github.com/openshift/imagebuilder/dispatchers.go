@@ -210,8 +210,12 @@ func add(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 				return fmt.Errorf("no value specified for --exclude=")
 			}
 			excludes = append(excludes, exclude)
+		case arg == "--unpack", strings.HasPrefix(arg, "--unpack="):
+			// Accept --unpack flag but don't store it in Copy struct
+			// Buildah will parse and handle this flag in stage_executor.go
+			// We just need to accept it here to avoid "unsupported flag" errors
 		default:
-			return fmt.Errorf("ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, --checksum=<checksum>, --link, --keep-git-dir, and --exclude=<pattern> flags")
+			return fmt.Errorf("ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, --checksum=<checksum>, --link, --keep-git-dir, --exclude=<pattern>, and --unpack=<bool> flags")
 		}
 	}
 	files, err := processHereDocs(buildkitcommand.Add, original, heredocs, userArgs)
