@@ -374,6 +374,16 @@ func (s *stageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		}
 		if len(cp.Excludes) > 0 {
 			excludes = append(slices.Clone(excludes), cp.Excludes...)
+			for _, src := range cp.Src {
+				srcNorm := path.Clean(filepath.ToSlash(src))
+				for _, excl := range cp.Excludes {
+					if srcNorm == "." || srcNorm == "" {
+						excludes = append(excludes, excl)
+					} else {
+						excludes = append(excludes, path.Join(srcNorm, excl))
+					}
+				}
+			}
 		}
 	}
 	s.builder.ContentDigester.Restart()

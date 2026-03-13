@@ -51,7 +51,9 @@ by symbolic links outside of the chroot will fail.
 **--exclude** *pattern*
 
 Exclude copying files matching the specified pattern. Option can be specified
-multiple times. See containerignore(5) for supported formats.
+multiple times. Patterns are matched against each file's path relative to the
+context directory (or, with **--from**, relative to the source container or image root).
+See containerignore(5) for supported formats.
 
 **--from** *containerOrImage*
 
