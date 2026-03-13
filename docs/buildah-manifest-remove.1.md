@@ -6,7 +6,7 @@ buildah\-manifest\-remove - Remove an image from a manifest list or image index.
 
 ## SYNOPSIS
 
-**buildah manifest remove** *listNameOrIndexName* *imageNameOrManifestDigestOrArtifactName*
+**buildah manifest remove** [options...] *listNameOrIndexName* *imageNameOrManifestDigestOrArtifactName*
 
 ## DESCRIPTION
 
@@ -16,6 +16,17 @@ list or image index, or the specified artifact from the specified image index.
 ## RETURN VALUE
 
 The list image's ID and the digest of the removed image's manifest.
+
+## OPTIONS
+
+**--tls-details** *path*
+
+Path to a `containers-tls-details.yaml(5)` file.
+
+If not set, defaults to a reasonable default that may change over time (depending on system's global policy,
+version of the program, version of the Go language, and the like).
+
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
 
 ## EXAMPLE
 

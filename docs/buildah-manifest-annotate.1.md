@@ -62,6 +62,15 @@ Set the *subject* field in the image index to mark the image index as being
 associated with the specified image in some way.  An image index can only be
 associated with, at most, one subject.
 
+**--tls-details** *path*
+
+Path to a `containers-tls-details.yaml(5)` file.
+
+If not set, defaults to a reasonable default that may change over time (depending on system's global policy,
+version of the program, version of the Go language, and the like).
+
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
 **--variant**
 
 Specify the variant which the list or index records for the image.  This option
