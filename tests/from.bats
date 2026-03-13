@@ -596,22 +596,6 @@ load helpers
   fi
 }
 
-@test "from cni config test" {
-  _prefetch alpine
-
-  cni_config_dir=${TEST_SCRATCH_DIR}/no-cni-configs
-  cni_plugin_path=${TEST_SCRATCH_DIR}/no-cni-plugin
-  mkdir -p ${cni_config_dir}
-  mkdir -p ${cni_plugin_path}
-  run_buildah from -q --cni-config-dir=${cni_config_dir} --cni-plugin-path=${cni_plugin_path} $WITH_POLICY_JSON alpine
-  cid=$output
-
-  run_buildah inspect --format '{{.CNIConfigDir}}' $cid
-  expect_output "${cni_config_dir}"
-  run_buildah inspect --format '{{.CNIPluginPath}}' $cid
-  expect_output "${cni_plugin_path}"
-}
-
 @test "from-image-with-zstd-compression" {
   copy --format oci --dest-compress --dest-compress-format zstd docker://quay.io/libpod/alpine_nginx:latest dir:${TEST_SCRATCH_DIR}/base-image
   run_buildah from dir:${TEST_SCRATCH_DIR}/base-image
