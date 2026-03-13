@@ -831,6 +831,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	// not they can skip certain steps near the end of their stages.
 	for stageIndex, stage := range stages {
 		dependencyMap[stage.Name] = &stageDependencyInfo{Name: stage.Name, Position: stage.Position}
+		stageLocalScopeArgs := make(map[string]string)
 		node := stage.Node // first line
 		for node != nil {  // each line
 			for _, child := range node.Children { // tokens on this line, though we only care about the first
@@ -854,10 +855,11 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
+							localScopeArgs := argsMapToSlice(stageLocalScopeArgs)
 							// append heading args so if --build-arg key=value is not
 							// specified but default value is set in Containerfile
 							// via `ARG key=value` so default value can be used.
-							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs)
+							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs, localScopeArgs)
 							baseWithArg, err := imagebuilder.ProcessWord(base, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
@@ -888,7 +890,8 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
-							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs)
+							localScopeArgs := argsMapToSlice(stageLocalScopeArgs)
+							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs, localScopeArgs)
 							afterResolved, err := imagebuilder.ProcessWord(after, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for --after=%q: %w", after, err)
@@ -927,13 +930,17 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
+							localScopeArgs := argsMapToSlice(stageLocalScopeArgs)
 							// append heading args so if --build-arg key=value is not
 							// specified but default value is set in Containerfile
 							// via `ARG key=value` so default value can be used.
-							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs)
+							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs, localScopeArgs)
 							baseWithArg, err := imagebuilder.ProcessWord(stageName, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", stageName, err)
+							}
+							if baseWithArg != "" {
+								b.rootfsMap[baseWithArg] = struct{}{}
 							}
 							logrus.Debugf("stage %d name: %q resolves to %q", stageIndex, stageName, baseWithArg)
 							stageName = baseWithArg
@@ -951,6 +958,14 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 									currentStageInfo.Needs = append(currentStageInfo.Needs, stageName)
 								}
 							}
+						}
+					}
+				case "ARG":
+					arg := child.Next
+					if arg != nil {
+						argName, argValue, hasValue := strings.Cut(arg.Value, "=")
+						if hasValue && argName != "" {
+							stageLocalScopeArgs[argName] = strings.Trim(argValue, "\"'")
 						}
 					}
 				case "RUN":
