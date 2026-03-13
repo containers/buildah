@@ -1,0 +1,18 @@
+# Stage 1: parent (independent)
+FROM alpine:latest AS parent
+RUN echo "parent layer" > /parent.txt
+
+# Stage 2: child - uses stage 1 as parent
+FROM parent AS child
+RUN echo "child layer" > /child.txt
+
+# Stage 3: independent (standalone)
+FROM alpine:latest AS independent
+RUN echo "independent layer" > /independent.txt
+
+# Final stage: uses all 3 intermediate stages
+FROM alpine:latest
+COPY --from=parent /parent.txt /app/parent.txt
+COPY --from=child /child.txt /app/child.txt
+COPY --from=independent /independent.txt /app/independent.txt
+CMD ["cat", "/app/parent.txt", "/app/child.txt", "/app/independent.txt"]

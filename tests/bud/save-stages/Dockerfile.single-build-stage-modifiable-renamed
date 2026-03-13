@@ -1,0 +1,6 @@
+FROM alpine AS intermediate-renamed
+RUN echo "intermediate stage content" > /output.txt
+
+FROM alpine
+COPY --from=intermediate-renamed /output.txt /app/output.txt
+RUN cat /app/output.txt
