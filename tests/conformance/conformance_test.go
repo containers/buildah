@@ -77,18 +77,44 @@ var (
 		"history",
 		"rootfs:diff_ids",
 		"moby.buildkit.buildinfo.v1",
+		// Fields which only exist in buildah version:
+		"config:User",
+		"config:AttachStderr",
+		"config:Volumes",
+		"config:Domainname",
+		"config:Tty",
+		"config:OnBuild",
+		"config:AttachStdout",
+		"config:OpenStdin",
+		"config:StdinOnce",
+		"config:Cmd",
+		"config:Entrypoint",
+		"config:AttachStdin",
+		"config:Labels",
+		"config:StopTimeout",
+		"config:WorkingDir",
+		"parent",
+		"variant",
+		"container_config",
 	}
 	ociSkip = []string{
 		"created",
 		"history",
 		"rootfs:diff_ids",
+		// Fields which only exist in buildah version:
+		"config:Labels",
+		"variant",
 	}
 	fsSkip = []string{
 		// things that we volume mount or synthesize for RUN statements that currently bleed through
-		"(dir):dev:mtime",  // we let the timestamp be changed, if it exists at all, and so does docker build
+		"(dir):dev",
+		"(dir):dev:mtime", // we let the timestamp be changed, if it exists at all, and so does docker build
+		"(dir):etc",
+		"(dir):etc:mtime", // we try to preserve the timestamp on RUN, but docker build doesn't
+		"(dir):proc",
 		"(dir):proc:mtime", // we let the timestamp be changed, and so does docker build, which creates it on RUN
-		"(dir):sys:mtime",  // we let the timestamp be changed, and so does docker build, which creates it on RUN
-		"(dir):etc:mtime",  // we try to preserve the timestamp on RUN, but docker build doesn't
+		"(dir):sys",
+		"(dir):sys:mtime", // we let the timestamp be changed, and so does docker build, which creates it on RUN
 	}
 	testDate            = time.Unix(1485449953, 0)
 	compareLayers       = false
@@ -1347,6 +1373,7 @@ func compareJSON(a, b map[string]any, skip []string) (missKeys, leftKeys, diffKe
 		for k := range b {
 			if !contains(skip, k) {
 				leftKeys = append(leftKeys, k)
+				isSame = false
 			}
 		}
 	}
@@ -2027,7 +2054,10 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		fsSkip: []string{
+			"(dir):subdir1:mtime", "(dir):subdir2:mtime",
+			"(dir):subdir1:(dir):xattrs-file:xattrs", "(dir):subdir2:(dir):xattrs-file:xattrs", // Buildah preserves xattrs; Docker may not
+		},
 		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
@@ -2186,7 +2216,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+		fsSkip: []string{
+			"(dir):xattr-file:xattrs", // Buildah preserves xattrs from archive; Docker may not
+		},
 		compatScratchConfig: types.OptionalBoolTrue,
 	},
 
@@ -2237,6 +2269,9 @@ var internalTestCases = []testCase{
 				return fmt.Errorf("setting date on test file in temporary context directory: %w", err)
 			}
 			return nil
+		},
+		fsSkip: []string{
+			"(dir):xattrs-file:xattrs", // Buildah preserves xattrs when copying from stage; Docker may not
 		},
 		compatScratchConfig: types.OptionalBoolTrue,
 	},
@@ -2543,6 +2578,36 @@ var internalTestCases = []testCase{
 		}, "\n"),
 		contextDir:          "dockerignore/populated",
 		fsSkip:              []string{"(dir):subdir:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		// https://github.com/containers/buildah/issues/6726
+		name: "copy--exclude-subdir-under-source",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude=storage/views app/ app/",
+		}, "\n"),
+		contextDir:          "dockerignore/exclude_subdir_under_source",
+		fsSkip:              []string{"(dir):app:mtime", "(dir):app:(dir):storage:mtime", "(dir):app:(dir):storage:(dir):cache:mtime"},
+		compatScratchConfig: types.OptionalBoolFalse,
+		dockerUseBuildKit:   true,
+	},
+
+	{
+		// https://github.com/containers/buildah/issues/6726
+		name: "copy--form-and--exclude-subdir-under-source",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
+			"FROM scratch as base",
+			"COPY . .",
+			"FROM scratch",
+			"COPY --from=base --exclude=storage/views app/ app/",
+		}, "\n"),
+		contextDir:          "dockerignore/exclude_subdir_under_source",
+		fsSkip:              []string{"(dir):app:mtime", "(dir):app:(dir):storage:mtime", "(dir):app:(dir):storage:(dir):cache:mtime"},
 		compatScratchConfig: types.OptionalBoolFalse,
 		dockerUseBuildKit:   true,
 	},
