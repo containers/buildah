@@ -1,0 +1,5 @@
+FROM alpine:latest AS builder
+
+FROM alpine:latest
+COPY --from=builder /etc/os-release /app/os-release
+RUN cat /app/os-release

@@ -1,0 +1,9 @@
+FROM alpine AS parent-stage
+RUN echo "builder intermediate stage" > /output.txt
+
+FROM parent-stage AS child-stage
+RUN echo "final intermediate stage" >> /output.txt
+
+FROM alpine
+COPY --from=child-stage /output.txt /app/output.txt
+RUN cat /app/output.txt
