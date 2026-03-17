@@ -33,6 +33,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
+	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323
 	go.etcd.io/bbolt v1.4.3
 	go.podman.io/common v0.67.2-0.20260423135811-cbaa5f41e643
 	go.podman.io/image/v5 v5.39.3-0.20260423135811-cbaa5f41e643

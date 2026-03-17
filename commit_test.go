@@ -575,3 +575,88 @@ func TestCommitEmpty(t *testing.T) {
 		require.Equalf(t, layerDigest.Digest(), image.RootFS.DiffIDs[len(image.RootFS.DiffIDs)-1], "expected new diff ID to match the randomly-generated layer")
 	})
 }
+
+func TestCommitChmod(t *testing.T) {
+	ctx := context.TODO()
+	graphDriverName := os.Getenv("STORAGE_DRIVER")
+	if graphDriverName == "" {
+		graphDriverName = "vfs"
+	}
+	t.Logf("using storage driver %q", graphDriverName)
+	store, err := storage.GetStore(storageTypes.StoreOptions{
+		RunRoot:         t.TempDir(),
+		GraphRoot:       t.TempDir(),
+		GraphDriverName: graphDriverName,
+	})
+	require.NoError(t, err, "initializing storage")
+	t.Cleanup(func() { _, err := store.Shutdown(true); assert.NoError(t, err) })
+
+	// Build a from-scratch image with one layer.
+	builderOptions := BuilderOptions{
+		FromImage: "scratch",
+		NamespaceOptions: []NamespaceOption{{
+			Name: string(rspec.NetworkNamespace),
+			Host: true,
+		}},
+		SystemContext: &testSystemContext,
+	}
+	b, err := NewBuilder(ctx, store, builderOptions)
+	require.NoError(t, err, "creating builder")
+	imgName := "image0"
+	b.SetCreatedBy(imgName)
+
+	type perms struct {
+		chmod     string
+		perm      int64
+		startMode os.FileMode
+	}
+
+	filePerms := map[string]perms{
+		"symbolic":                        {chmod: "u=rwX,go=rX", perm: 0o644},
+		"symbolic adding mode bits":       {chmod: "u=rwX,go=rX", perm: 0o755, startMode: 0o111},
+		"octal":                           {chmod: "750", perm: 0o750},
+		"octal overwrite start mode":      {chmod: "644", perm: 0o644, startMode: 0o753},
+		"clear group and other mode bits": {chmod: "go=", perm: 0o700, startMode: 0o777},
+	}
+	for name, v := range filePerms {
+		f := makeFile(t, name, 0)
+		if v.startMode != 0 {
+			err = os.Chmod(f, v.startMode)
+			require.NoError(t, err, "chmod", f)
+		}
+		err = b.Add("/", false, AddAndCopyOptions{Chmod: v.chmod}, f)
+		require.NoError(t, err, "adding", f)
+	}
+
+	commitOptions := CommitOptions{
+		SystemContext: &testSystemContext,
+	}
+	ref, err := imageStorage.Transport.ParseStoreReference(store, imgName)
+	require.NoError(t, err, "parsing reference for to-be-committed image", imgName)
+	_, _, _, err = b.Commit(ctx, ref, commitOptions)
+	require.NoError(t, err, "committing", imgName)
+
+	src, err := ref.NewImageSource(ctx, &testSystemContext)
+	require.NoError(t, err, "opening image source")
+	defer src.Close()
+	img, err := ref.NewImage(ctx, &testSystemContext)
+	require.NoError(t, err, "opening image")
+	defer img.Close()
+
+	infos, err := img.LayerInfosForCopy(ctx)
+	require.NoError(t, err, "getting layer infos")
+
+	for i, blobInfo := range infos {
+		rc, _, err := src.GetBlob(ctx, blobInfo, nil)
+		require.NoError(t, err, "getting blob", i)
+		defer rc.Close()
+		tr := tar.NewReader(rc)
+		entry, err := tr.Next()
+		for entry != nil {
+			expected := filePerms[entry.Name]
+			require.Equal(t, expected.perm, entry.Mode)
+			entry, err = tr.Next()
+		}
+		require.ErrorIs(t, err, io.EOF)
+	}
+}

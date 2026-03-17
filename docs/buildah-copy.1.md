@@ -34,8 +34,8 @@ container digest string. Only supported for HTTP sources.
 
 **--chmod** *permissions*
 
-Sets the access permissions of the destination content.  Accepts the numerical
-format.  If `--from` is not used, defaults to `0755`.
+Sets the access permissions of the destination content.  Accepts numerical or
+symbolic format.  If `--from` is not used, defaults to `0755`.
 
 **--chown** *owner*:*group*
 

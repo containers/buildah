@@ -37,7 +37,8 @@ container digest string. Only supported for HTTP sources.
 
 **--chmod** *permissions*
 
-Sets the access permissions of the destination content. Accepts the numerical format.
+Sets the access permissions of the destination content. Accepts numerical or
+symbolic format.
 
 **--chown** *owner*:*group*
 
