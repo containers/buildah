@@ -886,6 +886,19 @@ consult the manpages of the selected container runtime.
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah build, the option given would be `--runtime-flag log-format=json`.
 
+**--save-stages** *bool-value*
+
+Preserve intermediate stage images instead of removing them after the build completes
+(Default is `false`). By default, Buildah removes intermediate stage images to save space.
+This option keeps those images, which can be useful for debugging multi-stage builds or
+for reusing intermediate stages in subsequent builds.
+
+`--save-stages` can be used with `--layers` and subsequent builds with `--layers` can use
+the preserved intermediate layers as cache.
+
+When combined with `--stage-labels`, all stage images (including the final image) will
+include metadata labels for easier identification and management.
+
 **--sbom** *preset*
 
 Generate SBOMs (Software Bills Of Materials) for the output image by scanning
@@ -1139,6 +1152,21 @@ The socket path can be left empty to use the value of `default=$SSH_AUTH_SOCK`
 To later use the ssh agent, use the --mount flag in a `RUN` instruction within a `Containerfile`:
 
 `RUN --mount=type=secret,id=id mycmd`
+
+
+**--stage-labels** *bool-value*
+
+Add metadata labels to all intermediate stage images of the multistage build,
+including the final image (Default is `false`).
+This option requires `--save-stages` to be enabled.
+
+When enabled, all intermediate stage images and final image will be labeled with:
+  - `io.buildah.stage.name`: The stage alias (from `FROM ... AS alias`), or stage position
+    if no alias is specified
+  - `io.buildah.stage.base`: The base image used by this stage (pullspec or image ID
+    when stage uses another stage as base)
+
+These labels make it easier to identify, query, and manage images from multi-stage builds.
 
 **--stdin**
 
@@ -1472,6 +1500,14 @@ buildah build -v /var/lib/dnf:/var/lib/dnf:O -t imageName .
 
 buildah build --layers -t imageName .
 
+buildah build --save-stages -t imageName .
+
+buildah build --save-stages --layers -t imageName .
+
+buildah build --save-stages --stage-labels -t imageName .
+
+buildah build --save-stages --stage-labels --layers -t imageName .
+
 buildah build --no-cache -t imageName .
 
 buildah build -f Containerfile --layers --force-rm -t imageName .
@@ -1545,6 +1581,20 @@ buildah build --output type=local,dest=out .
 buildah build --output type=tar,dest=out.tar .
 
 buildah build -o - . > out.tar
+
+### Preserving and querying intermediate stage images
+
+Build a multi-stage image while preserving intermediate stages with metadata labels:
+
+buildah build --save-stages --stage-labels -t myapp .
+
+Find an intermediate image for a specific stage name:
+
+buildah images --filter "label=io.buildah.stage.name=builder"
+
+Find an intermediate image for a specific stage base image:
+
+buildah images --filter "label=io.buildah.stage.base=golang:1.21"
 
 ### Building an image using a URL
 
