@@ -3748,6 +3748,38 @@ var internalTestCases = []testCase{
 		fsSkip:            []string{"(dir):arg-expansion.txt:mtime"},
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name: "build-arg overrides header arg for FROM",
+		dockerfileContents: strings.Join([]string{
+			"ARG BASE=mirror.gcr.io/alpine",
+			"FROM $BASE",
+			"RUN echo $BASE > /base.txt",
+		}, "\n"),
+		buildArgs: map[string]string{"BASE": "mirror.gcr.io/busybox"},
+		fsSkip:    []string{"(dir):base.txt:mtime"},
+	},
+
+	{
+		name: "header arg default for FROM when no build-arg",
+		dockerfileContents: strings.Join([]string{
+			"ARG BASE=mirror.gcr.io/alpine",
+			"FROM $BASE",
+			"RUN echo $BASE > /base.txt",
+		}, "\n"),
+		fsSkip: []string{"(dir):base.txt:mtime"},
+	},
+
+	{
+		name: "stage arg overrides header arg in same stage",
+		dockerfileContents: strings.Join([]string{
+			"ARG FOO=header",
+			"FROM mirror.gcr.io/busybox",
+			"ARG FOO=stage",
+			"RUN echo $FOO > /foo.txt",
+		}, "\n"),
+		fsSkip: []string{"(dir):foo.txt:mtime"},
+	},
 }
 
 func TestCommit(t *testing.T) {

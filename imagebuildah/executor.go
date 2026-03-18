@@ -904,10 +904,9 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
 							localScopeArgs := argsMapToSlice(stageLocalScopeArgs)
-							// append heading args so if --build-arg key=value is not
-							// specified but default value is set in Containerfile
-							// via `ARG key=value` so default value can be used.
-							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs, localScopeArgs)
+							// ProcessWord uses first match; put highest priority first so
+							// --build-arg overrides stage ARG overrides header ARG overrides builtin.
+							userArgs = slices.Concat(userArgs, localScopeArgs, headingArgs, builtinArgs)
 							baseWithArg, err := imagebuilder.ProcessWord(base, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
@@ -939,7 +938,9 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
 							localScopeArgs := argsMapToSlice(stageLocalScopeArgs)
-							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs, localScopeArgs)
+							// ProcessWord uses first match; put highest priority first so
+							// --build-arg overrides stage ARG overrides header ARG overrides builtin.
+							userArgs = slices.Concat(userArgs, localScopeArgs, headingArgs, builtinArgs)
 							afterResolved, err := imagebuilder.ProcessWord(after, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for --after=%q: %w", after, err)
@@ -964,25 +965,17 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				case "ADD", "COPY":
 					for _, flag := range child.Flags { // flags for this instruction
 						if after, ok := strings.CutPrefix(flag, "--from="); ok {
-							// TODO: this didn't undergo variable and
-							// arg expansion, so if the previous stage
-							// was named using argument values, we might
-							// not record the right value here.
-							rootfs := after
-							b.rootfsMap[rootfs] = struct{}{}
-							logrus.Debugf("rootfs needed for COPY in stage %d: %q", stageIndex, rootfs)
 							// Populate dependency tree and check
 							// if following ADD or COPY needs any other
 							// stage.
-							stageName := rootfs
+							stageName := after
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
 							localScopeArgs := argsMapToSlice(stageLocalScopeArgs)
-							// append heading args so if --build-arg key=value is not
-							// specified but default value is set in Containerfile
-							// via `ARG key=value` so default value can be used.
-							userArgs = slices.Concat(builtinArgs, userArgs, headingArgs, localScopeArgs)
+							// ProcessWord uses first match; put highest priority first so
+							// --build-arg overrides stage ARG overrides header ARG overrides builtin.
+							userArgs = slices.Concat(userArgs, localScopeArgs, headingArgs, builtinArgs)
 							baseWithArg, err := imagebuilder.ProcessWord(stageName, userArgs)
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", stageName, err)

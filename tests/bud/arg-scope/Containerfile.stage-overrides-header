@@ -1,0 +1,4 @@
+ARG FOO=header
+FROM busybox
+ARG FOO=stage
+RUN echo $FOO > /foo.txt

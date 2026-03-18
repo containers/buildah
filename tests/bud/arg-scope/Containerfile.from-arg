@@ -1,0 +1,4 @@
+ARG BASE=alpine
+FROM $BASE
+ARG BASE
+RUN echo $BASE > /base.txt

@@ -1,0 +1,8 @@
+ARG SRC=a
+FROM busybox AS a
+RUN echo a > /from.txt
+FROM alpine AS b
+RUN echo b > /from.txt
+FROM scratch
+ARG SRC
+COPY --from=$SRC /from.txt /

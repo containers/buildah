@@ -4449,6 +4449,39 @@ _EOF
   assert "$output" =~ "build:dev"
 }
 
+@test "bud ARG scope: table of scope combinations" {
+  _prefetch alpine busybox
+  local ctx=$BUDFILES/arg-scope
+  # containerfile_suffix | build_arg (or empty) | path | expected_substring
+  local cases=(
+    "from-arg::/base.txt:alpine"
+    "from-arg:BASE=busybox:/base.txt:busybox"
+    "stage-overrides-header::/foo.txt:stage"
+    "copy-from-arg::/from.txt:a"
+    "copy-from-arg:SRC=b:/from.txt:b"
+    "stage-overrides-header-copy-from::/from.txt:b"
+  )
+  for c in "${cases[@]}"; do
+    IFS=: read -r cf_suffix build_arg path expected <<< "$c"
+    build_arg_safe=$(echo "${build_arg//=/-}" | tr '[:upper:]' '[:lower:]')
+    imgname=arg-scope-$(safename)-${cf_suffix}-${build_arg_safe:-none}
+    build_args=""
+    if [[ -n "$build_arg" ]]; then
+      build_args="--build-arg $build_arg"
+    fi
+
+    run_buildah build $WITH_POLICY_JSON $build_args -t ${imgname} -f ${ctx}/Containerfile.${cf_suffix} ${ctx}
+
+    run_buildah from $WITH_POLICY_JSON ${imgname}
+    ctr=$(echo "$output" | tail -1)
+    run_buildah mount ${ctr}
+    mnt=$output
+    run cat ${mnt}${path}
+    expect_output --substring "$expected" "case: \"$c\""
+    run_buildah unmount ${ctr}
+  done
+}
+
 @test "bud-with-healthcheck" {
   _prefetch alpine
   target=alpine-image
