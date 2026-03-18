@@ -1,0 +1,3 @@
+FROM alpine
+ARG a b=set
+RUN echo "$a" "$b" > /out.txt

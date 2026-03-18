@@ -4460,14 +4460,21 @@ _EOF
     "copy-from-arg::/from.txt:a"
     "copy-from-arg:SRC=b:/from.txt:b"
     "stage-overrides-header-copy-from::/from.txt:b"
+    "multiple-args-stage-overrides-one::/out.txt:9 1"
+    "multiple-args-stage-only::/out.txt:1 2"
+    "multiple-args-one-step::/out.txt:0 1"
+    "multiple-args-one-step:bar=88:/out.txt:0 88"
+    "multiple-args-one-step:foo=99 bar=88:/out.txt:99 88"
+    "arg-mixed-defaults::/out.txt:set"
+    "arg-mixed-defaults:a=given:/out.txt:given set"
   )
   for c in "${cases[@]}"; do
     IFS=: read -r cf_suffix build_arg path expected <<< "$c"
-    build_arg_safe=$(echo "${build_arg//=/-}" | tr '[:upper:]' '[:lower:]')
+    build_arg_safe=$(echo "${build_arg//=/-}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
     imgname=arg-scope-$(safename)-${cf_suffix}-${build_arg_safe:-none}
     build_args=""
     if [[ -n "$build_arg" ]]; then
-      build_args="--build-arg $build_arg"
+      for arg in $build_arg; do build_args="$build_args --build-arg $arg"; done
     fi
 
     run_buildah build $WITH_POLICY_JSON $build_args -t ${imgname} -f ${ctx}/Containerfile.${cf_suffix} ${ctx}

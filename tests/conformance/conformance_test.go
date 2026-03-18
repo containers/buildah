@@ -3780,6 +3780,27 @@ var internalTestCases = []testCase{
 		}, "\n"),
 		fsSkip: []string{"(dir):foo.txt:mtime"},
 	},
+
+	{
+		name: "multiple ARGs in single instruction",
+		dockerfileContents: strings.Join([]string{
+			"FROM mirror.gcr.io/alpine",
+			"ARG foo=0 bar=1",
+			"RUN echo $foo $bar > /out.txt",
+		}, "\n"),
+		fsSkip: []string{"(dir):out.txt:mtime"},
+	},
+
+	{
+		name: "multiple ARGs in single instruction with build-arg override",
+		dockerfileContents: strings.Join([]string{
+			"FROM mirror.gcr.io/alpine",
+			"ARG foo=0 bar=1",
+			"RUN echo $foo $bar > /out.txt",
+		}, "\n"),
+		buildArgs: map[string]string{"foo": "9", "bar": "8"},
+		fsSkip:    []string{"(dir):out.txt:mtime"},
+	},
 }
 
 func TestCommit(t *testing.T) {

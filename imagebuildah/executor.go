@@ -401,12 +401,12 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		for node != nil { // tokens on this line, though we only care about the first
 			switch strings.ToUpper(node.Value) { // first token - instruction
 			case "ARG":
-				arg := node.Next
-				if arg != nil {
-					// We have to be careful here - it's either an argument
-					// and value, or just an argument, since they can be
-					// separated by either "=" or whitespace.
+				for arg := node.Next; arg != nil; arg = arg.Next {
+					// Each token is name=value or name (multiple ARGs in one instruction, see imagebuilder PR #210)
 					argName, argValue, hasValue := strings.Cut(arg.Value, "=")
+					if argName == "" {
+						continue
+					}
 					if !foundFirstStage {
 						if hasValue {
 							globalArgs[argName] = argValue
@@ -748,32 +748,32 @@ func (b *executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMa
 			for _, child := range node.Children {
 				switch strings.ToUpper(child.Value) {
 				case "ARG":
-					argName := child.Next.Value
-					if strings.Contains(argName, "=") {
-						res := strings.Split(argName, "=")
-						if res[1] != "" {
-							argFound[res[0]] = struct{}{}
+					for arg := child.Next; arg != nil; arg = arg.Next {
+						argToken := arg.Value
+						argName, argValue, hasEqual := strings.Cut(argToken, "=")
+						if argName == "" {
+							continue
 						}
-					}
-					argHasValue := true
-					if !strings.Contains(argName, "=") {
-						argHasValue = internalUtil.SetHas(argFound, argName)
-					}
-					if _, ok := args[argName]; !argHasValue && !ok {
-						shouldWarn := true
-						if stageDependencyInfo, ok := dependencyMap[stage.Name]; ok {
-							if !stageDependencyInfo.NeededByTarget && b.skipUnusedStages != types.OptionalBoolFalse {
+						if hasEqual && argValue != "" {
+							argFound[argName] = struct{}{}
+						}
+						argHasValue := internalUtil.SetHas(argFound, argName)
+						if _, ok := args[argName]; !argHasValue && !ok {
+							shouldWarn := true
+							if stageDependencyInfo, ok := dependencyMap[stage.Name]; ok {
+								if !stageDependencyInfo.NeededByTarget && b.skipUnusedStages != types.OptionalBoolFalse {
+									shouldWarn = false
+								}
+							}
+							if _, isBuiltIn := builtinAllowedBuildArgs[argName]; isBuiltIn {
 								shouldWarn = false
 							}
-						}
-						if _, isBuiltIn := builtinAllowedBuildArgs[argName]; isBuiltIn {
-							shouldWarn = false
-						}
-						if _, isGlobalArg := b.globalArgs[argName]; isGlobalArg {
-							shouldWarn = false
-						}
-						if shouldWarn {
-							b.logger.Warnf("missing %q build argument. Try adding %q to the command line", argName, fmt.Sprintf("--build-arg %s=<VALUE>", argName))
+							if _, isGlobalArg := b.globalArgs[argName]; isGlobalArg {
+								shouldWarn = false
+							}
+							if shouldWarn {
+								b.logger.Warnf("missing %q build argument. Try adding %q to the command line", argName, fmt.Sprintf("--build-arg %s=<VALUE>", argName))
+							}
 						}
 					}
 				default:
@@ -1002,8 +1002,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 						}
 					}
 				case "ARG":
-					arg := child.Next
-					if arg != nil {
+					for arg := child.Next; arg != nil; arg = arg.Next {
 						argName, argValue, hasValue := strings.Cut(arg.Value, "=")
 						if hasValue && argName != "" {
 							argValue, err := imagebuilder.ProcessWord(argValue, argsMapToSlice(stage.Builder.BuiltinArgDefaults))

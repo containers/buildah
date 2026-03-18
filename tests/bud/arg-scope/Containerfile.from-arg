@@ -1,4 +1,4 @@
-ARG BASE=alpine
+ARG BASE=alpine BUSY=busybox
 FROM $BASE
 ARG BASE
 RUN echo $BASE > /base.txt

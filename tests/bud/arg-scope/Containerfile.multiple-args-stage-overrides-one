@@ -1,0 +1,5 @@
+ARG foo=0 bar=1
+FROM alpine
+ARG foo=9
+ARG bar
+RUN echo $foo $bar > /out.txt

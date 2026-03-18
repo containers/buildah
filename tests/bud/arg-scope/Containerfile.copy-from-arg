@@ -1,4 +1,4 @@
-ARG SRC=a
+ARG SRC=a DST=b
 FROM busybox AS a
 RUN echo a > /from.txt
 FROM alpine AS b
