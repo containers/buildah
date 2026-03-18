@@ -21,8 +21,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
 
-  mkdir -p $TEST_SCRATCH_DIR/no-cni-configs
-  RUNOPTS="--cni-config-dir=${TEST_SCRATCH_DIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
+  RUNOPTS="${RUNC_BINARY:+--runtime $RUNC_BINARY}"
   # Check if we're running in an environment that can even test this.
   run readlink /proc/self/ns/user
   echo "readlink /proc/self/ns/user -> $output"
@@ -103,8 +102,7 @@ idmapping_check_permission() {
 
 @test "idmapping" {
   skip_if_rootless_environment
-  mkdir -p $TEST_SCRATCH_DIR/no-cni-configs
-  RUNOPTS="--cni-config-dir=${TEST_SCRATCH_DIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
+  RUNOPTS="${RUNC_BINARY:+--runtime $RUNC_BINARY}"
 
   # Check if we're running in an environment that can even test this.
   run readlink /proc/self/ns/user
@@ -271,8 +269,7 @@ idmapping_check_permission() {
 }
 
 general_namespace() {
-  mkdir -p $TEST_SCRATCH_DIR/no-cni-configs
-  RUNOPTS="--cni-config-dir=${TEST_SCRATCH_DIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
+  RUNOPTS="${RUNC_BINARY:+--runtime $RUNC_BINARY}"
   mytmpdir=$TEST_SCRATCH_DIR/my-dir
   mkdir -p ${mytmpdir}
 
