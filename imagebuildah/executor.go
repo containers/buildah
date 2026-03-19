@@ -113,6 +113,9 @@ type executor struct {
 	layerLabels                             []string
 	annotations                             []string
 	layers                                  bool
+	saveStages                              bool
+	stageLabels                             bool
+	stageImageIDs                           map[string]string // Tracks image IDs for each stage (by name and position) for label references
 	noHostname                              bool
 	noHosts                                 bool
 	useCache                                bool
@@ -313,6 +316,9 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		mountLabel:                              mountLabel,
 		annotations:                             slices.Clone(options.Annotations),
 		layers:                                  options.Layers,
+		saveStages:                              options.SaveStages,
+		stageLabels:                             options.StageLabels,
+		stageImageIDs:                           make(map[string]string),
 		noHostname:                              options.CommonBuildOpts.NoHostname,
 		noHosts:                                 options.CommonBuildOpts.NoHosts,
 		useCache:                                !options.NoCache,
@@ -600,6 +606,19 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 		prependInstructions = slices.Concat([]string{envLine}, prependInstructions)
 	}
 
+	// Create stage labels for all stage images including final stage
+	// Skip if stage has no instructions
+	if b.saveStages && b.stageLabels && len(stage.Node.Children) > 0 {
+		// Wait for base stage if it references a previous stage
+		// This ensures stageImageIDs map is populated before buildStageLabelLine reads it
+		if isStage, err := b.waitForStage(ctx, base, stages[:stageIndex]); isStage && err != nil {
+			return "", nil, false, fmt.Errorf("waiting for base stage %s: %w", base, err)
+		}
+
+		labelLine := b.buildStageLabelLine(&stage, base, stages[:stageIndex])
+		prependInstructions = slices.Concat([]string{labelLine}, prependInstructions)
+	}
+
 	// If we're supposed to be appending or prepending instructions to this stage, add them now.
 	if len(prependInstructions) > 0 {
 		addLines := strings.Join(prependInstructions, "\n")
@@ -656,6 +675,16 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 		return "", nil, onlyBaseImage, err
 	}
 
+	// Store image ID for this stage so subsequent stages can reference it in labels
+	if imageID != "" {
+		b.stagesLock.Lock()
+		if stage.Name != "" {
+			b.stageImageIDs[stage.Name] = imageID
+		}
+		b.stageImageIDs[strconv.Itoa(stageIndex)] = imageID
+		b.stagesLock.Unlock()
+	}
+
 	// The stage succeeded, so remove its build container if we're
 	// told to delete successful intermediate/build containers for
 	// multi-layered builds.
@@ -686,6 +715,29 @@ func markDependencyStagesForTarget(dependencyMap map[string]*stageDependencyInfo
 			}
 		}
 	}
+}
+
+// buildStageLabelLine creates a LABEL instruction line for stage metadata
+func (b *executor) buildStageLabelLine(stage *imagebuilder.Stage, base string, stages imagebuilder.Stages) string {
+	labelLine := "LABEL"
+	labelLine += fmt.Sprintf(" %q=%q", "io.buildah.stage.name", stage.Name)
+	// Check if base of the stage is another (previous) stage.
+	// If yes, base is set as image ID of this stage.
+	// If not original base name is set (pullspec).
+	for i, st := range stages {
+		if st.Name == base || strconv.Itoa(st.Position) == base {
+			b.stagesLock.Lock()
+			if imgID, ok := b.stageImageIDs[base]; ok {
+				base = imgID
+			} else if imgID, ok := b.stageImageIDs[strconv.Itoa(i)]; ok {
+				base = imgID
+			}
+			b.stagesLock.Unlock()
+			break
+		}
+	}
+	labelLine += fmt.Sprintf(" %q=%q", "io.buildah.stage.base", base)
+	return labelLine
 }
 
 func (b *executor) warnOnUnsetBuildArgs(stages imagebuilder.Stages, dependencyMap map[string]*stageDependencyInfo, args map[string]string) {
@@ -1102,9 +1154,10 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.
-			// Only remove intermediate image is `--layers` is not provided
-			// or following stage was not only a base image ( i.e a different image ).
-			if !b.layers && !r.OnlyBaseImage {
+			// Only remove intermediate image if `--layers` is not provided,
+			// `--save-stages` is not enabled, or following stage was not
+			// only a base image (i.e. a different image).
+			if !b.layers && !b.saveStages && !r.OnlyBaseImage {
 				cleanupImages = append(cleanupImages, r.ImageID)
 			}
 		}

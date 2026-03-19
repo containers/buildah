@@ -1,0 +1,7 @@
+FROM alpine:latest AS intermediate
+RUN echo "intermediate data" > /int.txt
+
+# Final stage uses intermediate stage as base (not external image)
+FROM intermediate
+RUN echo "final data" > /final.txt
+CMD ["cat", "/final.txt"]
