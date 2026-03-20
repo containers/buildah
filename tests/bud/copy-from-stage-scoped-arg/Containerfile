@@ -1,0 +1,12 @@
+FROM docker.io/library/busybox:latest AS build
+RUN echo "build" >> /variant
+
+FROM build AS dev
+RUN echo "build:dev" >> /variant
+
+FROM build AS staging
+RUN echo "build:staging" >> /variant
+
+FROM docker.io/library/busybox:latest
+ARG VARIANT="staging"
+COPY --from="${VARIANT}" /variant /variant
