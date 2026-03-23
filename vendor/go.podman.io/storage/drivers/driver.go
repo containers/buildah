@@ -27,6 +27,40 @@ const (
 	FsMagicUnsupported = FsMagic(0x00000000)
 )
 
+// SyncMode defines when filesystem synchronization occurs during layer creation.
+type SyncMode int
+
+const (
+	// SyncModeNone - no synchronization
+	SyncModeNone SyncMode = iota
+	// SyncModeFilesystem - use syncfs() before layer marked as present
+	SyncModeFilesystem
+)
+
+// String returns the string representation of the sync mode
+func (m SyncMode) String() string {
+	switch m {
+	case SyncModeNone:
+		return "none"
+	case SyncModeFilesystem:
+		return "filesystem"
+	default:
+		return "unknown"
+	}
+}
+
+// ParseSyncMode converts a string to SyncMode
+func ParseSyncMode(s string) (SyncMode, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "", "none":
+		return SyncModeNone, nil
+	case "filesystem":
+		return SyncModeFilesystem, nil
+	default:
+		return SyncModeNone, fmt.Errorf("invalid sync mode: %q", s)
+	}
+}
+
 var (
 	// All registered drivers
 	drivers map[string]InitFunc
@@ -169,6 +203,8 @@ type ProtoDriver interface {
 	AdditionalImageStores() []string
 	// Dedup performs deduplication of the driver's storage.
 	Dedup(DedupArgs) (DedupResult, error)
+	// SyncMode returns the sync mode configured for the driver.
+	SyncMode() SyncMode
 }
 
 // DiffDriver is the interface to use to implement graph diffs
@@ -388,6 +424,7 @@ func init() {
 
 // MustRegister registers an InitFunc for the driver, or panics.
 // It is suitable for package’s init() sections.
+// If you are adding a call to this, update also isKnownDriverName in storage/internal/opts/driver.go.
 func MustRegister(name string, initFunc InitFunc) {
 	if err := Register(name, initFunc); err != nil {
 		panic(fmt.Sprintf("failed to register containers/storage graph driver %q: %v", name, err))
@@ -395,6 +432,7 @@ func MustRegister(name string, initFunc InitFunc) {
 }
 
 // Register registers an InitFunc for the driver.
+// If you are adding a call to this, update also isKnownDriverName in storage/internal/opts/driver.go.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
 		return fmt.Errorf("name already registered %s", name)

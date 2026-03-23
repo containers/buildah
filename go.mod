@@ -2,7 +2,7 @@ module github.com/containers/buildah
 
 // Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/containerd/platforms v1.0.0-rc.3
@@ -33,9 +33,9 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
-	go.podman.io/common v0.67.1-0.20260316162257-e70c309aabae
-	go.podman.io/image/v5 v5.39.2-0.20260316162257-e70c309aabae
-	go.podman.io/storage v1.62.1-0.20260316162257-e70c309aabae
+	go.podman.io/common v0.67.1-0.20260323194312-7e1f14c29cb4
+	go.podman.io/image/v5 v5.39.2-0.20260323194312-7e1f14c29cb4
+	go.podman.io/storage v1.62.1-0.20260323194312-7e1f14c29cb4
 	golang.org/x/crypto v0.49.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.42.0
@@ -78,7 +78,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/go-containerregistry v0.20.7 // indirect
+	github.com/google/go-containerregistry v0.21.1 // indirect
 	github.com/google/go-intervals v0.0.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
@@ -90,7 +90,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-runewidth v0.0.20 // indirect
-	github.com/mattn/go-sqlite3 v1.14.34 // indirect
+	github.com/mattn/go-sqlite3 v1.14.37 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -114,7 +114,7 @@ require (
 	github.com/sigstore/sigstore v1.10.4 // indirect
 	github.com/smallstep/pkcs7 v0.1.1 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 // indirect
-	github.com/sylabs/sif/v2 v2.22.0 // indirect
+	github.com/sylabs/sif/v2 v2.24.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/vbatts/tar-split v0.12.2 // indirect
