@@ -112,6 +112,9 @@ type AddAndCopyOptions struct {
 	// inheritAnnotations, newAnnotations). This field is internally managed and should
 	// not be set by external API users.
 	BuildMetadata string
+	// FollowSymlink controls whether symlinks should be followed when copying content.
+	// When set to false, symlinks are not dereferenced.
+	FollowSymlink types.OptionalBool
 }
 
 // gitURLFragmentSuffix matches fragments to use as Git reference and build
@@ -610,18 +613,19 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						return
 					}
 					getOptions := copier.GetOptions{
-						UIDMap:         srcUIDMap,
-						GIDMap:         srcGIDMap,
-						Excludes:       options.Excludes,
-						ExpandArchives: extract,
-						ChownDirs:      chownDirs,
-						ChmodDirs:      chmodDirsFiles,
-						ChownFiles:     chownFiles,
-						ChmodFiles:     chmodDirsFiles,
-						StripSetuidBit: options.StripSetuidBit,
-						StripSetgidBit: options.StripSetgidBit,
-						StripStickyBit: options.StripStickyBit,
-						Timestamp:      options.Timestamp,
+						UIDMap:          srcUIDMap,
+						GIDMap:          srcGIDMap,
+						Excludes:        options.Excludes,
+						ExpandArchives:  extract,
+						ChownDirs:       chownDirs,
+						ChmodDirs:       chmodDirsFiles,
+						ChownFiles:      chownFiles,
+						ChmodFiles:      chmodDirsFiles,
+						StripSetuidBit:  options.StripSetuidBit,
+						StripSetgidBit:  options.StripSetgidBit,
+						StripStickyBit:  options.StripStickyBit,
+						NoDerefSymlinks: options.FollowSymlink == types.OptionalBoolFalse,
+						Timestamp:       options.Timestamp,
 					}
 					writer := io.WriteCloser(pipeWriter)
 					repositoryDir := filepath.Join(cloneDir, subdir)
@@ -777,19 +781,20 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					return false, false, nil
 				})
 				getOptions := copier.GetOptions{
-					UIDMap:         srcUIDMap,
-					GIDMap:         srcGIDMap,
-					Excludes:       options.Excludes,
-					ExpandArchives: extract,
-					ChownDirs:      chownDirs,
-					ChmodDirs:      chmodDirsFiles,
-					ChownFiles:     chownFiles,
-					ChmodFiles:     chmodDirsFiles,
-					StripSetuidBit: options.StripSetuidBit,
-					StripSetgidBit: options.StripSetgidBit,
-					StripStickyBit: options.StripStickyBit,
-					Parents:        options.Parents,
-					Timestamp:      options.Timestamp,
+					UIDMap:          srcUIDMap,
+					GIDMap:          srcGIDMap,
+					Excludes:        options.Excludes,
+					ExpandArchives:  extract,
+					ChownDirs:       chownDirs,
+					ChmodDirs:       chmodDirsFiles,
+					ChownFiles:      chownFiles,
+					ChmodFiles:      chmodDirsFiles,
+					StripSetuidBit:  options.StripSetuidBit,
+					StripSetgidBit:  options.StripSetgidBit,
+					StripStickyBit:  options.StripStickyBit,
+					Parents:         options.Parents,
+					NoDerefSymlinks: options.FollowSymlink == types.OptionalBoolFalse,
+					Timestamp:       options.Timestamp,
 				}
 				getErr = copier.Get(contextDir, contextDir, getOptions, []string{globbedToGlobbable(globbed)}, writer)
 				closeErr = writer.Close()

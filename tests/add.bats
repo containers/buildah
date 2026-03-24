@@ -509,3 +509,72 @@ EOF
   cmp ${TEST_SCRATCH_DIR}/testdir/file1 $newroot/testdir/file1
   cmp ${TEST_SCRATCH_DIR}/testdir/subdir/file2 $newroot/testdir/subdir/file2
 }
+
+@test "add-symlink-root-follow-default" {
+  createrandom ${TEST_SCRATCH_DIR}/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah add $cid ${TEST_SCRATCH_DIR}/symlink /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  cmp ${TEST_SCRATCH_DIR}/file $root/dest
+  test -f $root/dest
+}
+
+@test "add-symlink-root-no-follow" {
+  createrandom ${TEST_SCRATCH_DIR}/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  # The symlink needs to point to something existing
+  run_buildah add --no-follow-symlinks $cid ${TEST_SCRATCH_DIR}/file /file
+  run_buildah add --no-follow-symlinks $cid ${TEST_SCRATCH_DIR}/symlink /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  cmp ${TEST_SCRATCH_DIR}/file $root/dest
+  test -L $root/dest
+  test "$(readlink $root/dest)" = "./file"
+}
+
+@test "add-symlink-child-follow-default" {
+  mkdir ${TEST_SCRATCH_DIR}/src
+  createrandom ${TEST_SCRATCH_DIR}/src/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/src/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah add $cid ${TEST_SCRATCH_DIR}/src /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  cmp ${TEST_SCRATCH_DIR}/src/file $root/dest/symlink
+  test -f $root/dest/symlink
+}
+
+@test "add-symlink-child-no-follow" {
+  mkdir ${TEST_SCRATCH_DIR}/src
+  createrandom ${TEST_SCRATCH_DIR}/src/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/src/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah add --no-follow-symlinks $cid ${TEST_SCRATCH_DIR}/src /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  test -L $root/dest/symlink
+  test "$(readlink $root/dest/symlink)" = "./file"
+}
