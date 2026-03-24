@@ -45,6 +45,7 @@ type addCopyResults struct {
 	link               bool
 	allowWildcard      bool
 	allowEmptyWildcard bool
+	noFollowSymlinks   bool
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -80,6 +81,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	flags.StringVar(&opts.chmod, "chmod", "", "set the access permissions of the destination content")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing registries when pulling images")
 	flags.BoolVar(&opts.link, "link", false, "enable layer caching for this operation (creates an independent layer)")
+	flags.BoolVar(&opts.noFollowSymlinks, "no-follow-symlinks", false, "do not follow symlinks when copying content (copy the symlink itself)")
 	if err := flags.MarkHidden("creds"); err != nil {
 		panic(fmt.Sprintf("error marking creds as hidden: %v", err))
 	}
@@ -256,6 +258,11 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		timestamp = &t
 	}
 
+	followSymlink := types.OptionalBoolUndefined
+	if iopts.noFollowSymlinks {
+		followSymlink = types.OptionalBoolFalse
+	}
+
 	options := buildah.AddAndCopyOptions{
 		Chmod:             iopts.chmod,
 		Chown:             iopts.chown,
@@ -272,6 +279,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		Parents:               iopts.parents,
 		Timestamp:             timestamp,
 		Link:                  iopts.link,
+		FollowSymlink:         followSymlink,
 	}
 	if iopts.contextdir != "" {
 		var excludes []string
