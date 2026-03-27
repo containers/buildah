@@ -7074,6 +7074,20 @@ _EOF
   expect_output --substring "ENVDATA"
 }
 
+@test "bud with malformed --secret flag should fail not panic" {
+  run_buildah 125 build --secret=id=,src $WITH_POLICY_JSON -f $BUDFILES/run-mounts/Dockerfile.secret $BUDFILES/run-mounts
+  expect_output --substring "incorrect secret flag format"
+
+  run_buildah 125 build --secret=id=mysecret,src $WITH_POLICY_JSON -f $BUDFILES/run-mounts/Dockerfile.secret $BUDFILES/run-mounts
+  expect_output --substring "incorrect secret flag format"
+
+  run_buildah 125 build --secret=src $WITH_POLICY_JSON -f $BUDFILES/run-mounts/Dockerfile.secret $BUDFILES/run-mounts
+  expect_output --substring "incorrect secret flag format"
+
+  run_buildah 125 build --secret=id $WITH_POLICY_JSON -f $BUDFILES/run-mounts/Dockerfile.secret $BUDFILES/run-mounts
+  expect_output --substring "incorrect secret flag format"
+}
+
 @test "bud-multiple-platform-values" {
   skip "FIXME: #4396 - this test is broken, and is failing gating tests"
   outputlist=testlist

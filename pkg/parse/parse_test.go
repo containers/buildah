@@ -2,6 +2,7 @@ package parse //nolint:revive,nolintlint
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"testing"
 
@@ -296,6 +297,64 @@ func TestGetBuildOutput(t *testing.T) {
 			result, err := GetBuildOutput(testCase.input)
 			require.NoErrorf(t, err, "expected to be able to parse %q", testCase.input)
 			assert.Equal(t, testCase.output, result)
+		})
+	}
+}
+
+func TestSecrets(t *testing.T) {
+	errorTests := []struct {
+		name  string
+		input string
+	}{
+		{"bare-src-no-equals", "id=,src"},
+		{"bare-id-no-equals", "id"},
+		{"known-key-without-value", "id=mysecret,src"},
+		{"empty-id", "id="},
+		{"unknown-key", "id=mysecret,bogus=x"},
+	}
+	for _, tc := range errorTests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Secrets([]string{tc.input})
+			assert.Error(t, err, "expected error for input %q", tc.input)
+		})
+	}
+
+	tmpfile, err := os.CreateTemp(t.TempDir(), "secret")
+	require.NoError(t, err)
+	_, err = tmpfile.WriteString("supersecret")
+	require.NoError(t, err)
+	tmpfile.Close()
+
+	t.Setenv("TEST_SECRET_ENV", "envsecret")
+
+	validFile := tmpfile.Name()
+
+	successTests := []struct {
+		name     string
+		input    string
+		expected define.Secret
+	}{
+		{
+			"id-and-file-src",
+			"id=mysecret,src=" + validFile,
+			define.Secret{ID: "mysecret", Source: validFile, SourceType: "file"},
+		},
+		{
+			"id-and-env",
+			"id=TEST_SECRET_ENV,env=TEST_SECRET_ENV",
+			define.Secret{ID: "TEST_SECRET_ENV", Source: "TEST_SECRET_ENV", SourceType: "env"},
+		},
+		{
+			"id-only-env-fallback",
+			"id=TEST_SECRET_ENV",
+			define.Secret{ID: "TEST_SECRET_ENV", Source: "TEST_SECRET_ENV", SourceType: "env"},
+		},
+	}
+	for _, tc := range successTests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := Secrets([]string{tc.input})
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result[tc.expected.ID])
 		})
 	}
 }
