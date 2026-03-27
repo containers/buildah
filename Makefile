@@ -143,7 +143,7 @@ codespell:
 	codespell -w
 
 .PHONY: validate
-validate: install.tools
+validate: install.tools lint-entrypoint
 	./tests/validate/whitespace.sh
 	./hack/xref-helpmsgs-manpages
 	./tests/validate/pr-should-include-tests
