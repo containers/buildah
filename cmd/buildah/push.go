@@ -16,6 +16,7 @@ import (
 	"go.podman.io/buildah/pkg/parse"
 	util "go.podman.io/buildah/util"
 	"go.podman.io/common/pkg/auth"
+	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/pkg/compression"
 	"go.podman.io/image/v5/transports"
@@ -194,14 +195,6 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
 
-	if c.Flag("compression-format").Changed {
-		if !c.Flag("force-compression").Changed {
-			// If `compression-format` is set and no value for `--force-compression`
-			// is selected then defaults to `true`.
-			iopts.forceCompressionFormat = true
-		}
-	}
-
 	options := buildah.PushOptions{
 		Compression:            compress,
 		ManifestType:           manifestType,
@@ -225,15 +218,33 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
 	}
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return fmt.Errorf("failed to get container config: %w", err)
+	}
 	if iopts.compressionFormat != "" {
 		algo, err := compression.AlgorithmByName(iopts.compressionFormat)
 		if err != nil {
 			return err
 		}
 		options.CompressionFormat = &algo
+		if !c.Flag("force-compression").Changed {
+			options.ForceCompressionFormat = true
+		}
+	} else if defaultContainerConfig.Engine.CompressionFormat != "" && defaultContainerConfig.Engine.CompressionFormat != "gzip" {
+		algo, err := compression.AlgorithmByName(defaultContainerConfig.Engine.CompressionFormat)
+		if err != nil {
+			return fmt.Errorf("parsing compression_format from containers.conf: %w", err)
+		}
+		options.CompressionFormat = &algo
+		if !c.Flag("force-compression").Changed {
+			options.ForceCompressionFormat = true
+		}
 	}
 	if c.Flag("compression-level").Changed {
 		options.CompressionLevel = &iopts.compressionLevel
+	} else {
+		options.CompressionLevel = defaultContainerConfig.Engine.CompressionLevel
 	}
 
 	ref, digest, err := buildah.Push(getContext(), src, dest, options)

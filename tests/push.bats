@@ -224,3 +224,92 @@ load helpers
   # Verify there is some zstd compressed layer.
   grep application/vnd.oci.image.layer.v1.tar+zstd ${TEST_SCRATCH_DIR}/zstd/manifest.json
 }
+
+@test "push should respect compression_format from containers.conf" {
+  which skopeo || skip "skopeo is not installed"
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/push-compression-conf
+  mkdir -p $contextdir
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN echo "layer1-$(random_string)"
+_EOF
+  cat > $contextdir/containers.conf << _EOF
+[engine]
+compression_format="zstd"
+_EOF
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  local imgname="img-push-compress-$(safename)"
+  local finalrepo="localhost:${REGISTRY_PORT}/${imgname}"
+
+  CONTAINERS_CONF=$contextdir/containers.conf \
+    run_buildah build \
+      $WITH_POLICY_JSON \
+      -t ${imgname} \
+      --no-cache \
+      -f $contextdir/Containerfile \
+      $contextdir
+
+  CONTAINERS_CONF=$contextdir/containers.conf \
+    run_buildah push \
+      $WITH_POLICY_JSON \
+      --tls-verify=false \
+      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      ${imgname} \
+      docker://${finalrepo}
+
+  run skopeo inspect \
+      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      --tls-verify=false \
+      --raw \
+      docker://${finalrepo}
+
+  expect_output --substring "zstd" \
+    "layers should use zstd compression per containers.conf"
+  assert "$output" !~ "tar+gzip" \
+    "layers should NOT use gzip when containers.conf specifies zstd"
+}
+
+@test "push should respect --compression-format flag with registry" {
+  which skopeo || skip "skopeo is not installed"
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/push-compression-flag
+  mkdir -p $contextdir
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN echo "layer1-$(random_string)"
+_EOF
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  local imgname="img-push-compress-flag-$(safename)"
+  local finalrepo="localhost:${REGISTRY_PORT}/${imgname}"
+
+  run_buildah build \
+    $WITH_POLICY_JSON \
+    -t ${imgname} \
+    --no-cache \
+    -f $contextdir/Containerfile \
+    $contextdir
+
+  run_buildah push \
+    $WITH_POLICY_JSON \
+    --tls-verify=false \
+    --authfile ${TEST_SCRATCH_DIR}/test.auth \
+    --compression-format zstd \
+    ${imgname} \
+    docker://${finalrepo}
+
+  run skopeo inspect \
+      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      --tls-verify=false \
+      --raw \
+      docker://${finalrepo}
+
+  expect_output --substring "zstd" \
+    "layers should use zstd compression per --compression-format flag"
+  assert "$output" !~ "tar+gzip" \
+    "layers should NOT use gzip when --compression-format zstd is specified"
+}
