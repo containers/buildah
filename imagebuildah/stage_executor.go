@@ -2363,14 +2363,17 @@ func (s *stageExecutor) pushCache(ctx context.Context, src, cacheKey string) err
 	for _, dest := range destList {
 		logrus.Debugf("trying to push cache to dest: %+v from src:%+v", dest, src)
 		options := buildah.PushOptions{
-			Compression:         s.executor.compression,
-			SignaturePolicyPath: s.executor.signaturePolicyPath,
-			Store:               s.executor.store,
-			SystemContext:       s.systemContext,
-			BlobDirectory:       s.executor.blobDirectory,
-			SignBy:              s.executor.signBy,
-			MaxRetries:          s.executor.maxPullPushRetries,
-			RetryDelay:          s.executor.retryPullPushDelay,
+			Compression:            s.executor.compression,
+			CompressionFormat:      s.executor.compressionFormat,
+			CompressionLevel:       s.executor.compressionLevel,
+			ForceCompressionFormat: s.executor.forceCompressionFormat,
+			SignaturePolicyPath:    s.executor.signaturePolicyPath,
+			Store:                  s.executor.store,
+			SystemContext:          s.systemContext,
+			BlobDirectory:          s.executor.blobDirectory,
+			SignBy:                 s.executor.signBy,
+			MaxRetries:             s.executor.maxPullPushRetries,
+			RetryDelay:             s.executor.retryPullPushDelay,
 		}
 		if s.executor.cachePushSourceLookupReferenceFunc != nil {
 			options.SourceLookupReferenceFunc = s.executor.cachePushSourceLookupReferenceFunc(dest)

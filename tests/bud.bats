@@ -6474,6 +6474,61 @@ _EOF
 
 }
 
+@test "build --cache-to should respect compression_format from containers.conf" {
+  which skopeo || skip "skopeo is not installed"
+  _prefetch alpine
+
+  local contextdir=${TEST_SCRATCH_DIR}/bud/cache-compression
+  mkdir -p $contextdir
+  echo "unique-content-$(random_string)-$(date +%s)" > $contextdir/testfile
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN echo "layer1-$(random_string)"
+COPY testfile /testfile
+_EOF
+  cat > $contextdir/containers.conf << _EOF
+[engine]
+compression_format="zstd"
+_EOF
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  local imgname="img-cache-compress-$(safename)"
+  local cacherepo="localhost:${REGISTRY_PORT}/cache-compress-test"
+  local finalrepo="localhost:${REGISTRY_PORT}/${imgname}"
+
+  CONTAINERS_CONF=$contextdir/containers.conf \
+    run_buildah build \
+      $WITH_POLICY_JSON \
+      --tls-verify=false \
+      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      --layers \
+      --no-cache \
+      --cache-to ${cacherepo} \
+      -t ${imgname} \
+      -f $contextdir/Containerfile \
+      $contextdir
+  expect_output --substring "Pushing cache"
+
+  CONTAINERS_CONF=$contextdir/containers.conf \
+    run_buildah push \
+      $WITH_POLICY_JSON \
+      --tls-verify=false \
+      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      ${imgname} \
+      docker://${finalrepo}
+
+  run skopeo inspect \
+      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      --tls-verify=false \
+      --raw \
+      docker://${finalrepo}
+
+  expect_output --substring "zstd" \
+    "layers should use zstd compression per containers.conf, not gzip from cached blobs"
+  assert "$output" !~ "tar+gzip" \
+    "layers should NOT use gzip when containers.conf specifies zstd"
+}
+
 @test "bud with undefined build arg directory" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
