@@ -268,8 +268,8 @@ github.com/moby/moby/client/internal
 github.com/moby/moby/client/internal/timestamp
 github.com/moby/moby/client/pkg/jsonmessage
 github.com/moby/moby/client/pkg/versions
-# github.com/moby/moby/v2 v2.0.0-beta.6
-## explicit; go 1.25.0
+# github.com/moby/moby/v2 v2.0.0-beta.8
+## explicit; go 1.25.5
 github.com/moby/moby/v2/pkg/homedir
 # github.com/moby/patternmatcher v0.6.1
 ## explicit; go 1.19
