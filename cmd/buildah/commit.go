@@ -19,7 +19,9 @@ import (
 	"go.podman.io/buildah/util"
 	"go.podman.io/common/pkg/auth"
 	"go.podman.io/common/pkg/completion"
+	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/manifest"
+	"go.podman.io/image/v5/pkg/compression"
 	"go.podman.io/image/v5/pkg/shortnames"
 	storageTransport "go.podman.io/image/v5/storage"
 	"go.podman.io/image/v5/transports/alltransports"
@@ -27,49 +29,52 @@ import (
 )
 
 type commitInputOptions struct {
-	authfile           string
-	omitHistory        bool
-	blobCache          string
-	certDir            string
-	changes            []string
-	configFile         string
-	creds              string
-	cwOptions          string
-	disableCompression bool
-	format             string
-	iidfile            string
-	manifest           string
-	omitTimestamp      bool
-	timestamp          int64
-	sourceDateEpoch    string
-	rewriteTimestamp   bool
-	quiet              bool
-	referenceTime      string
-	rm                 bool
-	pull               string
-	pullAlways         bool
-	pullNever          bool
-	sbomImgOutput      string
-	sbomImgPurlOutput  string
-	sbomMergeStrategy  string
-	sbomOutput         string
-	sbomPreset         string
-	sbomPurlOutput     string
-	sbomScannerCommand []string
-	sbomScannerImage   string
-	signaturePolicy    string
-	signBy             string
-	squash             bool
-	tlsVerify          bool
-	identityLabel      bool
-	encryptionKeys     []string
-	encryptLayers      []int
-	unsetenvs          []string
-	addFile            []string
-	unsetAnnotation    []string
-	annotation         []string
-	createdAnnotation  bool
-	metadataFile       string
+	authfile               string
+	omitHistory            bool
+	blobCache              string
+	certDir                string
+	changes                []string
+	compressionFormat      string
+	compressionLevel       int
+	configFile             string
+	creds                  string
+	cwOptions              string
+	disableCompression     bool
+	forceCompressionFormat bool
+	format                 string
+	iidfile                string
+	manifest               string
+	omitTimestamp          bool
+	timestamp              int64
+	sourceDateEpoch        string
+	rewriteTimestamp       bool
+	quiet                  bool
+	referenceTime          string
+	rm                     bool
+	pull                   string
+	pullAlways             bool
+	pullNever              bool
+	sbomImgOutput          string
+	sbomImgPurlOutput      string
+	sbomMergeStrategy      string
+	sbomOutput             string
+	sbomPreset             string
+	sbomPurlOutput         string
+	sbomScannerCommand     []string
+	sbomScannerImage       string
+	signaturePolicy        string
+	signBy                 string
+	squash                 bool
+	tlsVerify              bool
+	identityLabel          bool
+	encryptionKeys         []string
+	encryptLayers          []int
+	unsetenvs              []string
+	addFile                []string
+	unsetAnnotation        []string
+	annotation             []string
+	createdAnnotation      bool
+	metadataFile           string
 }
 
 func commitInit() {
@@ -117,8 +122,13 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	_ = cmd.RegisterFlagCompletionFunc("config", completion.AutocompleteDefault)
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	_ = cmd.RegisterFlagCompletionFunc("creds", completion.AutocompleteNone)
+	flags.StringVar(&opts.compressionFormat, "compression-format", "", "compression format to use")
+	_ = cmd.RegisterFlagCompletionFunc("compression-format", completion.AutocompleteNone)
+	flags.IntVar(&opts.compressionLevel, "compression-level", 0, "compression level to use")
+	_ = cmd.RegisterFlagCompletionFunc("compression-level", completion.AutocompleteNone)
 	flags.StringVar(&opts.cwOptions, "cw", "", "confidential workload `options`")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", true, "don't compress layers")
+	flags.BoolVar(&opts.forceCompressionFormat, "force-compression", false, "use the specified compression algorithm if the destination contains a differently-compressed variant already")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	_ = cmd.RegisterFlagCompletionFunc("format", completion.AutocompleteNone)
 	flags.StringVar(&opts.manifest, "manifest", "", "adds created image to the specified manifest list. Creates manifest list if it does not exist")
@@ -228,6 +238,15 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		compress = define.Uncompressed
 	}
 
+	if c.Flag("disable-compression").Changed && iopts.disableCompression {
+		if c.Flag("compression-format").Changed {
+			return errors.New("--disable-compression and --compression-format cannot be used together")
+		}
+		if c.Flag("force-compression").Changed {
+			return errors.New("--disable-compression and --force-compression cannot be used together")
+		}
+	}
+
 	format, err := cli.GetFormat(iopts.format)
 	if err != nil {
 		return err
@@ -308,25 +327,54 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 
 	options := buildah.CommitOptions{
-		PreferredManifestType: format,
-		Manifest:              iopts.manifest,
-		Compression:           compress,
-		SignaturePolicyPath:   iopts.signaturePolicy,
-		SystemContext:         systemContext,
-		IIDFile:               iopts.iidfile,
-		Squash:                iopts.squash,
-		BlobDirectory:         iopts.blobCache,
-		OmitHistory:           iopts.omitHistory,
-		SignBy:                iopts.signBy,
-		OciEncryptConfig:      encConfig,
-		OciEncryptLayers:      encLayers,
-		UnsetEnvs:             iopts.unsetenvs,
-		OverrideChanges:       iopts.changes,
-		OverrideConfig:        overrideConfig,
-		ExtraImageContent:     addFiles,
-		UnsetAnnotations:      iopts.unsetAnnotation,
-		Annotations:           iopts.annotation,
-		CreatedAnnotation:     types.NewOptionalBool(iopts.createdAnnotation),
+		PreferredManifestType:  format,
+		Manifest:               iopts.manifest,
+		Compression:            compress,
+		ForceCompressionFormat: iopts.forceCompressionFormat,
+		SignaturePolicyPath:    iopts.signaturePolicy,
+		SystemContext:          systemContext,
+		IIDFile:                iopts.iidfile,
+		Squash:                 iopts.squash,
+		BlobDirectory:          iopts.blobCache,
+		OmitHistory:            iopts.omitHistory,
+		SignBy:                 iopts.signBy,
+		OciEncryptConfig:       encConfig,
+		OciEncryptLayers:       encLayers,
+		UnsetEnvs:              iopts.unsetenvs,
+		OverrideChanges:        iopts.changes,
+		OverrideConfig:         overrideConfig,
+		ExtraImageContent:      addFiles,
+		UnsetAnnotations:       iopts.unsetAnnotation,
+		Annotations:            iopts.annotation,
+		CreatedAnnotation:      types.NewOptionalBool(iopts.createdAnnotation),
+	}
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return fmt.Errorf("failed to get container config: %w", err)
+	}
+	if iopts.compressionFormat != "" {
+		algo, err := compression.AlgorithmByName(iopts.compressionFormat)
+		if err != nil {
+			return err
+		}
+		options.CompressionFormat = &algo
+		if !c.Flag("force-compression").Changed {
+			options.ForceCompressionFormat = true
+		}
+	} else if defaultContainerConfig.Engine.CompressionFormat != "" && defaultContainerConfig.Engine.CompressionFormat != "gzip" {
+		algo, err := compression.AlgorithmByName(defaultContainerConfig.Engine.CompressionFormat)
+		if err != nil {
+			return fmt.Errorf("parsing compression_format from containers.conf: %w", err)
+		}
+		options.CompressionFormat = &algo
+		if !c.Flag("force-compression").Changed {
+			options.ForceCompressionFormat = true
+		}
+	}
+	if c.Flag("compression-level").Changed {
+		options.CompressionLevel = &iopts.compressionLevel
+	} else {
+		options.CompressionLevel = defaultContainerConfig.Engine.CompressionLevel
 	}
 	exclusiveFlags := 0
 	if c.Flag("reference-time").Changed {

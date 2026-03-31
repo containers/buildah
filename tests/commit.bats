@@ -642,3 +642,106 @@ load helpers
     fi
   done
 }
+
+@test "commit --disable-compression conflicts with compression flags" {
+  _prefetch alpine
+  run_buildah from $WITH_POLICY_JSON alpine
+  cid=$output
+
+  run_buildah 125 commit \
+    $WITH_POLICY_JSON \
+    --disable-compression \
+    --compression-format zstd \
+    $cid \
+    dir:${TEST_SCRATCH_DIR}/should-fail
+  expect_output --substring "cannot be used together"
+
+  run_buildah 125 commit \
+    $WITH_POLICY_JSON \
+    --disable-compression \
+    --force-compression \
+    $cid \
+    dir:${TEST_SCRATCH_DIR}/should-fail
+  expect_output --substring "cannot be used together"
+}
+
+_read_commit_manifest() {
+  local destdir=$1
+  if [ -f "$destdir/manifest.json" ]; then
+    run cat "$destdir/manifest.json"
+    assert $status -eq 0 "reading manifest.json"
+  else
+    run cat "$destdir/index.json"
+    assert $status -eq 0 "reading index.json"
+    local manifest_digest
+    manifest_digest=$(jq -r '.manifests[0].digest' < "$destdir/index.json")
+    run cat "$destdir/blobs/${manifest_digest/://}"
+    assert $status -eq 0 "reading manifest"
+  fi
+}
+
+@test "commit --compression-format zstd to dir, oci, and oci-archive" {
+  _prefetch alpine
+  run_buildah from $WITH_POLICY_JSON alpine
+  cid=$output
+  run_buildah run $cid touch /testfile
+
+  for transport in dir oci oci-archive; do
+    local destdir=${TEST_SCRATCH_DIR}/commit-zstd-${transport}
+    if [ "$transport" = "oci-archive" ]; then
+      run_buildah commit \
+        $WITH_POLICY_JSON \
+        --compression-format zstd \
+        --disable-compression=false \
+        $cid \
+        oci-archive:$destdir.tar
+
+      mkdir -p $destdir
+      tar xf $destdir.tar -C $destdir
+    else
+      mkdir -p $destdir
+      run_buildah commit \
+        $WITH_POLICY_JSON \
+        --compression-format zstd \
+        --disable-compression=false \
+        $cid \
+        ${transport}:$destdir
+    fi
+
+    _read_commit_manifest $destdir
+    expect_output --substring "zstd" \
+      "$transport: manifest should reference zstd-compressed layers"
+    assert "$output" !~ "gzip" \
+      "$transport: manifest should NOT reference gzip layers"
+  done
+}
+
+@test "commit should respect compression_format from containers.conf" {
+  _prefetch alpine
+  run_buildah from $WITH_POLICY_JSON alpine
+  cid=$output
+  run_buildah run $cid touch /testfile
+
+  local confdir=${TEST_SCRATCH_DIR}/commit-conf-zstd
+  mkdir -p $confdir
+  cat > $confdir/containers.conf << _EOF
+[engine]
+compression_format="zstd"
+_EOF
+
+  local destdir=${TEST_SCRATCH_DIR}/commit-conf-zstd-output
+  mkdir -p $destdir
+
+  CONTAINERS_CONF=$confdir/containers.conf \
+    run_buildah commit \
+      $WITH_POLICY_JSON \
+      --disable-compression=false \
+      $cid \
+      dir:$destdir
+
+  _read_commit_manifest $destdir
+  expect_output --substring "zstd" \
+    "manifest should reference zstd-compressed layers per containers.conf"
+  assert "$output" !~ "gzip" \
+    "manifest should NOT reference gzip layers when containers.conf specifies zstd"
+}
