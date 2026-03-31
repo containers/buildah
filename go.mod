@@ -12,7 +12,7 @@ require (
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/docker/go-units v0.5.0
-	github.com/fsouza/go-dockerclient v1.13.0
+	github.com/fsouza/go-dockerclient v1.13.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/moby/buildkit v0.28.1
@@ -96,7 +96,6 @@ require (
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
 	github.com/moby/moby/api v1.54.0 // indirect
-	github.com/moby/moby/v2 v2.0.0-beta.8 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
