@@ -5,7 +5,7 @@ module github.com/containers/buildah
 go 1.25.6
 
 require (
-	github.com/containerd/platforms v1.0.0-rc.3
+	github.com/containerd/platforms v1.0.0-rc.4
 	github.com/containers/luksy v0.0.0-20251208191447-ca096313c38f
 	github.com/containers/ocicrypt v1.2.1
 	github.com/cyphar/filepath-securejoin v0.6.1
