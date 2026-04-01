@@ -5,6 +5,7 @@ package parse //nolint:revive,nolintlint
 // would be useful to projects vendoring buildah
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -39,6 +40,7 @@ import (
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/fileutils"
 	"go.podman.io/storage/pkg/idtools"
+	"go.podman.io/storage/pkg/regexp"
 	"go.podman.io/storage/pkg/unshare"
 	storageTypes "go.podman.io/storage/types"
 	"golang.org/x/term"
@@ -1433,4 +1435,409 @@ func ContainerIgnoreFile(contextDir, path string, containerFiles []string) ([]st
 		return excludes, "", nil
 	}
 	return excludes, path, err
+}
+
+const (
+	templateListDelimChar = ';'
+	templateListDelim     = string(templateListDelimChar)
+
+	templateFileNameSuffix         = `[[:word:]-]+(?:\.[[:word:]-]+)*`
+	templateCommandName            = `[[:word:]/.-]+` // allows paths like /usr/bin/cpp or ./myproc
+	templateCommandOption          = `[[:word:]-]+`
+	templateCommandOptionDelimChar = ','
+	templateCommandOptionDelim     = string(templateCommandOptionDelimChar)
+	templateCommandOptions         = templateCommandOption + `(?:` + templateCommandOptionDelim + templateCommandOption + `)*`
+
+	templateMatchNameFileNameSuffix = `suffix`
+	templateMatchNameCommandName    = `cmd`
+	templateMatchNameCommandOptions = `opts`
+
+	templateNamedMatchFileNameSuffix = `\.?(?P<` + templateMatchNameFileNameSuffix + `>` + templateFileNameSuffix + `)`
+	templateNamedCommandName         = `(?P<` + templateMatchNameCommandName + `>` + templateCommandName + `)`
+	templateNamedMatchCommandOptions = `(?:` + templateCommandOptionDelim + `(?P<` + templateMatchNameCommandOptions + `>` + templateCommandOptions + `))?`
+)
+
+var (
+	templateRegexFileNameSuffix = regexp.Delayed(`^\.?` + templateFileNameSuffix + `$`)
+	templateRegexCommandOptions = regexp.Delayed(`^` + templateCommandOptions + `$`)
+
+	templateRegexPlainSpec = regexp.Delayed(`^` + templateNamedMatchFileNameSuffix + `=` + templateNamedCommandName + templateNamedMatchCommandOptions + `$`)
+)
+
+// TemplateNormalizeSuffix verifies and normalizes a template filename suffix.
+// It removes a leading dot if present and validates the suffix against the
+// allowed character set (letters, digits, underscore, hyphen, dot).
+func TemplateNormalizeSuffix(value string) (string, error) {
+	if !templateRegexFileNameSuffix.MatchString(value) {
+		return "", fmt.Errorf("incorrect template filename suffix value %q", value)
+	}
+
+	return strings.TrimPrefix(value, "."), nil
+}
+
+// TemplateLookupPolicyFromString converts a string to TemplateLookupPolicy.
+// Valid values are "never", "first", "last" (case-insensitive).
+func TemplateLookupPolicyFromString(value string) (define.TemplateLookupPolicy, error) {
+	switch strings.ToLower(value) {
+	case "never":
+		return define.TemplateLookupNever, nil
+	case "first":
+		return define.TemplateLookupFirst, nil
+	case "last":
+		return define.TemplateLookupLast, nil
+	default:
+		return 0, fmt.Errorf("unrecognized template lookup policy value %q", value)
+	}
+}
+
+// TemplateProcessorOptionsApplyFromString applies comma-separated options to
+// TemplateProcessorOptions.
+//
+// Currently supported options: "ignore_stderr", "chdir_ctxdir".
+func TemplateProcessorOptionsApplyFromString(procOptions *define.TemplateProcessorOptions, cmdOptions string) error {
+	if cmdOptions == "" {
+		return nil
+	}
+
+	if !templateRegexCommandOptions.MatchString(cmdOptions) {
+		return fmt.Errorf("incorrect template command options value %q", cmdOptions)
+	}
+
+	opts := strings.Split(cmdOptions, templateCommandOptionDelim)
+	for _, opt := range opts {
+		switch opt {
+		case "ignore_stderr":
+			procOptions.IgnoreStderr = true
+		case "chdir_ctxdir":
+			procOptions.ChdirCtxDir = true
+		default:
+			return fmt.Errorf("unknown template command option value %q", opt)
+		}
+	}
+
+	return nil
+}
+
+func templateProcessorOptionErrorEmpty() (string, *define.TemplateProcessorOptions, error) {
+	return "", nil, errors.New("empty template processor value")
+}
+
+func templateProcessorOptionErrorIncorrect(value string) (string, *define.TemplateProcessorOptions, error) {
+	return "", nil, fmt.Errorf("incorrect template processor value %q", value)
+}
+
+// parseTemplateProcessorOptionJSON parses JSON format: suffix=["cmd","arg"][,opts]
+//
+// Example: "tmpl=["python3","-m","jinja"],ignore_stderr"
+func parseTemplateProcessorOptionJSON(value string) (string, *define.TemplateProcessorOptions, error) {
+	if value == "" {
+		return templateProcessorOptionErrorEmpty()
+	}
+
+	parts := strings.SplitN(value, "=", 2)
+	if len(parts) != 2 {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+
+	suffix := parts[0]
+	if suffix == "" {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+	suffix, err := TemplateNormalizeSuffix(suffix)
+	if err != nil {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+
+	cmdWithOpts := parts[1]
+	if cmdWithOpts == "" {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+	if cmdWithOpts[0] != '[' {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+
+	runeClosingBracket := strings.LastIndexFunc(cmdWithOpts,
+		func(r rune) bool { return r == ']' },
+	)
+	if runeClosingBracket < 0 {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+
+	cmd := cmdWithOpts[:runeClosingBracket+1]
+
+	var cmdArgs []string
+	err = json.Unmarshal([]byte(cmd), &cmdArgs)
+	if err != nil {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+	if len(cmdArgs) == 0 {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+	if cmdArgs[0] == "" {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+
+	procOpts := define.NewTemplateProcessorOptions()
+	procOpts.Cmd = cmdArgs
+
+	opts := cmdWithOpts[runeClosingBracket+1:]
+	if opts != "" {
+		if opts[0] != templateCommandOptionDelimChar {
+			return templateProcessorOptionErrorIncorrect(value)
+		}
+		opts = opts[1:] // trim leading delimiter
+		if opts == "" {
+			return templateProcessorOptionErrorIncorrect(value)
+		}
+	}
+	if err := TemplateProcessorOptionsApplyFromString(procOpts, opts); err != nil {
+		return suffix, nil, err
+	}
+
+	return suffix, procOpts, nil
+}
+
+// parseTemplateProcessorOptionPlain parses simple format: suffix=cmd[,opts]
+//
+// Example: "in=cpp" or "tmpl=m4,chdir_ctxdir"
+//
+// Special cases:
+//   - cmd = "-" removes handling for this suffix
+//   - cmd = "cpp" enables built-in C preprocessor
+func parseTemplateProcessorOptionPlain(value string) (string, *define.TemplateProcessorOptions, error) {
+	if value == "" {
+		return templateProcessorOptionErrorEmpty()
+	}
+
+	match := templateRegexPlainSpec.FindStringSubmatch(value)
+	if len(match) == 0 {
+		return templateProcessorOptionErrorIncorrect(value)
+	}
+
+	suffix := match[templateRegexPlainSpec.SubexpIndex(templateMatchNameFileNameSuffix)]
+	cmd := match[templateRegexPlainSpec.SubexpIndex(templateMatchNameCommandName)]
+
+	// handle usage like "in=-" and treat it as "remove handling of *.in files"
+	if cmd == "-" {
+		return suffix, nil, nil
+	}
+
+	procOpts := define.NewTemplateProcessorOptions()
+
+	// handle usage like "cmacro=cpp" and treat it as "use builtin cpp handler for *.cmacro files"
+	if strings.ToLower(cmd) == "cpp" {
+		procOpts.UseBuiltinCpp = true
+	} else {
+		procOpts.Cmd = make([]string, 1)
+		procOpts.Cmd[0] = cmd
+	}
+
+	optsIndex := templateRegexPlainSpec.SubexpIndex(templateMatchNameCommandOptions)
+	if optsIndex >= 0 {
+		optsValue := match[optsIndex]
+		if err := TemplateProcessorOptionsApplyFromString(procOpts, optsValue); err != nil {
+			return suffix, nil, err
+		}
+	}
+
+	return suffix, procOpts, nil
+}
+
+func parseTemplateProcessorOption(value string) (string, *define.TemplateProcessorOptions, error) {
+	if value == "" {
+		return templateProcessorOptionErrorEmpty()
+	}
+
+	suffix, procOpts, err := parseTemplateProcessorOptionJSON(value)
+	if err == nil {
+		return suffix, procOpts, nil
+	}
+
+	suffix, procOpts, err = parseTemplateProcessorOptionPlain(value)
+	if err == nil {
+		return suffix, procOpts, nil
+	}
+
+	return templateProcessorOptionErrorIncorrect(value)
+}
+
+// templateProcessorOptionsPlainJSON is used to unmarshal JSON array of objects
+// from the BUILDAH_TEMPLATE environment variable.
+type templateProcessorOptionsPlainJSON struct {
+	Suffix string   `json:"suffix"`
+	Cmd    []string `json:"cmd,omitempty"`
+
+	// sync fields with:
+	// - type `TemplateProcessorOptions` in `define/types.go`
+	// - func `TemplateProcessorOptionsApplyFromString`
+	// NB: "UseBuiltinCpp" is handled separately.
+
+	UseBuiltinCpp bool `json:"builtin_cpp,omitempty"`
+	IgnoreStderr  bool `json:"ignore_stderr,omitempty"`
+	ChdirCtxDir   bool `json:"chdir_ctxdir,omitempty"`
+}
+
+// templateOptionsFromPlainJSONStructArray parses JSON array of objects format:
+// [{"suffix":"in","builtin_cpp":true},{"suffix":"tmpl","cmd":["m4"],"ignore_stderr":true}]
+func templateOptionsFromPlainJSONStructArray(value string) (*define.TemplateOptions, error) {
+	var err error
+
+	var args []templateProcessorOptionsPlainJSON
+	err = json.Unmarshal([]byte(value), &args)
+	if err != nil {
+		return nil, err
+	}
+	if len(args) == 0 {
+		return nil, errors.New("empty JSON array")
+	}
+
+	templateOpts := define.NewTemplateOptionsWithCapacity(len(args))
+
+	for _, arg := range args {
+		suffix, err := TemplateNormalizeSuffix(arg.Suffix)
+		if err != nil {
+			return nil, fmt.Errorf("incorrect suffix %q", arg.Suffix)
+		}
+
+		if !arg.UseBuiltinCpp && (arg.Cmd == nil) {
+			templateOpts.DeleteSuffix(suffix)
+			continue
+		}
+
+		procOpts := define.NewTemplateProcessorOptions()
+		procOpts.IgnoreStderr = arg.IgnoreStderr
+		procOpts.ChdirCtxDir = arg.ChdirCtxDir
+
+		if arg.UseBuiltinCpp {
+			procOpts.UseBuiltinCpp = arg.UseBuiltinCpp
+		} else {
+			procOpts.Cmd = arg.Cmd
+		}
+
+		templateOpts.AddSuffix(suffix, procOpts)
+	}
+
+	return templateOpts, nil
+}
+
+// templateOptionsFromJSONStringArray parses JSON array of strings format:
+// ["in=cpp", "tmpl=m4,ignore_stderr"]
+func templateOptionsFromJSONStringArray(value string) (*define.TemplateOptions, error) {
+	var err error
+
+	var args []string
+	err = json.Unmarshal([]byte(value), &args)
+	if err != nil {
+		return nil, err
+	}
+	if len(args) == 0 {
+		return nil, errors.New("empty JSON array")
+	}
+
+	templateOpts := define.NewTemplateOptionsWithCapacity(len(args))
+
+	for _, arg := range args {
+		suffix, procOpts, err := parseTemplateProcessorOptionPlain(arg)
+		if err != nil {
+			return nil, err
+		}
+
+		// if procOpts is nil then templateOpts.DeleteSuffix(suffix) is applied
+		templateOpts.AddSuffix(suffix, procOpts)
+	}
+
+	return templateOpts, nil
+}
+
+// templateOptionsFromList parses semicolon-separated list format:
+// "in=cpp;tmpl=m4,ignore_stderr"
+func templateOptionsFromList(value string) (*define.TemplateOptions, error) {
+	args := strings.Split(value, templateListDelim)
+
+	templateOpts := define.NewTemplateOptionsWithCapacity(len(args))
+
+	for _, arg := range args {
+		arg = strings.TrimSpace(arg)
+
+		suffix, procOpts, err := parseTemplateProcessorOptionPlain(arg)
+		if err != nil {
+			return nil, err
+		}
+
+		// if procOpts is nil then templateOpts.DeleteSuffix(suffix) is applied
+		templateOpts.AddSuffix(suffix, procOpts)
+	}
+
+	return templateOpts, nil
+}
+
+// TemplateOptionsFromEnv parses the BUILDAH_TEMPLATE environment variable
+// and returns the corresponding TemplateOptions.
+func TemplateOptionsFromEnv() (*define.TemplateOptions, error) {
+	templateEnv := os.Getenv("BUILDAH_TEMPLATE")
+	if templateEnv == "" {
+		return nil, nil
+	}
+
+	// JSON-encoded array
+	if templateEnv[0] == '[' {
+		templateOpts, err := templateOptionsFromPlainJSONStructArray(templateEnv)
+		if err == nil {
+			return templateOpts, nil
+		}
+		templateOpts, err = templateOptionsFromJSONStringArray(templateEnv)
+		if err == nil {
+			return templateOpts, nil
+		}
+		return nil, fmt.Errorf("env $BUILDAH_TEMPLATE: unrecognized value %q", templateEnv)
+	}
+
+	templateOpts, err := templateOptionsFromList(templateEnv)
+	if err == nil {
+		return templateOpts, nil
+	}
+
+	return nil, fmt.Errorf("unrecognized $BUILDAH_TEMPLATE value %q", templateEnv)
+}
+
+// TemplateOptions parses "--template" and "--template-lookup" options.
+func TemplateOptions(c *cobra.Command) (*define.TemplateOptions, error) {
+	return TemplateOptionsFromFlagSet(c.Flags())
+}
+
+// TemplateOptionsFromFlagSet parses "--template" and "--template-lookup" options.
+func TemplateOptionsFromFlagSet(flags *pflag.FlagSet) (*define.TemplateOptions, error) {
+	templateOpts, err := TemplateOptionsFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	if templateOpts == nil {
+		templateOpts = define.NewTemplateOptions()
+	}
+
+	policyValue, _ := flags.GetString("template-lookup")
+	if policyValue != "" {
+		policy, err := TemplateLookupPolicyFromString(policyValue)
+		if err != nil {
+			return nil, err
+		}
+		templateOpts.LookupPolicy = policy
+	}
+
+	templateProcessors, _ := flags.GetStringArray("template")
+	if len(templateProcessors) == 0 {
+		return templateOpts, nil
+	}
+
+	for _, templateProc := range templateProcessors {
+		suffix, procOpts, err := parseTemplateProcessorOption(templateProc)
+		if err != nil {
+			return nil, err
+		}
+
+		// if procOpts is nil then templateOpts.DeleteSuffix(suffix) is applied
+		templateOpts.AddSuffix(suffix, procOpts)
+	}
+
+	return templateOpts, nil
 }

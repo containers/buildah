@@ -18,6 +18,8 @@ The build context directory can be specified as the http(s) URL of an archive, g
 
 If no context directory is specified, then Buildah will assume the current working directory as build context, which should contain a Containerfile.
 
+Containerfiles with specific filename suffixes can be preprocessed as templates before building. By default, files ending with ".in" suffix are preprocessed using the C Preprocessor (cpp(1)). This feature can be extended to support custom template processors for different filename suffixes using the **--template** option.
+
 Containerfiles ending with a ".in" suffix will be preprocessed via cpp(1).  This can be useful to decompose Containerfiles into several reusable parts that can be used via CPP's **#include** directive.  Notice, a Containerfile.in file can still be used by other tools when manually preprocessing them via `cpp -E`. Any comments ( Lines beginning with `#` ) in included Containerfile(s) that are not preprocess commands, will be printed as warnings during builds.
 
 When the URL is an archive, the contents of the URL is downloaded to a temporary location and extracted before execution.
@@ -222,6 +224,7 @@ Thus, compressing the data before sending it is irrelevant to Buildah.
 
 Set additional flags to pass to the C Preprocessor cpp(1).
 Containerfiles ending with a ".in" suffix will be preprocessed via cpp(1). This option can be used to pass additional flags to cpp.
+When using custom template processors (via **--template** option), the **--cpp-flag** option only applies to templates processed with the built-in C preprocessor.
 Note: You can also set default CPPFLAGS by setting the BUILDAH\_CPPFLAGS
 environment variable (e.g., `export BUILDAH_CPPFLAGS="-DDEBUG"`).
 
@@ -1193,6 +1196,48 @@ Set the target build stage to build.  When building a Containerfile with multipl
 can be used to specify an intermediate build stage by name as the final stage for the resulting image.
 Commands after the target stage will be skipped.
 
+**--template** *templateSpec*
+
+Define template preprocessor for "Containerfile.\*" or "Dockerfile.\*" files. This option can be specified multiple times.
+
+The *templateSpec* format is: `suffix=cmd[,opts]` where:
+
+- `suffix`: Filename suffix (e.g., "in", "tmpl", "j2")
+- `cmd`: Command to process the template:
+  - `-`: Remove handling for this suffix (e.g. `in=-` to disable default .in processing)
+  - `cpp`: Use built-in C preprocessor (same as default .in handling)
+  - Any other command name or path to custom processor
+- `opts`: Optional comma-separated options:
+  - `ignore_stderr`: Hide stderr output unless command fails
+  - `chdir_ctxdir`: Change working directory to build context before processing
+
+For complex commands with arguments, use JSON array format: `suffix=["cmd","arg1","arg2"][,opts]`
+
+**Note:** The build context directory is always available to template preprocessors via the `BUILDAH_CTXDIR` environment variable, regardless of the `chdir_ctxdir` setting. This allows preprocessors to locate files relative to the build context even when running with a different working directory.
+
+Multiple template specifications can also be provided via the BUILDAH\_TEMPLATE environment variable as a semicolon-separated list or JSON array.
+
+Examples:
+
+- `--template in=cpp`: Use C preprocessor for .in files (default)
+- `--template in=-`: Disable .in file processing
+- `--template j2=jinja2`: Use `jinja2` command for .j2 files
+- `--template tmpl=m4,chdir_ctxdir`: Use `m4` command for .tmpl files, change to context directory
+- `--template macro=["python3","-m","mymodule"],ignore_stderr`: Use Python module with stderr hidden
+
+**--template-lookup** *policy*
+
+Template filename lookup policy. If not specified, the default is **never**.
+
+- **never**: Use templates only if filename is specified explicitly (e.g. via **--file**).
+
+- **first**: Try template files first, then fall back to regular Containerfile/Dockerfile.
+
+- **last**: Try regular Containerfile/Dockerfile first, then fall back to template files.
+
+Note: You can also override the default policy by setting the BUILDAH\_TEMPLATE\_LOOKUP
+environment variable.  `export BUILDAH_TEMPLATE_LOOKUP=first`
+
 **--timestamp** *seconds*
 
 Set the "created" timestamp for the built image to this number of seconds since
@@ -1612,6 +1657,40 @@ buildah images --filter "label=io.buildah.stage.base=golang:1.21"
 
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
+### Using Template Processing
+
+#### Process Containerfile.in with C preprocessor (default behavior)
+
+```sh
+buildah build -f Containerfile.in .
+```
+
+#### Use custom template processor for .j2 files
+
+```sh
+buildah build --template-lookup first --template j2=jinja2 .
+```
+
+#### Use m4 processor for .m4 files with context directory change
+
+```sh
+buildah build --template m4=m4,chdir_ctxdir .
+```
+
+#### Disable default .in processing and use custom processor
+
+```sh
+buildah build --template in=- --template tmpl=myprocessor .
+```
+
+#### Use environment variable to configure templates
+
+```sh
+export BUILDAH_TEMPLATE="in=- ; j2=jinja2,ignore_stderr"
+export BUILDAH_TEMPLATE_LOOKUP="first"
+buildah build .
+```
+
 ### Using Build Time Variables
 
 #### Replace the value set for the HTTP_PROXY environment variable within the Containerfile.
@@ -1632,8 +1711,30 @@ If there are registries in the `allowedRegistries` list, and the registry's
 name is not in the list, the pull attempt is denied.
 
 **TMPDIR**
+
 The TMPDIR environment variable allows the user to specify where temporary files
 are stored while pulling and pushing images.  Defaults to '/var/tmp'.
+
+**BUILDAH\_TEMPLATE**
+
+Defines template processors for Containerfile/Dockerfile templates. Can be set as:
+
+- Semicolon-separated list: `suffix1=cmd1,opts1;suffix2=cmd2,opts2`
+- JSON array of strings: `["suffix1=cmd1,opts1", "suffix2=cmd2,opts2"]`
+- JSON array of objects: `[{"suffix": "suffix1", "cmd": ["cmd1", "arg1"], "ignore_stderr": true}, ...]`
+
+Note: for semicolon-separated lists, whitespace around the delimiter and at the
+ends is ignored (e.g., `suffix1=cmd1 ; suffix2=cmd2` is valid).
+
+**BUILDAH\_TEMPLATE\_LOOKUP**
+
+Sets the default template lookup policy. Valid values: "never", "first", "last".
+Defaults to "never".
+
+**BUILDAH\_CPPFLAGS**
+
+Sets default flags for the C preprocessor when processing .in files.
+Example: `export BUILDAH_CPPFLAGS="-DDEBUG -I./includes"`
 
 ## Files
 

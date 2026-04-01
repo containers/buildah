@@ -263,6 +263,9 @@ type BuildOptions struct {
 	DropCapabilities []string
 	// CommonBuildOpts is *required*.
 	CommonBuildOpts *CommonBuildOptions
+	// TemplateOpts configures template preprocessing for Containerfile/Dockerfile files
+	// with specific suffixes (e.g., .in, .tmpl). See TemplateOptions for details.
+	TemplateOpts *TemplateOptions
 	// CPPFlags are additional arguments to pass to the C Preprocessor (cpp).
 	CPPFlags []string
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted for RUN

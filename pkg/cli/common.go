@@ -118,6 +118,8 @@ type BudResults struct {
 	Tag                 []string
 	BuildOutputs        []string
 	Target              string
+	TemplateLookup      string
+	TemplateSpec        []string
 	TLSVerify           bool
 	Jobs                int
 	LogRusage           bool
@@ -333,6 +335,8 @@ newer:   only pull base and SBOM scanner images when newer images exist on the r
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringArrayVarP(&flags.BuildOutputs, "output", "o", nil, "output destination (format: type=local,dest=path)")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
+	fs.StringArrayVar(&flags.TemplateSpec, "template", nil, "define template preprocessor for \"Dockerfile.*\". (format: suffix=cmd[,opts])")
+	fs.StringVar(&flags.TemplateLookup, "template-lookup", DefaultTemplateLookupPolicy(), "set template lookup policy.")
 	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set new timestamps in image info and layer to `seconds` after the epoch, defaults to current times")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	fs.String("variant", "", "override the `variant` of the specified image")
@@ -395,6 +399,8 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["source-date-epoch"] = commonComp.AutocompleteNone
 	flagCompletion["tag"] = commonComp.AutocompleteNone
 	flagCompletion["target"] = commonComp.AutocompleteNone
+	flagCompletion["template"] = commonComp.AutocompleteNone
+	flagCompletion["template-lookup"] = commonComp.AutocompleteNone
 	flagCompletion["timestamp"] = commonComp.AutocompleteNone
 	flagCompletion["unsetenv"] = commonComp.AutocompleteNone
 	flagCompletion["unsetlabel"] = commonComp.AutocompleteNone
@@ -534,6 +540,15 @@ func DefaultHistory() bool {
 		return true
 	}
 	return false
+}
+
+// DefaultTemplateLookupPolicy returns the default template lookup policy setting
+func DefaultTemplateLookupPolicy() string {
+	templateLookup := os.Getenv("BUILDAH_TEMPLATE_LOOKUP")
+	if templateLookup != "" {
+		return templateLookup
+	}
+	return "never"
 }
 
 func VerifyFlagsArgsOrder(args []string) error {

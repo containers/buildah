@@ -128,6 +128,14 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		}
 	}
 
+	templateOpts, err := parse.TemplateOptions(c)
+	if err != nil {
+		return options, nil, nil, err
+	}
+	if err := templateOpts.SanityCheck(); err != nil {
+		return options, nil, nil, err
+	}
+
 	containerfiles := getContainerfiles(iopts.File)
 	format, err := GetFormat(iopts.Format)
 	if err != nil {
@@ -170,7 +178,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 
 	if len(containerfiles) == 0 {
 		// Try to find the Containerfile/Dockerfile within the contextDir
-		containerfile, err := util.DiscoverContainerfile(contextDir)
+		containerfile, err := util.DiscoverContainerfileEx(contextDir, templateOpts.LookupPolicy, templateOpts.SuffixOrder)
 		if err != nil {
 			return options, nil, nil, err
 		}
@@ -456,6 +464,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		StageLabels:             iopts.StageLabels,
 		SystemContext:           systemContext,
 		Target:                  iopts.Target,
+		TemplateOpts:            templateOpts,
 		Timestamp:               timestamp,
 		TransientMounts:         iopts.Volumes,
 		TransientRunMounts:      iopts.TransientRunMounts,
