@@ -1744,7 +1744,11 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 			// This log line is majorly here so we can verify in tests
 			// that our cache is performing in the most optimal way for
 			// various cases.
-			logrus.Debugf("Found a cache hit in the first iteration with id %s", cacheID)
+			if cacheID != "" {
+				logrus.Debugf("Found a cache hit in the first iteration with id %s", cacheID)
+			} else {
+				logrus.Debugf("Cache missed")
+			}
 			// If the instruction would affect our configuration,
 			// process the configuration change so that, if we fall
 			// off the cache path, the filesystem changes from the
@@ -1777,6 +1781,7 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 				return "", nil, false, err
 			}
 		} else {
+			logrus.Debugf("No longer searching cache due to miss")
 			// We're not going to find any more cache hits, so we
 			// can stop looking for them.
 			checkForLayers = false
@@ -2433,6 +2438,7 @@ func (s *stageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 			timeNow := time.Now()
 			imageDuration := timeNow.Sub(image.Created)
 			if s.executor.cacheTTL < imageDuration {
+				logrus.Debugf("image %q age %v is older than cache TTL %v, ignoring it", image.ID, imageDuration, s.executor.cacheTTL)
 				continue
 			}
 		}
@@ -2442,6 +2448,7 @@ func (s *stageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 			imageTopLayer, err = s.executor.store.Layer(image.TopLayer)
 			if err != nil {
 				if errors.Is(err, storage.ErrLayerUnknown) {
+					logrus.Debugf("image %q top layer is unknown: %v", image.ID, err)
 					continue
 				}
 				return "", fmt.Errorf("getting top layer info: %w", err)
@@ -2461,6 +2468,7 @@ func (s *stageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 		// it means that this image is potentially a cached intermediate image from a previous
 		// build.
 		if s.builder.TopLayer != imageParentLayerID {
+			logrus.Debugf("image %q top layer ID is %q instead of %q", image.ID, s.builder.TopLayer, imageParentLayerID)
 			continue
 		}
 
@@ -2477,6 +2485,7 @@ func (s *stageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 		// If this candidate isn't of the type that we're building, then it may have lost
 		// some format-specific information that a building-without-cache run wouldn't lose.
 		if manifestType != s.executor.outputFormat {
+			logrus.Debugf("image %q manifest type %q does not match output format %q", image.ID, manifestType, s.executor.outputFormat)
 			continue
 		}
 
@@ -2505,12 +2514,15 @@ func (s *stageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 		}
 		if foundMatch {
 			cacheCandidates = append(cacheCandidates, image)
+		} else {
+			logrus.Debugf("historyAndDiffIDsMatch indicated mismatch for image %q", image.ID)
 		}
 	}
 	if len(cacheCandidates) > 0 {
 		slices.SortFunc(cacheCandidates, func(a, b storage.Image) int { return a.Created.Compare(b.Created) })
 		return cacheCandidates[len(cacheCandidates)-1].ID, nil
 	}
+	logrus.Debugf("no cache candidates found")
 	return "", nil
 }
 
