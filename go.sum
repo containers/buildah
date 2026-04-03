@@ -191,8 +191,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
-github.com/opencontainers/runc v1.4.1 h1:eg1A930KKiZ3IShaYHPRiDi6uMrHMnd7OiElHBLgqfY=
-github.com/opencontainers/runc v1.4.1/go.mod h1:ufk5PTTsy5pnGBAvTh50e+eqGk01pYH2YcVxh557Qlk=
+github.com/opencontainers/runc v1.4.2 h1:/AEjjXuVH9lTRl9ZyUFQj7oWBM7Xv00qFV6Vx9q5N3o=
+github.com/opencontainers/runc v1.4.2/go.mod h1:ufk5PTTsy5pnGBAvTh50e+eqGk01pYH2YcVxh557Qlk=
 github.com/opencontainers/runtime-spec v1.3.0 h1:YZupQUdctfhpZy3TM39nN9Ika5CBWT5diQ8ibYCRkxg=
 github.com/opencontainers/runtime-spec v1.3.0/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
 github.com/opencontainers/runtime-tools v0.9.1-0.20260316125833-8a4db579f5c8 h1:2NAWFjN0PmdIe3XojVL9wf3lJ1//VqAgc7MOSYHQslE=
