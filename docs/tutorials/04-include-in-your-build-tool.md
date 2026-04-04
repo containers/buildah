@@ -50,7 +50,7 @@ go get github.com/containers/buildah
 
 Now you can develop your application. To access to the build features of Buildah, you need to instantiate a `buildah.Builder`. This struct has methods to configure the build, define the build steps and run it.
 
-To instantiate a `Builder`, you need a `storage.Store` (the Store interface found in [store.go](https://github.com/containers/storage/blob/main/store.go)) from [`github.com/containers/storage`](https://github.com/containers/storage), where the intermediate and result images will be stored:
+To instantiate a `Builder`, you need a `storage.Store` (the Store interface found in [store.go](https://github.com/containers/container-libs/blob/main/storage/store.go)) from [`go.podman.io/storage`](https://github.com/containers/container-libs/tree/main/storage), where the intermediate and result images will be stored:
 
 ```go
 buildStoreOptions, err := storage.DefaultStoreOptions()
@@ -106,7 +106,7 @@ isolation, err := parse.IsolationOption("")
 
 ## Rootless mode
 
-To enable rootless mode, import `github.com/containers/storage/pkg/unshare` and add this code at the beginning of your main() method:
+To enable rootless mode, import `go.podman.io/storage/pkg/unshare` and add this code at the beginning of your main() method:
 
 ```go
 if buildah.InitReexec() {
@@ -128,10 +128,10 @@ import (
 
   "github.com/containers/buildah"
   "github.com/containers/buildah/pkg/parse"
-  "github.com/containers/common/pkg/config"
-  is "github.com/containers/image/v5/storage"
-  "github.com/containers/storage"
-  "github.com/containers/storage/pkg/unshare"
+  "go.podman.io/common/pkg/config"
+  is "go.podman.io/image/v5/storage"
+  "go.podman.io/storage"
+  "go.podman.io/storage/pkg/unshare"
 )
 
 func main() {
