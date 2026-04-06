@@ -521,9 +521,9 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
 					return err
 				}
-				if other, ok := s.executor.stages[from]; ok && other.index < s.index {
-					contextDir = other.mountPoint
-					idMappingOptions = &other.builder.IDMappingOptions
+				if otherStageIndex, otherStage := s.executor.stageIndex(from, s.stages[:s.index]); otherStageIndex != -1 {
+					contextDir = otherStage.mountPoint
+					idMappingOptions = &otherStage.builder.IDMappingOptions
 				} else if builder, ok := s.executor.containerMap[copy.From]; ok {
 					contextDir = builder.MountPoint
 					idMappingOptions = &builder.IDMappingOptions
@@ -717,7 +717,7 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 					}
 					// If the source's name is a stage, return a
 					// pointer to its rootfs.
-					if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
+					if otherStageIndex, otherStage := s.executor.stageIndex(from, s.stages[:s.index]); otherStageIndex != -1 {
 						stageMountPoints[from] = internal.StageMountDetails{
 							IsStage:    true,
 							DidExecute: otherStage.didExecute,
@@ -1253,8 +1253,7 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 	lastStage := !moreStages
 	onlyBaseImage := false
 	imageIsUsedLater := moreStages && (internalUtil.SetHas(s.executor.baseMap, stage.Name) || internalUtil.SetHas(s.executor.baseMap, strconv.Itoa(stage.Position)))
-	rootfsIsUsedLater := moreStages && (internalUtil.SetHas(s.executor.rootfsMap, stage.Name) || internalUtil.SetHas(s.executor.rootfsMap, strconv.Itoa(stage.Position)))
-
+	rootfsIsUsedLater := moreStages && internalUtil.SetHas(s.executor.rootfsMap, stage.Position)
 	// If the base image's name corresponds to the result of an earlier
 	// stage, make sure that stage has finished building an image, and
 	// substitute that image's ID for the base image's name here and force
@@ -1269,10 +1268,12 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 	pullPolicy := s.executor.pullPolicy
 	s.executor.stagesLock.Lock()
 	var preserveBaseImageAnnotationsAtStageStart bool
-	if stageImage, isPreviousStage := s.executor.imageMap[base]; isPreviousStage {
-		base = stageImage
-		pullPolicy = define.PullNever
-		preserveBaseImageAnnotationsAtStageStart = true
+	if otherStageIndex, _ := s.executor.stageIndexUnlocked(base, s.stages[:s.index]); otherStageIndex != -1 {
+		if stageImage, isPreviousStage := s.executor.imageMap[otherStageIndex]; isPreviousStage {
+			base = stageImage
+			pullPolicy = define.PullNever
+			preserveBaseImageAnnotationsAtStageStart = true
+		}
 	}
 	s.executor.stagesLock.Unlock()
 
@@ -1495,7 +1496,7 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 				if isStage, err := s.executor.waitForStage(ctx, from, s.stages[:s.index]); isStage && err != nil {
 					return "", nil, false, err
 				}
-				if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
+				if otherStageIndex, _ := s.executor.stageIndex(from, s.stages[:s.index]); otherStageIndex != -1 {
 					break
 				} else if _, err = s.getImageRootfs(ctx, from); err != nil {
 					return "", nil, false, fmt.Errorf("%s --from=%s: no stage or image found with that name", command, from)
@@ -2031,7 +2032,7 @@ func (s *stageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 			// Source specified is part of stage, image or additional-build-context.
 			if mountOptionFrom != "" {
 				// If this is not a stage then get digest of image or additional build context
-				if _, ok := s.executor.stages[mountOptionFrom]; !ok {
+				if otherStageIndex, _ := s.executor.stageIndex(mountOptionFrom, s.stages[:s.stage.Position]); otherStageIndex == -1 {
 					if builder, ok := s.executor.containerMap[mountOptionFrom]; ok {
 						// Found valid image, get image digest.
 						mountCheckSum = builder.FromImageDigest

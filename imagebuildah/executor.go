@@ -71,7 +71,7 @@ type executor struct {
 	cacheTTL                       time.Duration
 	containerSuffix                string
 	logger                         *logrus.Logger
-	stages                         map[string]*stageExecutor
+	stages                         map[int]*stageExecutor // Maps from stage indexes to their stageExecutors, serialized by stagesLock.
 	store                          storage.Store
 	contextDir                     string
 	contextDirWritesAreDiscarded   bool
@@ -115,17 +115,16 @@ type executor struct {
 	layers                                  bool
 	saveStages                              bool
 	stageLabels                             bool
-	stageImageIDs                           map[string]string // Tracks image IDs for each stage (by name and position) for label references
+	stageImageIDs                           map[int]string // Tracks image IDs for output of each stage (indexed by position) for label references.  Serialized by stagesLock.
 	noHostname                              bool
 	noHosts                                 bool
 	useCache                                bool
 	removeIntermediateCtrs                  bool
 	forceRmIntermediateCtrs                 bool
-	imageMap                                map[string]string           // Used to map images that we create to handle the AS construct.
+	imageMap                                map[int]string              // Used to map from stage indexes to images that we create to be used in a later FROM...AS construct.  Serialized by stagesLock.
 	containerMap                            map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
-	baseMap                                 map[string]struct{}         // Holds the names of every base image, as given.
-	rootfsMap                               map[string]struct{}         // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
-	afterDependency                         map[string]string           // Maps stage names to their --after dependency.
+	baseMap                                 map[string]struct{}         // Holds the set of names of every stage's base image, with ARGs resolved.
+	rootfsMap                               map[int]struct{}            // Holds the set of indexes for every stage whose rootfs is referenced in a COPY or ADD instruction.
 	blobDirectory                           string
 	excludes                                []string
 	groupAdd                                []string
@@ -148,8 +147,8 @@ type executor struct {
 	cachePushDestinationLookupReferenceFunc libimage.LookupReferenceFunc
 	ociDecryptConfig                        *encconfig.DecryptConfig
 	lastError                               error
-	terminatedStage                         map[string]error
-	stagesLock                              sync.Mutex
+	terminatedStage                         map[int]error // maps from stage indexes to error results, serialized by stagesLock
+	stagesLock                              sync.Mutex    // serializes stages, stageImageIDs, imageMap, terminatedStage
 	stagesSemaphore                         *semaphore.Weighted
 	logRusage                               bool
 	rusageLogFile                           io.Writer
@@ -270,7 +269,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		cacheTTL:                                options.CacheTTL,
 		containerSuffix:                         options.ContainerSuffix,
 		logger:                                  logger,
-		stages:                                  make(map[string]*stageExecutor),
+		stages:                                  make(map[int]*stageExecutor),
 		store:                                   store,
 		contextDir:                              options.ContextDirectory,
 		contextDirWritesAreDiscarded:            contextWritesDiscarded,
@@ -318,16 +317,16 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		layers:                                  options.Layers,
 		saveStages:                              options.SaveStages,
 		stageLabels:                             options.StageLabels,
-		stageImageIDs:                           make(map[string]string),
+		stageImageIDs:                           make(map[int]string),
 		noHostname:                              options.CommonBuildOpts.NoHostname,
 		noHosts:                                 options.CommonBuildOpts.NoHosts,
 		useCache:                                !options.NoCache,
 		removeIntermediateCtrs:                  options.RemoveIntermediateCtrs,
 		forceRmIntermediateCtrs:                 options.ForceRmIntermediateCtrs,
-		imageMap:                                make(map[string]string),
+		imageMap:                                make(map[int]string),
 		containerMap:                            make(map[string]*buildah.Builder),
 		baseMap:                                 make(map[string]struct{}),
-		rootfsMap:                               make(map[string]struct{}),
+		rootfsMap:                               make(map[int]struct{}),
 		blobDirectory:                           options.BlobDirectory,
 		unusedArgs:                              make(map[string]struct{}),
 		capabilities:                            capabilities,
@@ -343,7 +342,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		cachePushSourceLookupReferenceFunc:      options.CachePushSourceLookupReferenceFunc,
 		cachePushDestinationLookupReferenceFunc: options.CachePushDestinationLookupReferenceFunc,
 		ociDecryptConfig:                        options.OciDecryptConfig,
-		terminatedStage:                         make(map[string]error),
+		terminatedStage:                         make(map[int]error),
 		stagesSemaphore:                         options.JobSemaphore,
 		logRusage:                               options.LogRusage,
 		rusageLogFile:                           rusageLogFile,
@@ -442,10 +441,7 @@ func (b *executor) startStage(ctx context.Context, stage *imagebuilder.Stage, st
 		output:          output,
 		stage:           stage,
 	}
-	b.stages[stage.Name] = stageExec
-	if idx := strconv.Itoa(stage.Position); idx != stage.Name {
-		b.stages[idx] = stageExec
-	}
+	b.stages[stage.Position] = stageExec
 	return stageExec
 }
 
@@ -483,7 +479,7 @@ func (b *executor) stageIndex(nameOrIndex string, stages imagebuilder.Stages) (i
 func (b *executor) stageIndexUnlocked(nameOrIndex string, stages imagebuilder.Stages) (int, *stageExecutor) {
 	for _, otherStage := range slices.Backward(stages) {
 		if otherStage.Name == nameOrIndex || strconv.Itoa(otherStage.Position) == nameOrIndex {
-			return otherStage.Position, b.stages[strconv.Itoa(otherStage.Position)]
+			return otherStage.Position, b.stages[otherStage.Position]
 		}
 	}
 	return -1, nil
@@ -505,7 +501,7 @@ func (b *executor) waitForStage(ctx context.Context, name string, stages imagebu
 		}
 
 		b.stagesLock.Lock()
-		terminationError, terminated := b.terminatedStage[name]
+		terminationError, terminated := b.terminatedStage[otherStageIndex]
 		b.stagesLock.Unlock()
 
 		if terminationError != nil {
@@ -628,7 +624,7 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 	// Skip if stage has no instructions
 	if b.saveStages && b.stageLabels && len(stage.Node.Children) > 0 {
 		// Wait for base stage if it references a previous stage
-		// This ensures stageImageIDs map is populated before buildStageLabelLine reads it
+		// This ensures that stageImageIDs has the base stage's output image's ID before buildStageLabelLine reads it
 		if isStage, err := b.waitForStage(ctx, base, stages[:stageIndex]); isStage && err != nil {
 			return "", nil, false, fmt.Errorf("waiting for base stage %s: %w", base, err)
 		}
@@ -693,13 +689,10 @@ func (b *executor) buildStage(ctx context.Context, cleanupStages map[int]*stageE
 		return "", nil, onlyBaseImage, err
 	}
 
-	// Store image ID for this stage so subsequent stages can reference it in labels
+	// Store image ID for this stage's result so subsequent stages can reference it in labels
 	if imageID != "" {
 		b.stagesLock.Lock()
-		if stage.Name != "" {
-			b.stageImageIDs[stage.Name] = imageID
-		}
-		b.stageImageIDs[strconv.Itoa(stageIndex)] = imageID
+		b.stageImageIDs[stageIndex] = imageID
 		b.stagesLock.Unlock()
 	}
 
@@ -742,17 +735,12 @@ func (b *executor) buildStageLabelLine(stage *imagebuilder.Stage, base string, s
 	// Check if base of the stage is another (previous) stage.
 	// If yes, base is set as image ID of this stage.
 	// If not original base name is set (pullspec).
-	for i, st := range stages {
-		if st.Name == base || strconv.Itoa(st.Position) == base {
-			b.stagesLock.Lock()
-			if imgID, ok := b.stageImageIDs[base]; ok {
-				base = imgID
-			} else if imgID, ok := b.stageImageIDs[strconv.Itoa(i)]; ok {
-				base = imgID
-			}
-			b.stagesLock.Unlock()
-			break
+	if otherStageIndex, _ := b.stageIndex(base, stages); otherStageIndex != -1 {
+		b.stagesLock.Lock()
+		if imgID, ok := b.stageImageIDs[otherStageIndex]; ok {
+			base = imgID
 		}
+		b.stagesLock.Unlock()
 	}
 	labelLine += fmt.Sprintf(" %q=%q", "io.buildah.stage.base", base)
 	return labelLine
@@ -892,7 +880,8 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	// dependencyInfo is used later to work out if a particular stage is
 	// needed by the target stage.
 	dependencyMap := make(map[string]*stageDependencyInfo)
-	// Initialize afterDependency map to track --after= dependency per stage
+	// Initialize afterDependency map to track --after= dependency per stage, mapping
+	// from a stage's index to the index of the one it's supposed to be built "after"
 	afterDependency := make(map[int]int)
 	// Build maps of every named base image and every referenced stage root
 	// filesystem.  Individual stages can use them to determine whether or
@@ -940,7 +929,6 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							logrus.Debugf("base for stage %d: %q resolves to %q", stageIndex, base, baseWithArg)
 							// Check if selected base is not an additional
 							// build context and if base is a valid stage
-							// add it to current stage's dependency tree.
 							if _, ok := b.additionalBuildContexts[baseWithArg]; !ok {
 								if _, ok := dependencyMap[baseWithArg]; ok {
 									// update current stage's dependency info
@@ -955,7 +943,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// only allow one --after flag per FROM for now; nothing necessarily
 							// semantically wrong with multiple --after, but keeping it conservative until a
 							// use case shows up
-							if _, exists := b.afterDependency[stage.Name]; exists {
+							if _, exists := afterDependency[stage.Position]; exists {
 								return "", nil, fmt.Errorf("FROM --after=%s: only one --after flag is allowed per FROM instruction", after)
 							}
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
@@ -969,30 +957,28 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for --after=%q: %w", after, err)
 							}
-							// If --after=<index> convert index to name
-							if index, err := strconv.Atoi(afterResolved); err == nil && index >= 0 && index < stageIndex {
-								afterResolved = stages[index].Name
-							}
 							depInfo, ok := dependencyMap[afterResolved]
 							if !ok {
 								return "", nil, fmt.Errorf("FROM --after=%s: stage %q not found", after, afterResolved)
-							} else if depInfo.Position >= stageIndex {
+							}
+							if depInfo.Position >= stageIndex {
 								return "", nil, fmt.Errorf("FROM --after=%s: cannot depend on later stage %q", after, afterResolved)
 							}
-							// Mark the stage as a dep so we actually build it
-							currentStageInfo.Needs = append(currentStageInfo.Needs, afterResolved)
-							// And mark it on the stage executor itself so it knows to wait before even pulling
+							// Mark the stage as a dep so we don't skip
+							// building it
+							currentStageInfo.Needs = append(currentStageInfo.Needs, strconv.Itoa(depInfo.Position))
+							// And mark it for the stage executor itself
+							// so it knows to wait before even starting
 							afterDependency[stage.Position] = depInfo.Position
 							logrus.Debugf("stage %d: explicit dependency on %q(%d) via --after", stageIndex, afterResolved, depInfo.Position)
 						}
 					}
 				case "ADD", "COPY":
 					for _, flag := range child.Flags { // flags for this instruction
-						if after, ok := strings.CutPrefix(flag, "--from="); ok {
+						if copyFrom, ok := strings.CutPrefix(flag, "--from="); ok {
 							// Populate dependency tree and check
 							// if following ADD or COPY needs any other
 							// stage.
-							stageName := after
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
@@ -1000,26 +986,28 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// ProcessWord uses first match; put highest priority first so
 							// --build-arg overrides stage ARG overrides header ARG overrides builtin.
 							userArgs = slices.Concat(userArgs, localScopeArgs, headingArgs, builtinArgs)
-							baseWithArg, err := imagebuilder.ProcessWord(stageName, userArgs)
+							copyFromWithArg, err := imagebuilder.ProcessWord(copyFrom, userArgs)
 							if err != nil {
-								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", stageName, err)
+								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", copyFrom, err)
 							}
-							if baseWithArg != "" {
-								b.rootfsMap[baseWithArg] = struct{}{}
-							}
-							logrus.Debugf("stage %d name: %q resolves to %q", stageIndex, stageName, baseWithArg)
-							stageName = baseWithArg
-							// If --from=<index> convert index to name
-							if index, err := strconv.Atoi(stageName); err == nil && index >= 0 && index < stageIndex {
-								stageName = stages[index].Name
-							}
-							// Check if selected base is not an additional
-							// build context and if base is a valid stage
-							// add it to current stage's dependency tree.
-							if _, ok := b.additionalBuildContexts[stageName]; !ok {
-								if _, ok := dependencyMap[stageName]; ok {
+							logrus.Debugf("stage %d name: %q resolves to %q", stageIndex, copyFrom, copyFromWithArg)
+							// Check if this "from" is a stage; add it
+							// to the current stage's dependency tree
+							// unless it's been replaced by an
+							// additional context.
+							if _, ok := b.additionalBuildContexts[copyFromWithArg]; !ok {
+								// Treat the "from" as a rootfs we need to preserve
+								if otherStageIndex, _ := b.stageIndex(copyFromWithArg, stages[:stageIndex]); otherStageIndex != -1 {
+									b.rootfsMap[otherStageIndex] = struct{}{}
 									// update current stage's dependency info
-									currentStageInfo.Needs = append(currentStageInfo.Needs, stageName)
+									depInfo, ok := dependencyMap[copyFromWithArg]
+									if !ok {
+										return "", nil, fmt.Errorf("COPY --from=%s: stage %q not found", copyFrom, copyFromWithArg)
+									}
+									if depInfo.Position >= stageIndex {
+										return "", nil, fmt.Errorf("COPY --from=%s: cannot depend on later stage %q", copyFrom, copyFromWithArg)
+									}
+									currentStageInfo.Needs = append(currentStageInfo.Needs, strconv.Itoa(otherStageIndex))
 								}
 							}
 						}
@@ -1041,11 +1029,9 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 						// if it is using `--mount` and `from=` field is set
 						// and `from=` points to a stage consider it in
 						// dependency calculation.
-						if strings.HasPrefix(flag, "--mount=") && strings.Contains(flag, "from") {
-							mountFlags := strings.TrimPrefix(flag, "--mount=")
-							fields := strings.SplitSeq(mountFlags, ",")
-							for field := range fields {
-								if mountFrom, hasFrom := strings.CutPrefix(field, "from="); hasFrom {
+						if mountFlags, ok := strings.CutPrefix(flag, "--mount="); ok {
+							for field := range strings.SplitSeq(mountFlags, ",") {
+								if mountFrom, ok := strings.CutPrefix(field, "from="); ok {
 									builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 									headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 									userArgs := argsMapToSlice(stage.Builder.Args)
@@ -1057,15 +1043,15 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 									if err != nil {
 										return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", mountFrom, err)
 									}
-									// Check if this base is a stage if yes
+									// Check if this "from" is a stage; if yes
 									// add base to current stage's dependency tree
 									// unless it's been replaced by an additional context.
 									if _, ok := b.additionalBuildContexts[mountFromWithArg]; !ok {
-										// Treat from as a rootfs we need to preserve
-										b.rootfsMap[mountFromWithArg] = struct{}{}
-										if _, ok := dependencyMap[mountFromWithArg]; ok {
+										// Treat the "from" as a rootfs we need to preserve
+										if mountStageIndex, _ := b.stageIndex(mountFromWithArg, stages[:stageIndex]); mountStageIndex != -1 {
+											b.rootfsMap[mountStageIndex] = struct{}{}
 											// update current stage's dependency info
-											currentStageInfo.Needs = append(currentStageInfo.Needs, mountFromWithArg)
+											currentStageInfo.Needs = append(currentStageInfo.Needs, strconv.Itoa(mountStageIndex))
 										}
 									}
 								}
@@ -1076,10 +1062,8 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			}
 			node = node.Next // next line
 		}
-		// Last stage is always target stage.
-		// Since last/target stage is processed
-		// let's calculate dependency map of stages
-		// so we can mark stages which can be skipped.
+		// Last stage is always target stage.  Since last/target stage is processed let's
+		// calculate dependency map of stages so we can mark stages which can be skipped.
 		if stage.Position == (len(stages) - 1) {
 			markDependencyStagesForTarget(dependencyMap, stage.Name)
 		}
@@ -1183,8 +1167,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		stage := stages[r.Index]
 
 		b.stagesLock.Lock()
-		b.terminatedStage[stage.Name] = r.Error
-		b.terminatedStage[strconv.Itoa(stage.Position)] = r.Error
+		b.terminatedStage[stage.Position] = r.Error
 
 		if r.Error != nil {
 			b.stagesLock.Unlock()
@@ -1195,7 +1178,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// If this is an intermediate stage, make a note of the ID, so
 		// that we can look it up later.
 		if r.Index < len(stages)-1 && r.ImageID != "" {
-			b.imageMap[stage.Name] = r.ImageID
+			b.imageMap[stage.Position] = r.ImageID
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.
