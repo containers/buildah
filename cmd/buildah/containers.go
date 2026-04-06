@@ -80,6 +80,7 @@ func containersInit() {
 		Example: `buildah containers
   buildah containers --format "{{.ContainerID}} {{.ContainerName}}"
   buildah containers -q --noheading --notruncate`,
+		GroupID: groupContainers,
 	}
 	containersCommand.SetUsageTemplate(UsageTemplate())
 

@@ -30,6 +30,7 @@ func rmInit() {
 		Example: `buildah rm containerID
   buildah rm containerID1 containerID2 containerID3
   buildah rm --all`,
+		GroupID: groupContainers,
 	}
 	rmCommand.SetUsageTemplate(UsageTemplate())
 

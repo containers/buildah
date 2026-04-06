@@ -86,6 +86,7 @@ func imagesInit() {
 		Example: `buildah images --all
   buildah images [imageName]
   buildah images --format '{{.ID}} {{.Name}} {{.Size}} {{.CreatedAtRaw}}'`,
+		GroupID: groupImages,
 	}
 	imagesCommand.SetUsageTemplate(UsageTemplate())
 

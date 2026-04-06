@@ -51,6 +51,7 @@ func pullInit() {
 		Example: `buildah pull imagename
   buildah pull docker-daemon:imagename:imagetag
   buildah pull myregistry/myrepository/imagename:imagetag`,
+		GroupID: groupImages,
 	}
 	pullCommand.SetUsageTemplate(UsageTemplate())
 

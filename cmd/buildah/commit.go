@@ -87,6 +87,7 @@ func commitInit() {
 		Example: `buildah commit containerID
   buildah commit containerID newImageName
   buildah commit containerID docker://localhost:5000/imageId`,
+		GroupID: groupContainers,
 	}
 	commitCommand.SetUsageTemplate(UsageTemplate())
 	commitListFlagSet(commitCommand, &opts)

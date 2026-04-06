@@ -69,6 +69,7 @@ func mkcwInit() {
 		},
 		Example: `buildah mkcw localhost/repository:typical localhost/repository:cw`,
 		Args:    cobra.ExactArgs(2),
+		GroupID: groupImages,
 	}
 	mkcwCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(mkcwCommand)

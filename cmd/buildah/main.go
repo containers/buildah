@@ -23,6 +23,21 @@ import (
 	"go.podman.io/storage/pkg/unshare"
 )
 
+const (
+	// command group IDs
+	groupImages     = "images"
+	groupContainers = "containers"
+	groupRegistries = "registries"
+	groupSystem     = "system"
+)
+
+var commandGroups = []*cobra.Group{
+	{ID: groupImages, Title: "Image Commands:"},
+	{ID: groupContainers, Title: "Container Commands:"},
+	{ID: groupRegistries, Title: "Registry Commands:"},
+	{ID: groupSystem, Title: "System Commands:"},
+}
+
 type globalFlags struct {
 	Debug                      bool
 	LogLevel                   string
@@ -122,6 +137,7 @@ func mainInit() {
 	if err := rootCmd.PersistentFlags().MarkHidden("memory-profile"); err != nil {
 		logrus.Fatalf("unable to mark memory-profile flag as hidden: %v", err)
 	}
+	rootCmd.AddGroup(commandGroups...)
 }
 
 func initConfig() {

@@ -50,6 +50,7 @@ func versionInit() {
 		},
 		Args:    cobra.NoArgs,
 		Example: `buildah version`,
+		GroupID: groupSystem,
 	}
 	versionCommand.SetUsageTemplate(UsageTemplate())
 

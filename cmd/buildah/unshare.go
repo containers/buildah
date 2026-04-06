@@ -26,6 +26,7 @@ var (
 		Example: `buildah unshare id
   buildah unshare cat /proc/self/uid_map
   buildah unshare buildah-script.sh`,
+		GroupID: groupSystem,
 	}
 	unshareMounts []string
 )

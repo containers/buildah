@@ -18,7 +18,8 @@ var (
 
 		Example: `buildah tag imageName firstNewName
   buildah tag imageName firstNewName SecondNewName`,
-		Args: cobra.MinimumNArgs(2),
+		Args:    cobra.MinimumNArgs(2),
+		GroupID: groupImages,
 	}
 )
 

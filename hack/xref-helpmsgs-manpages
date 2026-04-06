@@ -185,13 +185,15 @@ sub tool_help {
     while (my $line = <$fh>) {
         # Cobra is blessedly consistent in its output:
         #    Usage: ...
-        #    Available Commands:
+        #    [Group .Title] (ours always match "\w+\s+Commands:")
+        #       ....
+        #    Additional Commands:
         #       ....
         #    Flags:
         #       ....
         #
         # Start by identifying the section we're in...
-        if ($line =~ /^Available\s+(Commands):/) {
+        if ($line =~ /^\w+\s+(Commands):/) {
             $section = lc $1;
         }
         elsif ($line =~ /^(Flags):/) {

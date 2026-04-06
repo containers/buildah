@@ -58,6 +58,7 @@ func fromInit() {
 		Example: `buildah from --pull imagename
   buildah from docker-daemon:imagename:imagetag
   buildah from --name "myimagename" myregistry/myrepository/imagename:imagetag`,
+		GroupID: groupContainers,
 	}
 	fromCommand.SetUsageTemplate(UsageTemplate())
 

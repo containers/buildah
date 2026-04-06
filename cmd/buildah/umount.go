@@ -13,12 +13,13 @@ func umountInit() {
 	umountCommand := &cobra.Command{
 		Use:     "umount",
 		Aliases: []string{"unmount"},
-		Short:   "Unmount the root file system of the specified working containers",
+		Short:   "Unmount the root file system of one or more working containers",
 		Long:    "Unmounts the root file system of the specified working containers.",
 		RunE:    umountCmd,
 		Example: `buildah umount containerID
   buildah umount containerID1 containerID2 containerID3
   buildah umount --all`,
+		GroupID: groupContainers,
 	}
 	umountCommand.SetUsageTemplate(UsageTemplate())
 
