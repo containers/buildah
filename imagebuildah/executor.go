@@ -466,19 +466,37 @@ func (b *executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	return imageRef, err
 }
 
-// waitForStage waits for an entry to be added to terminatedStage indicating
-// that the specified stage has finished.  If there is no stage defined by that
-// name, then it will return (false, nil).  If there is a stage defined by that
-// name, it will return true along with any error it encounters.
-func (b *executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, error) {
-	found := false
-	for _, otherStage := range stages {
-		if otherStage.Name == name || strconv.Itoa(otherStage.Position) == name {
-			found = true
-			break
+// stageIndex locates a stage by a string which can be either its name or its
+// position, returning the position and the corresponding stageExecutor if a
+// match is found.  If not, it returns -1 and nil.  Acquires b.stagesLock, as
+// we expect stages to be b.stages or a subslice of it.
+func (b *executor) stageIndex(nameOrIndex string, stages imagebuilder.Stages) (int, *stageExecutor) {
+	b.stagesLock.Lock()
+	defer b.stagesLock.Unlock()
+	return b.stageIndexUnlocked(nameOrIndex, stages)
+}
+
+// stageIndex locates a stage by a string which can be either its name or its
+// position, returning the position and the corresponding stageExecutor if a
+// match is found.  If not, it returns -1 and nil.  The caller should acquire
+// b.stagesLock before calling this method.
+func (b *executor) stageIndexUnlocked(nameOrIndex string, stages imagebuilder.Stages) (int, *stageExecutor) {
+	for _, otherStage := range slices.Backward(stages) {
+		if otherStage.Name == nameOrIndex || strconv.Itoa(otherStage.Position) == nameOrIndex {
+			return otherStage.Position, b.stages[strconv.Itoa(otherStage.Position)]
 		}
 	}
-	if !found {
+	return -1, nil
+}
+
+// waitForStage waits for an entry to be added to terminatedStage indicating
+// that the last stage with the specified name has finished.  If there is no
+// stage defined by that name, then it will return (false, -1, nil).  If there
+// is a stage defined by that name, it will return true along with the stage's
+// index and any error it encounters.
+func (b *executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, error) {
+	otherStageIndex, _ := b.stageIndex(name, stages)
+	if otherStageIndex == -1 {
 		return false, nil
 	}
 	for {
