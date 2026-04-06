@@ -987,11 +987,8 @@ func (s *stageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 	if s.executor.sourcePolicy != nil && from != "scratch" {
 		// Check if 'from' references a previous stage by name, index, or image ID
 		isStageRef := false
-		for i, st := range s.stages[:s.index] {
-			if st.Name == from || strconv.Itoa(i) == from {
-				isStageRef = true
-				break
-			}
+		if stageIndex, _ := s.executor.stageIndex(from, s.stages[:s.index]); stageIndex != -1 {
+			isStageRef = true
 		}
 		// Also check if 'from' is an image ID that was created by a previous stage
 		// (this happens when execute() resolves stage names to image IDs before calling prepare)
