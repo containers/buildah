@@ -886,9 +886,11 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 	}()
 
-	// dependencyMap contains dependencyInfo for each stage,
-	// dependencyInfo is used later to mark if a particular
-	// stage is needed by target or not.
+	// dependencyMap contains dependencyInfo for each stage, indexed by
+	// both position and name (where name naturally points to the most
+	// recently processed stage with that name, if names are reused).
+	// dependencyInfo is used later to work out if a particular stage is
+	// needed by the target stage.
 	dependencyMap := make(map[string]*stageDependencyInfo)
 	// Initialize afterDependency map to track --after= dependency per stage
 	afterDependency := make(map[int]int)
@@ -896,7 +898,12 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	// filesystem.  Individual stages can use them to determine whether or
 	// not they can skip certain steps near the end of their stages.
 	for stageIndex, stage := range stages {
-		dependencyMap[stage.Name] = &stageDependencyInfo{Name: stage.Name, Position: stage.Position}
+		currentStageInfo := &stageDependencyInfo{Name: stage.Name, Position: stage.Position}
+		idx := strconv.Itoa(stage.Position)
+		dependencyMap[idx] = currentStageInfo
+		if stage.Name != idx {
+			dependencyMap[stage.Name] = currentStageInfo
+		}
 		stageLocalScopeArgs := make(map[string]string)
 		node := stage.Node // first line
 		for node != nil {  // each line
@@ -937,7 +944,6 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							if _, ok := b.additionalBuildContexts[baseWithArg]; !ok {
 								if _, ok := dependencyMap[baseWithArg]; ok {
 									// update current stage's dependency info
-									currentStageInfo := dependencyMap[stage.Name]
 									currentStageInfo.Needs = append(currentStageInfo.Needs, baseWithArg)
 								}
 							}
@@ -974,7 +980,6 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 								return "", nil, fmt.Errorf("FROM --after=%s: cannot depend on later stage %q", after, afterResolved)
 							}
 							// Mark the stage as a dep so we actually build it
-							currentStageInfo := dependencyMap[stage.Name]
 							currentStageInfo.Needs = append(currentStageInfo.Needs, afterResolved)
 							// And mark it on the stage executor itself so it knows to wait before even pulling
 							afterDependency[stage.Position] = depInfo.Position
@@ -1014,7 +1019,6 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							if _, ok := b.additionalBuildContexts[stageName]; !ok {
 								if _, ok := dependencyMap[stageName]; ok {
 									// update current stage's dependency info
-									currentStageInfo := dependencyMap[stage.Name]
 									currentStageInfo.Needs = append(currentStageInfo.Needs, stageName)
 								}
 							}
@@ -1055,13 +1059,12 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 									}
 									// Check if this base is a stage if yes
 									// add base to current stage's dependency tree
-									// but also confirm if this is not in additional context.
+									// unless it's been replaced by an additional context.
 									if _, ok := b.additionalBuildContexts[mountFromWithArg]; !ok {
 										// Treat from as a rootfs we need to preserve
 										b.rootfsMap[mountFromWithArg] = struct{}{}
 										if _, ok := dependencyMap[mountFromWithArg]; ok {
 											// update current stage's dependency info
-											currentStageInfo := dependencyMap[stage.Name]
 											currentStageInfo.Needs = append(currentStageInfo.Needs, mountFromWithArg)
 										}
 									}
@@ -1141,7 +1144,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				// is not set to `false`.
 				if stageDependencyInfo, ok := dependencyMap[stages[index].Name]; ok {
 					if !stageDependencyInfo.NeededByTarget && b.skipUnusedStages != types.OptionalBoolFalse {
-						logrus.Debugf("Skipping stage with Name %q and index %d since its not needed by the target stage", stages[index].Name, index)
+						logrus.Debugf("Skipping stage with name %q and index %d since it's not needed by the target stage", stages[index].Name, index)
 						ch <- Result{
 							Index: index,
 							Error: nil,
