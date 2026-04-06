@@ -181,6 +181,8 @@ github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJ
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee h1:W5t00kpgFdJifH4BDsTlE89Zl93FEloxaWZfGcifgq8=
 github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
+github.com/nalind/openshift-imagebuilder v0.0.0-20260323194513-7ddaacf5cc8c h1:+lZ0xH++DP7nYgvu18ZoNmhqf7WKxrobfpOur7WpncU=
+github.com/nalind/openshift-imagebuilder v0.0.0-20260323194513-7ddaacf5cc8c/go.mod h1:KyPwIOzCzleBWdDmApxog8sj2SO9l5g4IWPv7S67Fgs=
 github.com/onsi/ginkgo/v2 v2.28.1 h1:S4hj+HbZp40fNKuLUQOYLDgZLwNUVn19N3Atb98NCyI=
 github.com/onsi/ginkgo/v2 v2.28.1/go.mod h1:CLtbVInNckU3/+gC8LzkGUb9oF+e8W8TdUsxPwvdOgE=
 github.com/onsi/gomega v1.39.1 h1:1IJLAad4zjPn2PsnhH70V4DKRFlrCzGBNrNaru+Vf28=
@@ -199,8 +201,6 @@ github.com/opencontainers/runtime-tools v0.9.1-0.20260316125833-8a4db579f5c8 h1:
 github.com/opencontainers/runtime-tools v0.9.1-0.20260316125833-8a4db579f5c8/go.mod h1:DKDEfzxvRkoQ6n9TGhxQgg2IM1lY4aM0eaQP4e3oElw=
 github.com/opencontainers/selinux v1.13.1 h1:A8nNeceYngH9Ow++M+VVEwJVpdFmrlxsN22F+ISDCJE=
 github.com/opencontainers/selinux v1.13.1/go.mod h1:S10WXZ/osk2kWOYKy1x2f/eXF5ZHJoUs8UU/2caNRbg=
-github.com/openshift/imagebuilder v1.2.20 h1:oMGLqJ9Z3xHitzBCL+HECg/c9KCV/Rh7IKJqbSaBnqk=
-github.com/openshift/imagebuilder v1.2.20/go.mod h1:KyPwIOzCzleBWdDmApxog8sj2SO9l5g4IWPv7S67Fgs=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 h1:GFCKgmp0tecUJ0sJuv4pzYCqS9+RGSn52M3FUwPs+uo=
