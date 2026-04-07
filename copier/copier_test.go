@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -2661,4 +2662,51 @@ func TestTarPut(t *testing.T) {
 			require.Equal(t, "hello world", string(content), "extracted file content mismatch")
 		})
 	}
+}
+
+func TestCannotChangeMultipleRequestsWithDifferentChroot(t *testing.T) {
+	testDir := t.TempDir()
+
+	stdinR, stdinW, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, stdinR.Close())
+		assert.NoError(t, stdinW.Close())
+	})
+
+	stdoutR, stdoutW, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, stdoutR.Close())
+		assert.NoError(t, stdoutW.Close())
+	})
+
+	stderr := bytes.Buffer{}
+
+	cmd := reexec.Command(copierCommand)
+	cmd.Stdin = stdinR
+	cmd.Stdout = stdoutW
+	cmd.Stderr = &stderr
+	cmd.Dir = testDir
+
+	require.NoError(t, cmd.Start())
+
+	encoder := json.NewEncoder(stdinW)
+	decoder := json.NewDecoder(stdoutR)
+
+	req := request{Request: requestEval, Root: testDir, Directory: "/"}
+	var resp response
+
+	require.NoError(t, encoder.Encode(&req), "failed to send first request to copier")
+	require.NoError(t, stdoutR.SetReadDeadline(time.Now().Add(time.Second*5)))
+	require.NoError(t, decoder.Decode(&resp), "failed to decode response from copier")
+	require.Empty(t, resp.Error, "first request returned an error: %s", resp.Error)
+
+	require.NoError(t, encoder.Encode(&req), "failed to send second request to copier")
+	require.NoError(t, stdoutR.SetReadDeadline(time.Now().Add(time.Second*5)))
+	require.NoErrorf(t, decoder.Decode(&resp), "failed to decode response from copier: %s", stderr.String())
+	require.Empty(t, resp.Error, "second request returned an error: %s", resp.Error)
+
+	require.NoError(t, encoder.Encode(&request{Request: requestQuit}))
+	require.NoError(t, cmd.Wait())
 }
