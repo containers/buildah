@@ -173,3 +173,31 @@ EOF
     expect_output --substring "retry.*\(default 10\)"
     expect_output --substring "retry-delay.*\(default \"5s\"\)"
 }
+
+
+@test "containers.conf engine.platform" {
+    cat >${TEST_SCRATCH_DIR}/containers.conf << EOF
+[engine]
+platform = "linux/arm64"
+EOF
+    local context="$TEST_SCRATCH_DIR"/context
+    mkdir -p "$context"
+    cat > "$context"/Containerfile << _EOF
+FROM scratch
+COPY . .
+_EOF
+
+    # Build with the custom containers.conf and push to an OCI layout
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah build \
+        $WITH_POLICY_JSON -t localhost/testplatform \
+        -f "$context"/Containerfile "$context"
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah push \
+        $WITH_POLICY_JSON localhost/testplatform oci:"$TEST_SCRATCH_DIR"/output
+
+    # Verify the image platform matches what we set in containers.conf
+    local config="$TEST_SCRATCH_DIR"/output/$(oci_image_config "$TEST_SCRATCH_DIR"/output)
+    run jq -r '.os' "$config"
+    assert "$output" = "linux" "os should be linux"
+    run jq -r '.architecture' "$config"
+    assert "$output" = "arm64" "architecture should be arm64"
+}
