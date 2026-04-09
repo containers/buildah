@@ -1375,7 +1375,12 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 				}
 				addedParents[parentName] = struct{}{}
 
-				if err := copierHandlerGetOne(parentInfo, "", parentName, parent, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
+				parentSymlinkTarget, err := getTargetIfSymlink(parent, parentInfo)
+				if err != nil {
+					return fmt.Errorf("copier: get: %w", err)
+				}
+
+				if err := copierHandlerGetOne(parentInfo, parentSymlinkTarget, parentName, parent, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
 					if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
 						continue
 					} else if errors.Is(err, os.ErrNotExist) {
@@ -1535,7 +1540,12 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 					}
 				}
 
-				if err := copierHandlerGetOne(info, "", name, item, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
+				symlinkTarget, err := getTargetIfSymlink(item, info)
+				if err != nil {
+					return fmt.Errorf("copier: get: %w", err)
+				}
+
+				if err := copierHandlerGetOne(info, symlinkTarget, name, item, req.GetOptions, tw, hardlinkChecker, idMappings); err != nil {
 					if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
 						continue
 					}
@@ -1596,6 +1606,14 @@ func mapWithPrefixedKeysWithoutKeyPrefix[K any](m map[string]K, p string) map[st
 		}
 	}
 	return cloned
+}
+
+func getTargetIfSymlink(path string, info os.FileInfo) (string, error) {
+	if info.Mode()&os.ModeType == os.ModeSymlink {
+		return os.Readlink(path)
+	}
+
+	return "", nil
 }
 
 func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath string, options GetOptions, tw *tar.Writer, hardlinkChecker *hardlinkChecker, idMappings *idtools.IDMappings) error {
