@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/idtools"
 	"go.podman.io/storage/pkg/reexec"
 )
@@ -1649,9 +1650,11 @@ func TestMkdirNoChroot(t *testing.T) {
 
 func testMkdir(t *testing.T) {
 	type testCase struct {
-		name   string
-		create string
-		expect []string
+		name        string
+		create      string
+		makeParents types.OptionalBool
+		fail        bool
+		expect      []string
 	}
 	testArchives := []struct {
 		name      string
@@ -1738,6 +1741,35 @@ func testMkdir(t *testing.T) {
 					create: "/../intermediate/../final",
 					expect: []string{"final"},
 				},
+				{
+					name:        "basic-no-make-parents",
+					create:      "subdir-d",
+					makeParents: types.OptionalBoolFalse,
+					expect:      []string{"subdir-d"},
+				},
+				{
+					name:        "subdir-no-make-parents",
+					create:      "subdir-d/subdir-e/subdir-f",
+					makeParents: types.OptionalBoolFalse,
+					fail:        true,
+				},
+				{
+					name:        "subdir-make-parents-true",
+					create:      "subdir-d/subdir-e/subdir-f",
+					makeParents: types.OptionalBoolTrue,
+					expect:      []string{"subdir-d", "subdir-d/subdir-e", "subdir-d/subdir-e/subdir-f"},
+				},
+				{
+					name:        "nested-no-make-parents-parents-exist",
+					create:      "subdir-a/subdir-b/subdir-d",
+					makeParents: types.OptionalBoolFalse,
+					expect:      []string{"subdir-a/subdir-b/subdir-d"},
+				},
+				{
+					name:        "existing-no-make-parents",
+					create:      "subdir-a",
+					makeParents: types.OptionalBoolFalse,
+				},
 			},
 		},
 	}
@@ -1748,7 +1780,10 @@ func testMkdir(t *testing.T) {
 					dir, err := makeContextFromArchive(t, makeArchive(testArchives[i].headers, nil), "")
 					require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
 					root := dir
-					options := MkdirOptions{ChownNew: &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}}
+					options := MkdirOptions{
+						ChownNew:    &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()},
+						MakeParents: testCase.makeParents,
+					}
 					var beforeNames, afterNames []string
 					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {
@@ -1763,6 +1798,10 @@ func testMkdir(t *testing.T) {
 					})
 					require.NoErrorf(t, err, "error walking directory to catalog pre-Mkdir contents: %v", err)
 					err = Mkdir(root, testCase.create, options)
+					if testCase.fail {
+						require.Errorf(t, err, "expected error creating directory %q under %q with Mkdir", testCase.create, root)
+						return
+					}
 					require.NoErrorf(t, err, "error creating directory %q under %q with Mkdir: %v", testCase.create, root, err)
 					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {
