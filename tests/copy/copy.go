@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/containers/buildah"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -21,6 +20,7 @@ import (
 	"go.podman.io/image/v5/transports/alltransports"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/reexec"
 	"go.podman.io/storage/pkg/unshare"
 )
 
@@ -33,7 +33,7 @@ func main() {
 	var manifestFormat string
 	compressionLevel := -1
 
-	if buildah.InitReexec() {
+	if reexec.Init() {
 		return
 	}
 

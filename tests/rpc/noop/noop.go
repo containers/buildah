@@ -9,18 +9,18 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	noop "github.com/containers/buildah/internal/rpc/noop/pb"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/storage/pkg/reexec"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
-	if buildah.InitReexec() {
+	if reexec.Init() {
 		return
 	}
 
