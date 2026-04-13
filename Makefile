@@ -143,10 +143,22 @@ codespell:
 	codespell -w
 
 .PHONY: validate
-validate: install.tools
+validate: install.tools lint-entrypoint
 	./tests/validate/whitespace.sh
 	./hack/xref-helpmsgs-manpages
 	./tests/validate/pr-should-include-tests
+
+.PHONY: lint-entrypoint
+lint-entrypoint:
+	@tmp=$$(mktemp) ; \
+	zcat internal/mkcw/embed/entrypoint_amd64.gz > "$$tmp" ; \
+	if readelf -S "$$tmp" | grep -qE '\.go\.|gopclntab'; then \
+		echo "FAIL: entrypoint_amd64.gz was built using Go fallback path" ; \
+		rm -f "$$tmp" ; \
+		exit 1 ; \
+	fi ; \
+	echo "OK: entrypoint_amd64.gz was built using native assembler" ; \
+	rm -f "$$tmp"
 
 .PHONY: install.tools
 install.tools:
