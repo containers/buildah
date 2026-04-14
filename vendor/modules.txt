@@ -454,8 +454,8 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# go.podman.io/common v0.67.1-0.20260325203629-8af78737e8bb
-## explicit; go 1.25.6
+# go.podman.io/common v0.67.1-0.20260325203629-8af78737e8bb => github.com/TrevorBurnham/container-libs/common v0.0.0-20260225192346-ebad6b016844
+## explicit; go 1.24.6
 go.podman.io/common/internal
 go.podman.io/common/libimage
 go.podman.io/common/libimage/define
@@ -505,8 +505,8 @@ go.podman.io/common/pkg/umask
 go.podman.io/common/pkg/util
 go.podman.io/common/pkg/version
 go.podman.io/common/version
-# go.podman.io/image/v5 v5.39.2-0.20260325203629-8af78737e8bb
-## explicit; go 1.25.6
+# go.podman.io/image/v5 v5.39.2-0.20260325203629-8af78737e8bb => github.com/TrevorBurnham/container-libs/image/v5 v5.0.0-20260225192346-ebad6b016844
+## explicit; go 1.24.6
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
 go.podman.io/image/v5/directory/explicitfilepath
@@ -574,8 +574,8 @@ go.podman.io/image/v5/transports
 go.podman.io/image/v5/transports/alltransports
 go.podman.io/image/v5/types
 go.podman.io/image/v5/version
-# go.podman.io/storage v1.62.1-0.20260325203629-8af78737e8bb
-## explicit; go 1.25.0
+# go.podman.io/storage v1.62.1-0.20260325203629-8af78737e8bb => github.com/TrevorBurnham/container-libs/storage v0.0.0-20260225192346-ebad6b016844
+## explicit; go 1.24.0
 go.podman.io/storage
 go.podman.io/storage/drivers
 go.podman.io/storage/drivers/btrfs
@@ -821,3 +821,6 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# go.podman.io/common => github.com/TrevorBurnham/container-libs/common v0.0.0-20260225192346-ebad6b016844
+# go.podman.io/image/v5 => github.com/TrevorBurnham/container-libs/image/v5 v5.0.0-20260225192346-ebad6b016844
+# go.podman.io/storage => github.com/TrevorBurnham/container-libs/storage v0.0.0-20260225192346-ebad6b016844

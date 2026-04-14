@@ -12,6 +12,12 @@ github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
+github.com/TrevorBurnham/container-libs/common v0.0.0-20260225192346-ebad6b016844 h1:QmZVSHJsbBqCfkPoW1yVQ2tWCb3MEGXPGaBBaGqGNmM=
+github.com/TrevorBurnham/container-libs/common v0.0.0-20260225192346-ebad6b016844/go.mod h1:0DeDsVv70xdub5XMurYkseMEwQQ2NdwtG1+Es24VzX4=
+github.com/TrevorBurnham/container-libs/image/v5 v5.0.0-20260225192346-ebad6b016844 h1:wTuMtjFpbFLFhkxsrzLrfhvagYPcIssZFWJN3+LRGic=
+github.com/TrevorBurnham/container-libs/image/v5 v5.0.0-20260225192346-ebad6b016844/go.mod h1:aOKcsA9y3xfvAW5jGk8evBoQyJGJzhOIrXjwc4iRXcw=
+github.com/TrevorBurnham/container-libs/storage v0.0.0-20260225192346-ebad6b016844 h1:bYgfHmfH4oQ3K/jKtbLeicAQBASMhEyjRBPFJRXVZV0=
+github.com/TrevorBurnham/container-libs/storage v0.0.0-20260225192346-ebad6b016844/go.mod h1:B83Ad8mtO0GZs7rEwb66f0Ed5G57NyKI/iJZHoJrpUE=
 github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1ow=
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
