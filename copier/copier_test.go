@@ -1842,11 +1842,12 @@ func TestRemoveNoChroot(t *testing.T) {
 
 func testRemove(t *testing.T) {
 	type testCase struct {
-		name    string
-		remove  string
-		all     bool
-		fail    bool
-		removed []string
+		name          string
+		remove        string
+		all           bool
+		allowNotFound bool
+		fail          bool
+		removed       []string
 	}
 	testArchives := []struct {
 		name      string
@@ -1875,16 +1876,49 @@ func testRemove(t *testing.T) {
 					removed: []string{"subdir-a/file-a"},
 				},
 				{
+					name:          "file-allow-not-found",
+					remove:        "subdir-a/file-a",
+					allowNotFound: true,
+					removed:       []string{"subdir-a/file-a"},
+				},
+				{
 					name:    "file-all",
 					remove:  "subdir-a/file-a",
 					all:     true,
 					removed: []string{"subdir-a/file-a"},
 				},
 				{
+					name:   "missing-file",
+					remove: "subdir-a/file-missing",
+					fail:   true,
+				},
+				{
+					name:          "missing-file-allow-not-found",
+					remove:        "subdir-a/file-missing",
+					allowNotFound: true,
+				},
+				{
+					name:   "missing-file-all",
+					remove: "subdir-a/file-missing",
+					all:    true,
+				},
+				{
+					name:          "missing-directory-allow-not-found",
+					remove:        "subdir-a/subdir-missing",
+					allowNotFound: true,
+				},
+				{
 					name:   "subdir",
 					remove: "subdir-a/subdir-b",
 					all:    false,
 					fail:   true,
+				},
+				{
+					name:          "subdir-allow-not-found",
+					remove:        "subdir-a/subdir-b",
+					allowNotFound: true,
+					all:           false,
+					fail:          true,
 				},
 				{
 					name:   "subdir-all",
@@ -1963,7 +1997,7 @@ func testRemove(t *testing.T) {
 					dir, err := makeContextFromArchive(t, makeArchive(testArchives[i].headers, nil), "")
 					require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
 					root := dir
-					options := RemoveOptions{All: testCase.all}
+					options := RemoveOptions{All: testCase.all, AllowNotFound: testCase.allowNotFound}
 					beforeNames := make(map[string]struct{})
 					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {

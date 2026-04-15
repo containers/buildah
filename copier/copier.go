@@ -516,7 +516,8 @@ func Mkdir(root string, directory string, options MkdirOptions) error {
 
 // RemoveOptions controls parts of Remove()'s behavior.
 type RemoveOptions struct {
-	All bool // if Directory is a directory, remove its contents as well
+	All           bool // if Directory is a directory, remove its contents as well
+	AllowNotFound bool // don't return an error if the item is already not present
 }
 
 // Remove removes the specified directory or item, traversing any intermediate
@@ -2274,6 +2275,9 @@ func copierHandlerRemove(req request) *response {
 		err = os.RemoveAll(resolvedTarget)
 	} else {
 		err = os.Remove(resolvedTarget)
+		if req.RemoveOptions.AllowNotFound && errors.Is(err, os.ErrNotExist) {
+			err = nil
+		}
 	}
 	if err != nil {
 		return errorResponse("copier: remove %q: %v", req.Directory, err)
