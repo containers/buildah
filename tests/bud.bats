@@ -5583,8 +5583,10 @@ EOM
   expect_output "$buildah_version"
 }
 
-@test "run check --from with arg" {
+@test "bud run check --from with arg" {
   skip_if_no_runtime
+
+  find_oci_runtime
 
   ${OCI} --version
   _prefetch alpine busybox
@@ -7853,6 +7855,8 @@ _EOF
 
   run_buildah build --group-add $id $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
   expect_output --substring "$id"
+
+  find_oci_runtime
 
   if is_rootless && has_supplemental_groups && ! [[ $OCI =~ runc ]]; then
      run_buildah build --group-add keep-groups $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}

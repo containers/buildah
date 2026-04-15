@@ -6,6 +6,9 @@ load helpers
 	skip_if_no_runtime
 
 	_prefetch alpine
+
+	find_oci_runtime
+
 	${OCI} --version
 	createrandom ${TEST_SCRATCH_DIR}/randomfile
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -262,6 +265,8 @@ function configure_and_check_user() {
 	run_buildah run $cid id -G
 	expect_output --substring "$id"
 
+	find_oci_runtime
+
 	if is_rootless && has_supplemental_groups && ! [[ $OCI =~ runc ]]; then
 	   run_buildah from --group-add keep-groups --quiet --pull=false $WITH_POLICY_JSON alpine
 	   cid=$output
@@ -276,6 +281,9 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
+
+	find_oci_runtime
+
 	${OCI} --version
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
@@ -289,6 +297,9 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
+
+	find_oci_runtime
+
 	${OCI} --version
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
@@ -316,6 +327,9 @@ function configure_and_check_user() {
 			zflag=z
 		fi
 	fi
+
+	find_oci_runtime
+
 	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -345,6 +359,9 @@ function configure_and_check_user() {
 			zflag=z
 		fi
 	fi
+
+	find_oci_runtime
+
 	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -422,6 +439,9 @@ function configure_and_check_user() {
 			zflag=,z
 		fi
 	fi
+
+	find_oci_runtime
+
 	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -487,6 +507,8 @@ function configure_and_check_user() {
 @test "run symlinks" {
 	skip_if_no_runtime
 
+	find_oci_runtime
+
 	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -499,6 +521,8 @@ function configure_and_check_user() {
 
 @test "run --cap-add/--cap-drop" {
 	skip_if_no_runtime
+
+	find_oci_runtime
 
 	${OCI} --version
 	_prefetch alpine
@@ -669,6 +693,8 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 	skip_if_in_container
 
+	find_oci_runtime
+
 	${OCI} --version
         # We use ubuntu image because it has no /etc/hosts file. This
         # allows the fake_host test below to be an equality check,
@@ -774,6 +800,8 @@ function configure_and_check_user() {
 @test "run check /etc/resolv.conf" {
         skip_if_rootless_environment
 	skip_if_no_runtime
+
+	find_oci_runtime
 
 	${OCI} --version
 	_prefetch alpine

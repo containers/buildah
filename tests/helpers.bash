@@ -15,7 +15,6 @@ PASSWD_BINARY=${PASSWD_BINARY:-$TEST_SOURCES/../bin/passwd}
 GRPCNOOP_BINARY=${GRPCNOOP_BINARY:-$TEST_SOURCES/../bin/grpcnoop}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
-OCI=${BUILDAH_RUNTIME:-$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)}
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
@@ -60,6 +59,9 @@ function setup_tests() {
     # me: "but it's a local file path, not a repository name!"
     # buildah/podman: "i dont care. no caps anywhere!"
     TEST_SCRATCH_DIR=$(mktemp -d --dry-run --tmpdir=${BATS_TMPDIR:-${TMPDIR:-/tmp}} buildah_tests.XXXXXX | tr A-Z a-z)
+    if test -z "${TEST_SCRATCH_DIR}" ; then
+        die error creating temporary directory
+    fi
     mkdir --mode=0700 $TEST_SCRATCH_DIR
 
     mkdir -p ${TEST_SCRATCH_DIR}/{root,runroot,sigstore,registries.d}
@@ -105,21 +107,18 @@ function starthttpd() { # directoryspecs [working-directory-or-"" [certfile, key
     go build -o serve ${TEST_SOURCES}/serve/serve.go
     portfile=$(mktemp)
     if test -z "${portfile}"; then
-        echo error creating temporary file
-        exit 1
+        die error creating temporary file
     fi
     pidfile=$(mktemp)
     if test -z "${pidfile}"; then
-        echo error creating temporary file
-        exit 1
+        die error creating temporary file
     fi
     sh -c "./serve \"${1:-${BATS_TMPDIR}}\" 0 \"${portfile}\" \"${3}\" \"${4}\" ${pidfile} &"
     waited=0
     while ! test -s ${pidfile} ; do
         sleep 0.1
         if test $((++waited)) -ge 300 ; then
-            echo test http server did not write pid file within timeout
-            exit 1
+            die test http server did not write pid file within timeout
         fi
     done
     HTTP_SERVER_PID=$(< ${pidfile})
@@ -128,8 +127,7 @@ function starthttpd() { # directoryspecs [working-directory-or-"" [certfile, key
     while ! test -s ${portfile} ; do
         sleep 0.1
         if test $((++waited)) -ge 300 ; then
-            echo test http server did not start listening within timeout
-            exit 1
+            die test http server did not start listening within timeout
         fi
     done
     HTTP_SERVER_PORT=$(< ${portfile})
@@ -439,6 +437,14 @@ function run_buildah() {
     done
 }
 
+######################
+#  find_oci_runtime  #  Sets $OCI to the command for the OCI runtime, for invoking it directly
+######################
+function find_oci_runtime() {
+    run_buildah info --format '{{.host.OCIRuntime}}'
+    OCI="$output"
+}
+
 #########
 #  die  #  Abort with helpful message
 #########
@@ -662,6 +668,8 @@ function skip_if_rootless() {
 #  skip_if_no_runtime  #  'buildah run' can't work without a runtime
 ########################
 function skip_if_no_runtime() {
+    find_oci_runtime
+
     if type -p "${OCI}" &> /dev/null; then
         return
     fi
@@ -765,8 +773,7 @@ function start_git_daemon() {
   while ! test -s ${TEST_SCRATCH_DIR}/git-daemon/pid ; do
     sleep 0.1
     if test $((++waited)) -ge 300 ; then
-      echo test git server did not write pid file within timeout
-      exit 1
+      die test git server did not write pid file within timeout
     fi
   done
   GITPORT=$(< ${TEST_SCRATCH_DIR}/git-daemon/port)
