@@ -21,8 +21,11 @@ bash
 docker pull mirror.gcr.io/golang
 docker pull mirror.gcr.io/alpine
 docker pull mirror.gcr.io/busybox
+docker pull quay.io/fedora/python-311:latest
 docker pull quay.io/libpod/centos:7
 docker pull quay.io/libpod/ubuntu:latest
+docker pull quay.io/libpod/busybox@sha256:32968e717e29f79e5b889721908b3be6d1573992e1f3ba4c9a41718e2728458c
+docker pull quay.io/libpod/busybox@sha256:1faaf7a75319417261267b3dcef6a2b14c8c5122d7fcc7abeb07a32bc19728fd
 ```
 
 This test program is used as input in a few of the conformance tests:

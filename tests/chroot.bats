@@ -22,7 +22,7 @@ load helpers
   # chosen because its rootfs doesn't have any uid/gid ownership above
   # $rangesize, because the nested namespace needs to be able to represent all
   # of them
-  baseimage=registry.access.redhat.com/ubi9-micro:latest
+  baseimage=registry.access.redhat.com/ubi10:latest
   _prefetch $baseimage
   baseimagef=$(tr -c a-zA-Z0-9.- - <<< "$baseimage")
   # create the directories that we need
