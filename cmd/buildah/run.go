@@ -6,16 +6,16 @@ import (
 	"os"
 	"strings"
 
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/internal/tmpdir"
-	"github.com/containers/buildah/internal/volumes"
-	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/overlay"
-	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
+	"go.podman.io/buildah/internal/tmpdir"
+	"go.podman.io/buildah/internal/volumes"
+	buildahcli "go.podman.io/buildah/pkg/cli"
+	"go.podman.io/buildah/pkg/overlay"
+	"go.podman.io/buildah/pkg/parse"
+	"go.podman.io/buildah/util"
 	"go.podman.io/storage/pkg/mount"
 )
 

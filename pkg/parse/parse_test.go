@@ -6,11 +6,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/containers/buildah/define"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/buildah/define"
 	"go.podman.io/image/v5/types"
 )
 

@@ -1,9 +1,9 @@
 package metadata
 
 import (
-	"github.com/containers/buildah/docker"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.podman.io/buildah/docker"
 )
 
 // Build constructs a map containing the passed-in information about a just-committed or reused-as-cache image.

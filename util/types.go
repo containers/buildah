@@ -1,7 +1,7 @@
 package util //nolint:revive,nolintlint
 
 import (
-	"github.com/containers/buildah/define"
+	"go.podman.io/buildah/define"
 )
 
 const (

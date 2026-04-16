@@ -1,4 +1,4 @@
-module github.com/containers/buildah/tests/tools
+module go.podman.io/buildah/tests/tools
 
 go 1.24.3
 

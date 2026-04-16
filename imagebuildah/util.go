@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containers/buildah"
 	digest "github.com/opencontainers/go-digest"
+	"go.podman.io/buildah"
 )
 
 type mountInfo struct {

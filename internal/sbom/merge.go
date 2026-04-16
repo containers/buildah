@@ -7,7 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/containers/buildah/define"
+	"go.podman.io/buildah/define"
 )
 
 // getComponentNameVersionPurl extracts the "name", "version", and "purl"

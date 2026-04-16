@@ -5,8 +5,8 @@ package buildah
 import (
 	"errors"
 
-	"github.com/containers/buildah/define"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"go.podman.io/buildah/define"
 	nettypes "go.podman.io/common/libnetwork/types"
 	"go.podman.io/storage"
 )

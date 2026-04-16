@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/containers/buildah/internal/rpc/listen"
-	"github.com/containers/buildah/internal/rpc/noop"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah/internal/rpc/listen"
+	"go.podman.io/buildah/internal/rpc/noop"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

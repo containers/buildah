@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/containers/buildah"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
 )
 
 var (

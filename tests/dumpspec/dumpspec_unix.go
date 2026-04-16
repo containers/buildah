@@ -7,8 +7,8 @@ import (
 	"net"
 	"os"
 
-	"github.com/containers/buildah/internal/pty"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/internal/pty"
 	"golang.org/x/sys/unix"
 )
 

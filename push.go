@@ -6,10 +6,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/containers/buildah/pkg/blobcache"
 	encconfig "github.com/containers/ocicrypt/config"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/pkg/blobcache"
 	"go.podman.io/common/libimage"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"

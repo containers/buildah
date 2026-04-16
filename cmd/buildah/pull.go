@@ -7,12 +7,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/pkg/cli"
+	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/common/pkg/auth"
 )
 

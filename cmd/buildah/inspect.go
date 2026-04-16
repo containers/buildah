@@ -7,10 +7,10 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/containers/buildah"
-	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
+	buildahcli "go.podman.io/buildah/pkg/cli"
+	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/common/pkg/formats"
 	"golang.org/x/term"
 )

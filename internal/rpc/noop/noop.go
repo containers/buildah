@@ -4,7 +4,7 @@ import (
 	"context"
 	"syscall"
 
-	"github.com/containers/buildah/internal/rpc/noop/pb"
+	"go.podman.io/buildah/internal/rpc/noop/pb"
 	"google.golang.org/grpc"
 )
 

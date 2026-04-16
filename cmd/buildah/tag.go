@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/common/libimage"
 )
 

@@ -6,11 +6,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/internal/mkcw"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/internal/mkcw"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"

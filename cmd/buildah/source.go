@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/containers/buildah/internal/source"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah/internal/source"
 )
 
 var (

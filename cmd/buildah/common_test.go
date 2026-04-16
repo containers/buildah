@@ -6,9 +6,9 @@ import (
 	"os/user"
 	"testing"
 
-	"github.com/containers/buildah"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
 )

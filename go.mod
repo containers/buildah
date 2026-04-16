@@ -1,4 +1,4 @@
-module github.com/containers/buildah
+module go.podman.io/buildah
 
 // Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
 

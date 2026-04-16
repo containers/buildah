@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package io.buildah.v1;
 
-option go_package = "github.com/containers/buildah/internal/rpc/noop/pb";
+option go_package = "go.podman.io/buildah/internal/rpc/noop/pb";
 
 service Noop {
   rpc Noop(NoopRequest) returns (NoopResponse);

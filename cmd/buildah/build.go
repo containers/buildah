@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containers/buildah/imagebuildah"
-	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah/imagebuildah"
+	buildahcli "go.podman.io/buildah/pkg/cli"
+	"go.podman.io/buildah/util"
 )
 
 func buildInit() {

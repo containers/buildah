@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containers/buildah/pkg/parse"
+	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/image/v5/copy"
 	"go.podman.io/image/v5/oci/layout"
 	"go.podman.io/image/v5/pkg/shortnames"

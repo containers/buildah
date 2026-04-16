@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/containers/buildah/define"
 	encconfig "github.com/containers/ocicrypt/config"
+	"go.podman.io/buildah/define"
 	"go.podman.io/common/pkg/retry"
 	cp "go.podman.io/image/v5/copy"
 	"go.podman.io/image/v5/docker"

@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"runtime"
 
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
+	"go.podman.io/buildah/define"
 	"go.podman.io/common/pkg/formats"
 	"golang.org/x/term"
 )
