@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
 	"github.com/containers/buildah/util"
@@ -19,11 +18,12 @@ import (
 	"go.podman.io/image/v5/transports/alltransports"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/reexec"
 	"go.podman.io/storage/pkg/unshare"
 )
 
 func main() {
-	if buildah.InitReexec() {
+	if reexec.Init() {
 		return
 	}
 	unshare.MaybeReexecUsingUserNamespace(false)
