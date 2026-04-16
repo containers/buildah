@@ -7,7 +7,7 @@ go 1.25.6
 require (
 	github.com/containerd/platforms v1.0.0-rc.4
 	github.com/containers/luksy v0.0.0-20251208191447-ca096313c38f
-	github.com/containers/ocicrypt v1.2.1
+	github.com/containers/ocicrypt v1.3.0
 	github.com/cyphar/filepath-securejoin v0.6.1
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/go-connections v0.7.0
