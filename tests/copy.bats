@@ -534,8 +534,8 @@ parents/y/b.txt"
 
 @test "copy-preserving-extended-attributes" {
   createrandom ${TEST_SCRATCH_DIR}/randomfile
-  # if we need to change which image we use, any image that can provide a working setattr/setcap/getfattr will do
-  image="quay.io/libpod/ubuntu"
+  # if we need to change which image we use, any image that includes working setattr/setcap/getfattr will do
+  image=registry.access.redhat.com/ubi10
   if ! which setfattr > /dev/null 2> /dev/null; then
     skip "setfattr not available, unable to check if it'll work in filesystem at ${TEST_SCRATCH_DIR}"
   fi
@@ -549,8 +549,6 @@ parents/y/b.txt"
   _prefetch $image
   run_buildah from --quiet $WITH_POLICY_JSON $image
   first="$output"
-  run_buildah run $first apt-get -y update
-  run_buildah run $first apt-get -y install attr libcap2-bin
   run_buildah copy $first ${TEST_SCRATCH_DIR}/randomfile /
   # set security.capability
   run_buildah run $first setcap cap_setuid=ep /randomfile
@@ -559,8 +557,6 @@ parents/y/b.txt"
   # copy the file to a second container
   run_buildah from --quiet $WITH_POLICY_JSON $image
   second="$output"
-  run_buildah run $second apt-get -y update
-  run_buildah run $second apt-get -y install attr
   run_buildah copy --from $first $second /randomfile /
   # compare what the extended attributes look like. if we're on a system with SELinux, there's a label in here, too
   run_buildah run $first sh -c "getfattr -d -m . --absolute-names /randomfile | grep -v ^security.selinux | sort"
