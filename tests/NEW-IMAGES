@@ -13,3 +13,5 @@
 #
 # Format is one FQIN per line. Enumerate them below:
 #
+quay.io/hummingbird/git
+registry.access.redhat.com/ubi10
