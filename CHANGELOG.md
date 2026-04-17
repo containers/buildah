@@ -2,6 +2,13 @@
 
 # Changelog
 
+## v1.41.9 (2026-04-16)
+
+    [release-1.41] Bump Jose to v4.1.4, CVE-2026-34986
+    fix setting of gid
+    fix call to chown
+    CI config: post-branch update
+
 ## v1.41.8 (2026-01-06)
 
     [release-1.41] Bump Go in tests/tools to 1.24
