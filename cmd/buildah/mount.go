@@ -46,6 +46,7 @@ func mountInit() {
   buildah unshare
   buildah mount containerID
 `,
+		GroupID: groupContainers,
 	}
 	mountCommand.SetUsageTemplate(UsageTemplate())
 

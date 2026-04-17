@@ -6,7 +6,7 @@ load helpers
 # return that list.
 function buildah_commands() {
     run_buildah help "$@" |\
-        awk '/^Available Commands:/{ok=1;next}/^Flags:/{ok=0}ok { print $1 }' |\
+        awk '/^[A-Z][a-z]+ Commands:/{ok=1;next}/^Flags:/{ok=0}ok { print $1 }' |\
         grep .
 }
 
@@ -47,7 +47,6 @@ function check_help() {
         fi
 
         count=$(expr $count + 1)
-
     done
 
     run_buildah "$@" --help
@@ -87,7 +86,6 @@ function check_help() {
     # the old command parser and cobra.
     assert "$count" -gt 0 \
            "Internal error: no commands found in 'buildah help list"
-
 }
 
 @test "buildah help - basic tests" {

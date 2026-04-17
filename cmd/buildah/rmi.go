@@ -33,6 +33,7 @@ func rmiInit() {
 		Example: `buildah rmi imageID
   buildah rmi --all --force
   buildah rmi imageID1 imageID2 imageID3`,
+		GroupID: groupImages,
 	}
 	rmiCommand.SetUsageTemplate(UsageTemplate())
 

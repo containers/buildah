@@ -54,12 +54,12 @@ type configResults struct {
 
 func configInit() {
 	var (
-		configDescription = "\n  Modifies the configuration values which will be saved to the image."
+		configDescription = "\n  Modifies the configuration values which will be committed to an image."
 		opts              configResults
 	)
 	configCommand := &cobra.Command{
 		Use:   "config",
-		Short: "Update image configuration settings",
+		Short: "Update image configuration settings in a working container",
 		Long:  configDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return configCmd(cmd, args, opts)
@@ -67,6 +67,7 @@ func configInit() {
 		Example: `buildah config --author='Jane Austen' --workingdir='/etc/mycontainers' containerID
   buildah config --entrypoint '[ "/entrypoint.sh", "dev" ]' containerID
   buildah config --env foo=bar --env PATH=$PATH containerID`,
+		GroupID: groupContainers,
 	}
 	configCommand.SetUsageTemplate(UsageTemplate())
 

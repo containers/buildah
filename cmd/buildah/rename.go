@@ -8,15 +8,16 @@ import (
 )
 
 var (
-	renameDescription = "\n  Renames a local container."
+	renameDescription = "\n  Renames a working container."
 	renameCommand     = &cobra.Command{
 		Use:   "rename",
-		Short: "Rename a container",
+		Short: "Rename a working container",
 		Long:  renameDescription,
 		RunE:  renameCmd,
 		Example: `buildah rename containerName NewName
   buildah rename containerID NewName`,
-		Args: cobra.ExactArgs(2),
+		Args:    cobra.ExactArgs(2),
+		GroupID: groupContainers,
 	}
 )
 

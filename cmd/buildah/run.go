@@ -51,7 +51,7 @@ func runInit() {
 
 	runCommand := &cobra.Command{
 		Use:   "run",
-		Short: "Run a command inside of the container",
+		Short: "Run a command inside of a working container",
 		Long:  runDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.NameSpaceResults = &namespaceResults
@@ -60,6 +60,7 @@ func runInit() {
 		Example: `buildah run containerID -- ps -auxw
   buildah run --terminal containerID /bin/bash
   buildah run --volume /path/on/host:/path/in/container:ro,z containerID /bin/sh`,
+		GroupID: groupContainers,
 	}
 	runCommand.SetUsageTemplate(UsageTemplate())
 

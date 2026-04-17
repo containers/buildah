@@ -33,6 +33,7 @@ func infoInit() {
 		},
 		Args:    cobra.NoArgs,
 		Example: `buildah info`,
+		GroupID: groupSystem,
 	}
 	infoCommand.SetUsageTemplate(UsageTemplate())
 

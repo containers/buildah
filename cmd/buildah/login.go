@@ -35,6 +35,7 @@ func loginInit() {
 			return loginCmd(cmd, args, &opts)
 		},
 		Example: `buildah login quay.io`,
+		GroupID: groupRegistries,
 	}
 	loginCommand.SetUsageTemplate(UsageTemplate())
 

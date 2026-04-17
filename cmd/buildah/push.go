@@ -74,6 +74,7 @@ func pushInit() {
 		Example: `buildah push imageID docker://registry.example.com/repository:tag
   buildah push imageID docker-daemon:image:tagi
   buildah push imageID oci:/path/to/layout:image:tag`,
+		GroupID: groupImages,
 	}
 	pushCommand.SetUsageTemplate(UsageTemplate())
 

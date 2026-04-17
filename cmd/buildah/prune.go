@@ -32,6 +32,7 @@ Cleanup intermediate images as well as build and mount cache.`
 		},
 		Example: `buildah prune
   buildah prune --force`,
+		GroupID: groupSystem,
 	}
 	pruneCommand.SetUsageTemplate(UsageTemplate())
 

@@ -26,6 +26,7 @@ func logoutInit() {
 			return logoutCmd(cmd, args, &opts)
 		},
 		Example: `buildah logout quay.io`,
+		GroupID: groupRegistries,
 	}
 	logoutCommand.SetUsageTemplate(UsageTemplate())
 

@@ -55,7 +55,8 @@ func createCommand(addCopy string, desc string, short string, opts *addCopyResul
 		Example: `buildah ` + addCopy + ` containerID '/myapp/app.conf'
   buildah ` + addCopy + ` containerID 'app.conf' '/myapp/app.conf'
   buildah ` + addCopy + ` containerID 'app.conf' 'drop-in.conf' '/myapp/app.conf.d/'`,
-		Args: cobra.MinimumNArgs(1),
+		Args:    cobra.MinimumNArgs(1),
+		GroupID: groupContainers,
 	}
 }
 
@@ -106,8 +107,8 @@ func addcopyInit() {
 	var (
 		addDescription  = "\n  Adds the contents of a file, URL, or directory to a container's working\n  directory.  If a local file appears to be an archive, its contents are\n  extracted and added instead of the archive file itself."
 		copyDescription = "\n  Copies the contents of a file, URL, or directory into a container's working\n  directory."
-		shortAdd        = "Add content to the container"
-		shortCopy       = "Copy content into the container"
+		shortAdd        = "Add content to a working container"
+		shortCopy       = "Copy content into a working container"
 		addOpts         addCopyResults
 		copyOpts        addCopyResults
 	)
