@@ -356,6 +356,20 @@ func (s *stageExecutor) volumeCacheRestore() error {
 	return s.volumeCacheRestoreVFS()
 }
 
+func joinExcludePatternWithCopySource(srcNorm, excl string) string {
+	if srcNorm == "." {
+		return excl
+	}
+	if strings.HasPrefix(excl, "!") {
+		rest := strings.TrimPrefix(excl, "!")
+		if rest == "" {
+			return excl
+		}
+		return "!" + path.Join(srcNorm, rest)
+	}
+	return path.Join(srcNorm, excl)
+}
+
 // Copy copies data into the working tree.  The "Download" field is how
 // imagebuilder tells us the instruction was "ADD" and not "COPY".
 func (s *stageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
@@ -374,6 +388,12 @@ func (s *stageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		}
 		if len(cp.Excludes) > 0 {
 			excludes = append(slices.Clone(excludes), cp.Excludes...)
+			for _, src := range cp.Src {
+				srcNorm := path.Clean(filepath.ToSlash(src))
+				for _, excl := range cp.Excludes {
+					excludes = append(excludes, joinExcludePatternWithCopySource(srcNorm, excl))
+				}
+			}
 		}
 	}
 	s.builder.ContentDigester.Restart()

@@ -548,6 +548,9 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 		if !same {
 			assert.Failf(t, "Filesystem contents differ", fsCompareResult(miss, left, diff, "buildah"))
 		}
+		if test.failOnExtraFSContent && len(left) > 0 {
+			assert.Failf(t, "Extra filesystem content in buildah", fsCompareResult(nil, left, nil, "buildah"))
+		}
 	}
 
 	// the report on the imagebuilder image should be there if we expected the build to succeed
@@ -574,6 +577,9 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 		miss, left, diff, same = compareJSON(fsDocker, fsImagebuilder, append(fsSkip, test.fsSkip...))
 		if !same {
 			assert.Failf(t, "Filesystem contents differ", fsCompareResult(miss, left, diff, "imagebuilder"))
+		}
+		if test.failOnExtraFSContent && len(left) > 0 {
+			assert.Failf(t, "Extra filesystem content in imagebuilder", fsCompareResult(nil, left, nil, "imagebuilder"))
 		}
 	}
 }
@@ -1439,6 +1445,7 @@ type (
 		compatLayerOmissions types.OptionalBool        // value to set for the buildah CompatLayerOmissions flag
 		transientMounts      []string                  // one possible buildah-specific feature
 		fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
+		failOnExtraFSContent bool                      // if set, fail when buildah produces filesystem entries that Docker doesn't
 
 		fsSkipCompatVolumesTrue []string          // more expected filesystem differences when compatVolumes=true
 		buildArgs               map[string]string // build args to supply, as if --build-arg was used
@@ -2277,9 +2284,10 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"COPY file-a.txt subdir-* file-?.txt missing* subdir/",
 		}, "\n"),
-		contextDir:          "dockerignore/populated",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		contextDir:           "dockerignore/populated",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2384,10 +2392,11 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:                "dockerignore-is-even-there",
-		contextDir:          "dockerignore/empty",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		name:                 "dockerignore-is-even-there",
+		contextDir:           "dockerignore/empty",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2403,8 +2412,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2424,8 +2434,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2445,8 +2456,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2466,8 +2478,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2477,10 +2490,11 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"ADD --exclude=**/*-c ./ subdir/",
 		}, "\n"),
-		contextDir:          "dockerignore/populated",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolFalse,
-		dockerUseBuildKit:   true,
+		contextDir:           "dockerignore/populated",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
 	},
 
 	{
@@ -2490,10 +2504,11 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"ADD --exclude=*.txt / subdir/",
 		}, "\n"),
-		contextDir:          "dockerignore/populated",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolFalse,
-		dockerUseBuildKit:   true,
+		contextDir:           "dockerignore/populated",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
 	},
 
 	{
@@ -2503,10 +2518,11 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"ADD --exclude=*-c . subdir/",
 		}, "\n"),
-		contextDir:          "dockerignore/populated",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolFalse,
-		dockerUseBuildKit:   true,
+		contextDir:           "dockerignore/populated",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
 	},
 	{
 		name: "copy--exclude-includes-subdir-slash",
@@ -2515,10 +2531,11 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"COPY --exclude=**/*-c / subdir/",
 		}, "\n"),
-		contextDir:          "dockerignore/populated",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolFalse,
-		dockerUseBuildKit:   true,
+		contextDir:           "dockerignore/populated",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
 	},
 
 	{
@@ -2528,10 +2545,11 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"COPY --exclude='!**/*-c' ./ subdir/",
 		}, "\n"),
-		contextDir:          "dockerignore/populated",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolFalse,
-		dockerUseBuildKit:   true,
+		contextDir:           "dockerignore/populated",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
 	},
 
 	{
@@ -2541,10 +2559,57 @@ var internalTestCases = []testCase{
 			"FROM scratch",
 			"COPY --exclude='!**/*-c' . subdir/",
 		}, "\n"),
-		contextDir:          "dockerignore/populated",
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolFalse,
-		dockerUseBuildKit:   true,
+		contextDir:           "dockerignore/populated",
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
+	},
+
+	{
+		// https://github.com/containers/buildah/issues/6726
+		name: "copy--exclude-subdir-under-source",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude=storage/views app/ app/",
+		}, "\n"),
+		contextDir:           "dockerignore/exclude_subdir_under_source",
+		fsSkip:               []string{"(dir):app:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
+	},
+
+	{
+		// https://github.com/containers/buildah/issues/6726
+		name: "copy--form-and--exclude-subdir-under-source",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
+			"FROM scratch as base",
+			"COPY . .",
+			"FROM scratch",
+			"COPY --from=base --exclude=storage/views app/ app/",
+		}, "\n"),
+		contextDir:           "dockerignore/exclude_subdir_under_source",
+		fsSkip:               []string{"(dir):app:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
+	},
+
+	{
+		name: "copy--exclude-exception-under-source",
+		dockerfileContents: strings.Join([]string{
+			"# syntax=mirror.gcr.io/docker/dockerfile:1.9-labs",
+			"FROM scratch",
+			"COPY --exclude=storage/views/test_file --exclude=!storage/views/exception app/ app/",
+		}, "\n"),
+		contextDir:           "dockerignore/exclude_subdir_under_source",
+		fsSkip:               []string{"(dir):app:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolFalse,
+		dockerUseBuildKit:    true,
 	},
 
 	{
@@ -2753,8 +2818,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2774,8 +2840,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2795,8 +2862,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2816,8 +2884,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2837,8 +2906,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2858,8 +2928,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2879,8 +2950,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2900,8 +2972,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2921,8 +2994,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2942,8 +3016,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2963,8 +3038,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -2984,8 +3060,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3005,8 +3082,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3026,8 +3104,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3047,8 +3126,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3068,8 +3148,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3089,8 +3170,9 @@ var internalTestCases = []testCase{
 			}
 			return nil
 		},
-		fsSkip:              []string{"(dir):subdir:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		fsSkip:               []string{"(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3413,31 +3495,35 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:                "dockerignore-allowlist-subdir-file-dir",
-		contextDir:          "dockerignore/allowlist/subdir-file",
-		fsSkip:              []string{"(dir):f1:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		name:                 "dockerignore-allowlist-subdir-file-dir",
+		contextDir:           "dockerignore/allowlist/subdir-file",
+		fsSkip:               []string{"(dir):f1:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
-		name:                "dockerignore-allowlist-subdir-file-file",
-		contextDir:          "dockerignore/allowlist/subdir-file",
-		fsSkip:              []string{"(dir):f1:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		name:                 "dockerignore-allowlist-subdir-file-file",
+		contextDir:           "dockerignore/allowlist/subdir-file",
+		fsSkip:               []string{"(dir):f1:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
-		name:                "dockerignore-allowlist-nothing-dot",
-		contextDir:          "dockerignore/allowlist/nothing-dot",
-		fsSkip:              []string{"file:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		name:                 "dockerignore-allowlist-nothing-dot",
+		contextDir:           "dockerignore/allowlist/nothing-dot",
+		fsSkip:               []string{"file:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
-		name:                "dockerignore-allowlist-nothing-slash",
-		contextDir:          "dockerignore/allowlist/nothing-slash",
-		fsSkip:              []string{"file:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		name:                 "dockerignore-allowlist-nothing-slash",
+		contextDir:           "dockerignore/allowlist/nothing-slash",
+		fsSkip:               []string{"file:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3452,17 +3538,19 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:                "dockerignore-allowlist-subsubdir-nofile",
-		contextDir:          "dockerignore/allowlist/subsubdir-nofile",
-		fsSkip:              []string{"file:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		name:                 "dockerignore-allowlist-subsubdir-nofile",
+		contextDir:           "dockerignore/allowlist/subsubdir-nofile",
+		fsSkip:               []string{"file:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
-		name:                "dockerignore-allowlist-subsubdir-nosubdir",
-		contextDir:          "dockerignore/allowlist/subsubdir-nosubdir",
-		fsSkip:              []string{"file:mtime"},
-		compatScratchConfig: types.OptionalBoolTrue,
+		name:                 "dockerignore-allowlist-subsubdir-nosubdir",
+		contextDir:           "dockerignore/allowlist/subsubdir-nosubdir",
+		fsSkip:               []string{"file:mtime"},
+		failOnExtraFSContent: true,
+		compatScratchConfig:  types.OptionalBoolTrue,
 	},
 
 	{
@@ -3504,21 +3592,24 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "dockerignore-exceptions-skip",
-		contextDir: "dockerignore/exceptions-skip",
-		fsSkip:     []string{"(dir):volume:mtime"},
+		name:                 "dockerignore-exceptions-skip",
+		contextDir:           "dockerignore/exceptions-skip",
+		fsSkip:               []string{"(dir):volume:mtime"},
+		failOnExtraFSContent: true,
 	},
 
 	{
-		name:       "dockerignore-exceptions-weirdness-1",
-		contextDir: "dockerignore/exceptions-weirdness-1",
-		fsSkip:     []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
+		name:                 "dockerignore-exceptions-weirdness-1",
+		contextDir:           "dockerignore/exceptions-weirdness-1",
+		fsSkip:               []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
 	},
 
 	{
-		name:       "dockerignore-exceptions-weirdness-2",
-		contextDir: "dockerignore/exceptions-weirdness-2",
-		fsSkip:     []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
+		name:                 "dockerignore-exceptions-weirdness-2",
+		contextDir:           "dockerignore/exceptions-weirdness-2",
+		fsSkip:               []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
+		failOnExtraFSContent: true,
 	},
 
 	{
