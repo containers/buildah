@@ -894,6 +894,7 @@ func testGetMultiple(t *testing.T) {
 		noDerefSymlinks    bool
 		parents            bool
 		timestamp          *time.Time
+		expectedSymlinks   map[string]string
 	}
 	getTestArchives := []struct {
 		name              string
@@ -972,6 +973,12 @@ func testGetMultiple(t *testing.T) {
 						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
+					expectedSymlinks: map[string]string{
+						"link-a":          "file-a",
+						"link-c":          "subdir-c",
+						"subdir-a/file-a": "../file-a",
+						"subdir-a/file-b": "../../file-b",
+					},
 				},
 				{
 					name:    "wildcard",
@@ -999,6 +1006,10 @@ func testGetMultiple(t *testing.T) {
 						"hlink-0",          // from subdir-d
 						"subdir-f/",        // from subdir-e
 						"subdir-f/hlink-b", // from subdir-e
+					},
+					expectedSymlinks: map[string]string{
+						"file-a": "../file-a",
+						"file-b": "../../file-b",
 					},
 				},
 				{
@@ -1032,6 +1043,9 @@ func testGetMultiple(t *testing.T) {
 						"subdir-e/",
 						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
+					},
+					expectedSymlinks: map[string]string{
+						"link-c": "subdir-c",
 					},
 				},
 				{
@@ -1086,6 +1100,12 @@ func testGetMultiple(t *testing.T) {
 						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
+					expectedSymlinks: map[string]string{
+						"link-a":          "file-a",
+						"link-c":          "subdir-c",
+						"subdir-a/file-a": "../file-a",
+						"subdir-a/file-b": "../../file-b",
+					},
 				},
 				{
 					name:    "everything-with-dot-exclude",
@@ -1115,6 +1135,10 @@ func testGetMultiple(t *testing.T) {
 						"subdir-f/",
 						"subdir-f/hlink-b",
 					},
+					expectedSymlinks: map[string]string{
+						"file-a": "../file-a",
+						"file-b": "../../file-b",
+					},
 				},
 				{
 					name:    "all-with-all-exclude",
@@ -1138,6 +1162,9 @@ func testGetMultiple(t *testing.T) {
 						"subdir-c/",
 						"subdir-c/file-p",
 						"subdir-c/file-q",
+					},
+					expectedSymlinks: map[string]string{
+						"link-c": "subdir-c",
 					},
 				},
 				{
@@ -1163,6 +1190,10 @@ func testGetMultiple(t *testing.T) {
 						"file-a", // from subdir-a
 						"file-b", // from subdir-a
 						"file-c", // from subdir-a
+					},
+					expectedSymlinks: map[string]string{
+						"file-a": "../file-a",
+						"file-b": "../../file-b",
 					},
 				},
 				{
@@ -1326,6 +1357,10 @@ func testGetMultiple(t *testing.T) {
 						"file-b",  // from subdir-a
 						"file-c",  // from subdir-a
 					},
+					expectedSymlinks: map[string]string{
+						"file-b":  "../../file-b",
+						"renamed": "../file-a",
+					},
 				},
 				{
 					name:               "wildcard-with-rename-keep",
@@ -1345,6 +1380,10 @@ func testGetMultiple(t *testing.T) {
 						"subdir-b/file-b",
 						"subdir-b/file-c",
 					},
+					expectedSymlinks: map[string]string{
+						"subdir-b/file-a": "../file-a",
+						"subdir-b/file-b": "../../file-b",
+					},
 				},
 				{
 					name:            "no-deref-symlinks-baseline",
@@ -1362,6 +1401,11 @@ func testGetMultiple(t *testing.T) {
 						"file-b", // from subdir-a
 						"file-c", // from subdir-a
 					},
+					expectedSymlinks: map[string]string{
+						"file-a": "../file-a",
+						"file-b": "../../file-b",
+						"link-a": "file-a",
+					},
 				},
 				{
 					name:            "no-deref-symlinks-directory",
@@ -1369,6 +1413,9 @@ func testGetMultiple(t *testing.T) {
 					noDerefSymlinks: true,
 					items: []string{
 						"link-c",
+					},
+					expectedSymlinks: map[string]string{
+						"link-c": "subdir-c",
 					},
 				},
 				{
@@ -1413,6 +1460,10 @@ func testGetMultiple(t *testing.T) {
 						"subdir-e/subdir-f/",
 						"subdir-e/subdir-f/hlink-b",
 					},
+					expectedSymlinks: map[string]string{
+						"subdir-a/file-a": "../file-a",
+						"subdir-a/file-b": "../../file-b",
+					},
 				},
 				{
 					name:    "everything-with-wildcard-includes-and-excludes-parents",
@@ -1456,6 +1507,10 @@ func testGetMultiple(t *testing.T) {
 						"subdir-a/file-a",
 						"subdir-a/file-b",
 						"subdir-a/file-c",
+					},
+					expectedSymlinks: map[string]string{
+						"subdir-a/file-a": "../file-a",
+						"subdir-a/file-b": "../../file-b",
 					},
 				},
 				{
@@ -1557,6 +1612,8 @@ func testGetMultiple(t *testing.T) {
 					tr := tar.NewReader(pipeReader)
 					hdr, err := tr.Next()
 					actualContents := []string{}
+					foundSymlinks := make(map[string]string)
+
 					for hdr != nil {
 						actualContents = append(actualContents, filepath.FromSlash(hdr.Name))
 						assert.Equal(t, "", hdr.Uname, "expected user name field to be cleared")
@@ -1564,6 +1621,11 @@ func testGetMultiple(t *testing.T) {
 						if testCase.timestamp != nil {
 							assert.Truef(t, testCase.timestamp.Equal(hdr.ModTime), "timestamp was supposed to be forced for %q", hdr.Name)
 						}
+
+						if hdr.Typeflag == byte(tar.TypeSymlink) {
+							foundSymlinks[hdr.Name] = hdr.Linkname
+						}
+
 						if err != nil {
 							break
 						}
@@ -1581,6 +1643,12 @@ func testGetMultiple(t *testing.T) {
 					wg.Wait()
 					assert.NoErrorf(t, getErr, "unexpected error from Get(%q)", testCase.pattern)
 					assert.Equal(t, expectedContents, actualContents, "Get(%q,excludes=%v) didn't produce the right set of items", testCase.pattern, excludes)
+
+					expectedSymlinks := testCase.expectedSymlinks
+					if expectedSymlinks == nil {
+						expectedSymlinks = make(map[string]string)
+					}
+					assert.Equal(t, expectedSymlinks, foundSymlinks)
 				})
 			}
 		}
