@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.podman.io/common/pkg/auth"
+	"go.podman.io/image/v5/types"
 )
 
 type fromReply struct {
@@ -28,6 +29,7 @@ type fromReply struct {
 	pullNever       bool
 	quiet           bool
 	signaturePolicy string
+	tlsDetails      string
 	tlsVerify       bool
 	*cli.FromAndBudResults
 	*cli.UserNSResults
@@ -96,6 +98,7 @@ newer: only pull images when newer images exist on the registry than those in th
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
+	flags.StringVar(&opts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 
 	// Add in the common flags
@@ -110,7 +113,7 @@ newer: only pull images when newer images exist on the registry than those in th
 	rootCmd.AddCommand(fromCommand)
 }
 
-func onBuild(builder *buildah.Builder, quiet bool) error {
+func onBuild(builder *buildah.Builder, systemContext *types.SystemContext, quiet bool) error {
 	ctr := 0
 	for _, onBuildSpec := range builder.OnBuild() {
 		ctr = ctr + 1
@@ -129,7 +132,7 @@ func onBuild(builder *buildah.Builder, quiet bool) error {
 				dest = args[size-1]
 				args = args[:size-1]
 			}
-			if err := builder.Add(dest, command == "ADD", buildah.AddAndCopyOptions{}, args...); err != nil {
+			if err := builder.Add(dest, command == "ADD", buildah.AddAndCopyOptions{BaseTLSConfig: systemContext.BaseTLSConfig}, args...); err != nil {
 				return err
 			}
 		case "ANNOTATION":
@@ -170,7 +173,7 @@ func onBuild(builder *buildah.Builder, quiet bool) error {
 			if quiet {
 				stdout = io.Discard
 			}
-			if err := builder.Run(args, buildah.RunOptions{Stdout: stdout}); err != nil {
+			if err := builder.Run(args, buildah.RunOptions{Stdout: stdout, SystemContext: systemContext}); err != nil {
 				return err
 			}
 		case "SHELL":
@@ -305,7 +308,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
-	if err := onBuild(builder, iopts.quiet); err != nil {
+	if err := onBuild(builder, systemContext, iopts.quiet); err != nil {
 		return err
 	}
 

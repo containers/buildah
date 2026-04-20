@@ -70,6 +70,15 @@ of two or more such specifications.  If not specified, `buildah` guesses that
 case its guess is wrong.  If the specified or computed size is less than 10
 megabytes, it will be increased to 10 megabytes.
 
+**--tls-details** *path*
+
+Path to a `containers-tls-details.yaml(5)` file, affecting TLS behavior throughout the program.
+
+If not set, defaults to a reasonable default that may change over time (depending on system’s global policy,
+version of the program, version of the Go language, and the like).
+
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
 **--type**, **-t** {SEV|SNP}
 The type of trusted execution environment (TEE) which the image should be
 marked for use with.  Accepted values are "SEV" (AMD Secure Encrypted

@@ -8,22 +8,37 @@ import (
 	"go.podman.io/common/libimage"
 )
 
-var (
-	tagDescription = "\n  Adds one or more additional names to locally-stored image."
-	tagCommand     = &cobra.Command{
+type tagOptions struct {
+	tlsDetails string
+}
+
+func tagInit() {
+	var (
+		tagDescription = "\n  Adds one or more additional names to locally-stored image."
+		tagOpts        tagOptions
+	)
+	tagCommand := &cobra.Command{
 		Use:   "tag",
 		Short: "Add an additional name to a local image",
 		Long:  tagDescription,
-		RunE:  tagCmd,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return tagCmd(cmd, args, tagOpts)
+		},
 
 		Example: `buildah tag imageName firstNewName
   buildah tag imageName firstNewName SecondNewName`,
 		Args:    cobra.MinimumNArgs(2),
 		GroupID: groupImages,
 	}
-)
+	tagCommand.SetUsageTemplate(UsageTemplate())
 
-func tagCmd(c *cobra.Command, args []string) error {
+	flags := tagCommand.Flags()
+	flags.StringVar(&tagOpts.tlsDetails, "tls-details", "", "path to a containers-tls-details.yaml file")
+
+	rootCmd.AddCommand(tagCommand)
+}
+
+func tagCmd(c *cobra.Command, args []string, _ tagOptions) error {
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -50,9 +65,4 @@ func tagCmd(c *cobra.Command, args []string) error {
 		}
 	}
 	return nil
-}
-
-func tagInit() {
-	tagCommand.SetUsageTemplate(UsageTemplate())
-	rootCmd.AddCommand(tagCommand)
 }
