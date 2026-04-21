@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	iutil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -400,15 +401,14 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 		if err != nil {
 			if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
 				// check if the local image exists
-				if ref, _, err = util.FindImage(store, "", systemContext, imageSpec); err != nil {
+				if _, ref, err = iutil.LookupImage(systemContext, store, imageSpec, opts.all); err != nil {
 					return err
 				}
 			}
 		}
-		refLocal, _, err := util.FindImage(store, "", systemContext, imageSpec)
-		if err == nil {
+		if _, storageRef, err := iutil.LookupImage(systemContext, store, imageSpec, opts.all); err == nil {
 			// Found local image so use that.
-			ref = refLocal
+			ref = storageRef
 		}
 		if _, err = list.Add(getContext(), systemContext, ref, opts.all); err != nil {
 			return err
@@ -553,7 +553,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		var ref types.ImageReference
 		if ref, err = alltransports.ParseImageName(imageSpec); err != nil {
 			if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
-				if ref, _, err = util.FindImage(store, "", systemContext, imageSpec); err != nil {
+				if _, ref, err = iutil.LookupImage(systemContext, store, imageSpec, opts.all); err != nil {
 					return err
 				}
 			}
@@ -564,7 +564,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 			var storeErr error
 			// Retry without a custom system context.  A user may want to add
 			// a custom platform (see #3511).
-			if ref, _, storeErr = util.FindImage(store, "", nil, imageSpec); storeErr != nil {
+			if _, ref, storeErr = iutil.LookupImage(nil, store, imageSpec, opts.all); storeErr != nil {
 				logrus.Errorf("Error while trying to find image on local storage: %v", storeErr)
 				return err
 			}
