@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/containers/buildah/copier"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/copier"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/pkg/sysregistriesv2"
 	"go.podman.io/image/v5/types"

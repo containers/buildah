@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/containers/buildah/define"
+	"go.podman.io/buildah/define"
 )
 
 func TestFilesClosedProperlyByBuildDockerfiles(t *testing.T) {

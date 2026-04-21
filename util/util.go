@@ -12,11 +12,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containers/buildah/define"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/define"
 	"go.podman.io/common/libimage"
 	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/docker/reference"

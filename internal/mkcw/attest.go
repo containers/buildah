@@ -14,8 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	types "github.com/containers/buildah/internal/mkcw/types"
 	"github.com/sirupsen/logrus"
+	types "go.podman.io/buildah/internal/mkcw/types"
 	"go.podman.io/storage/pkg/fileutils"
 )
 

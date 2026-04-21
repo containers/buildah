@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/containers/buildah/define"
 	encconfig "github.com/containers/ocicrypt/config"
+	"go.podman.io/buildah/define"
 	"go.podman.io/common/libimage"
 	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/types"

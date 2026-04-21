@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containers/buildah/internal/tmpdir"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/internal/tmpdir"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )

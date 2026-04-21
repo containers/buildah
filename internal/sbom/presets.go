@@ -3,7 +3,7 @@ package sbom
 import (
 	"slices"
 
-	"github.com/containers/buildah/define"
+	"go.podman.io/buildah/define"
 )
 
 // Preset returns a predefined SBOMScanOptions structure that has the passed-in

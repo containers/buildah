@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containers/buildah/internal/tmpdir"
+	"go.podman.io/buildah/internal/tmpdir"
 )
 
 func Listen(location string) (net.Listener, func() error, error) {

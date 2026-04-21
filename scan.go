@@ -9,11 +9,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/internal/sbom"
 	"github.com/mattn/go-shellwords"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/internal/sbom"
 )
 
 func stringSliceReplaceAll(slice []string, replacements map[string]string, important []string) (built []string, replacedAnImportantValue bool) {

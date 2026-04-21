@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containers/buildah/define"
 	"github.com/opencontainers/cgroups/devices/config"
 	"github.com/opencontainers/runc/libcontainer/devices"
+	"go.podman.io/buildah/define"
 )
 
 func DeviceFromPath(device string) (define.ContainerDevices, error) {

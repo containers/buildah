@@ -29,7 +29,7 @@ in_get_ci_vm() {
 if [[ "$1" == "--config" ]]; then
     in_get_ci_vm "$1"
     cat <<EOF
-DESTDIR="/var/tmp/go/src/github.com/containers/buildah"
+DESTDIR="/var/tmp/go/src/go.podman.io/buildah"
 UPSTREAM_REPO="https://github.com/containers/buildah.git"
 GCLOUD_PROJECT="buildah"
 GCLOUD_IMGPROJECT="libpod-218412"

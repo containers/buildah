@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/docker"
-	"github.com/containers/buildah/util"
 	digest "github.com/opencontainers/go-digest"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/docker"
+	"go.podman.io/buildah/util"
 	"go.podman.io/image/v5/image"
 	"go.podman.io/image/v5/manifest"
 	is "go.podman.io/image/v5/storage"

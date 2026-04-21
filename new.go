@@ -9,11 +9,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/containers/buildah/define"
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/imagebuilder"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/define"
 	"go.podman.io/common/libimage"
 	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/image"

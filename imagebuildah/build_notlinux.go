@@ -3,7 +3,7 @@
 package imagebuildah
 
 import (
-	"github.com/containers/buildah/define"
+	"go.podman.io/buildah/define"
 	"go.podman.io/storage"
 )
 

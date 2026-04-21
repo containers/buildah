@@ -43,7 +43,7 @@ apt install libbtrfs-dev libgpgme-dev passt
 Now import Buildah as a dependency:
 
 ```shell
-go get github.com/containers/buildah
+go get go.podman.io/buildah
 ```
 
 ## Build the image
@@ -126,8 +126,8 @@ import (
   "context"
   "fmt"
 
-  "github.com/containers/buildah"
-  "github.com/containers/buildah/pkg/parse"
+  "go.podman.io/buildah"
+  "go.podman.io/buildah/pkg/parse"
   "go.podman.io/common/pkg/config"
   is "go.podman.io/image/v5/storage"
   "go.podman.io/storage"

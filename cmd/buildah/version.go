@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/containerd/platforms"
-	"github.com/containers/buildah/define"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah/define"
 	iversion "go.podman.io/image/v5/version"
 )
 

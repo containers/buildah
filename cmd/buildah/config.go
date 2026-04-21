@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/docker"
-	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/mattn/go-shellwords"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/docker"
+	buildahcli "go.podman.io/buildah/pkg/cli"
 )
 
 type configResults struct {

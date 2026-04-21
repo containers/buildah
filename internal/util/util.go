@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containers/buildah/internal/output"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.podman.io/buildah/internal/output"
 	"go.podman.io/common/libimage"
 	lplatform "go.podman.io/common/libimage/platform"
 	"go.podman.io/image/v5/types"

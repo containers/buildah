@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
+	"go.podman.io/buildah/pkg/parse"
 )
 
 func mkcwCmd(c *cobra.Command, args []string, options buildah.CWConvertImageOptions) error {

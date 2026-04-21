@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/util"
 	"github.com/spf13/cobra"
+	buildahcli "go.podman.io/buildah/pkg/cli"
+	"go.podman.io/buildah/util"
 )
 
 type rmResults struct {

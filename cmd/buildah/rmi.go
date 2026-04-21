@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
+	buildahcli "go.podman.io/buildah/pkg/cli"
+	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/common/libimage"
 )
 

@@ -1,6 +1,6 @@
 package mkcwtypes
 
-import "github.com/containers/buildah/define"
+import "go.podman.io/buildah/define"
 
 // WorkloadConfig is the data type which is encoded and stored in /krun-sev.json in a container
 // image, and included directly in the disk image.

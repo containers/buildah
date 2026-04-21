@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/internal/tmpdir"
-	"github.com/containers/buildah/pkg/overlay"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/internal/tmpdir"
+	"go.podman.io/buildah/pkg/overlay"
 	"go.podman.io/storage"
 	"golang.org/x/sys/unix"
 )

@@ -9,8 +9,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/containers/buildah/define"
-	types "github.com/containers/buildah/internal/mkcw/types"
+	"go.podman.io/buildah/define"
+	types "go.podman.io/buildah/internal/mkcw/types"
 )
 
 type (

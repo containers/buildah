@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containers/buildah"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"go.podman.io/buildah"
 	"go.podman.io/common/pkg/umask"
 	is "go.podman.io/image/v5/storage"
 	"go.podman.io/image/v5/types"

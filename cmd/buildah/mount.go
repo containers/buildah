@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	buildahcli "go.podman.io/buildah/pkg/cli"
 )
 
 type jsonMount struct {

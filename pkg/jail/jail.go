@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/containers/buildah/pkg/util"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/pkg/util"
 	"golang.org/x/sys/unix"
 )
 

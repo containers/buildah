@@ -3,9 +3,9 @@ package cli
 import (
 	"testing"
 
-	"github.com/containers/buildah/define"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"go.podman.io/buildah/define"
 	"go.podman.io/common/pkg/completion"
 )
 

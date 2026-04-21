@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containers/buildah/pkg/parse"
+	"go.podman.io/buildah/pkg/parse"
 )
 
 // Mirrors path to a tmpfile if path points to a

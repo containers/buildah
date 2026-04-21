@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/util"
 	"github.com/spf13/cobra"
+	"go.podman.io/buildah"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/util"
 	"go.podman.io/common/pkg/formats"
 	"go.podman.io/storage"
 )

@@ -14,10 +14,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/containers/buildah/internal/mkcw"
-	mkcwtypes "github.com/containers/buildah/internal/mkcw/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/buildah/internal/mkcw"
+	mkcwtypes "go.podman.io/buildah/internal/mkcw/types"
 	"go.podman.io/storage"
 )
 

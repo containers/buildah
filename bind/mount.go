@@ -10,9 +10,9 @@ import (
 	"slices"
 	"syscall"
 
-	"github.com/containers/buildah/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/util"
 	"go.podman.io/storage/pkg/idtools"
 	"go.podman.io/storage/pkg/mount"
 	"golang.org/x/sys/unix"

@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/containers/buildah/docker"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/imagebuilder"
+	"go.podman.io/buildah/docker"
 	"go.podman.io/image/v5/manifest"
 )
 
