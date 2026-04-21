@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -367,4 +368,227 @@ func stdinToDirectory(dir string) error {
 		}
 	}
 	return nil
+}
+
+// TemplateProcessorOptions configures how files with a specific suffix are processed.
+// Exactly one of UseBuiltinCpp or Cmd must be effectively configured:
+//   - If UseBuiltinCpp is true, the built-in C preprocessor (cpp) is used.
+//   - If UseBuiltinCpp is false, Cmd must specify an external command.
+type TemplateProcessorOptions struct {
+	// Cmd specifies the external command and its arguments to execute.
+	// The command receives the template content on stdin and must output
+	// the processed result to stdout. This field is ignored when UseBuiltinCpp is true.
+	Cmd []string
+
+	// UseBuiltinCpp indicates whether to use the built-in C preprocessor (cpp).
+	// When true, Cmd is ignored. Default is false, except when a template
+	// specification uses the special "cpp" command name (e.g., "in=cpp").
+	UseBuiltinCpp bool
+
+	// IgnoreStderr controls stderr output from the preprocessor command.
+	// When true, stderr is hidden unless the command exits with a non-zero code.
+	// When false, stderr is always logged as a warning.
+	IgnoreStderr bool
+
+	// ChdirCtxDir changes the working directory to the build context directory
+	// before executing the preprocessor command. The build context path is also
+	// always available via the BUILDAH_CTXDIR environment variable.
+	ChdirCtxDir bool
+}
+
+// TemplateLookupPolicy defines when to search for template files
+// versus regular Containerfile/Dockerfile files.
+type TemplateLookupPolicy int
+
+const (
+	// TemplateLookupNever disables template file lookup entirely.
+	// Only regular Containerfile/Dockerfile files are considered.
+	TemplateLookupNever TemplateLookupPolicy = iota
+
+	// TemplateLookupFirst searches for template files (e.g., Containerfile.in)
+	// before falling back to regular Containerfile/Dockerfile.
+	TemplateLookupFirst
+
+	// TemplateLookupLast searches for regular Containerfile/Dockerfile first,
+	// then falls back to template files if no regular file is found.
+	TemplateLookupLast
+)
+
+// TemplateOptions holds the complete template processing configuration.
+// The LookupPolicy determines when templates are considered, while SuffixOrder
+// and Preprocessors define which suffixes are supported and how they are processed.
+//
+// SuffixOrder and Preprocessors must be kept consistent: each suffix in SuffixOrder
+// must have a corresponding entry in Preprocessors, and vice versa.
+// The SanityCheck() method verifies this consistency.
+type TemplateOptions struct {
+	// LookupPolicy controls when template files are considered during discovery.
+	// See TemplateLookupPolicy for details.
+	LookupPolicy TemplateLookupPolicy
+
+	// SuffixOrder defines the sequence of suffixes to attempt when looking for
+	// template files. Suffixes are tried in order until a matching file is found.
+	// Example: []string{"in", "tmpl", "j2"}
+	SuffixOrder []string
+
+	// Preprocessors maps filename suffixes to their respective processing configurations.
+	// Each suffix listed in SuffixOrder must have an entry in this map.
+	Preprocessors map[string]*TemplateProcessorOptions
+}
+
+const (
+	// useDefaultCppHandling enables built-in .in file processing by default.
+	useDefaultCppHandling = true
+
+	// defaultCppSuffix is the filename suffix processed by the built-in C preprocessor.
+	defaultCppSuffix = "in"
+)
+
+// EmptyTemplateOptions returns a TemplateOptions with no preconfigured suffixes
+// and TemplateLookupNever as the default policy.
+func EmptyTemplateOptions() *TemplateOptions {
+	rv := &TemplateOptions{
+		LookupPolicy:  TemplateLookupNever,
+		SuffixOrder:   make([]string, 0),
+		Preprocessors: make(map[string]*TemplateProcessorOptions, 0),
+	}
+	return rv
+}
+
+// NewTemplateOptionsWithCapacity creates a TemplateOptions with pre-allocated capacity.
+// The capacity hint is used for internal slices and maps. If useDefaultCppHandling is true,
+// an additional slot is reserved for the default "in" suffix.
+//
+// The returned options include the default "in" suffix configured to use the built-in
+// C preprocessor.
+func NewTemplateOptionsWithCapacity(capacity int) *TemplateOptions {
+	if capacity < 0 {
+		capacity = 0
+	}
+
+	// reserve space for default "*.in" handling
+	if useDefaultCppHandling {
+		capacity++
+	}
+
+	rv := &TemplateOptions{
+		LookupPolicy:  TemplateLookupNever,
+		SuffixOrder:   make([]string, 0, capacity),
+		Preprocessors: make(map[string]*TemplateProcessorOptions, capacity),
+	}
+
+	// default "*.in" handling
+	if useDefaultCppHandling {
+		cppOpts := NewTemplateProcessorOptions()
+		cppOpts.UseBuiltinCpp = true
+		rv.SuffixOrder = append(rv.SuffixOrder, defaultCppSuffix)
+		rv.Preprocessors[defaultCppSuffix] = cppOpts
+	}
+
+	return rv
+}
+
+// NewTemplateOptions returns a TemplateOptions with default configuration.
+// If default C preprocessor handling is enabled, the returned options include
+// the default "in" suffix; otherwise, it returns an empty configuration.
+func NewTemplateOptions() *TemplateOptions {
+	if useDefaultCppHandling {
+		return NewTemplateOptionsWithCapacity(0)
+	}
+	return EmptyTemplateOptions()
+}
+
+// DeleteSuffix removes a suffix and its associated processor from the configuration.
+// If the suffix is empty, the call is ignored.
+func (t *TemplateOptions) DeleteSuffix(suffix string) {
+	if suffix == "" {
+		// ignore empty suffix
+		return
+	}
+
+	delete(t.Preprocessors, suffix)
+	t.SuffixOrder = slices.DeleteFunc(
+		t.SuffixOrder,
+		func(s string) bool { return s == suffix },
+	)
+}
+
+// AddSuffix adds or replaces a suffix processor. If procOpts is nil, the suffix is deleted.
+// Empty suffixes are ignored. The suffix is appended to SuffixOrder if not already present.
+func (t *TemplateOptions) AddSuffix(suffix string, procOpts *TemplateProcessorOptions) {
+	if suffix == "" {
+		// ignore empty suffix
+		return
+	}
+
+	if procOpts == nil {
+		// handle implicit suffix deletion
+		t.DeleteSuffix(suffix)
+		return
+	}
+
+	t.Preprocessors[suffix] = procOpts
+	if !slices.Contains(t.SuffixOrder, suffix) {
+		t.SuffixOrder = append(t.SuffixOrder, suffix)
+	}
+}
+
+// SanityCheck validates the consistency of TemplateOptions.
+// It ensures that:
+//   - SuffixOrder contains no empty or duplicate entries
+//   - Every suffix in SuffixOrder has a corresponding entry in Preprocessors
+//     and vice versa
+//   - For non-builtin processors, Cmd is non-empty and Cmd[0] is non-empty
+//   - No processor configuration is nil
+//
+// Returns an error describing the first inconsistency found.
+func (t *TemplateOptions) SanityCheck() error {
+	suffixes := make(map[string]bool, len(t.SuffixOrder))
+	for _, suffix := range t.SuffixOrder {
+		if suffix == "" {
+			return errors.New("empty suffix in `TemplateOptions.SuffixOrder`")
+		}
+
+		if _, seen := suffixes[suffix]; seen {
+			return fmt.Errorf("non-unique suffix %s in `TemplateOptions.SuffixOrder`", suffix)
+		}
+		suffixes[suffix] = true
+
+		if _, seen := t.Preprocessors[suffix]; !seen {
+			return fmt.Errorf("suffix %s presents only in `TemplateOptions.SuffixOrder`", suffix)
+		}
+	}
+
+	for suffix, opts := range t.Preprocessors {
+		if suffix == "" {
+			return errors.New("empty suffix in `TemplateOptions.Preprocessors`")
+		}
+
+		if _, seen := suffixes[suffix]; !seen {
+			return fmt.Errorf("suffix %s presents only in `TemplateOptions.Preprocessors`", suffix)
+		}
+
+		if opts == nil {
+			return fmt.Errorf("`TemplateOptions.Preprocessors[%s]` is nil", suffix)
+		}
+		if opts.UseBuiltinCpp {
+			continue
+		}
+
+		if len(opts.Cmd) == 0 {
+			return fmt.Errorf("empty `TemplateOptions.Preprocessors[%s].Cmd[]`", suffix)
+		}
+		if opts.Cmd[0] == "" {
+			return fmt.Errorf("empty `TemplateOptions.Preprocessors[%s].Cmd[0]`", suffix)
+		}
+	}
+
+	return nil
+}
+
+// NewTemplateProcessorOptions returns a new TemplateProcessorOptions with default values.
+// Note: When UseBuiltinCpp is false, the Cmd field must be set by the caller.
+func NewTemplateProcessorOptions() *TemplateProcessorOptions {
+	rv := &TemplateProcessorOptions{}
+	return rv
 }

@@ -114,6 +114,14 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		}
 	}
 
+	if options.TemplateOpts == nil {
+		options.TemplateOpts = define.NewTemplateOptions()
+	}
+	if err := options.TemplateOpts.SanityCheck(); err != nil {
+		options.TemplateOpts = define.EmptyTemplateOptions()
+		return "", nil, err
+	}
+
 	for _, dfile := range paths {
 		var data io.Reader
 
@@ -162,13 +170,25 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			data = contents
 		}
 
-		// pre-process Dockerfiles with ".in" suffix
-		if strings.HasSuffix(dfile, ".in") {
-			pData, err := preprocessContainerfileContents(logger, dfile, data, options.ContextDirectory, options.CPPFlags)
-			if err != nil {
-				return "", nil, err
+		lastSep := strings.LastIndexAny(dfile, "/\\")
+		dfileBase := dfile
+		if lastSep >= 0 {
+			dfileBase = dfile[lastSep+1:]
+		}
+		if (dfileBase != "") && strings.ContainsRune(dfileBase, '.') {
+			for _, suffix := range options.TemplateOpts.SuffixOrder {
+				if !strings.HasSuffix(dfileBase, "."+suffix) {
+					continue
+				}
+
+				templateProc := options.TemplateOpts.Preprocessors[suffix]
+				pData, err := preprocessContainerfileContents(&options, logger, dfile, data, templateProc)
+				if err != nil {
+					return "", nil, err
+				}
+				data = pData
+				break
 			}
-			data = pData
 		}
 
 		dockerfiles = append(dockerfiles, data)
@@ -491,14 +511,42 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 	return exec.Build(ctx, stages)
 }
 
-// preprocessContainerfileContents runs CPP(1) in preprocess-only mode on the input
-// dockerfile content and will use ctxDir as the base include path.
-func preprocessContainerfileContents(logger *logrus.Logger, containerfile string, r io.Reader, ctxDir string, cppFlags []string) (stdout io.Reader, err error) {
-	cppCommand := "cpp"
-	cppPath, err := exec.LookPath(cppCommand)
+const templateEnvContextDir = "BUILDAH_CTXDIR"
+
+var templateLogSeparator = strings.Repeat("-", 40)
+
+func preprocessContainerfileContents(buildOptions *define.BuildOptions, logger *logrus.Logger, fileName string, fileData io.Reader, templateProcessor *define.TemplateProcessorOptions) (io.Reader, error) {
+	var cmdName string
+	var cmdArgs []string
+
+	if templateProcessor.UseBuiltinCpp {
+		// run CPP(1) in preprocess-only mode on the input dockerfile content and use ContextDirectory as the base include path.
+
+		cmdName = "cpp"
+		cmdArgs = []string{"-E", "-iquote", buildOptions.ContextDirectory, "-traditional", "-undef", "-"}
+
+		if flags, ok := os.LookupEnv("BUILDAH_CPPFLAGS"); ok {
+			args, err := shellwords.Parse(flags)
+			if err != nil {
+				return nil, fmt.Errorf("parsing BUILDAH_CPPFLAGS %q: %v", flags, err)
+			}
+			cmdArgs = append(cmdArgs, args...)
+		}
+
+		cmdArgs = append(cmdArgs, buildOptions.CPPFlags...)
+	} else {
+		cmdName = templateProcessor.Cmd[0]
+		cmdArgs = templateProcessor.Cmd[1:]
+	}
+
+	cmdPath, err := exec.LookPath(cmdName)
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
-			err = fmt.Errorf("%v: .in support requires %s to be installed", err, cppCommand)
+			if templateProcessor.UseBuiltinCpp {
+				err = fmt.Errorf("error: %s support requires %s to be installed", fileName, cmdName)
+			} else {
+				err = fmt.Errorf("%v: missing command for template processing: %q", err, cmdName)
+			}
 		}
 		return nil, err
 	}
@@ -506,31 +554,68 @@ func preprocessContainerfileContents(logger *logrus.Logger, containerfile string
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
 
-	cppArgs := []string{"-E", "-iquote", ctxDir, "-traditional", "-undef", "-"}
-	if flags, ok := os.LookupEnv("BUILDAH_CPPFLAGS"); ok {
-		args, err := shellwords.Parse(flags)
-		if err != nil {
-			return nil, fmt.Errorf("parsing BUILDAH_CPPFLAGS %q: %v", flags, err)
-		}
-		cppArgs = append(cppArgs, args...)
-	}
-	cppArgs = append(cppArgs, cppFlags...)
-	cmd := exec.Command(cppPath, cppArgs...)
-	cmd.Stdin = r
+	cmd := exec.Command(cmdPath, cmdArgs...)
+	cmd.Stdin = fileData
 	cmd.Stdout = &stdoutBuffer
 	cmd.Stderr = &stderrBuffer
 
+	if templateProcessor.ChdirCtxDir {
+		cmd.Dir = buildOptions.ContextDirectory
+	}
+
+	// propagate ContextDirectory into environment
+	{
+		ctxDirPrefix := templateEnvContextDir + "="
+		ctxDirValue := ctxDirPrefix + buildOptions.ContextDirectory
+
+		cmdEnv := cmd.Environ()
+		cmdEnv = slices.DeleteFunc(
+			cmdEnv,
+			func(s string) bool { return strings.HasPrefix(s, ctxDirPrefix) },
+		)
+		cmdEnv = append(cmdEnv, ctxDirValue)
+		cmd.Env = cmdEnv
+	}
+
 	if err = cmd.Start(); err != nil {
-		return nil, fmt.Errorf("preprocessing %s: %w", containerfile, err)
+		return nil, fmt.Errorf("preprocessing %s: %w", fileName, err)
 	}
-	if err = cmd.Wait(); err != nil {
-		if stderrBuffer.Len() != 0 {
-			logger.Warnf("Ignoring %s\n", stderrBuffer.String())
-		}
-		if stdoutBuffer.Len() == 0 {
-			return nil, fmt.Errorf("preprocessing %s: preprocessor produced no output: %w", containerfile, err)
-		}
+	err = cmd.Wait()
+
+	missingOutput := (stdoutBuffer.Len() == 0)
+	showStderr := ((err != nil) || !templateProcessor.IgnoreStderr) && (stderrBuffer.Len() != 0)
+	wantLog := (err != nil) || missingOutput || showStderr
+
+	if wantLog {
+		logger.Warn(templateLogSeparator)
+		logger.Warnf("preprocessing: %s", fileName)
+		logger.Warnf("command: %q (%q)", cmdName, cmdPath)
 	}
+	if err != nil {
+		logger.Warnf("error: %v", err)
+	}
+	if missingOutput {
+		logger.Warn("command produced no output")
+	}
+	if showStderr {
+		logger.Warnf("command error output:\n%s\n", stderrBuffer.String())
+	}
+	if wantLog {
+		logger.Warn(templateLogSeparator)
+	}
+
+	if err != nil {
+		// allow CPP(1) to exit with non-zero code if output is present
+		if templateProcessor.UseBuiltinCpp && !missingOutput {
+			return &stdoutBuffer, nil
+		}
+
+		return nil, fmt.Errorf("preprocessing %s: error: %w", fileName, err)
+	}
+	if missingOutput {
+		return nil, fmt.Errorf("preprocessing %s: empty output", fileName)
+	}
+
 	return &stdoutBuffer, nil
 }
 

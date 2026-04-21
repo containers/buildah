@@ -1,11 +1,13 @@
 package util //nolint:revive,nolintlint
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/parse"
 )
 
@@ -40,43 +42,101 @@ func MirrorToTempFileIfPathIsDescriptor(file string) (string, bool) {
 	return tmpfile.Name(), true
 }
 
-// DiscoverContainerfile tries to find a Containerfile or a Dockerfile within the provided `path`.
-func DiscoverContainerfile(path string) (foundCtrFile string, err error) {
+// filename search order
+var containerFileNames = []string{
+	"Containerfile",
+	"Dockerfile",
+}
+
+func discoverTemplateContainerfile(path string, suffix string) (string, error) {
+	var filePath string
+	var file os.FileInfo
+	var err error
+
+	for _, name := range containerFileNames {
+		if suffix != "" {
+			filePath = filepath.Join(path, name+"."+suffix)
+		} else {
+			filePath = filepath.Join(path, name)
+		}
+
+		file, err = os.Stat(filePath)
+		if err != nil {
+			continue
+		}
+
+		// The file exists, now verify the correct mode
+		if mode := file.Mode(); mode.IsRegular() {
+			return filePath, nil
+		}
+	}
+
+	return "", errors.New("cannot find Containerfile")
+}
+
+func discoverContainerfile(path string) (string, error) {
+	return discoverTemplateContainerfile(path, "")
+}
+
+// DiscoverContainerfileEx searches for a Containerfile or Dockerfile at the given path.
+// When path is a directory, it searches for regular container definition files
+// ("Containerfile", "Dockerfile") and optionally for template files
+// ("Containerfile.suffix", "Dockerfile.suffix") according to the templateLookupPolicy.
+//
+// The templateSuffixOrder defines the list of suffixes to try when searching for
+// template files. The templateLookupPolicy controls whether to try template files
+// before (TemplateLookupFirst), after (TemplateLookupLast), or not at all (TemplateLookupNever).
+//
+// If path is a regular file, it is returned directly without further searching.
+func DiscoverContainerfileEx(path string, templateLookupPolicy define.TemplateLookupPolicy, templateSuffixOrder []string) (string, error) {
 	// Test for existence of the file
 	target, err := os.Stat(path)
 	if err != nil {
-		return "", fmt.Errorf("discovering Containerfile: %w", err)
+		return "", fmt.Errorf("discovering Containerfile: %v", err)
 	}
 
 	switch mode := target.Mode(); {
 	case mode.IsDir():
 		// If the path is a real directory, we assume a Containerfile or a Dockerfile within it
-		ctrfile := filepath.Join(path, "Containerfile")
 
-		// Test for existence of the Containerfile file
-		file, err := os.Stat(ctrfile)
-		if err != nil {
-			// See if we have a Dockerfile within it
-			ctrfile = filepath.Join(path, "Dockerfile")
-
-			// Test for existence of the Dockerfile file
-			file, err = os.Stat(ctrfile)
-			if err != nil {
-				return "", fmt.Errorf("cannot find Containerfile or Dockerfile in context directory: %w", err)
+		if templateLookupPolicy == define.TemplateLookupFirst {
+			for _, suffix := range templateSuffixOrder {
+				filePath, err := discoverTemplateContainerfile(path, suffix)
+				if err == nil {
+					return filePath, nil
+				}
 			}
 		}
 
-		// The file exists, now verify the correct mode
-		if mode := file.Mode(); mode.IsRegular() {
-			foundCtrFile = ctrfile
-		} else {
-			return "", fmt.Errorf("assumed Containerfile %q is not a file", ctrfile)
+		filePath, err := discoverContainerfile(path)
+		if err == nil {
+			return filePath, nil
 		}
+
+		if templateLookupPolicy == define.TemplateLookupLast {
+			for _, suffix := range templateSuffixOrder {
+				filePath, err := discoverTemplateContainerfile(path, suffix)
+				if err == nil {
+					return filePath, nil
+				}
+			}
+		}
+
+		missingNames := strings.Join(containerFileNames, " or ")
+		if len(containerFileNames) > 1 {
+			missingNames = "either " + missingNames
+		}
+		return "", fmt.Errorf("cannot find %s in context directory", missingNames)
 
 	case mode.IsRegular():
 		// If the context dir is a file, we assume this as Containerfile
-		foundCtrFile = path
+		return path, nil
 	}
 
-	return foundCtrFile, nil
+	return "", fmt.Errorf("path is not a file or directory: %s", path)
+}
+
+// DiscoverContainerfile tries to find a Containerfile or a Dockerfile within the provided `path`.
+func DiscoverContainerfile(path string) (string, error) {
+	return DiscoverContainerfileEx(path, define.TemplateLookupNever, nil)
 }
