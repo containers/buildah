@@ -83,10 +83,6 @@ esac
 # Previously, golang was not installed
 source $(dirname $0)/lib.sh
 
-echo "Configuring /etc/containers/registries.conf"
-mkdir -p /etc/containers
-echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject.org', 'quay.io']" | tee /etc/containers/registries.conf
-
 # As of July 2024, CI VMs come built-in with a registry.
 LCR=/var/cache/local-registry/local-cache-registry
 if [[ -x $LCR ]]; then
