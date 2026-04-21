@@ -33,9 +33,9 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
-	go.podman.io/common v0.67.2-0.20260416095229-6070b2b6059e
-	go.podman.io/image/v5 v5.39.3-0.20260416095229-6070b2b6059e
-	go.podman.io/storage v1.62.1-0.20260416095229-6070b2b6059e
+	go.podman.io/common v0.67.2-0.20260420103546-618304d6f83d
+	go.podman.io/image/v5 v5.39.3-0.20260420103546-618304d6f83d
+	go.podman.io/storage v1.62.1-0.20260420103546-618304d6f83d
 	golang.org/x/crypto v0.50.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0
