@@ -60,8 +60,14 @@ type AddAndCopyOptions struct {
 	// If the sources include directory trees, Hasher will be passed
 	// tar-format archives of the directory trees.
 	Hasher io.Writer
-	// Excludes is the contents of the .containerignore file.
+	// Excludes is a list of patterns to be excluded, which has the
+	// format of lines of .containerignore file.
 	Excludes []string
+	// GitExcludes is a list of patterns to be excluded, which has the
+	// format of lines of .containerignore file. It is separate from
+	// Excludes because it is not desirable to use contents of
+	// .containerignore for git repositories.
+	GitExcludes []string
 	// IgnoreFile is the path to the .containerignore file.
 	IgnoreFile string
 	// ContextDir is the base directory for content being copied and
@@ -612,7 +618,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					getOptions := copier.GetOptions{
 						UIDMap:         srcUIDMap,
 						GIDMap:         srcGIDMap,
-						Excludes:       options.Excludes,
+						Excludes:       options.GitExcludes,
 						ExpandArchives: extract,
 						ChownDirs:      chownDirs,
 						ChmodDirs:      chmodDirsFiles,

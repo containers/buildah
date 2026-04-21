@@ -8010,6 +8010,29 @@ _EOF
   expect_output --substring "couldn't find remote ref nosuchbranch"
 }
 
+@test "bud with ADD with git repository source - .containerignore not applied" {
+  _prefetch busybox
+
+  local repodir=${TEST_SCRATCH_DIR}/repository-add-git-ignoring-files
+  mkdir -p ${repodir}/podman.git
+  tar -C ${repodir}/podman.git -xz < ${TEST_SOURCES}/git-daemon/bare-podman-repo.tar.gz
+  starthttpd /git/=${repodir}:"git http-backend":GIT_HTTP_EXPORT_ALL=1:GIT_PROJECT_ROOT=${repodir} ${repodir}
+
+  local contextdir=${TEST_SCRATCH_DIR}/add-git-ignoring-files
+  mkdir -p $contextdir
+  cat > $contextdir/Dockerfile << _EOF
+FROM busybox
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/podman.git#v5.0.0 /podman-tag
+RUN test -f /podman-tag/file.txt
+_EOF
+
+  cat > $contextdir/.containerignore << _EOF
+file.txt
+_EOF
+
+  run_buildah build -f $contextdir/Dockerfile -t add-git-ignoring-files $contextdir
+}
+
 @test "build-validates-bind-bind-propagation" {
   _prefetch alpine
 
