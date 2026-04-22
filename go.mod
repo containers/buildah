@@ -18,6 +18,7 @@ require (
 	github.com/moby/buildkit v0.29.0
 	github.com/moby/moby/client v0.4.1
 	github.com/moby/sys/capability v0.4.0
+	github.com/moby/sys/devices v0.1.0
 	github.com/moby/sys/userns v0.1.0
 	github.com/opencontainers/cgroups v0.0.6
 	github.com/opencontainers/go-digest v1.0.0
