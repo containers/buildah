@@ -566,7 +566,7 @@ func convertToRelSubdirectory(root, directory string) (relative string, err erro
 		return "", fmt.Errorf("expected root directory to be an absolute path, got %q", root)
 	}
 	if directory == "" || !filepath.IsAbs(directory) {
-		return "", fmt.Errorf("expected directory to be an absolute path, got %q", root)
+		return "", fmt.Errorf("expected directory to be an absolute path, got %q", directory)
 	}
 	if filepath.VolumeName(root) != filepath.VolumeName(directory) {
 		return "", fmt.Errorf("%q and %q are on different volumes", root, directory)
@@ -1786,7 +1786,7 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 			return fmt.Errorf("copying %s: %w", contentPath, err)
 		}
 		if n != hdr.Size {
-			return fmt.Errorf("copying %s: incorrect size (expected %d bytes, read %d bytes)", contentPath, n, hdr.Size)
+			return fmt.Errorf("copying %s: incorrect size (expected %d bytes, read %d bytes)", contentPath, hdr.Size, n)
 		}
 		tw.Flush()
 	}
@@ -1828,7 +1828,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			containerFilePair := idtools.IDPair{UID: *fileUID, GID: *fileGID}
 			hostFilePair, err := idMappings.ToHost(containerFilePair)
 			if err != nil {
-				return errorResponse("copier: put: error mapping container filesystem owner %d:%d to host filesystem owners: %v", fileUID, fileGID, err)
+				return errorResponse("copier: put: error mapping container filesystem owner %d:%d to host filesystem owners: %v", *fileUID, *fileGID, err)
 			}
 			fileUID, fileGID = &hostFilePair.UID, &hostFilePair.GID
 		}
