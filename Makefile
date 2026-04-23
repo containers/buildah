@@ -132,7 +132,7 @@ bin/grpcnoop: tests/rpc/noop/noop.go
 
 .PHONY: clean
 clean:
-	$(RM) -r bin tests/testreport/testreport tests/conformance/testdata/mount-targets/true internal/mkcw/embed/entrypoint_amd64 internal/mkcw/embed/entrypoint_arm64 internal/mkcw/embed/entrypoint_ppc64le internal/mkcw/embed/entrypoint_s390x internal/mkcw/embed/*.gz internal/mkcw/embed/asm/*.o
+	$(RM) -r bin tests/testreport/testreport tests/conformance/testdata/mount-targets/true internal/mkcw/embed/entrypoint_arm64 internal/mkcw/embed/entrypoint_ppc64le internal/mkcw/embed/entrypoint_s390x internal/mkcw/embed/entrypoint_arm64.gz internal/mkcw/embed/entrypoint_ppc64le.gz internal/mkcw/embed/entrypoint_s390x.gz internal/mkcw/embed/asm/*.o
 	$(MAKE) -C docs clean
 
 .PHONY: docs
