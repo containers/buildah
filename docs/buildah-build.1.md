@@ -1153,6 +1153,17 @@ To later use the ssh agent, use the --mount flag in a `RUN` instruction within a
 
 `RUN --mount=type=secret,id=id mycmd`
 
+**NOTE:** When using the non-default `root` user, then either `mode`, `uid` or `gid` options
+must be specified with the `mount` options. For example making ssh socket available to `app`
+user with `uid=50000`:
+
+```
+# Switch to application user (Note that uid depends on container image)
+USER app
+# ...and check whether ssh identities are available
+RUN --mount=type=ssh,uid=50000 \
+    ssh-add -L
+```
 
 **--stage-labels** *bool-value*
 
