@@ -866,7 +866,6 @@ func copierMain() {
 				fmt.Fprintf(os.Stderr, "error: can't change location of chroot from %q to %q", previousRequestRoot, req.Root)
 				os.Exit(1)
 			}
-			previousRequestRoot = req.Root
 		} else {
 			// Figure out where to chroot to, if we weren't told.
 			if req.Root == "" {
@@ -884,6 +883,8 @@ func copierMain() {
 				fmt.Fprintf(os.Stderr, "%v", err)
 				os.Exit(1)
 			}
+
+			previousRequestRoot = req.Root
 		}
 
 		req.preservedRoot = req.Root
