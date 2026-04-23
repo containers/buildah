@@ -26,8 +26,8 @@ error building: error creating build container: no such image "alpine" in regist
 
 #### Solution
 
-  * Verify that the `/etc/containers/registries.conf` file exists.  If not, verify that the containers-common package is installed.
-  * Verify that the entries in the `[registries.search]` section of the /etc/containers/registries file are valid and reachable.
+  * Verify that a `registries.conf` file exists, see [containers-registries.conf(5)](https://github.com/containers/container-libs/blob/main/image/docs/containers-registries.conf.5.md). If not, verify that the containers-common package is installed.
+  * Verify that the `unqualified-search-registries` option contains valid registries and that they are reachable.
   * Verify that the image you requested is either fully qualified, or that it exists on one of your search registries.
   * Verify that the image is public or that you have logged in to at least one search registry which contains the private image.
   * Verify that the other required [Configuration Files](https://github.com/containers/buildah/blob/main/install.md#configuration-files) are installed.
