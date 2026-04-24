@@ -56,6 +56,17 @@ Apply the change to the committed image that would have been made if it had
 been built using a Containerfile which included the specified instruction.
 This option can be specified multiple times.
 
+**--compression-format** *format*
+
+Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+If not specified, the format is read from the `compression_format` setting in containers.conf.
+Cannot be used together with **--disable-compression**.
+
+**--compression-level** *level*
+
+Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
+If not specified, the level is read from the `compression_level` setting in containers.conf.
+
 **--config** *filename*
 
 Read a JSON-encoded version of an image configuration object from the specified
@@ -143,6 +154,7 @@ because image layers are compressed automatically when they are pushed to
 registries, and images being written to local storage would only need to be
 decompressed again to be stored.  Compression can be forced in all cases by
 specifying **--disable-compression=false**.
+Cannot be used together with **--compression-format** or **--force-compression**.
 
 **--encrypt-layer** *layer(s)*
 
@@ -151,6 +163,11 @@ Layer(s) to encrypt: 0-indexed layer indices with support for negative indexing 
 **--encryption-key** *key*
 
 The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7516), PGP (RFC4880), and PKCS7 (RFC2315) and the key material required for image encryption. For instance, jwe:/path/to/key.pem or pgp:admin@example.com or pkcs7:/path/to/x509-file.
+
+**--force-compression**
+
+If set, commit uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to `true` if **--compression-format** is explicitly specified on the command-line or `compression_format` is set in containers.conf, `false` otherwise.
 
 **--format**, **-f** *[oci | docker]*
 
