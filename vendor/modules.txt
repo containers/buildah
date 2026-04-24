@@ -333,7 +333,7 @@ github.com/opencontainers/runtime-tools/validate/capabilities
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/imagebuilder v1.2.20
+# github.com/openshift/imagebuilder v1.2.20 => github.com/nalind/openshift-imagebuilder v0.0.0-20260323194513-7ddaacf5cc8c
 ## explicit; go 1.23.3
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerclient
@@ -825,3 +825,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/openshift/imagebuilder => github.com/nalind/openshift-imagebuilder v0.0.0-20260323194513-7ddaacf5cc8c

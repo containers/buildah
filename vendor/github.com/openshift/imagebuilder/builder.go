@@ -213,7 +213,7 @@ var (
 type Stages []Stage
 
 func (stages Stages) ByName(name string) (Stage, bool) {
-	for _, stage := range stages {
+	for _, stage := range slices.Backward(stages) {
 		if stage.Name == name {
 			return stage, true
 		}
@@ -241,7 +241,7 @@ func (stages Stages) ByTarget(target string) (Stages, bool) {
 	if len(target) == 0 {
 		return stages, true
 	}
-	for i, stage := range stages {
+	for i, stage := range slices.Backward(stages) {
 		if stage.Name == target {
 			return stages[i : i+1], true
 		}
@@ -264,7 +264,7 @@ func (stages Stages) ThroughTarget(target string) (Stages, bool) {
 	if len(target) == 0 {
 		return stages, true
 	}
-	for i, stage := range stages {
+	for i, stage := range slices.Backward(stages) {
 		if stage.Name == target {
 			return stages[0 : i+1], true
 		}
@@ -284,7 +284,7 @@ func (stages Stages) ThroughTarget(target string) (Stages, bool) {
 
 type Stage struct {
 	Position int
-	Name     string
+	Name     string // may just be strconv.Itoa(Position), be sure to search from back to front
 	Builder  *Builder
 	Node     *parser.Node
 }

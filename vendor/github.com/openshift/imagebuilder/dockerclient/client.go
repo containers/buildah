@@ -195,7 +195,7 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 				return nil, fmt.Errorf("the --after flag in FROM is not supported by the dockerclient executor")
 			}
 			if prereq := e.Named[from]; prereq != nil {
-				b, ok := stages.ByName(from)
+				b, ok := stages[:i].ByName(from)
 				if !ok {
 					return nil, fmt.Errorf("error: Unable to find stage %s builder", from)
 				}

@@ -10240,3 +10240,97 @@ _EOF
   # Verify final image IDs match (complete cache hit)
   assert "$first_build_final_image_id" "==" "$second_build_final_image_id" "final image ID should match when cache is fully reused"
 }
+
+@test "bud-duplicate-stage-names-target" {
+  local contextdir="${TEST_SCRATCH_DIR}"/context
+  mkdir -p $contextdir
+  cat > $contextdir/Dockerfile << EOF
+  FROM scratch AS stage0
+  LABEL x="really stage 0"
+
+  FROM scratch AS stage0
+  LABEL x="actually stage 1"
+
+  FROM stage0
+EOF
+  local target=image0
+  for njobs in "" --jobs=3 ; do
+    for layers in "" --layers ; do
+      for through in "" --target=stage0 ; do
+        echo building with options: $layers $through $njobs
+        run_buildah build $WITH_POLICY_JSON --identity-label=false $layers $through $njobs -t "${target}" "${contextdir}"
+        run_buildah inspect --format='{{.OCIv1.Config.Labels}}' "${target}"
+        expect_output 'map[x:actually stage 1]'
+        run_buildah rmi -a -f
+      done
+    done
+  done
+}
+
+@test "bud-duplicate-stage-names-copy-from" {
+  _prefetch busybox
+
+  local target=image0
+
+  local contextdir="${TEST_SCRATCH_DIR}"/context
+  mkdir -p $contextdir
+  cat > $contextdir/Dockerfile.1 <<_EOF
+  FROM busybox AS stage0
+  COPY <<EOF /stage.txt
+  actually stage 0
+EOF
+  FROM busybox AS stage0
+  COPY <<EOF /stage.txt
+  actually stage 1
+EOF
+  FROM busybox
+  COPY --from=stage0 /stage.txt /
+_EOF
+  cat > $contextdir/Dockerfile.2 <<_EOF
+  FROM ${target}
+  RUN cat /stage.txt
+_EOF
+
+  for njobs in "" --jobs=3 ; do
+    for layers in "" "--layers --no-cache" ; do
+      echo building with option: $layers
+      run_buildah build $WITH_POLICY_JSON $layers $njobs -t "${target}" -f ${contextdir}/Dockerfile.1 "${contextdir}"
+      run_buildah build $WITH_POLICY_JSON $layers $njobs -t "${target}"-derived -f ${contextdir}/Dockerfile.2 "${contextdir}"
+      expect_output --substring "actually stage 1"
+      run_buildah rmi "${target}"-derived
+      run_buildah rmi "${target}"
+    done
+  done
+}
+
+@test "bud-duplicate-stage-names-mount-from" {
+  _prefetch busybox
+
+  local target=image0
+
+  local contextdir="${TEST_SCRATCH_DIR}"/context
+  mkdir -p $contextdir
+  cat > $contextdir/Dockerfile <<_EOF
+  FROM busybox AS stage0
+  COPY <<EOF /stage.txt
+  actually stage 0
+EOF
+  FROM busybox AS stage0
+  COPY <<EOF /stage.txt
+  actually stage 1
+EOF
+  FROM busybox AS stage0
+  COPY <<EOF /expected.txt
+  actually stage 1
+EOF
+  RUN --mount=from=stage0,target=/stage0 cmp /stage0/stage.txt /expected.txt && echo this build was ok
+_EOF
+
+  for njobs in "" --jobs=3 ; do
+    for layers in "" "--layers --no-cache" ; do
+      echo building with option: $layers
+      run_buildah build $WITH_POLICY_JSON $layers $njobs -t "${target}" -f ${contextdir}/Dockerfile "${contextdir}"
+      run_buildah rmi "${target}"
+    done
+  done
+}
