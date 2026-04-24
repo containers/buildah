@@ -218,6 +218,20 @@ This option is added to be aligned with other containers CLIs.
 Buildah doesn't send a copy of the context directory to a daemon or a remote server.
 Thus, compressing the data before sending it is irrelevant to Buildah.
 
+**--compression-format** *format*
+
+Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+`zstd:chunked` is incompatible with encrypting images, and will be treated as `zstd` with a warning in that case.
+If not specified, the format is read from the `compression_format` setting in containers.conf.
+
+This option affects cache pushes with `--cache-to` and the final image when it is written to a non-local destination (e.g., `dir:`, `oci:`, `oci-archive:`, or a registry).
+When the output is local container storage (the default), layers are always decompressed on ingest, so compression is applied at `buildah push` time instead.
+
+**--compression-level** *level*
+
+Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
+If not specified, the level is read from the `compression_level` setting in containers.conf.
+
 **--cpp-flag**=""
 
 Set additional flags to pass to the C Preprocessor cpp(1).
@@ -443,6 +457,11 @@ If a local file is specified as the Containerfile and it does not exist, the
 context directory will be prepended to the local file value.
 
 If you specify `-f -`, the Containerfile contents will be read from stdin.
+
+**--force-compression**
+
+If set, uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to `true` if `--compression-format` is explicitly specified on the command-line or `compression_format` is set in containers.conf, `false` otherwise.
 
 **--force-rm** *bool-value*
 
