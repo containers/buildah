@@ -6474,11 +6474,12 @@ _EOF
 
 }
 
-@test "build --cache-to should respect compression_format from containers.conf" {
+# Sets shell variables: contextdir, authfile
+function _setup_cache_compression_test() {
   which skopeo || skip "skopeo is not installed"
   _prefetch alpine
 
-  local contextdir=${TEST_SCRATCH_DIR}/bud/cache-compression
+  contextdir=${TEST_SCRATCH_DIR}/bud/cache-compression
   mkdir -p $contextdir
   echo "unique-content-$(random_string)-$(date +%s)" > $contextdir/testfile
   cat > $contextdir/Containerfile << _EOF
@@ -6486,47 +6487,119 @@ FROM alpine
 RUN echo "layer1-$(random_string)"
 COPY testfile /testfile
 _EOF
+  start_registry
+  authfile=${TEST_SCRATCH_DIR}/test.auth
+  run_buildah login --tls-verify=false --authfile $authfile --username testuser --password testpassword localhost:${REGISTRY_PORT}
+}
+
+function _build_with_cache() {
+  local imgname=$1; shift
+  local cacherepo=$1; shift
+  echo "unique-content-$(random_string)-$(date +%s)" > $contextdir/testfile
+  run_buildah build \
+    $WITH_POLICY_JSON \
+    --tls-verify=false \
+    --authfile $authfile \
+    --layers \
+    --no-cache \
+    --cache-to ${cacherepo} \
+    "$@" \
+    -t ${imgname} \
+    -f $contextdir/Containerfile \
+    $contextdir
+  expect_output --substring "Pushing cache"
+}
+
+@test "build --cache-to should respect compression_format from containers.conf" {
+  _setup_cache_compression_test
   cat > $contextdir/containers.conf << _EOF
 [engine]
 compression_format="zstd"
 _EOF
-  start_registry
-  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  local imgname="img-cache-compress-$(safename)"
-  local cacherepo="localhost:${REGISTRY_PORT}/cache-compress-test"
+  local imgname="img-cache-conf-$(safename)"
+  local cacherepo="localhost:${REGISTRY_PORT}/cache-conf-test"
   local finalrepo="localhost:${REGISTRY_PORT}/${imgname}"
 
   CONTAINERS_CONF=$contextdir/containers.conf \
-    run_buildah build \
-      $WITH_POLICY_JSON \
-      --tls-verify=false \
-      --authfile ${TEST_SCRATCH_DIR}/test.auth \
-      --layers \
-      --no-cache \
-      --cache-to ${cacherepo} \
-      -t ${imgname} \
-      -f $contextdir/Containerfile \
-      $contextdir
-  expect_output --substring "Pushing cache"
+    _build_with_cache ${imgname} ${cacherepo}
 
   CONTAINERS_CONF=$contextdir/containers.conf \
     run_buildah push \
       $WITH_POLICY_JSON \
       --tls-verify=false \
-      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      --authfile $authfile \
       ${imgname} \
       docker://${finalrepo}
 
   run skopeo inspect \
-      --authfile ${TEST_SCRATCH_DIR}/test.auth \
+      --authfile $authfile \
       --tls-verify=false \
       --raw \
       docker://${finalrepo}
 
   expect_output --substring "zstd" \
-    "layers should use zstd compression per containers.conf, not gzip from cached blobs"
+    "layers should use zstd compression per containers.conf"
   assert "$output" !~ "tar+gzip" \
     "layers should NOT use gzip when containers.conf specifies zstd"
+}
+
+@test "build --cache-to with --cache-compression-format" {
+  _setup_cache_compression_test
+  local imgname="img-cache-cflag-$(safename)"
+  local cacherepo="localhost:${REGISTRY_PORT}/cache-cflag-test"
+  local finalrepo="localhost:${REGISTRY_PORT}/${imgname}"
+
+  _build_with_cache ${imgname} ${cacherepo} --cache-compression-format zstd
+
+  run_buildah push \
+    $WITH_POLICY_JSON \
+    --tls-verify=false \
+    --authfile $authfile \
+    --compression-format zstd \
+    --force-compression \
+    ${imgname} \
+    docker://${finalrepo}
+
+  run skopeo inspect \
+    --authfile $authfile \
+    --tls-verify=false \
+    --raw \
+    docker://${finalrepo}
+
+  expect_output --substring "zstd" \
+    "layers should use zstd compression when --cache-compression-format=zstd"
+  assert "$output" !~ "tar+gzip" \
+    "layers should NOT use gzip when --cache-compression-format specifies zstd"
+}
+
+@test "build --cache-to with --cache-force-compression" {
+  _setup_cache_compression_test
+  local imgname="img-cache-force-$(safename)"
+  local cacherepo="localhost:${REGISTRY_PORT}/cache-force-test"
+  local finalrepo="localhost:${REGISTRY_PORT}/${imgname}"
+
+  _build_with_cache ${imgname} ${cacherepo}
+  _build_with_cache ${imgname} ${cacherepo} --cache-compression-format zstd --cache-force-compression
+
+  run_buildah push \
+    $WITH_POLICY_JSON \
+    --tls-verify=false \
+    --authfile $authfile \
+    --compression-format zstd \
+    --force-compression \
+    ${imgname} \
+    docker://${finalrepo}
+
+  run skopeo inspect \
+    --authfile $authfile \
+    --tls-verify=false \
+    --raw \
+    docker://${finalrepo}
+
+  expect_output --substring "zstd" \
+    "layers should use zstd compression after --cache-force-compression"
+  assert "$output" !~ "tar+gzip" \
+    "layers should NOT use gzip after --cache-force-compression with zstd"
 }
 
 @test "bud with undefined build arg directory" {
@@ -10224,7 +10297,7 @@ _EOF
 @test "[test caching] Build 1: --layers | Build 2: --save-stages --stage-labels --layers | Cache: No cache reuse - added labels are causing cache miss for each stage" {
   _prefetch alpine
   target="cache-no-reuse-$(safename)"
-  
+
   # First build
   run_buildah build $WITH_POLICY_JSON --layers -t ${target}-first -f $BUDFILES/save-stages/Dockerfile.single-build-stage $BUDFILES/save-stages
 
@@ -10275,7 +10348,7 @@ _EOF
 
   # Verify cache was used 3 times
   cache_count=$(echo "$output" | grep -c "Using cache")
-  assert "$cache_count" -eq 3 "should use cache 3 times (LABEL final, COPY final, RUN final)" 
+  assert "$cache_count" -eq 3 "should use cache 3 times (LABEL final, COPY final, RUN final)"
 
   run_buildah images -a
   intermediate_images_second=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')
