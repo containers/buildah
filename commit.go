@@ -486,6 +486,7 @@ func (b *Builder) CommitResults(ctx context.Context, dest types.ImageReference, 
 		systemContext.OCIAcceptUncompressedLayers = true
 	default:
 		systemContext.DirForceCompress = true
+		systemContext.OCIAcceptUncompressedLayers = false
 	}
 
 	if systemContext.ArchitectureChoice != b.Architecture() {

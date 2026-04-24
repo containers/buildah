@@ -2732,6 +2732,15 @@ func (s *stageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	if finalInstruction {
 		options.ConfidentialWorkloadOptions = s.executor.confidentialWorkload
 		options.SBOMScanOptions = s.executor.sbomScanOptions
+		// Apply compression settings only when committing to a non-local
+		// transport (registry, dir:, oci-archive:, etc.). Local storage
+		// decompresses layers on write, so specifying compression there
+		// would have no effect.
+		if imageRef != nil && imageRef.Transport().Name() != is.Transport.Name() {
+			options.CompressionFormat = s.executor.compressionFormat
+			options.CompressionLevel = s.executor.compressionLevel
+			options.ForceCompressionFormat = s.executor.forceCompressionFormat
+		}
 	}
 	results, err := s.builder.CommitResults(ctx, imageRef, options)
 	if err != nil {

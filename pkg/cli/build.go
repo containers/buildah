@@ -239,19 +239,38 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	}
 
 	var compressionFormat *imgCompression.Algorithm
-	var compressionLevel *int
+	forceCompressionFormat := iopts.ForceCompressionFormat
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return options, nil, nil, fmt.Errorf("failed to get container config: %w", err)
 	}
-	if defaultContainerConfig.Engine.CompressionFormat != "" && defaultContainerConfig.Engine.CompressionFormat != "gzip" {
+	if iopts.CompressionFormat != "" {
+		algo, err := imgCompression.AlgorithmByName(iopts.CompressionFormat)
+		if err != nil {
+			return options, nil, nil, err
+		}
+		compressionFormat = &algo
+		compression = define.Gzip
+		if !c.Flag("force-compression").Changed {
+			forceCompressionFormat = true
+		}
+	} else if defaultContainerConfig.Engine.CompressionFormat != "" && defaultContainerConfig.Engine.CompressionFormat != "gzip" {
 		algo, err := imgCompression.AlgorithmByName(defaultContainerConfig.Engine.CompressionFormat)
 		if err != nil {
 			return options, nil, nil, fmt.Errorf("parsing compression_format from containers.conf: %w", err)
 		}
 		compressionFormat = &algo
+		compression = define.Gzip
+		if !c.Flag("force-compression").Changed {
+			forceCompressionFormat = true
+		}
 	}
-	compressionLevel = defaultContainerConfig.Engine.CompressionLevel
+	var compressionLevel *int
+	if c.Flag("compression-level").Changed {
+		compressionLevel = &iopts.CompressionLevel
+	} else {
+		compressionLevel = defaultContainerConfig.Engine.CompressionLevel
+	}
 
 	if c.Flag("disable-content-trust").Changed {
 		logrus.Debugf("--disable-content-trust option specified but is ignored")
@@ -418,7 +437,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		Compression:             compression,
 		CompressionFormat:       compressionFormat,
 		CompressionLevel:        compressionLevel,
-		ForceCompressionFormat:  compressionFormat != nil,
+		ForceCompressionFormat:  forceCompressionFormat,
 		ConfigureNetwork:        networkPolicy,
 		ContextDirectory:        contextDir,
 		CreatedAnnotation:       createdAnnotation,
