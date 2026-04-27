@@ -363,7 +363,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		sbomScanOptions = append(sbomScanOptions, *sbomScanOption)
 	}
 
-	var compatVolumes, createdAnnotation, inheritAnnotations, inheritLabels, skipUnusedStages types.OptionalBool
+	var compatVolumes, createdAnnotation, inheritAnnotations, inheritLabels, skipUnusedStages, preprocess types.OptionalBool
 	if c.Flag("compat-volumes").Changed {
 		compatVolumes = types.NewOptionalBool(iopts.CompatVolumes)
 	}
@@ -378,6 +378,9 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	}
 	if c.Flag("skip-unused-stages").Changed {
 		skipUnusedStages = types.NewOptionalBool(iopts.SkipUnusedStages)
+	}
+	if c.Flag("preprocess").Changed || DefaultPreprocess() {
+		preprocess = types.NewOptionalBool(iopts.Preprocess)
 	}
 
 	options = define.BuildOptions{
@@ -397,6 +400,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		CompatVolumes:           compatVolumes,
 		ConfidentialWorkload:    confidentialWorkloadOptions,
 		CPPFlags:                iopts.CPPFlags,
+		Preprocess:              preprocess,
 		CommonBuildOpts:         commonOpts,
 		Compression:             compression,
 		ConfigureNetwork:        networkPolicy,
