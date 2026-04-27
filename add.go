@@ -26,6 +26,7 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"github.com/tonistiigi/dchapes-mode"
 	"go.podman.io/buildah/copier"
 	"go.podman.io/buildah/define"
 	"go.podman.io/buildah/internal/tmpdir"
@@ -138,7 +139,7 @@ func sourceIsRemote(source string) bool {
 }
 
 // getURL writes a tar archive containing the named content
-func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, writer io.Writer, chmod *os.FileMode, srcDigest digest.Digest, certPath string, insecureSkipTLSVerify types.OptionalBool, timestamp *time.Time) error {
+func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, writer io.Writer, chmod string, srcDigest digest.Digest, certPath string, insecureSkipTLSVerify types.OptionalBool, timestamp *time.Time) error {
 	url, err := url.Parse(src)
 	if err != nil {
 		return err
@@ -227,9 +228,13 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 		uid = chown.UID
 		gid = chown.GID
 	}
-	var mode int64 = 0o600
-	if chmod != nil {
-		mode = int64(*chmod)
+	var mod int64 = 0o600
+	if chmod != "" {
+		p, err := mode.Parse(chmod)
+		if err != nil {
+			return fmt.Errorf("parsing chmod %q: %w", chmod, err)
+		}
+		mod = int64(p.Apply(os.FileMode(mod)))
 	}
 	hdr := tar.Header{
 		Typeflag: tar.TypeReg,
@@ -237,7 +242,7 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 		Size:     size,
 		Uid:      uid,
 		Gid:      gid,
-		Mode:     mode,
+		Mode:     mod,
 		ModTime:  date,
 	}
 	err = tw.WriteHeader(&hdr)
@@ -412,15 +417,6 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		if err != nil {
 			return fmt.Errorf("looking up UID/GID for %q: %w", options.Chown, err)
 		}
-	}
-	var chmodDirsFiles *os.FileMode
-	if options.Chmod != "" {
-		p, err := strconv.ParseUint(options.Chmod, 8, 32)
-		if err != nil {
-			return fmt.Errorf("parsing chmod %q: %w", options.Chmod, err)
-		}
-		perm := os.FileMode(p)
-		chmodDirsFiles = &perm
 	}
 
 	chownDirs = &idtools.IDPair{UID: int(userUID), GID: int(userGID)}
@@ -614,10 +610,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						GIDMap:         srcGIDMap,
 						Excludes:       options.Excludes,
 						ExpandArchives: extract,
+						Chmod:          options.Chmod,
 						ChownDirs:      chownDirs,
-						ChmodDirs:      chmodDirsFiles,
 						ChownFiles:     chownFiles,
-						ChmodFiles:     chmodDirsFiles,
 						StripSetuidBit: options.StripSetuidBit,
 						StripSetgidBit: options.StripSetgidBit,
 						StripStickyBit: options.StripStickyBit,
@@ -630,7 +625,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			} else {
 				go func() {
 					getErr = retry.IfNecessary(context.TODO(), func() error {
-						return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest, options.CertPath, options.InsecureSkipTLSVerify, options.Timestamp)
+						return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, options.Chmod, srcDigest, options.CertPath, options.InsecureSkipTLSVerify, options.Timestamp)
 					}, &retry.Options{
 						MaxRetry: options.MaxRetries,
 						Delay:    options.RetryDelay,
@@ -781,10 +776,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					GIDMap:         srcGIDMap,
 					Excludes:       options.Excludes,
 					ExpandArchives: extract,
+					Chmod:          options.Chmod,
 					ChownDirs:      chownDirs,
-					ChmodDirs:      chmodDirsFiles,
 					ChownFiles:     chownFiles,
-					ChmodFiles:     chmodDirsFiles,
 					StripSetuidBit: options.StripSetuidBit,
 					StripSetgidBit: options.StripSetgidBit,
 					StripStickyBit: options.StripStickyBit,

@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tonistiigi/dchapes-mode"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/idtools"
 	"go.podman.io/storage/pkg/reexec"
@@ -809,7 +810,7 @@ func testGetSingle(t *testing.T) {
 							assert.Equal(t, filepath.Base(name), filepath.FromSlash(hdr.Name), "expected item named %q, got %q", filepath.Base(name), filepath.FromSlash(hdr.Name))
 							hdr, err = tr.Next()
 						}
-						assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
+						assert.ErrorIs(t, err, io.EOF, "expected EOF at end of archive")
 						if !t.Failed() && testItem.Typeflag == tar.TypeReg && testItem.Mode&(cISUID|cISGID|cISVTX) != 0 {
 							for _, stripSetuidBit := range []bool{false, true} {
 								for _, stripSetgidBit := range []bool{false, true} {
@@ -852,7 +853,7 @@ func testGetSingle(t *testing.T) {
 												}
 												hdr, err = tr.Next()
 											}
-											assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
+											assert.ErrorIs(t, err, io.EOF, "expected EOF at end of archive")
 											wg.Wait()
 											assert.NoErrorf(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
 											pipeReader.Close()
@@ -1640,7 +1641,7 @@ func testGetMultiple(t *testing.T) {
 						expectedContents = append(expectedContents, filepath.FromSlash(item))
 					}
 					sort.Strings(expectedContents)
-					assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
+					assert.ErrorIs(t, err, io.EOF, "expected EOF at end of archive")
 					wg.Wait()
 					assert.NoErrorf(t, getErr, "unexpected error from Get(%q)", testCase.pattern)
 					assert.Equal(t, expectedContents, actualContents, "Get(%q,excludes=%v) didn't produce the right set of items", testCase.pattern, excludes)
@@ -2709,4 +2710,113 @@ func TestCannotChangeMultipleRequestsWithDifferentChroot(t *testing.T) {
 
 	require.NoError(t, encoder.Encode(&request{Request: requestQuit}))
 	require.NoError(t, cmd.Wait())
+}
+
+func TestChmodNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testChmod(t)
+	canChroot = couldChroot
+}
+
+func testChmod(t *testing.T) {
+	dirMode := os.FileMode(0o755)
+	fileMode := os.FileMode(0o644)
+	cases := []struct {
+		chmod                 string
+		chmodDirs, chmodFiles *os.FileMode
+		startMode, endMode    os.FileMode
+		isDir                 bool
+		err                   error
+	}{
+		{chmod: "u=rw", startMode: 0o400, endMode: 0o600},
+		{chmod: "u=rwX", startMode: 0o400, endMode: 0o600},
+		{chmod: "u=rw", startMode: 0o400 | fs.ModeDir, endMode: 0o600 | fs.ModeDir, isDir: true},
+		{chmod: "u=rwX", startMode: 0o400 | fs.ModeDir, endMode: 0o700 | fs.ModeDir, isDir: true},
+		{chmod: "u=rwXabc", err: mode.ErrSyntax},
+		{chmod: "go=", startMode: 0o777, endMode: 0o700},
+		{chmod: "644", startMode: 0o753, endMode: 0o644},
+		{chmod: "", startMode: 0o753, endMode: 0o753},
+		{chmodDirs: &dirMode, startMode: 0o500 | fs.ModeDir, endMode: 0o755 | fs.ModeDir, isDir: true},
+		{chmodDirs: &dirMode, startMode: 0o400, endMode: 0o400},
+		{chmodFiles: &fileMode, startMode: 0o500 | fs.ModeDir, endMode: 0o500 | fs.ModeDir, isDir: true},
+		{chmodFiles: &fileMode, startMode: 0o400, endMode: 0o644},
+		{chmod: "u=rwX,go=", chmodFiles: &fileMode, startMode: 0o444, endMode: 0o600},
+		{chmod: "u=rwX,go=", chmodDirs: &dirMode, startMode: 0o555 | fs.ModeDir, endMode: 0o700 | fs.ModeDir, isDir: true},
+	}
+
+	name := "test"
+	uidMap := []idtools.IDMap{{HostID: os.Getuid(), ContainerID: 0, Size: 1}}
+	gidMap := []idtools.IDMap{{HostID: os.Getgid(), ContainerID: 0, Size: 1}}
+
+	for _, v := range cases {
+		t.Run(fmt.Sprintf("get chmod=%v,chmodDirs=%v,chmodFiles=%v,startMode=%O,endMode=%O,isDir=%v", v.chmod, v.chmodDirs, v.chmodFiles, v.startMode, v.endMode, v.isDir), func(t *testing.T) {
+			testDir := t.TempDir()
+			fn := filepath.Join(testDir, name)
+			var err error
+			if v.isDir {
+				err = os.Mkdir(fn, 0)
+			} else {
+				_, err = os.Create(fn)
+			}
+			if err != nil {
+				t.Fatalf("failed to create %s: %v", name, err)
+			}
+			if err = os.Chmod(fn, v.startMode); err != nil {
+				t.Fatalf("failed to chmod %s: %v", name, err)
+			}
+
+			pipeReader, pipeWriter := io.Pipe()
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				opts := GetOptions{Chmod: v.chmod, ChmodDirs: v.chmodDirs, ChmodFiles: v.chmodFiles}
+				err = Get(testDir, "", opts, []string{name}, pipeWriter)
+				pipeWriter.Close()
+				wg.Done()
+			}()
+			tr := tar.NewReader(pipeReader)
+			hdr, tarErr := tr.Next()
+			for tarErr == nil {
+				assert.Equal(t, int64(v.endMode), hdr.Mode)
+				hdr, tarErr = tr.Next()
+			}
+			assert.ErrorIs(t, tarErr, io.EOF, "expected EOF at end of archive")
+			wg.Wait()
+			if v.err != nil {
+				require.ErrorContains(t, err, v.err.Error())
+			}
+			pipeReader.Close()
+		})
+
+		t.Run(fmt.Sprintf("put chmod=%v,chmodDirs=%v,chmodFiles=%v,startMode=%O,endMode=%O,isDir=%v", v.chmod, v.chmodDirs, v.chmodFiles, v.startMode, v.endMode, v.isDir), func(t *testing.T) {
+			testDir := t.TempDir()
+			typeFlag := byte(tar.TypeReg)
+			if v.isDir {
+				typeFlag = tar.TypeDir
+			}
+			archive := makeArchiveSlice([]tar.Header{
+				{Name: name, Typeflag: typeFlag, Size: 0, Mode: int64(v.startMode), ModTime: testDate},
+			})
+			opts := PutOptions{
+				UIDMap:     uidMap,
+				GIDMap:     gidMap,
+				Chmod:      v.chmod,
+				ChmodDirs:  v.chmodDirs,
+				ChmodFiles: v.chmodFiles,
+			}
+			err := Put(testDir, "", opts, bytes.NewReader(archive))
+			if err != nil {
+				require.ErrorContains(t, err, v.err.Error())
+				return
+			}
+			require.ErrorIs(t, err, v.err)
+			fn := filepath.Join(testDir, name)
+			fi, err := os.Stat(fn)
+			if err != nil {
+				t.Fatalf("failed to stat %s: %v", fn, err)
+			}
+			assert.Equal(t, v.endMode, fi.Mode())
+		})
+	}
 }
