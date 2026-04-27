@@ -112,6 +112,11 @@ type AddAndCopyOptions struct {
 	// inheritAnnotations, newAnnotations). This field is internally managed and should
 	// not be set by external API users.
 	BuildMetadata string
+	// Unpack controls archive extraction for remote sources.
+	// nil: legacy behavior (remote URLs are not extracted; local sources depend on the `extract` argument).
+	// true: extract remote archives (tar, optionally compressed) when recognized by content.
+	// false: never extract remote archives.
+	Unpack *bool
 }
 
 // gitURLFragmentSuffix matches fragments to use as Git reference and build
@@ -253,6 +258,142 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 		if responseDigest := digester.Digest(); responseDigest != srcDigest {
 			return fmt.Errorf("unexpected response digest for %q: %s, want %s", src, responseDigest, srcDigest)
 		}
+	}
+
+	return nil
+}
+
+// downloadURL downloads a URL to a local file
+func downloadURL(src string, destFile string, srcDigest digest.Digest, certPath string, insecureSkipTLSVerify types.OptionalBool, timestamp *time.Time) error {
+	_, err := url.Parse(src)
+	if err != nil {
+		return err
+	}
+	tlsClientConfig := &tls.Config{
+		CipherSuites: tlsconfig.ClientDefault().CipherSuites,
+	}
+	if err := tlsclientconfig.SetupCertificates(certPath, tlsClientConfig); err != nil {
+		return err
+	}
+	tlsClientConfig.InsecureSkipVerify = insecureSkipTLSVerify == types.OptionalBoolTrue
+
+	tr := &http.Transport{
+		TLSClientConfig: tlsClientConfig,
+		Proxy:           http.ProxyFromEnvironment,
+	}
+	httpClient := &http.Client{Transport: tr}
+	response, err := httpClient.Get(src)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("invalid response status %d", response.StatusCode)
+	}
+
+	// Create the destination file
+	f, err := os.Create(destFile)
+	if err != nil {
+		return fmt.Errorf("creating destination file: %w", err)
+	}
+	defer f.Close()
+
+	// Verify checksum if specified
+	var responseBody io.Reader = response.Body
+	var digester digest.Digester
+	if srcDigest != "" {
+		digester = srcDigest.Algorithm().Digester()
+		responseBody = io.TeeReader(responseBody, digester.Hash())
+	}
+
+	// Copy content to file
+	if _, err := io.Copy(f, responseBody); err != nil {
+		return fmt.Errorf("writing downloaded content: %w", err)
+	}
+
+	if digester != nil {
+		if responseDigest := digester.Digest(); responseDigest != srcDigest {
+			return fmt.Errorf("unexpected response digest for %q: %s, want %s", src, responseDigest, srcDigest)
+		}
+	}
+
+	// Determine timestamp
+	date := time.Unix(0, 0).UTC()
+	if timestamp != nil {
+		date = timestamp.UTC()
+	} else {
+		lastModified := response.Header.Get("Last-Modified")
+		if lastModified != "" {
+			d, err := time.Parse(time.RFC1123, lastModified)
+			if err != nil {
+				return fmt.Errorf("parsing last-modified time %q: %w", lastModified, err)
+			}
+			date = d.UTC()
+		}
+	}
+
+	// Set file modification time
+	if err := os.Chtimes(destFile, date, date); err != nil {
+		return fmt.Errorf("setting file timestamp: %w", err)
+	}
+
+	return nil
+}
+
+// writeTarEntry writes a single file as a tar entry
+func writeTarEntry(reader io.Reader, name string, chown *idtools.IDPair, chmod *os.FileMode, timestamp *time.Time, writer io.Writer) error {
+	// Get file info to determine size - reader must be an *os.File
+	f, ok := reader.(*os.File)
+	if !ok {
+		return fmt.Errorf("writeTarEntry requires an *os.File, got %T", reader)
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("getting file info: %w", err)
+	}
+	size := info.Size()
+
+	// Determine timestamp: use explicit timestamp if provided, else use file's ModTime
+	date := info.ModTime().UTC()
+	if timestamp != nil {
+		date = timestamp.UTC()
+	}
+
+	// Set ownership
+	uid := 0
+	gid := 0
+	if chown != nil {
+		uid = chown.UID
+		gid = chown.GID
+	}
+
+	// Set permissions
+	var mode int64 = 0o600
+	if chmod != nil {
+		mode = int64(*chmod)
+	}
+
+	// Write tar archive
+	tw := tar.NewWriter(writer)
+	defer tw.Close()
+
+	hdr := tar.Header{
+		Typeflag: tar.TypeReg,
+		Name:     name,
+		Size:     size,
+		Uid:      uid,
+		Gid:      gid,
+		Mode:     mode,
+		ModTime:  date,
+	}
+
+	if err := tw.WriteHeader(&hdr); err != nil {
+		return fmt.Errorf("writing tar header: %w", err)
+	}
+
+	if _, err := io.Copy(tw, reader); err != nil {
+		return fmt.Errorf("writing tar content: %w", err)
 	}
 
 	return nil
@@ -430,6 +571,65 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		chownFiles = nil
 	}
 
+	// Pre-download detection pass for single remote source with --unpack=true
+	// This allows us to determine destination semantics based on actual content type
+	var remotePreDownload struct {
+		tempFile  string
+		tempDir   string
+		isArchive bool
+		detected  bool
+	}
+	if len(sources) == 1 && len(remoteSources) == 1 && !sourceIsGit(sources[0]) && options.Unpack != nil && *options.Unpack {
+		// Download the remote source once to detect if it's an archive
+		tempDir, err := os.MkdirTemp(tmpdir.GetTempDir(), "buildah-remote-detect-")
+		if err != nil {
+			return fmt.Errorf("creating temp dir for remote source detection: %w", err)
+		}
+		defer func() {
+			if !remotePreDownload.detected {
+				// Clean up if we're not keeping it for later reuse
+				os.RemoveAll(tempDir)
+			}
+		}()
+
+		tempFile := filepath.Join(tempDir, "download")
+		var srcDigest digest.Digest
+		if options.Checksum != "" {
+			srcDigest, err = digest.Parse(options.Checksum)
+			if err != nil {
+				return fmt.Errorf("invalid checksum flag: %w", err)
+			}
+		}
+
+		// Download with retry
+		err = retry.IfNecessary(context.TODO(), func() error {
+			return downloadURL(sources[0], tempFile, srcDigest, options.CertPath, options.InsecureSkipTLSVerify, options.Timestamp)
+		}, &retry.Options{
+			MaxRetry: options.MaxRetries,
+			Delay:    options.RetryDelay,
+		})
+		if err != nil {
+			return fmt.Errorf("downloading %q for archive detection: %w", sources[0], err)
+		}
+
+		// Detect if it's an archive
+		statOptions := copier.StatOptions{
+			CheckForArchives: true,
+		}
+		stats, err := copier.Stat(tempDir, tempDir, statOptions, []string{"download"})
+		if err != nil {
+			return fmt.Errorf("checking downloaded content: %w", err)
+		}
+
+		if len(stats) > 0 && len(stats[0].Globbed) > 0 {
+			result := stats[0].Results[stats[0].Globbed[0]]
+			remotePreDownload.isArchive = result.IsArchive
+		}
+		remotePreDownload.tempFile = tempFile
+		remotePreDownload.tempDir = tempDir
+		remotePreDownload.detected = true
+	}
+
 	// If we have a single source archive to extract, or more than one
 	// source item, or the destination has a path separator at the end of
 	// it, and it's not a remote URL, the destination needs to be a
@@ -448,7 +648,20 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	destCanBeFile := false
 	if len(sources) == 1 {
 		if len(remoteSources) == 1 {
-			destCanBeFile = sourceIsRemote(sources[0])
+			// For remote sources with --unpack=true, use pre-download detection result
+			if remotePreDownload.detected {
+				if remotePreDownload.isArchive {
+					// Archive: force directory semantics
+					destMustBeDirectory = true
+					destCanBeFile = false
+				} else {
+					// Non-archive: preserve legacy file vs directory semantics
+					destCanBeFile = true
+				}
+			} else {
+				// Legacy behavior: remote files can be copied to file destination
+				destCanBeFile = sourceIsRemote(sources[0])
+			}
 		}
 		if len(localSources) == 1 {
 			item := localSourceStats[0].Results[localSourceStats[0].Globbed[0]]
@@ -628,16 +841,123 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					getErr = copier.Get(repositoryDir, repositoryDir, getOptions, []string{"."}, writer)
 				}()
 			} else {
-				go func() {
-					getErr = retry.IfNecessary(context.TODO(), func() error {
-						return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest, options.CertPath, options.InsecureSkipTLSVerify, options.Timestamp)
-					}, &retry.Options{
-						MaxRetry: options.MaxRetries,
-						Delay:    options.RetryDelay,
-					})
-					pipeWriter.Close()
-					wg.Done()
-				}()
+				// Handle remote URL (HTTP/HTTPS)
+				// Check if we should extract remote archives
+				if options.Unpack != nil && *options.Unpack {
+					// Remote archive extraction path with --unpack=true
+					go func() {
+						defer pipeWriter.Close()
+						defer wg.Done()
+
+						// Check if we already pre-downloaded this file
+						var tempDir, tempFile string
+						var isArchive bool
+						var needsCleanup bool
+
+						if remotePreDownload.detected && remotePreDownload.tempFile != "" {
+							// Reuse pre-downloaded file
+							tempDir = remotePreDownload.tempDir
+							tempFile = remotePreDownload.tempFile
+							isArchive = remotePreDownload.isArchive
+							needsCleanup = false // Will be cleaned up by defer in outer scope
+						} else {
+							// Download fresh
+							tempDir, err = os.MkdirTemp(tmpdir.GetTempDir(), "buildah-remote-")
+							if err != nil {
+								getErr = fmt.Errorf("creating temp dir for remote source: %w", err)
+								return
+							}
+							needsCleanup = true
+							defer func() {
+								if needsCleanup {
+									os.RemoveAll(tempDir)
+								}
+							}()
+
+							tempFile = filepath.Join(tempDir, "download")
+
+							// Download with retry
+							getErr = retry.IfNecessary(context.TODO(), func() error {
+								return downloadURL(src, tempFile, srcDigest, options.CertPath, options.InsecureSkipTLSVerify, options.Timestamp)
+							}, &retry.Options{
+								MaxRetry: options.MaxRetries,
+								Delay:    options.RetryDelay,
+							})
+							if getErr != nil {
+								return
+							}
+
+							// Detect if downloaded content is an archive
+							statOptions := copier.StatOptions{
+								CheckForArchives: true,
+							}
+							stats, err := copier.Stat(tempDir, tempDir, statOptions, []string{"download"})
+							if err != nil {
+								getErr = fmt.Errorf("checking downloaded content: %w", err)
+								return
+							}
+
+							if len(stats) > 0 && len(stats[0].Globbed) > 0 {
+								result := stats[0].Results[stats[0].Globbed[0]]
+								isArchive = result.IsArchive
+							}
+						}
+
+						if isArchive {
+							// Archive: extract using copier.Get with ExpandArchives
+							getOptions := copier.GetOptions{
+								UIDMap:         srcUIDMap,
+								GIDMap:         srcGIDMap,
+								Excludes:       options.Excludes,
+								ExpandArchives: true,
+								ChownDirs:      chownDirs,
+								ChmodDirs:      chmodDirsFiles,
+								ChownFiles:     chownFiles,
+								ChmodFiles:     chmodDirsFiles,
+								StripSetuidBit: options.StripSetuidBit,
+								StripSetgidBit: options.StripSetgidBit,
+								StripStickyBit: options.StripStickyBit,
+								Timestamp:      options.Timestamp,
+							}
+							writer := io.WriteCloser(pipeWriter)
+							getErr = copier.Get(tempDir, tempDir, getOptions, []string{"download"}, writer)
+						} else {
+							// Non-archive: use getURL-like behavior (no excludes, proper naming)
+							f, err := os.Open(tempFile)
+							if err != nil {
+								getErr = fmt.Errorf("opening downloaded file: %w", err)
+								return
+							}
+							defer f.Close()
+
+							// Determine the entry name
+							name := renameTarget
+							if name == "" {
+								// Use basename from URL
+								parsedURL, err := url.Parse(src)
+								if err == nil {
+									name = path.Base(parsedURL.Path)
+								} else {
+									name = "download"
+								}
+							}
+
+							getErr = writeTarEntry(f, name, chownFiles, chmodDirsFiles, options.Timestamp, pipeWriter)
+						}
+					}()
+				} else {
+					// Existing legacy path: wrap as single file
+					go func() {
+						getErr = retry.IfNecessary(context.TODO(), func() error {
+							return getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles, srcDigest, options.CertPath, options.InsecureSkipTLSVerify, options.Timestamp)
+						}, &retry.Options{
+							MaxRetry: options.MaxRetries,
+							Delay:    options.RetryDelay,
+						})
+						pipeWriter.Close()
+						wg.Done()
+					}()
+				}
 			}
 
 			wg.Add(1)
