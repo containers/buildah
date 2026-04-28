@@ -125,6 +125,12 @@ github.com/hashicorp/go-multierror v1.1.1 h1:H5DkEtf6CXdFp0N0Em5UCwQpXMWke8IA0+l
 github.com/hashicorp/go-multierror v1.1.1/go.mod h1:iw975J/qwKPdAO1clOe2L8331t/9/fmwbPZ6JB6eMoM=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
+github.com/jankaluza/container-libs/common v0.0.0-20260428081533-0b40258c6c4e h1:gIrWQ6Cq/1iUgYkxdtigJqkMDmt2tkJCa1kD0epjbAg=
+github.com/jankaluza/container-libs/common v0.0.0-20260428081533-0b40258c6c4e/go.mod h1:iSyDl7NIIpWhCtvEIPpHWosWL/XygqeffWZU0WX0Io8=
+github.com/jankaluza/container-libs/image/v5 v5.0.0-20260428081533-0b40258c6c4e h1:z85XrxzncrzhVWJkwmNMKB4oAC6O6xTelZplweJ8WGg=
+github.com/jankaluza/container-libs/image/v5 v5.0.0-20260428081533-0b40258c6c4e/go.mod h1:sAszAH18v4KPpzPZdav9ovjEBcIDkmqdhbJV9SmnzfE=
+github.com/jankaluza/container-libs/storage v0.0.0-20260428081533-0b40258c6c4e h1:sf6CEY3719vtn8oZkyaQqGI4Rm8VDL5wVW6XVoUj/TA=
+github.com/jankaluza/container-libs/storage v0.0.0-20260428081533-0b40258c6c4e/go.mod h1:13aOBf6782/fbAzH7QNEqlVzFu+X4sS4MxDM/VdJGZU=
 github.com/jinzhu/copier v0.4.0 h1:w3ciUoD19shMCRargcpm0cm91ytaBhDvuRpz1ODO/U8=
 github.com/jinzhu/copier v0.4.0/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
@@ -285,12 +291,6 @@ go.opentelemetry.io/otel/sdk/metric v1.43.0 h1:S88dyqXjJkuBNLeMcVPRFXpRw2fuwdvfC
 go.opentelemetry.io/otel/sdk/metric v1.43.0/go.mod h1:C/RJtwSEJ5hzTiUz5pXF1kILHStzb9zFlIEe85bhj6A=
 go.opentelemetry.io/otel/trace v1.43.0 h1:BkNrHpup+4k4w+ZZ86CZoHHEkohws8AY+WTX09nk+3A=
 go.opentelemetry.io/otel/trace v1.43.0/go.mod h1:/QJhyVBUUswCphDVxq+8mld+AvhXZLhe+8WVFxiFff0=
-go.podman.io/common v0.67.2-0.20260423135811-cbaa5f41e643 h1:WwUcVKPEUoSDiQ22osdYGqM3q9IDB4viqSASPCdw1K0=
-go.podman.io/common v0.67.2-0.20260423135811-cbaa5f41e643/go.mod h1:kBztCGxEhou0OO0O4yJXAKC3JEQTmOxCJPni90+sQKY=
-go.podman.io/image/v5 v5.39.3-0.20260423135811-cbaa5f41e643 h1:1LuhuiiXHHteVXULDV/x9qxJtFozQPLEYKHCbYdOuP0=
-go.podman.io/image/v5 v5.39.3-0.20260423135811-cbaa5f41e643/go.mod h1:sAszAH18v4KPpzPZdav9ovjEBcIDkmqdhbJV9SmnzfE=
-go.podman.io/storage v1.62.1-0.20260423135811-cbaa5f41e643 h1:/zmZ36KkCZumHK0EDH5QpSjyM3fY09YuyIfqoXxEI48=
-go.podman.io/storage v1.62.1-0.20260423135811-cbaa5f41e643/go.mod h1:13aOBf6782/fbAzH7QNEqlVzFu+X4sS4MxDM/VdJGZU=
 go.yaml.in/yaml/v2 v2.4.3 h1:6gvOSjQoTB3vt1l+CU+tSyi/HOjfOjRLJ4YwYZGwRO0=
 go.yaml.in/yaml/v2 v2.4.3/go.mod h1:zSxWcmIDjOzPXpjlTTbAsKokqkDNAVtZO0WOMiT90s8=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=
