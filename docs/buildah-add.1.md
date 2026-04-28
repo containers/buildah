@@ -74,6 +74,11 @@ container's filesystem. If `buildah run` creates a file and `buildah add --link`
 to the same path, the file from `buildah add --link` will be present in the committed image.
 The --link layer is applied after all container filesystem changes at commit time.
 
+**--no-follow-symlinks**
+
+Don't follow and dereference files when provided symlinks to copy. Instead, copy
+the symlinks themselves. This only affect the top level provided entries.
+
 **--quiet**, **-q**
 
 Refrain from printing a digest of the added content.
