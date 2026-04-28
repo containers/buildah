@@ -78,6 +78,10 @@ else
                 bad_os_id_ver
 
             systemctl enable --now docker
+            # Force a newer client API version to avoid needing an update
+            # to github.com/docker/docker v25+ which snowballs into requiring
+            # a challenging golang update.
+            export DOCKER_API_VERSION="1.44"
             showrun make test-conformance
             ;;
         integration)
