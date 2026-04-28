@@ -57,85 +57,88 @@ type NameSpaceResults struct {
 
 // BudResults represents the results for Build flags
 type BudResults struct {
-	AllPlatforms        bool
-	Annotation          []string
-	Authfile            string
-	BuildArg            []string
-	BuildArgFile        []string
-	BuildContext        []string
-	CacheFrom           []string
-	CacheTo             []string
-	CacheTTL            string
-	CertDir             string
-	Compress            bool
-	Creds               string
-	CPPFlags            []string
-	DisableCompression  bool
-	DisableContentTrust bool
-	IgnoreFile          string
-	File                []string
-	Format              string
-	From                string
-	Iidfile             string
-	IidfileRaw          string
-	InheritLabels       bool
-	InheritAnnotations  bool
-	Label               []string
-	LayerLabel          []string
-	Logfile             string
-	LogSplitByPlatform  bool
-	Manifest            string
-	MetadataFile        string
-	NoHostname          bool
-	NoHosts             bool
-	NoCache             bool
-	Timestamp           int64
-	OmitHistory         bool
-	OCIHooksDir         []string
-	Pull                string
-	PullAlways          bool
-	PullNever           bool
-	Quiet               bool
-	IdentityLabel       bool
-	Rm                  bool
-	Runtime             string
-	RuntimeFlags        []string
-	SbomPreset          string
-	SbomScannerImage    string
-	SbomScannerCommand  []string
-	SbomMergeStrategy   string
-	SbomOutput          string
-	SbomImgOutput       string
-	SbomPurlOutput      string
-	SbomImgPurlOutput   string
-	Secrets             []string
-	SSH                 []string
-	SignaturePolicy     string
-	SignBy              string
-	Squash              bool
-	SkipUnusedStages    bool
-	Stdin               bool
-	Tag                 []string
-	BuildOutputs        []string
-	Target              string
-	TLSVerify           bool
-	Jobs                int
-	LogRusage           bool
-	RusageLogFile       string
-	UnsetEnvs           []string
-	UnsetLabels         []string
-	UnsetAnnotations    []string
-	Envs                []string
-	OSFeatures          []string
-	OSVersion           string
-	CWOptions           string
-	SBOMOptions         []string
-	CompatVolumes       bool
-	SourceDateEpoch     string
-	RewriteTimestamp    bool
-	CreatedAnnotation   bool
-	SourcePolicyFile    string
-	TransientRunMounts  []string
+	AllPlatforms                bool
+	Annotation                  []string
+	Authfile                    string
+	BuildArg                    []string
+	BuildArgFile                []string
+	BuildContext                []string
+	CacheFrom                   []string
+	CacheTo                     []string
+	CacheTTL                    string
+	CertDir                     string
+	Compress                    bool
+	Creds                       string
+	CPPFlags                    []string
+	CacheCompressionFormat      string
+	CacheCompressionLevel       int
+	CacheForceCompressionFormat bool
+	DisableCompression          bool
+	DisableContentTrust         bool
+	IgnoreFile                  string
+	File                        []string
+	Format                      string
+	From                        string
+	Iidfile                     string
+	IidfileRaw                  string
+	InheritLabels               bool
+	InheritAnnotations          bool
+	Label                       []string
+	LayerLabel                  []string
+	Logfile                     string
+	LogSplitByPlatform          bool
+	Manifest                    string
+	MetadataFile                string
+	NoHostname                  bool
+	NoHosts                     bool
+	NoCache                     bool
+	Timestamp                   int64
+	OmitHistory                 bool
+	OCIHooksDir                 []string
+	Pull                        string
+	PullAlways                  bool
+	PullNever                   bool
+	Quiet                       bool
+	IdentityLabel               bool
+	Rm                          bool
+	Runtime                     string
+	RuntimeFlags                []string
+	SbomPreset                  string
+	SbomScannerImage            string
+	SbomScannerCommand          []string
+	SbomMergeStrategy           string
+	SbomOutput                  string
+	SbomImgOutput               string
+	SbomPurlOutput              string
+	SbomImgPurlOutput           string
+	Secrets                     []string
+	SSH                         []string
+	SignaturePolicy             string
+	SignBy                      string
+	Squash                      bool
+	SkipUnusedStages            bool
+	Stdin                       bool
+	Tag                         []string
+	BuildOutputs                []string
+	Target                      string
+	TLSVerify                   bool
+	Jobs                        int
+	LogRusage                   bool
+	RusageLogFile               string
+	UnsetEnvs                   []string
+	UnsetLabels                 []string
+	UnsetAnnotations            []string
+	Envs                        []string
+	OSFeatures                  []string
+	OSVersion                   string
+	CWOptions                   string
+	SBOMOptions                 []string
+	CompatVolumes               bool
+	SourceDateEpoch             string
+	RewriteTimestamp            bool
+	CreatedAnnotation           bool
+	SourcePolicyFile            string
+	TransientRunMounts          []string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -250,6 +253,9 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.CreatedAnnotation, "created-annotation", true, `set an "org.opencontainers.image.created" annotation in the image`)
 	fs.StringVar(&flags.Creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	fs.StringVarP(&flags.CWOptions, "cw", "", "", "confidential workload `options`")
+	fs.StringVar(&flags.CacheCompressionFormat, "cache-compression-format", "", "compression format to use for cache layers")
+	fs.IntVar(&flags.CacheCompressionLevel, "cache-compression-level", 0, "compression level to use for cache layers")
+	fs.BoolVar(&flags.CacheForceCompressionFormat, "cache-force-compression", false, "use the specified compression algorithm for cache layers if the destination contains a differently-compressed variant already")
 	fs.BoolVarP(&flags.DisableCompression, "disable-compression", "D", true, "don't compress layers by default")
 	fs.BoolVar(&flags.DisableContentTrust, "disable-content-trust", false, "this is a Docker specific option and is a NOOP")
 	fs.StringArrayVar(&flags.Envs, "env", []string{}, "set environment variable for the image")
@@ -355,6 +361,8 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["cache-to"] = commonComp.AutocompleteNone
 	flagCompletion["cache-ttl"] = commonComp.AutocompleteNone
 	flagCompletion["cert-dir"] = commonComp.AutocompleteDefault
+	flagCompletion["cache-compression-format"] = commonComp.AutocompleteNone
+	flagCompletion["cache-compression-level"] = commonComp.AutocompleteNone
 	flagCompletion["cpp-flag"] = commonComp.AutocompleteNone
 	flagCompletion["creds"] = commonComp.AutocompleteNone
 	flagCompletion["cw"] = commonComp.AutocompleteNone

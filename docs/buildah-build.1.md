@@ -112,6 +112,28 @@ The value of `[name]` is matched with the following priority order:
 * Stage defined with AS [name] inside Containerfile
 * Image [name], either local or in a remote registry
 
+**--cache-compression-format** *format*
+
+Specifies the compression format to use when pushing cache layers.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+`zstd:chunked` is incompatible with encrypting images, and will be treated as `zstd` with a warning in that case.
+If not specified, the format is read from the `compression_format` setting in containers.conf.
+
+Note: `--cache-compression-format` option is only used when pushing cache images with `--cache-to`.
+
+**--cache-compression-level** *level*
+
+Specifies the compression level to use when pushing cache layers.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
+If not specified, the level is read from the `compression_level` setting in containers.conf.
+
+Note: `--cache-compression-level` option is only used when pushing cache images with `--cache-to`.
+
+**--cache-force-compression**
+
+If set, cache push uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to `true` if `--cache-compression-format` is explicitly specified on the command-line or `compression_format` is set in containers.conf, `false` otherwise.
+
+Note: `--cache-force-compression` option is only used when pushing cache images with `--cache-to`.
+
 **--cache-from**
 
 Repository to utilize as a potential list of cache sources. When specified, Buildah will try to look for

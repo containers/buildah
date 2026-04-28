@@ -25,7 +25,9 @@ import (
 	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/buildah/pkg/util"
 	"go.podman.io/common/pkg/auth"
+	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/docker/reference"
+	imgCompression "go.podman.io/image/v5/pkg/compression"
 	"go.podman.io/image/v5/types"
 )
 
@@ -236,6 +238,38 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		compression = define.Uncompressed
 	}
 
+	var compressionFormat *imgCompression.Algorithm
+	forceCompressionFormat := iopts.CacheForceCompressionFormat
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return options, nil, nil, fmt.Errorf("failed to get container config: %w", err)
+	}
+	if iopts.CacheCompressionFormat != "" {
+		algo, err := imgCompression.AlgorithmByName(iopts.CacheCompressionFormat)
+		if err != nil {
+			return options, nil, nil, err
+		}
+		compressionFormat = &algo
+		if !c.Flag("cache-force-compression").Changed {
+			forceCompressionFormat = true
+		}
+	} else if defaultContainerConfig.Engine.CompressionFormat != "" && defaultContainerConfig.Engine.CompressionFormat != "gzip" {
+		algo, err := imgCompression.AlgorithmByName(defaultContainerConfig.Engine.CompressionFormat)
+		if err != nil {
+			return options, nil, nil, fmt.Errorf("parsing compression_format from containers.conf: %w", err)
+		}
+		compressionFormat = &algo
+		if !c.Flag("cache-force-compression").Changed {
+			forceCompressionFormat = true
+		}
+	}
+	var compressionLevel *int
+	if c.Flag("cache-compression-level").Changed {
+		compressionLevel = &iopts.CacheCompressionLevel
+	} else {
+		compressionLevel = defaultContainerConfig.Engine.CompressionLevel
+	}
+
 	if c.Flag("disable-content-trust").Changed {
 		logrus.Debugf("--disable-content-trust option specified but is ignored")
 	}
@@ -399,6 +433,9 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		CPPFlags:                iopts.CPPFlags,
 		CommonBuildOpts:         commonOpts,
 		Compression:             compression,
+		CompressionFormat:       compressionFormat,
+		CompressionLevel:        compressionLevel,
+		ForceCompressionFormat:  forceCompressionFormat,
 		ConfigureNetwork:        networkPolicy,
 		ContextDirectory:        contextDir,
 		CreatedAnnotation:       createdAnnotation,
