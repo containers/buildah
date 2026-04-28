@@ -76,8 +76,8 @@ The --link layer is applied after all container filesystem changes at commit tim
 
 **--no-follow-symlinks**
 
-Don't follow and dereference the symlinks when copying the files. Instead, copy
-the symlinks themselves.
+Don't follow and dereference files when provided symlinks to copy. Instead, copy
+the symlinks themselves. This only affect the top level provided entries.
 
 **--quiet**, **-q**
 
