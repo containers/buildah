@@ -189,6 +189,9 @@ type RunOptions struct {
 	// made to contents of those changes when the container is subsequently
 	// committed.
 	CompatBuiltinVolumes types.OptionalBool
+	// ValidExitCodes is a list of exit codes which should be considered
+	// successful. If empty, only exit code 0 is considered success.
+	ValidExitCodes []int32
 }
 
 // RunMountArtifacts are the artifacts created when using a run mount.

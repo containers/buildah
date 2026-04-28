@@ -357,7 +357,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	default:
 		err = errors.New("don't know how to run this command")
 	}
-	return err
+	return checkExitCodeError(err, options.ValidExitCodes)
 }
 
 func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Generator) error {

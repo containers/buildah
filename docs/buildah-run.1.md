@@ -301,6 +301,11 @@ that the UTS namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
+**--valid-exit-codes** *exitcode[,exitcode,...]*
+
+Specifies a comma-separated list of exit codes that should be considered
+successful.  Defaults to **0**.
+
 **--volume**, **-v** *source*:*destination*:*options*
 
 Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah

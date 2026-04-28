@@ -20,24 +20,25 @@ import (
 )
 
 type runInputOptions struct {
-	addHistory   bool
-	capAdd       []string
-	capDrop      []string
-	cdiConfigDir string
-	contextDir   string
-	devices      []string
-	env          []string
-	hostname     string
-	isolation    string
-	mounts       []string
-	runtime      string
-	runtimeFlag  []string
-	noHostname   bool
-	noHosts      bool
-	noPivot      bool
-	terminal     bool
-	volumes      []string
-	workingDir   string
+	addHistory     bool
+	capAdd         []string
+	capDrop        []string
+	cdiConfigDir   string
+	contextDir     string
+	devices        []string
+	env            []string
+	hostname       string
+	isolation      string
+	mounts         []string
+	runtime        string
+	runtimeFlag    []string
+	noHostname     bool
+	noHosts        bool
+	noPivot        bool
+	terminal       bool
+	validExitCodes []int32
+	volumes        []string
+	workingDir     string
 	*buildahcli.NameSpaceResults
 }
 
@@ -83,6 +84,7 @@ func runInit() {
 	flags.BoolVar(&opts.noHosts, "no-hosts", false, "do not override the /etc/hosts file within the container")
 	flags.BoolVar(&opts.noPivot, "no-pivot", false, "do not use pivot root to jail process inside rootfs")
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
+	flags.Int32SliceVar(&opts.validExitCodes, "valid-exit-codes", []int32{0}, "list of exit codes to consider successful (default [0])")
 	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 	flags.StringArrayVar(&opts.mounts, "mount", []string{}, "attach a filesystem mount to the container (default [])")
 	flags.StringVar(&opts.workingDir, "workingdir", "", "temporarily set working directory for command (default to container's workingdir)")
@@ -174,6 +176,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		WorkingDir:       iopts.workingDir,
 		DeviceSpecs:      iopts.devices,
 		CDIConfigDir:     iopts.cdiConfigDir,
+		ValidExitCodes:   iopts.validExitCodes,
 	}
 
 	if c.Flag("terminal").Changed {

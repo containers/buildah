@@ -2227,3 +2227,31 @@ func (b *Builder) createMountTargets(spec *specs.Spec) ([]copier.ConditionalRemo
 	// to clear them out itself now instead of waiting until commit-time
 	return remove, nil
 }
+
+func checkExitCodeError(err error, validExitCodes []int32) error {
+	if len(validExitCodes) == 0 {
+		return err
+	}
+	exitCode, ok := exitCodeFromError(err)
+	if !ok {
+		return err
+	}
+	if slices.Contains(validExitCodes, exitCode) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf("exit status %d is not in the valid exit codes list", exitCode)
+}
+
+func exitCodeFromError(err error) (int32, bool) {
+	if err == nil {
+		return 0, true
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return int32(ee.ExitCode()), true
+	}
+	return 0, false
+}
