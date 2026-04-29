@@ -1,4 +1,3 @@
 FROM quay.io/libpod/testimage:20221018
-LABEL created_by world
-RUN echo world
 RUN echo hello
+RUN echo world
