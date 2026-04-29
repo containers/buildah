@@ -258,6 +258,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		Checksum:          iopts.checksum,
 		ContextDir:        contextdir,
 		Excludes:          iopts.excludes,
+		GitExcludes:       iopts.excludes,
 		IDMappingOptions:  idMappingOptions,
 		// These next two fields are set based on command line flags
 		// with more generic-sounding names.

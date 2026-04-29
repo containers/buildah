@@ -412,6 +412,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 		// all-content-comes-from-below-this-directory value.
 		var idMappingOptions *define.IDMappingOptions
 		var copyExcludes []string
+		var gitCopyExcludes []string
 		stripSetuid := false
 		stripSetgid := false
 		preserveOwnership := false
@@ -567,6 +568,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			stripSetuid = true // did this change between 18.06 and 19.03?
 			stripSetgid = true // did this change between 18.06 and 19.03?
 		}
+		gitCopyExcludes = excludes
 		if copy.Download {
 			logrus.Debugf("ADD %#v, %#v", excludes, copy)
 		} else {
@@ -603,6 +605,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			PreserveOwnership: preserveOwnership,
 			ContextDir:        contextDir,
 			Excludes:          copyExcludes,
+			GitExcludes:       gitCopyExcludes,
 			IgnoreFile:        s.executor.ignoreFile,
 			IDMappingOptions:  idMappingOptions,
 			StripSetuidBit:    stripSetuid,
@@ -625,6 +628,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			// '*' which can match our heredoc files so let's not set any excludes
 			// or IgnoreFile for this copy.
 			options.Excludes = nil
+			options.GitExcludes = nil
 			options.IgnoreFile = ""
 		}
 		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
