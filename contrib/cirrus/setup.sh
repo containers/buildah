@@ -50,6 +50,12 @@ EOF
         ;;
     ubuntu|debian)
         if [[ "$1" == "conformance" ]]; then
+            # Force support of older client API to avoid needing an update
+            # to github.com/docker/docker v25+ which snowballs into requiring
+            # a challenging golang update.
+            mkdir -p /etc/docker
+            echo '{"min-api-version":"1.40"}' > /etc/docker/daemon.json
+
             msg "Installing previously downloaded/cached packages"
             dpkg -i \
                 $PACKAGE_DOWNLOAD_DIR/containerd.io*.deb \
