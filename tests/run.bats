@@ -1085,13 +1085,17 @@ _EOF
 
   # Exit 1 fails by default
   run_buildah 1 run $cid sh -c "exit 1"
+  expect_output --substring "exit status 1"
 
   # Exit 1 succeeds with --valid-exit-codes 0,1
   run_buildah run --valid-exit-codes 0,1 $cid sh -c "exit 1"
+  expect_output ""
 
   # Exit 2 still fails with --valid-exit-codes 0,1
   run_buildah 2 run --valid-exit-codes 0,1 $cid sh -c "exit 2"
+  expect_output --substring "exit status 2"
 
   # Exit 0 fails when not in the valid exit codes list
   run_buildah 125 run --valid-exit-codes 1 $cid sh -c "exit 0"
+  expect_output --substring "not in the valid exit codes list"
 }
