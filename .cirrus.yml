@@ -177,6 +177,7 @@ conformance_task:
 
     gce_instance:
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
+        cpu: 4
 
     timeout_in: 25m
 
