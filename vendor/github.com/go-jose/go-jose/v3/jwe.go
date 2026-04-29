@@ -202,10 +202,11 @@ func (parsed *rawJSONWebEncryption) sanitized() (*JSONWebEncryption, error) {
 
 // parseEncryptedCompact parses a message in compact format.
 func parseEncryptedCompact(input string) (*JSONWebEncryption, error) {
-	parts := strings.Split(input, ".")
-	if len(parts) != 5 {
+	// Five parts is four separators
+	if strings.Count(input, ".") != 4 {
 		return nil, fmt.Errorf("go-jose/go-jose: compact JWE format must have five parts")
 	}
+	parts := strings.SplitN(input, ".", 5)
 
 	rawProtected, err := base64URLDecode(parts[0])
 	if err != nil {
@@ -252,13 +253,13 @@ func (obj JSONWebEncryption) CompactSerialize() (string, error) {
 
 	serializedProtected := mustSerializeJSON(obj.protected)
 
-	return fmt.Sprintf(
-		"%s.%s.%s.%s.%s",
-		base64.RawURLEncoding.EncodeToString(serializedProtected),
-		base64.RawURLEncoding.EncodeToString(obj.recipients[0].encryptedKey),
-		base64.RawURLEncoding.EncodeToString(obj.iv),
-		base64.RawURLEncoding.EncodeToString(obj.ciphertext),
-		base64.RawURLEncoding.EncodeToString(obj.tag)), nil
+	return base64JoinWithDots(
+		serializedProtected,
+		obj.recipients[0].encryptedKey,
+		obj.iv,
+		obj.ciphertext,
+		obj.tag,
+	), nil
 }
 
 // FullSerialize serializes an object using the full JSON serialization format.
