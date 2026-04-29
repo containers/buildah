@@ -82,18 +82,18 @@ function check_matrix() {
 }
 
 @test "config --unsetlabel" {
-  base=registry.fedoraproject.org/fedora-minimal
+  base=quay.io/libpod/testimage:20221018
   _prefetch $base
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON $base
   cid=$output
-  run_buildah commit $WITH_POLICY_JSON $cid with-name-label
-  run_buildah config --unsetlabel name $cid
-  run_buildah commit $WITH_POLICY_JSON $cid without-name-label
+  run_buildah commit $WITH_POLICY_JSON $cid with-created_by-label
+  run_buildah config --unsetlabel created_by $cid
+  run_buildah commit $WITH_POLICY_JSON $cid without-created_by-label
 
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' with-name-label
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "created_by"}}' with-created_by-label
   assert "$output" != "" "label should be set in base image"
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "name"}}' without-name-label
-  assert "$output" == "" "name label should be removed"
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "created_by"}}' without-created_by-label
+  assert "$output" == "" "created_by label should be removed"
 }
 
 @test "config set empty entrypoint doesn't wipe cmd" {
