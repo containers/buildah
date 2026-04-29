@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.29.8 (2026-04-29)
+
+    [release-1.29] Bump Go Jose to v3.0.5, CVE-2026-34986
+
 ## v1.29.7 (2026-01-12)
 
     [release-1.29] Adjust cpu-shares check test for weight
