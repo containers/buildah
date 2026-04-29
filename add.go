@@ -621,10 +621,10 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						ChmodDirs:          chmodDirsFiles,
 						ChownFiles:         chownFiles,
 						ChmodFiles:         chmodDirsFiles,
+						KeepDirectoryNames: options.DirCopyContents == types.OptionalBoolFalse,
 						StripSetuidBit:     options.StripSetuidBit,
 						StripSetgidBit:     options.StripSetgidBit,
 						StripStickyBit:     options.StripStickyBit,
-						KeepDirectoryNames: options.DirCopyContents == types.OptionalBoolFalse,
 						Timestamp:          options.Timestamp,
 					}
 					writer := io.WriteCloser(pipeWriter)
@@ -789,10 +789,10 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					ChmodDirs:          chmodDirsFiles,
 					ChownFiles:         chownFiles,
 					ChmodFiles:         chmodDirsFiles,
+					KeepDirectoryNames: options.DirCopyContents == types.OptionalBoolFalse,
 					StripSetuidBit:     options.StripSetuidBit,
 					StripSetgidBit:     options.StripSetgidBit,
 					StripStickyBit:     options.StripStickyBit,
-					KeepDirectoryNames: options.DirCopyContents == types.OptionalBoolFalse,
 					Parents:            options.Parents,
 					Timestamp:          options.Timestamp,
 				}
