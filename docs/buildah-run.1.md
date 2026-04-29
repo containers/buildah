@@ -301,6 +301,11 @@ that the UTS namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
+**--valid-exit-codes** *exitcode[,exitcode,...]*
+
+Specifies a comma-separated list of exit codes that should be considered
+successful.  Defaults to **0**.
+
 **--volume**, **-v** *source*:*destination*:*options*
 
 Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
@@ -410,6 +415,8 @@ buildah run --volume /path/on/host:/path/in/container:ro,z containerID sh
 buildah run -v /path/on/host:/path/in/container:z,U containerID sh
 
 buildah run --mount type=bind,src=/tmp/on:host,dst=/in:container,ro containerID sh
+
+buildah run --valid-exit-codes 0,1 containerID grep pattern /etc/hosts
 
 ## SEE ALSO
 buildah(1), buildah-from(1), buildah-config(1), namespaces(7), pid\_namespaces(7), crun(1), runc(8), containers.conf(5)

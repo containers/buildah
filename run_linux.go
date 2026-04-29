@@ -594,7 +594,7 @@ rootless=%d
 	default:
 		err = errors.New("don't know how to run this command")
 	}
-	return err
+	return checkExitCodeError(err, options.ValidExitCodes)
 }
 
 func (b *Builder) setupOCIHooks(config *specs.Spec, hasVolumes bool) (map[string][]specs.Hook, error) {
