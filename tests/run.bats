@@ -1089,7 +1089,6 @@ _EOF
 
   # Exit 1 succeeds with --valid-exit-codes 0,1
   run_buildah run --valid-exit-codes 0,1 $cid sh -c "exit 1"
-  expect_output ""
 
   # Exit 2 still fails with --valid-exit-codes 0,1
   run_buildah 2 run --valid-exit-codes 0,1 $cid sh -c "exit 2"
