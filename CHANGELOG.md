@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v1.33.15 (2026-04-29)
+
+    [release-1.33] Bump Go Jose v3.0.5, CVE-2026-34986
+    Use a precached image for the test of --unsetlabel
+
 ## v1.33.14 (2026-01-06)
 
     [release-1.33] tests/run.bats: "run masks" test: accept "unreadable"
