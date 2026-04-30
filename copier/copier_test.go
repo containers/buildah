@@ -1954,6 +1954,7 @@ func testRemove(t *testing.T) {
 		remove        string
 		all           bool
 		allowNotFound bool
+		allowWildcard bool
 		fail          bool
 		removed       []string
 	}
@@ -2095,6 +2096,73 @@ func testRemove(t *testing.T) {
 					all:     true,
 					removed: []string{"subdir-a/subdir-e", "subdir-a/subdir-e/subdir-f"},
 				},
+				{
+					name:          "wildcard-files",
+					remove:        "subdir-a/file-*",
+					allowWildcard: true,
+					removed:       []string{"subdir-a/file-a", "subdir-a/file-b"},
+				},
+				{
+					name:          "wildcard-all-in-dir",
+					remove:        "subdir-a/subdir-b/*",
+					allowWildcard: true,
+					all:           true,
+					removed: []string{
+						"subdir-a/subdir-b/subdir-c",
+						"subdir-a/subdir-b/subdir-c/parent",
+						"subdir-a/subdir-b/subdir-c/link-b",
+						"subdir-a/subdir-b/subdir-c/root",
+					},
+				},
+				{
+					name:          "wildcard-no-match",
+					remove:        "subdir-a/nonexistent-*",
+					allowWildcard: true,
+				},
+				{
+					name:          "wildcard-allow-not-found",
+					remove:        "subdir-a/file-*",
+					allowWildcard: true,
+					allowNotFound: true,
+					removed:       []string{"subdir-a/file-a", "subdir-a/file-b"},
+				},
+				{
+					name:          "wildcard-dir-without-all",
+					remove:        "subdir-a/subdir-*",
+					allowWildcard: true,
+					all:           false,
+					fail:          true,
+				},
+				{
+					name:          "wildcard-empty-dir",
+					remove:        "subdir-a/subdir-d",
+					allowWildcard: true,
+					all:           false,
+					removed:       []string{"subdir-a/subdir-d"},
+				},
+				{
+					name:          "wildcard-literal-path",
+					remove:        "subdir-a/file-a",
+					allowWildcard: true,
+					removed:       []string{"subdir-a/file-a"},
+				},
+				{
+					name:          "wildcard-literal-missing",
+					remove:        "subdir-a/file-nonexistent",
+					allowWildcard: true,
+				},
+				{
+					name:          "wildcard-char-class",
+					remove:        "subdir-a/file-[ab]",
+					allowWildcard: true,
+					removed:       []string{"subdir-a/file-a", "subdir-a/file-b"},
+				},
+				{
+					name:          "wildcard-question-mark",
+					remove:        "subdir-a/file-?",
+					allowWildcard: true,
+					removed:       []string{"subdir-a/file-a", "subdir-a/file-b"},
+				},
 			},
 		},
 	}
@@ -2105,7 +2173,7 @@ func testRemove(t *testing.T) {
 					dir, err := makeContextFromArchive(t, makeArchive(testArchives[i].headers, nil), "")
 					require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
 					root := dir
-					options := RemoveOptions{All: testCase.all, AllowNotFound: testCase.allowNotFound}
+					options := RemoveOptions{All: testCase.all, AllowNotFound: testCase.allowNotFound, AllowWildcard: testCase.allowWildcard}
 					beforeNames := make(map[string]struct{})
 					err = filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 						if err != nil {

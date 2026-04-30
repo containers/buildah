@@ -520,6 +520,7 @@ func Mkdir(root string, directory string, options MkdirOptions) error {
 type RemoveOptions struct {
 	All           bool // if Directory is a directory, remove its contents as well
 	AllowNotFound bool // don't return an error if the item is already not present
+	AllowWildcard bool // expand the path as a glob pattern, removing each match. All must be set to remove matched non-empty directories
 }
 
 // Remove removes the specified directory or item, traversing any intermediate
@@ -2297,20 +2298,30 @@ func copierHandlerRemove(req request) *response {
 	errorResponse := func(fmtspec string, args ...any) *response {
 		return &response{Error: fmt.Sprintf(fmtspec, args...), Remove: removeResponse{}}
 	}
-	resolvedTarget, err := resolvePath(req.Root, req.Directory, false, nil)
-	if err != nil {
-		return errorResponse("copier: remove: %v", err)
-	}
-	if req.RemoveOptions.All {
-		err = os.RemoveAll(resolvedTarget)
-	} else {
-		err = os.Remove(resolvedTarget)
-		if req.RemoveOptions.AllowNotFound && errors.Is(err, os.ErrNotExist) {
-			err = nil
+	targets := []string{req.Directory}
+	if req.RemoveOptions.AllowWildcard {
+		var err error
+		targets, err = extendedGlob(req.Directory)
+		if err != nil {
+			return errorResponse("copier: remove: glob %q: %v", req.Directory, err)
 		}
 	}
-	if err != nil {
-		return errorResponse("copier: remove %q: %v", req.Directory, err)
+	for _, target := range targets {
+		resolvedTarget, err := resolvePath(req.Root, target, false, nil)
+		if err != nil {
+			return errorResponse("copier: remove: %v", err)
+		}
+		if req.RemoveOptions.All {
+			err = os.RemoveAll(resolvedTarget)
+		} else {
+			err = os.Remove(resolvedTarget)
+			if req.RemoveOptions.AllowNotFound && errors.Is(err, os.ErrNotExist) {
+				err = nil
+			}
+		}
+		if err != nil {
+			return errorResponse("copier: remove %q: %v", target, err)
+		}
 	}
 	return &response{Error: "", Remove: removeResponse{}}
 }
