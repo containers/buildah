@@ -19,6 +19,9 @@ env:
     CIRRUS_CLONE_DEPTH: 50
     # Unless set by in_podman.sh, default to operating outside of a podman container
     IN_PODMAN: 'false'
+    # Override the default in older VM images, which was registry:latest, which is
+    # now registry 3.x
+    REGISTRY_FQIN: 'docker.io/library/registry:2'
 
     ####
     #### Cache-image names to test with
@@ -174,6 +177,7 @@ conformance_task:
 
     gce_instance:
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
+        cpu: 4
 
     timeout_in: 25m
 
