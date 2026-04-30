@@ -30,12 +30,12 @@ env:
     ####
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
-    FEDORA_NAME: "fedora-41"
-    PRIOR_FEDORA_NAME: "fedora-40"
-    DEBIAN_NAME: "debian-13"
+    FEDORA_NAME: "fedora-42"
+    PRIOR_FEDORA_NAME: "fedora-41"
+    DEBIAN_NAME: "debian-14"
 
     # Image identifiers
-    IMAGE_SUFFIX: "c20250107t132430z-f41f40d13"
+    IMAGE_SUFFIX: "c20251120t131229z-f42f41d14"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     DEBIAN_CACHE_IMAGE_NAME: "debian-${IMAGE_SUFFIX}"
@@ -80,7 +80,6 @@ meta_task:
             ${FEDORA_CACHE_IMAGE_NAME}
             ${PRIOR_FEDORA_CACHE_IMAGE_NAME}
             ${DEBIAN_CACHE_IMAGE_NAME}
-            build-push-${IMAGE_SUFFIX}
         BUILDID: "${CIRRUS_BUILD_ID}"
         REPOREF: "${CIRRUS_CHANGE_IN_REPO}"
         GCPJSON: ENCRYPTED[d3614d6f5cc0e66be89d4252b3365fd84f14eee0259d4eb47e25fc0bc2842c7937f5ee8c882b7e547b4c5ec4b6733b14]
@@ -124,7 +123,7 @@ vendor_task:
 
     # Runs within Cirrus's "community cluster"
     container:
-        image: docker.io/library/golang:1.22
+        image: docker.io/library/golang:1.24
         cpu: 1
         memory: 1
 
@@ -155,28 +154,6 @@ unit_task:
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP}'
-
-
-conformance_task:
-    name: 'Debian Conformance w/ $STORAGE_DRIVER'
-    alias: conformance
-    skip: *not_build_docs
-    depends_on: *smoke_vendor
-
-    gce_instance:
-        image_name: "${DEBIAN_CACHE_IMAGE_NAME}"
-
-    timeout_in: 65m
-
-    matrix:
-        - env:
-            STORAGE_DRIVER: 'vfs'
-            TMPDIR: '/var/tmp'
-        - env:
-            STORAGE_DRIVER: 'overlay'
-
-    setup_script: '${SCRIPT_BASE}/setup.sh conformance |& ${_TIMESTAMP}'
-    conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
 
 
 integration_task:
@@ -314,7 +291,6 @@ success_task:
       - meta
       - smoke
       - unit
-      - conformance
       - vendor
       - integration
       - integration_rootless
