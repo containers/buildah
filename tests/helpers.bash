@@ -734,3 +734,216 @@ function stop_registry() {
   fi
   unset REGISTRY_DIR
 }
+
+###############################
+#  oci_image_manifest_digest  #
+###############################
+# prints the digest of the form "sha256:xxx" of the manifest for the main image
+# in an OCI layout in "$1"
+function oci_image_manifest_digest() {
+  run jq -r '.manifests[0].digest' "$1"/index.json
+  assert $status = 0 "looking for the digest of the image manifest"
+  assert "$output" != ""
+  echo "$output"
+}
+
+########################
+#  oci_image_manifest  #
+########################
+# prints the relative path of the manifest for the main image in an OCI
+# layout in "$1"
+function oci_image_manifest() {
+  local diff_id=$(oci_image_manifest_digest "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo blobs/"$alg"/"$val"
+}
+
+#############################
+#  oci_image_config_digest  #
+#############################
+# prints the digest of the form "sha256:xxx" of the config blob for the main
+# image in an OCI layout in "$1"
+function oci_image_config_digest() {
+  local digest=$(oci_image_manifest_digest "$1")
+  local alg=${digest%%:*}
+  local val=${digest##*:}
+  run jq -r '.config.digest' "$1"/blobs/"$alg"/"$val"
+  assert $status = 0 "looking for the digest of the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+######################
+#  oci_image_config  #
+######################
+# prints the relative path of the config blob for the main image in an OCI
+# layout in "$1"
+function oci_image_config() {
+  local diff_id=$(oci_image_config_digest "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo blobs/"$alg"/"$val"
+}
+
+########################
+#  oci_image_diff_ids  #
+########################
+# prints the list of digests of the diff IDs for the main image in an OCI
+# layout in "$1"
+function oci_image_diff_ids() {
+  local digest=$(oci_image_config_digest "$1")
+  local alg=${digest%%:*}
+  local val=${digest##*:}
+  run jq -r '.rootfs.diff_ids[]' "$1"/blobs/"$alg"/"$val"
+  assert $status = 0 "looking for the diff IDs in the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+#######################
+#  oci_image_diff_id  #
+#######################
+# prints a single diff ID for the main image in an OCI layout in "$1", choosing
+# which one to print based on an index and arithmetic operands passed in
+# subsequent arguments
+function oci_image_diff_id() {
+  local diff_ids=($(oci_image_diff_ids "$1"))
+  shift
+  case "$*" in
+      -*) echo ${diff_ids[$((${#diff_ids[@]} "$@"))]} ;;
+      *) echo ${diff_ids[$(("$@"))]} ;;
+  esac
+}
+
+############################
+#  oci_image_last_diff_id  #
+############################
+# prints the diff ID of the most recent layer for the main image in an OCI
+# layout in "$1"
+function oci_image_last_diff_id() {
+  local diff_id=($(oci_image_diff_id "$1" - 1))
+  echo "$diff_id"
+}
+
+####################
+#  oci_image_diff  #
+####################
+# prints the relative path of a single layer diff for the main image in an OCI
+# layout in "$1", choosing which one to print based on an index and arithmetic
+# operands passed in subsequent arguments
+function oci_image_diff() {
+  local diff_id=$(oci_image_diff_id "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo blobs/"$alg"/"$val"
+}
+
+#########################
+#  oci_image_last_diff  #
+#########################
+# prints the relative path of the most recent layer for the main image in an
+# OCI layout in "$1"
+function oci_image_last_diff() {
+  local output=$(oci_image_diff "$1" - 1)
+  echo "$output"
+}
+
+#############################
+#  dir_image_config_digest  #
+#############################
+# prints the digest of the form "sha256:xxx" of the config blob for the "dir"
+# image in "$1"
+function dir_image_config_digest() {
+  run jq -r '.config.digest' "$1"/manifest.json
+  assert $status = 0 "looking for the digest of the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+########################
+#  dir_image_diff_ids  #
+########################
+# prints the list of digests of the diff IDs for the "dir" image in "$1"
+function dir_image_diff_ids() {
+  local digest=$(dir_image_config_digest "$1")
+  local alg=${digest%%:*}
+  local val=${digest##*:}
+  run jq -r '.rootfs.diff_ids[]' "$1"/"$val"
+  assert $status = 0 "looking for the diff IDs in the image config"
+  assert "$output" != ""
+  echo "$output"
+}
+
+#######################
+#  dir_image_diff_id  #
+#######################
+# prints a single diff ID for the "dir" image in "$1", choosing which one to
+# print based on an index and arithmetic operands passed in subsequent
+# arguments
+function dir_image_diff_id() {
+  local diff_ids=($(dir_image_diff_ids "$1"))
+  shift
+  case "$*" in
+      -*) echo ${diff_ids[$((${#diff_ids[@]} "$@"))]} ;;
+      *) echo ${diff_ids[$(("$@"))]} ;;
+  esac
+}
+
+############################
+#  dir_image_last_diff_id  #
+############################
+# prints the diff ID of the most recent layer for "dir" image in "$1"
+function dir_image_last_diff_id() {
+  local diff_id=($(dir_image_diff_id "$1" - 1))
+  echo "$diff_id"
+}
+
+######################
+#  dir_image_config  #
+######################
+# prints the relative path of the config blob for the "dir" image in "$1"
+function dir_image_config() {
+  local diff_id=$(dir_image_config_digest "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo "$val"
+}
+
+####################
+#  dir_image_diff  #
+####################
+# prints the relative path of a single layer diff for the "dir" image in "$1",
+# choosing which one to print based on an index and arithmetic operands passed
+# in subsequent arguments
+function dir_image_diff() {
+  local diff_id=$(dir_image_diff_id "$@")
+  local alg=${diff_id%%:*}
+  local val=${diff_id##*:}
+  echo "$val"
+}
+
+#########################
+#  dir_image_last_diff  #
+#########################
+# prints the relative path of the most recent layer for "dir" image in "$1"
+function dir_image_last_diff() {
+  local output=$(dir_image_diff "$1" - 1)
+  echo "$output"
+}
+
+####################################
+#  convert_v1_shares_to_v2_weight  #
+####################################
+function convert_v1_shares_to_v2_weight() {
+  # https://kubernetes.io/blog/2026/01/30/new-cgroup-v1-to-v2-cpu-conversion-formula/
+  # there's an old way to convert the value, and a new way to convert the value, and we
+  # don't know which one our runtime is using, so return the values we would get from
+  # using both methods
+  local shares="$1"
+  local oldconverted="$((1 + ((${shares} - 2) * 9999) / 262142))"
+  test -n "$oldconverted"
+  local newconverted=$(awk '{if ($1 <= 2) { print "1"} else if ($1 >= 262144) {print "10000"} else {l=log($1)/log(2); e=((((l+125)*l)/612.0) - 7.0/34.0); p = exp(e*log(10)); if ( p == int(p) ) {print p} else { print int(p+1) }}}' <<< "${shares}")
+  test -n "$newconverted"
+  echo "$oldconverted" "$newconverted"
+}

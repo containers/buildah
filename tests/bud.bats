@@ -3767,7 +3767,7 @@ _EOF
   expect_output --substring "memory"
 }
 
-@test "bud with --cpu-shares" {
+@test "bud with --cpu-shares, checked" {
   skip_if_chroot
   skip_if_rootless_environment
   skip_if_rootless_and_cgroupv1
@@ -3780,29 +3780,31 @@ _EOF
 
   _prefetch alpine
 
-  local shares=12345
-  local expect=
-
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 
+  for shares in 2 200 2000 12345 20000 200000 ; do
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
+FROM alpine
+RUN printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
 _EOF
-    expect="weight $((1 + ((${shares} - 2) * 9999) / 262142))"
-  else
-    cat > $mytmpdir/Containerfile << _EOF
-from alpine
-run printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
+      local converted="$(convert_v1_shares_to_v2_weight ${shares})"
+      local expect="(weight ${converted##* }|weight ${converted%% *})"
+    else
+      cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
 _EOF
-    expect="weight ${shares}"
-  fi
+      local expect="weight ${shares}"
+    fi
 
-  run_buildah build --cpu-shares=${shares} -t testcpu \
-                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
-  expect_output --from="${lines[2]}" "${expect}"
+    echo requesting "${shares}" shares
+    run_buildah build --cpu-shares=${shares} -t testcpu \
+                    $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
+    echo expected "${expect}"
+    expect_output --from="${lines[2]}" --substring "${expect}"
+  done
 }
 
 @test "bud with --cpuset-cpus" {
