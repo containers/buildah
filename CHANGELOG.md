@@ -2,6 +2,18 @@
 
 # Changelog
 
+## v1.26.11 (2026-05-01)
+
+    CI: Fix conformance tests API version
+    CI: Workaround conformance testing bugaboo
+    Fix selinux spc test
+    Skip conformance test failures with Docker 23.0.1
+    tests/from.bats "from cpu-shares test": update cgroupv2 weights
+    Update "bud with --cpu-shares" test, and rename it
+    copier: drain tar stream to prevent broken pipe errors
+    CI: Fix disablement of systemd-resolved
+    Fix CVE-2025-47913 with x/crypto + minimum go bump
+
 ## v1.26.10 (2025-12-11)
 
     conformance test: ignore file type bits when comparing layers
