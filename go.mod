@@ -1,3 +1,4 @@
+// Deprecated: The buildah go module has been moved to go.podman.io/buildah
 module github.com/containers/buildah
 
 // Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
