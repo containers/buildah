@@ -437,6 +437,33 @@ _EOF
   done
 }
 
+@test "idmapping-non-contiguous-maps" {
+  skip_if_rootless_environment
+  skip_if_chroot
+
+  _prefetch ubuntu
+  contextdir=${TEST_SCRATCH_DIR}/idmap-noncontiguous
+  mkdir -p $contextdir
+  cat > $contextdir/Containerfile << _EOF
+FROM ubuntu
+RUN groupadd -g 67283 crunbuild
+RUN useradd -u 579841 -g 67283 -s /bin/bash -m crunbuild
+_EOF
+  run_buildah bud $WITH_POLICY_JSON \
+    --userns-uid-map 0:1000000:65536 \
+    --userns-uid-map 579841:579841:1 \
+    --userns-gid-map 0:1000000:65536 \
+    --userns-gid-map 67283:67283:1 \
+    --layers=true \
+    -t localhost/idmap-test \
+    $contextdir
+
+  run_buildah from $WITH_POLICY_JSON --quiet localhost/idmap-test
+  ctr="$output"
+  run_buildah run "$ctr" stat -c %u:%g /home/crunbuild
+  expect_output "579841:67283" "home directory ownership with non-contiguous UID/GID maps"
+}
+
 @test "idmapping-and-squash" {
         skip_if_rootless_environment
 	createrandom ${TEST_SCRATCH_DIR}/randomfile
