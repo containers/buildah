@@ -833,6 +833,7 @@ func (s *store) Repair(report CheckReport, options *RepairOptions) []error {
 				}
 				if err = s.DeleteLayer(id); err != nil {
 					err = fmt.Errorf("deleting layer %s: %w", id, err)
+				} else {
 					logrus.Debugf("deleted layer %s", id)
 				}
 			}

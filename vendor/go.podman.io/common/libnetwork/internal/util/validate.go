@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
-	"unicode"
 
 	"go.podman.io/common/libnetwork/types"
 	"go.podman.io/common/libnetwork/util"
@@ -98,43 +96,6 @@ func ValidateSubnets(network *types.Network, addGateway bool, usedNetworks []*ne
 	return nil
 }
 
-func ValidateRoutes(routes []types.Route) error {
-	for _, route := range routes {
-		err := ValidateRoute(route)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func ValidateRoute(route types.Route) error {
-	if route.Destination.IP == nil {
-		return errors.New("route destination ip nil")
-	}
-
-	if route.Destination.Mask == nil {
-		return errors.New("route destination mask nil")
-	}
-
-	if route.Gateway == nil {
-		return errors.New("route gateway nil")
-	}
-
-	// Reparse to ensure destination is valid.
-	ip, ipNet, err := net.ParseCIDR(route.Destination.String())
-	if err != nil {
-		return fmt.Errorf("route destination invalid: %w", err)
-	}
-
-	// check that destination is a network and not an address
-	if !ip.Equal(ipNet.IP) {
-		return errors.New("route destination invalid")
-	}
-
-	return nil
-}
-
 func ValidateSetupOptions(n NetUtil, namespacePath string, options types.SetupOptions) error {
 	if namespacePath == "" {
 		return errors.New("namespacePath is empty")
@@ -173,26 +134,6 @@ func validatePerNetworkOpts(network *types.Network, netOpts *types.PerNetworkOpt
 			}
 			return fmt.Errorf("requested static ip %s not in any subnet on network %s", ip.String(), network.Name)
 		}
-	}
-	return nil
-}
-
-// ValidateInterfaceName validates the interface name based on the following rules:
-// 1. The name must be less than MaxInterfaceNameLength characters
-// 2. The name must not be "." or ".."
-// 3. The name must not contain / or : or any whitespace characters
-// ref to https://github.com/torvalds/linux/blob/81e4f8d68c66da301bb881862735bd74c6241a19/include/uapi/linux/if.h#L33C18-L33C20
-func ValidateInterfaceName(ifName string) error {
-	if len(ifName) > types.MaxInterfaceNameLength {
-		return fmt.Errorf("interface name is too long: interface names must be %d characters or less: %w", types.MaxInterfaceNameLength, types.ErrInvalidArg)
-	}
-	if ifName == "." || ifName == ".." {
-		return fmt.Errorf("interface name is . or ..: %w", types.ErrInvalidArg)
-	}
-	if strings.ContainsFunc(ifName, func(r rune) bool {
-		return r == '/' || r == ':' || unicode.IsSpace(r)
-	}) {
-		return fmt.Errorf("interface name contains / or : or whitespace characters: %w", types.ErrInvalidArg)
 	}
 	return nil
 }

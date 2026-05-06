@@ -1,6 +1,8 @@
 package machine
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"strings"
 	"sync"
@@ -12,45 +14,55 @@ type Marker struct {
 }
 
 const (
-	markerFile = "/etc/containers/podman-machine"
-	Wsl        = "wsl"
-	Qemu       = "qemu"
-	AppleHV    = "applehv"
-	HyperV     = "hyperv"
+	// New marker file as of podman 6.0 since /etc/containers get overmounted.
+	markerFile = "/etc/podman-machine"
+	// Marker file prior to podman 6.0.
+	markerFileOld = "/etc/containers/podman-machine"
+	Wsl           = "wsl"
+	Qemu          = "qemu"
+	AppleHV       = "applehv"
+	HyperV        = "hyperv"
 )
 
-var (
-	markerSync sync.Once
-	marker     *Marker
-)
+var readMarkerOnce = sync.OnceValue(func() *Marker {
+	return loadMachineMarker(markerFile, markerFileOld)
+})
 
-func loadMachineMarker(file string) {
-	var kind string
-	enabled := false
-
+func loadMachineMarker(file, fallbackFile string) *Marker {
 	if content, err := os.ReadFile(file); err == nil {
-		enabled = true
-		kind = strings.TrimSpace(string(content))
+		return &Marker{Enabled: true, Type: strings.TrimSpace(string(content))}
+	} else if errors.Is(err, fs.ErrNotExist) {
+		if content, err := os.ReadFile(fallbackFile); err == nil {
+			return &Marker{Enabled: true, Type: strings.TrimSpace(string(content))}
+		}
 	}
+	return &Marker{}
+}
 
-	marker = &Marker{enabled, kind}
+func (m *Marker) IsPodmanMachine() bool {
+	return m.Enabled
 }
 
 func IsPodmanMachine() bool {
-	return GetMachineMarker().Enabled
+	return GetMachineMarker().IsPodmanMachine()
+}
+
+func (m *Marker) HostType() string {
+	return m.Type
 }
 
 func HostType() string {
-	return GetMachineMarker().Type
+	return GetMachineMarker().HostType()
+}
+
+func (m *Marker) IsGvProxyBased() bool {
+	return m.IsPodmanMachine() && m.HostType() != Wsl
 }
 
 func IsGvProxyBased() bool {
-	return IsPodmanMachine() && HostType() != Wsl
+	return GetMachineMarker().IsGvProxyBased()
 }
 
 func GetMachineMarker() *Marker {
-	markerSync.Do(func() {
-		loadMachineMarker(markerFile)
-	})
-	return marker
+	return readMarkerOnce()
 }

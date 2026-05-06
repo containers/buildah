@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 // mountError holds an error from a mount or unmount operation
@@ -89,17 +91,19 @@ func RecursiveUnmount(target string) error {
 		return -cmp.Compare(len(a.Mountpoint), len(b.Mountpoint))
 	})
 
-	for i, m := range mounts {
+	var lastErr error
+	for _, m := range mounts {
 		if !strings.HasPrefix(m.Mountpoint, target) {
 			continue
 		}
-		if err := Unmount(m.Mountpoint); err != nil && i == len(mounts)-1 {
-			return err
+		if err := Unmount(m.Mountpoint); err != nil {
 			// Ignore errors for submounts and continue trying to unmount others
 			// The final unmount should fail if there are any submounts remaining
+			logrus.Warnf("Failed to unmount %s: %v", m.Mountpoint, err)
+			lastErr = err
 		}
 	}
-	return nil
+	return lastErr
 }
 
 // ForceUnmount lazily unmounts a filesystem on supported platforms,

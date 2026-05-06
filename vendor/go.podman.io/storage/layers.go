@@ -167,8 +167,11 @@ type Layer struct {
 	// Flags is arbitrary data about the layer.
 	Flags map[string]any `json:"flags,omitempty"`
 
-	// UIDMap and GIDMap are used for setting up a layer's contents
-	// for use inside of a user namespace where UID mapping is being used.
+	// UIDMap and GIDMap are the on-disk ID mappings for this layer: the
+	// chown mapping that was applied to the layer's files at creation
+	// time.  When the driver supports shifting (idmapped mounts), no
+	// chown occurs and these fields are empty.  The caller's requested
+	// mapping is applied at mount time instead (see Container.UIDMap/GIDMap).
 	UIDMap []idtools.IDMap `json:"uidmap,omitempty"`
 	GIDMap []idtools.IDMap `json:"gidmap,omitempty"`
 
@@ -823,15 +826,18 @@ func (r *layerStore) GarbageCollect() error {
 		}
 
 		// Remove layer and any related data of unreferenced id
+		logrus.Debugf("removing driver layer %q", id)
 		if err := r.driver.Remove(id); err != nil {
-			logrus.Debugf("removing driver layer %q", id)
 			return err
 		}
-
-		logrus.Debugf("removing %q", r.tspath(id))
-		os.Remove(r.tspath(id))
-		logrus.Debugf("removing %q", r.datadir(id))
-		os.RemoveAll(r.datadir(id))
+		// Best-effort removal of orphaned metadata; the driver layer is
+		// already gone, so warn but don't fail the overall GC.
+		if err := os.Remove(r.tspath(id)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			logrus.Warnf("Failed to remove tar-split file %q: %v", r.tspath(id), err)
+		}
+		if err := os.RemoveAll(r.datadir(id)); err != nil {
+			logrus.Warnf("Failed to remove data directory %q: %v", r.datadir(id), err)
+		}
 	}
 
 	// Clean up any orphaned tar-split or data files in the layer metadata
@@ -1593,8 +1599,8 @@ func (r *layerStore) create(id string, parentLayer *Layer, names []string, mount
 		UIDs:               templateUIDs,
 		GIDs:               templateGIDs,
 		Flags:              newMapFrom(moreOptions.Flags),
-		UIDMap:             copySlicePreferringNil(moreOptions.UIDMap),
-		GIDMap:             copySlicePreferringNil(moreOptions.GIDMap),
+		UIDMap:             copySlicePreferringNil(moreOptions.IDMappingOptions.UIDMap),
+		GIDMap:             copySlicePreferringNil(moreOptions.IDMappingOptions.GIDMap),
 		BigDataNames:       []string{},
 		location:           r.pickStoreLocation(moreOptions.Volatile, writeable),
 	}
@@ -1638,7 +1644,10 @@ func (r *layerStore) create(id string, parentLayer *Layer, names []string, mount
 		}
 	}
 
-	idMappings := idtools.NewIDMappingsFromMaps(moreOptions.UIDMap, moreOptions.GIDMap)
+	idMappings := idtools.NewIDMappingsFromMaps(moreOptions.IDMappingOptions.UIDMap, moreOptions.IDMappingOptions.GIDMap)
+	if moreOptions.IDMappingOptions.HostUIDMapping && moreOptions.IDMappingOptions.HostGIDMapping {
+		idMappings = &idtools.IDMappings{}
+	}
 	opts := drivers.CreateOpts{
 		MountLabel: mountLabel,
 		StorageOpt: options,
@@ -2118,7 +2127,6 @@ func (r *layerStore) internalDelete(id string) ([]tempdir.CleanupTempDirFunc, er
 		return cleanFunctions, err
 	}
 
-	cleanFunctions = append(cleanFunctions, tempDirectory.Cleanup)
 	if err := tempDirectory.StageDeletion(r.tspath(id)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return cleanFunctions, err
 	}
@@ -2595,7 +2603,7 @@ func (r *layerStore) stageWithUnlockedStore(sl *maybeStagedLayerExtraction, pare
 	result, err := applyDiff(layerOptions, sl.diff, f, func(payload io.Reader) (int64, error) {
 		cleanup, stagedLayer, size, err := sl.staging.StartStagingDiffToApply(parent, drivers.ApplyDiffOpts{
 			Diff:     payload,
-			Mappings: idtools.NewIDMappingsFromMaps(layerOptions.UIDMap, layerOptions.GIDMap),
+			Mappings: idtools.NewIDMappingsFromMaps(layerOptions.IDMappingOptions.UIDMap, layerOptions.IDMappingOptions.GIDMap),
 			// MountLabel is not supported for the unlocked extraction, see the comment in (*store).PutLayer()
 			MountLabel: "",
 		})
@@ -2669,7 +2677,7 @@ func applyDiff(layerOptions *LayerOptions, diff io.Reader, tarSplitFile *os.File
 	gidLog := make(map[uint32]struct{})
 	var uncompressedCounter *ioutils.WriteCounter
 
-	size, err := func() (int64, error) { // A scope for defer
+	size, err := func() (retSize int64, retErr error) { // A scope for defer
 		compressor, err := pgzip.NewWriterLevel(tarSplitWriter, pgzip.BestSpeed)
 		if err != nil {
 			return -1, err
@@ -2699,21 +2707,26 @@ func applyDiff(layerOptions *LayerOptions, diff io.Reader, tarSplitFile *os.File
 		if uncompressedDigester != nil {
 			uncompressedWriter = io.MultiWriter(uncompressedWriter, uncompressedDigester.Hash())
 		}
-		payload, err := asm.NewInputTarStream(io.TeeReader(uncompressed, uncompressedWriter), metadata, storage.NewDiscardFilePutter())
+		payload, done, err := asm.NewInputTarStreamWithDone(io.TeeReader(uncompressed, uncompressedWriter), metadata, storage.NewDiscardFilePutter())
 		if err != nil {
 			return -1, err
 		}
+		defer func() {
+			payload.Close()
+			if doneErr := <-done; doneErr != nil && retErr == nil {
+				retErr = doneErr
+			}
+		}()
 
 		size, err := applyDriverFunc(payload)
 		if err != nil {
 			return -1, err
 		}
 		// Fully consume the payload; it may contain trailing zero padding, and we need all of that
-		// recorded in tar-split (which happens when the data passes through NewInputTarStream).
+		// recorded in tar-split (which happens when the data passes through NewInputTarStreamWithDone).
 		if _, err := io.Copy(io.Discard, payload); err != nil {
 			return -1, err
 		}
-
 		return size, nil
 	}()
 	if err != nil {
