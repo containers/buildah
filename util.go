@@ -154,7 +154,9 @@ func ReserveSELinuxLabels(store storage.Store, id string) error {
 				return err
 			}
 			// Prevent different containers from using same MCS label
-			selinux.ReserveLabel(b.ProcessLabel)
+			if err = selinux.ReserveLabelV2(b.ProcessLabel); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
