@@ -5,12 +5,12 @@
 package ssh
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"slices"
 	"strings"
 	"sync"
 )
@@ -39,7 +39,7 @@ type keyingTransport interface {
 	// prepareKeyChange sets up a key change. The key change for a
 	// direction will be effected if a msgNewKeys message is sent
 	// or received.
-	prepareKeyChange(*NegotiatedAlgorithms, *kexResult) error
+	prepareKeyChange(*algorithms, *kexResult) error
 
 	// setStrictMode sets the strict KEX mode, notably triggering
 	// sequence number resets on sending or receiving msgNewKeys.
@@ -116,7 +116,7 @@ type handshakeTransport struct {
 	bannerCallback BannerCallback
 
 	// Algorithms agreed in the last key exchange.
-	algorithms *NegotiatedAlgorithms
+	algorithms *algorithms
 
 	// Counters exclusively owned by readLoop.
 	readPacketsLeft uint32
@@ -165,7 +165,7 @@ func newClientTransport(conn keyingTransport, clientVersion, serverVersion []byt
 	if config.HostKeyAlgorithms != nil {
 		t.hostKeyAlgorithms = config.HostKeyAlgorithms
 	} else {
-		t.hostKeyAlgorithms = defaultHostKeyAlgos
+		t.hostKeyAlgorithms = supportedHostKeyAlgos
 	}
 	go t.readLoop()
 	go t.kexLoop()
@@ -183,10 +183,6 @@ func newServerTransport(conn keyingTransport, clientVersion, serverVersion []byt
 
 func (t *handshakeTransport) getSessionID() []byte {
 	return t.sessionID
-}
-
-func (t *handshakeTransport) getAlgorithms() NegotiatedAlgorithms {
-	return *t.algorithms
 }
 
 // waitSession waits for the session to be established. This should be
@@ -295,7 +291,7 @@ func (t *handshakeTransport) resetWriteThresholds() {
 	if t.config.RekeyThreshold > 0 {
 		t.writeBytesLeft = int64(t.config.RekeyThreshold)
 	} else if t.algorithms != nil {
-		t.writeBytesLeft = t.algorithms.Write.rekeyBytes()
+		t.writeBytesLeft = t.algorithms.w.rekeyBytes()
 	} else {
 		t.writeBytesLeft = 1 << 30
 	}
@@ -412,7 +408,7 @@ func (t *handshakeTransport) resetReadThresholds() {
 	if t.config.RekeyThreshold > 0 {
 		t.readBytesLeft = int64(t.config.RekeyThreshold)
 	} else if t.algorithms != nil {
-		t.readBytesLeft = t.algorithms.Read.rekeyBytes()
+		t.readBytesLeft = t.algorithms.r.rekeyBytes()
 	} else {
 		t.readBytesLeft = 1 << 30
 	}
@@ -505,7 +501,7 @@ func (t *handshakeTransport) sendKexInit() error {
 		CompressionClientServer: supportedCompressions,
 		CompressionServerClient: supportedCompressions,
 	}
-	io.ReadFull(t.config.Rand, msg.Cookie[:])
+	io.ReadFull(rand.Reader, msg.Cookie[:])
 
 	// We mutate the KexAlgos slice, in order to add the kex-strict extension algorithm,
 	// and possibly to add the ext-info extension algorithm. Since the slice may be the
@@ -528,7 +524,7 @@ func (t *handshakeTransport) sendKexInit() error {
 			switch s := k.(type) {
 			case MultiAlgorithmSigner:
 				for _, algo := range algorithmsForKeyFormat(keyFormat) {
-					if slices.Contains(s.Algorithms(), underlyingAlgo(algo)) {
+					if contains(s.Algorithms(), underlyingAlgo(algo)) {
 						msg.ServerHostKeyAlgos = append(msg.ServerHostKeyAlgos, algo)
 					}
 				}
@@ -680,7 +676,7 @@ func (t *handshakeTransport) enterKeyExchange(otherInitPacket []byte) error {
 		return err
 	}
 
-	if t.sessionID == nil && ((isClient && slices.Contains(serverInit.KexAlgos, kexStrictServer)) || (!isClient && slices.Contains(clientInit.KexAlgos, kexStrictClient))) {
+	if t.sessionID == nil && ((isClient && contains(serverInit.KexAlgos, kexStrictServer)) || (!isClient && contains(clientInit.KexAlgos, kexStrictClient))) {
 		t.strictMode = true
 		if err := t.conn.setStrictMode(); err != nil {
 			return err
@@ -705,9 +701,9 @@ func (t *handshakeTransport) enterKeyExchange(otherInitPacket []byte) error {
 		}
 	}
 
-	kex, ok := kexAlgoMap[t.algorithms.KeyExchange]
+	kex, ok := kexAlgoMap[t.algorithms.kex]
 	if !ok {
-		return fmt.Errorf("ssh: unexpected key exchange algorithm %v", t.algorithms.KeyExchange)
+		return fmt.Errorf("ssh: unexpected key exchange algorithm %v", t.algorithms.kex)
 	}
 
 	var result *kexResult
@@ -737,7 +733,7 @@ func (t *handshakeTransport) enterKeyExchange(otherInitPacket []byte) error {
 	// On the server side, after the first SSH_MSG_NEWKEYS, send a SSH_MSG_EXT_INFO
 	// message with the server-sig-algs extension if the client supports it. See
 	// RFC 8308, Sections 2.4 and 3.1, and [PROTOCOL], Section 1.9.
-	if !isClient && firstKeyExchange && slices.Contains(clientInit.KexAlgos, "ext-info-c") {
+	if !isClient && firstKeyExchange && contains(clientInit.KexAlgos, "ext-info-c") {
 		supportedPubKeyAuthAlgosList := strings.Join(t.publicKeyAuthAlgorithms, ",")
 		extInfo := &extInfoMsg{
 			NumExtensions: 2,
@@ -791,7 +787,7 @@ func (a algorithmSignerWrapper) SignWithAlgorithm(rand io.Reader, data []byte, a
 func pickHostKey(hostKeys []Signer, algo string) AlgorithmSigner {
 	for _, k := range hostKeys {
 		if s, ok := k.(MultiAlgorithmSigner); ok {
-			if !slices.Contains(s.Algorithms(), underlyingAlgo(algo)) {
+			if !contains(s.Algorithms(), underlyingAlgo(algo)) {
 				continue
 			}
 		}
@@ -814,12 +810,12 @@ func pickHostKey(hostKeys []Signer, algo string) AlgorithmSigner {
 }
 
 func (t *handshakeTransport) server(kex kexAlgorithm, magics *handshakeMagics) (*kexResult, error) {
-	hostKey := pickHostKey(t.hostKeys, t.algorithms.HostKey)
+	hostKey := pickHostKey(t.hostKeys, t.algorithms.hostKey)
 	if hostKey == nil {
 		return nil, errors.New("ssh: internal error: negotiated unsupported signature type")
 	}
 
-	r, err := kex.Server(t.conn, t.config.Rand, magics, hostKey, t.algorithms.HostKey)
+	r, err := kex.Server(t.conn, t.config.Rand, magics, hostKey, t.algorithms.hostKey)
 	return r, err
 }
 
@@ -834,7 +830,7 @@ func (t *handshakeTransport) client(kex kexAlgorithm, magics *handshakeMagics) (
 		return nil, err
 	}
 
-	if err := verifyHostKeySignature(hostKey, t.algorithms.HostKey, result); err != nil {
+	if err := verifyHostKeySignature(hostKey, t.algorithms.hostKey, result); err != nil {
 		return nil, err
 	}
 

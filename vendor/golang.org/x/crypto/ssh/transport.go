@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 )
@@ -16,6 +15,13 @@ import (
 // debugTransport if set, will print packet types as they go over the
 // wire. No message decoding is done, to minimize the impact on timing.
 const debugTransport = false
+
+const (
+	gcm128CipherID = "aes128-gcm@openssh.com"
+	gcm256CipherID = "aes256-gcm@openssh.com"
+	aes128cbcID    = "aes128-cbc"
+	tripledescbcID = "3des-cbc"
+)
 
 // packetConn represents a transport that implements packet based
 // operations.
@@ -86,14 +92,14 @@ func (t *transport) setInitialKEXDone() {
 // prepareKeyChange sets up key material for a keychange. The key changes in
 // both directions are triggered by reading and writing a msgNewKey packet
 // respectively.
-func (t *transport) prepareKeyChange(algs *NegotiatedAlgorithms, kexResult *kexResult) error {
-	ciph, err := newPacketCipher(t.reader.dir, algs.Read, kexResult)
+func (t *transport) prepareKeyChange(algs *algorithms, kexResult *kexResult) error {
+	ciph, err := newPacketCipher(t.reader.dir, algs.r, kexResult)
 	if err != nil {
 		return err
 	}
 	t.reader.pendingKeyChange <- ciph
 
-	ciph, err = newPacketCipher(t.writer.dir, algs.Write, kexResult)
+	ciph, err = newPacketCipher(t.writer.dir, algs.w, kexResult)
 	if err != nil {
 		return err
 	}
@@ -253,11 +259,8 @@ var (
 // setupKeys sets the cipher and MAC keys from kex.K, kex.H and sessionId, as
 // described in RFC 4253, section 6.4. direction should either be serverKeys
 // (to setup server->client keys) or clientKeys (for client->server keys).
-func newPacketCipher(d direction, algs DirectionAlgorithms, kex *kexResult) (packetCipher, error) {
+func newPacketCipher(d direction, algs directionAlgorithms, kex *kexResult) (packetCipher, error) {
 	cipherMode := cipherModes[algs.Cipher]
-	if cipherMode == nil {
-		return nil, fmt.Errorf("ssh: unsupported cipher %v", algs.Cipher)
-	}
 
 	iv := make([]byte, cipherMode.ivSize)
 	key := make([]byte, cipherMode.keySize)
