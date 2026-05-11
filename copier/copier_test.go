@@ -939,8 +939,8 @@ func testGetMultiple(t *testing.T) {
 			},
 			expectedGetErrors: []expectedError{
 				{inSubdir: true, name: ".", err: syscall.ENOENT},
-				{inSubdir: true, name: "/subdir-b/*", err: syscall.ENOENT},
-				{inSubdir: true, name: "../../subdir-b/*", err: syscall.ENOENT},
+				{inSubdir: true, name: "/subdir-b/*", err: fmt.Errorf("matched nothing")},
+				{inSubdir: true, name: "../../subdir-b/*", err: fmt.Errorf("matched nothing")},
 			},
 			cases: []getTestArchiveCase{
 				{
@@ -2363,6 +2363,160 @@ func testEnsure(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStatDisallowWildcardNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testStatDisallowWildcard(t)
+	canChroot = couldChroot
+}
+
+func testStatDisallowWildcard(t *testing.T) {
+	headers := []tar.Header{
+		{Name: "file-a", Typeflag: tar.TypeReg, Size: 23, Mode: 0o644, ModTime: testDate},
+		{Name: "file-b", Typeflag: tar.TypeReg, Size: 45, Mode: 0o644, ModTime: testDate},
+		{Name: "subdir", Typeflag: tar.TypeDir, Mode: 0o755, ModTime: testDate},
+		{Name: "subdir/file-c", Typeflag: tar.TypeReg, Size: 67, Mode: 0o644, ModTime: testDate},
+	}
+	dir, err := makeContextFromArchive(t, makeArchive(headers, nil), "")
+	require.NoError(t, err)
+
+	t.Run("wildcard-allowed-glob-matches", func(t *testing.T) {
+		stats, err := Stat(dir, dir, StatOptions{}, []string{"file-*"})
+		require.NoError(t, err)
+		require.Len(t, stats, 1)
+		require.Empty(t, stats[0].Error)
+		require.Len(t, stats[0].Globbed, 2)
+	})
+
+	t.Run("disallow-wildcard-literal", func(t *testing.T) {
+		stats, err := Stat(dir, dir, StatOptions{DisallowWildcard: true}, []string{"file-a"})
+		require.NoError(t, err)
+		require.Len(t, stats, 1)
+		require.Empty(t, stats[0].Error)
+		require.Len(t, stats[0].Globbed, 1)
+	})
+
+	t.Run("disallow-wildcard-glob-chars-rejected", func(t *testing.T) {
+		stats, err := Stat(dir, dir, StatOptions{DisallowWildcard: true}, []string{"file-*"})
+		require.NoError(t, err)
+		require.Len(t, stats, 1)
+		require.NotEmpty(t, stats[0].Error, "file-* should be rejected when DisallowWildcard is true")
+		require.Contains(t, stats[0].Error, "wildcards are not allowed")
+	})
+}
+
+func TestStatAllowEmptyWildcardNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testStatAllowEmptyWildcard(t)
+	canChroot = couldChroot
+}
+
+func testStatAllowEmptyWildcard(t *testing.T) {
+	headers := []tar.Header{
+		{Name: "file-a", Typeflag: tar.TypeReg, Size: 23, Mode: 0o644, ModTime: testDate},
+	}
+	dir, err := makeContextFromArchive(t, makeArchive(headers, nil), "")
+	require.NoError(t, err)
+
+	t.Run("empty-wildcard-true-no-error", func(t *testing.T) {
+		stats, err := Stat(dir, dir, StatOptions{AllowEmptyWildcard: true}, []string{"nonexistent-*"})
+		require.NoError(t, err)
+		require.Empty(t, stats)
+	})
+
+	t.Run("empty-wildcard-false-error", func(t *testing.T) {
+		stats, err := Stat(dir, dir, StatOptions{}, []string{"nonexistent-*"})
+		require.NoError(t, err)
+		require.Len(t, stats, 1)
+		require.Contains(t, stats[0].Error, "matched nothing")
+	})
+
+	t.Run("empty-wildcard-true-with-existing", func(t *testing.T) {
+		stats, err := Stat(dir, dir, StatOptions{AllowEmptyWildcard: true}, []string{"file-*"})
+		require.NoError(t, err)
+		require.Len(t, stats, 1)
+		require.Empty(t, stats[0].Error)
+		require.Len(t, stats[0].Globbed, 1)
+	})
+
+	t.Run("empty-wildcard-true-literal-missing", func(t *testing.T) {
+		stats, err := Stat(dir, dir, StatOptions{AllowEmptyWildcard: true}, []string{"nonexistent-file"})
+		require.NoError(t, err)
+		require.Len(t, stats, 1)
+		require.Contains(t, stats[0].Error, "no such file or directory")
+	})
+}
+
+func TestGetDisallowWildcardNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testGetDisallowWildcard(t)
+	canChroot = couldChroot
+}
+
+func testGetDisallowWildcard(t *testing.T) {
+	headers := []tar.Header{
+		{Name: "file-a", Typeflag: tar.TypeReg, Size: 23, Mode: 0o644, ModTime: testDate},
+		{Name: "file-b", Typeflag: tar.TypeReg, Size: 45, Mode: 0o644, ModTime: testDate},
+	}
+	dir, err := makeContextFromArchive(t, makeArchive(headers, nil), "")
+	require.NoError(t, err)
+
+	t.Run("wildcard-allowed-glob-matches", func(t *testing.T) {
+		err := Get(dir, dir, GetOptions{}, []string{"file-*"}, io.Discard)
+		require.NoError(t, err)
+	})
+
+	t.Run("disallow-wildcard-literal", func(t *testing.T) {
+		err := Get(dir, dir, GetOptions{DisallowWildcard: true}, []string{"file-a"}, io.Discard)
+		require.NoError(t, err)
+	})
+
+	t.Run("disallow-wildcard-glob-chars-rejected", func(t *testing.T) {
+		err := Get(dir, dir, GetOptions{DisallowWildcard: true}, []string{"file-*"}, io.Discard)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "wildcards are not allowed")
+	})
+}
+
+func TestGetAllowEmptyWildcardNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testGetAllowEmptyWildcard(t)
+	canChroot = couldChroot
+}
+
+func testGetAllowEmptyWildcard(t *testing.T) {
+	headers := []tar.Header{
+		{Name: "file-a", Typeflag: tar.TypeReg, Size: 23, Mode: 0o644, ModTime: testDate},
+	}
+	dir, err := makeContextFromArchive(t, makeArchive(headers, nil), "")
+	require.NoError(t, err)
+
+	t.Run("empty-wildcard-true-no-error", func(t *testing.T) {
+		err := Get(dir, dir, GetOptions{AllowEmptyWildcard: true}, []string{"nonexistent-*"}, io.Discard)
+		require.NoError(t, err)
+	})
+
+	t.Run("empty-wildcard-false-error", func(t *testing.T) {
+		err := Get(dir, dir, GetOptions{}, []string{"nonexistent-*"}, io.Discard)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "matched nothing")
+	})
+
+	t.Run("empty-wildcard-true-literal-missing", func(t *testing.T) {
+		err := Get(dir, dir, GetOptions{AllowEmptyWildcard: true}, []string{"nonexistent-file"}, io.Discard)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no such file or directory")
+	})
+
+	t.Run("empty-wildcard-true-with-existing", func(t *testing.T) {
+		err := Get(dir, dir, GetOptions{AllowEmptyWildcard: true}, []string{"file-*"}, io.Discard)
+		require.NoError(t, err)
+	})
 }
 
 func TestEnsureNoChroot(t *testing.T) {

@@ -16,32 +16,35 @@ import (
 	"go.podman.io/buildah/pkg/cli"
 	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/common/pkg/auth"
+	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
 )
 
 type addCopyResults struct {
-	addHistory       bool
-	chmod            string
-	chown            string
-	checksum         string
-	quiet            bool
-	ignoreFile       string
-	contextdir       string
-	from             string
-	blobCache        string
-	decryptionKeys   []string
-	removeSignatures bool
-	signaturePolicy  string
-	authfile         string
-	creds            string
-	tlsVerify        bool
-	certDir          string
-	retry            int
-	retryDelay       string
-	excludes         []string
-	parents          bool
-	timestamp        string
-	link             bool
+	addHistory         bool
+	chmod              string
+	chown              string
+	checksum           string
+	quiet              bool
+	ignoreFile         string
+	contextdir         string
+	from               string
+	blobCache          string
+	decryptionKeys     []string
+	removeSignatures   bool
+	signaturePolicy    string
+	authfile           string
+	creds              string
+	tlsVerify          bool
+	certDir            string
+	retry              int
+	retryDelay         string
+	excludes           []string
+	parents            bool
+	timestamp          string
+	link               bool
+	allowWildcard      bool
+	allowEmptyWildcard bool
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -101,6 +104,8 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
 	flags.StringVar(&opts.timestamp, "timestamp", "", "set timestamps on new content to `seconds` after the epoch")
+	flags.BoolVar(&opts.allowWildcard, "allow-wildcard", true, "allow glob patterns in source paths")
+	flags.BoolVar(&opts.allowEmptyWildcard, "allow-empty-wildcard", false, "don't error when glob patterns match nothing")
 }
 
 func addcopyInit() {
@@ -277,6 +282,12 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		}
 		options.Excludes = append(excludes, options.Excludes...)
 	}
+	if c.Flags().Changed("allow-wildcard") {
+		options.AllowWildcard = types.NewOptionalBool(iopts.allowWildcard)
+	}
+	if c.Flags().Changed("allow-empty-wildcard") {
+		options.AllowEmptyWildcard = types.NewOptionalBool(iopts.allowEmptyWildcard)
+	}
 	if iopts.retryDelay != "" {
 		retryDelay, err := time.ParseDuration(iopts.retryDelay)
 		if err != nil {
@@ -307,6 +318,10 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	}
 
 	contentType, digest := builder.ContentDigester.Digest()
+	if digest == "" {
+		logrus.Debug("no content copied, skipping digest and history")
+		return nil
+	}
 	if !iopts.quiet {
 		fmt.Printf("%s\n", digest.Hex())
 	}

@@ -115,6 +115,12 @@ type AddAndCopyOptions struct {
 	// DirCopyContents copies the directory's contents instead of the
 	// directory with its contents below it, default true.
 	DirCopyContents types.OptionalBool
+	// AllowWildcard controls whether glob patterns are allowed in source
+	// paths. When false, they are rejected. Defaults to true.
+	AllowWildcard types.OptionalBool
+	// AllowEmptyWildcard controls whether the operation succeeds when all
+	// glob patterns match nothing. Defaults to false.
+	AllowEmptyWildcard types.OptionalBool
 }
 
 // gitURLFragmentSuffix matches fragments to use as Git reference and build
@@ -378,7 +384,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	var localSourceStats []*copier.StatsForGlob
 	if len(localSources) > 0 {
 		statOptions := copier.StatOptions{
-			CheckForArchives: extract,
+			CheckForArchives:   extract,
+			DisallowWildcard:   options.AllowWildcard == types.OptionalBoolFalse,
+			AllowEmptyWildcard: options.AllowEmptyWildcard == types.OptionalBoolTrue,
 		}
 		localSourceStats, err = copier.Stat(contextDir, contextDir, statOptions, localSources)
 		if err != nil {
@@ -399,11 +407,17 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			return fmt.Errorf("checking on sources under %q: %v", contextDir, errorText)
 		}
 		if len(localSourceStat.Globbed) == 0 {
+			if options.AllowEmptyWildcard == types.OptionalBoolTrue {
+				continue
+			}
 			return fmt.Errorf("checking source under %q: no glob matches: %w", contextDir, syscall.ENOENT)
 		}
 		numLocalSourceItems += len(localSourceStat.Globbed)
 	}
 	if numLocalSourceItems+len(remoteSources)+len(gitSources) == 0 {
+		if options.AllowEmptyWildcard == types.OptionalBoolTrue {
+			return nil
+		}
 		return fmt.Errorf("no sources %v found: %w", sources, syscall.ENOENT)
 	}
 
@@ -795,6 +809,8 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					StripStickyBit:     options.StripStickyBit,
 					Parents:            options.Parents,
 					Timestamp:          options.Timestamp,
+					DisallowWildcard:   options.AllowWildcard == types.OptionalBoolFalse,
+					AllowEmptyWildcard: options.AllowEmptyWildcard == types.OptionalBoolTrue,
 				}
 				getErr = copier.Get(contextDir, contextDir, getOptions, []string{globbedToGlobbable(globbed)}, writer)
 				closeErr = writer.Close()

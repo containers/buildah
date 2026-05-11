@@ -23,6 +23,16 @@ Defaults to false.
 Note: You can also override the default value of --add-history by setting the
 BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 
+**--allow-empty-wildcard**
+
+If set to true, don't return an error if globbing matches nothing. Only
+meaningful when **--allow-wildcard** is true. Defaults to false.
+
+**--allow-wildcard**
+
+Allow glob patterns in source paths. When set to false, source paths containing
+wildcard characters (*, ?, [) are rejected with an error. Defaults to true.
+
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) when connecting to
@@ -125,6 +135,10 @@ buildah add containerID '/tmp/workingdir' '/tmp/workingdir'
 buildah add containerID 'https://github.com/containers/buildah/blob/main/README.md' '/tmp'
 
 buildah add containerID 'passwd' 'certs.d' /etc
+
+buildah add containerID '/tmp/myfiles-*' '/dest/'
+
+buildah add --allow-empty-wildcard=true containerID '/tmp/logs-*' '/dest/'
 
 ## FILES
 
