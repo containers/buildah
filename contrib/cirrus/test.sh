@@ -45,9 +45,6 @@ then
 else
     cd $GOSRC
 
-    showrun make
-    showrun make install.tools
-
     case $1 in
         validate)
             showrun ooe.sh git remote add upstream "$CIRRUS_REPO_CLONE_URL"
