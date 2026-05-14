@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -21,7 +22,6 @@ import (
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/storage/pkg/archive"
 	"go.podman.io/storage/pkg/chrootarchive"
-	"go.podman.io/storage/pkg/ioutils"
 	"go.podman.io/storage/types"
 )
 
@@ -220,8 +220,16 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 			}
 			return "", "", fmt.Errorf("cloning %q to %q:\n%s: %w", url, name, string(combinedOutput), err)
 		}
-		logrus.Debugf("Build context is at %q", filepath.Join(downloadDir, gitSubDir))
-		return name, filepath.Join(filepath.Base(downloadDir), gitSubDir), nil
+		absPath, err := securejoin.SecureJoin(downloadDir, gitSubDir)
+		if err != nil {
+			return "", "", err
+		}
+		subdir, err := filepath.Rel(name, absPath)
+		if err != nil {
+			return "", "", err
+		}
+		logrus.Debugf("Build context is at %q", subdir)
+		return name, subdir, nil
 	}
 	if strings.HasPrefix(url, "github.com/") {
 		ghurl := url
@@ -237,8 +245,16 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 			}
 			return "", "", err
 		}
-		logrus.Debugf("Build context is at %q", filepath.Join(downloadDir, subdir))
-		return name, filepath.Join(filepath.Base(downloadDir), subdir), nil
+		absPath, err := securejoin.SecureJoin(downloadDir, subdir)
+		if err != nil {
+			return "", "", err
+		}
+		resultSubdir, err := filepath.Rel(name, absPath)
+		if err != nil {
+			return "", "", err
+		}
+		logrus.Debugf("Build context is at %q", resultSubdir)
+		return name, resultSubdir, nil
 	}
 	if url == "-" {
 		err = stdinToDirectory(downloadDir)
@@ -248,8 +264,8 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 			}
 			return "", "", err
 		}
-		logrus.Debugf("Build context is at %q", filepath.Join(downloadDir, subdir))
-		return name, filepath.Join(filepath.Base(downloadDir), subdir), nil
+		logrus.Debugf("Build context is at %q", downloadDir)
+		return name, filepath.Base(downloadDir), nil
 	}
 	logrus.Debugf("don't know how to retrieve %q", url)
 	if err2 := os.RemoveAll(name); err2 != nil {
@@ -332,6 +348,8 @@ func downloadToDirectory(url, dir string) error {
 	if resp.ContentLength == 0 {
 		return fmt.Errorf("no contents in %q", url)
 	}
+	// Try to extract the response as a tar archive; if that fails,
+	// assume it is a raw Dockerfile and write it as such.
 	if err := chrootarchive.Untar(resp.Body, dir, nil); err != nil {
 		resp1, err := http.Get(url)
 		if err != nil {
@@ -342,10 +360,8 @@ func downloadToDirectory(url, dir string) error {
 		if err != nil {
 			return err
 		}
-		dockerfile := filepath.Join(dir, "Dockerfile")
-		// Assume this is a Dockerfile
-		if err := ioutils.AtomicWriteFile(dockerfile, body, 0o600); err != nil {
-			return fmt.Errorf("failed to write %q to %q: %w", url, dockerfile, err)
+		if err := writeFileInRoot(dir, "Dockerfile", body, 0o600); err != nil {
+			return fmt.Errorf("failed to write %q to %q: %w", url, filepath.Join(dir, "Dockerfile"), err)
 		}
 	}
 	return nil
@@ -358,13 +374,38 @@ func stdinToDirectory(dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read from stdin: %w", err)
 	}
+	// Try to extract the buffered input as a tar archive; if that fails,
+	// assume it is a raw Dockerfile and write it as such.
 	reader := bytes.NewReader(b)
 	if err := chrootarchive.Untar(reader, dir, nil); err != nil {
-		dockerfile := filepath.Join(dir, "Dockerfile")
-		// Assume this is a Dockerfile
-		if err := ioutils.AtomicWriteFile(dockerfile, b, 0o600); err != nil {
-			return fmt.Errorf("failed to write bytes to %q: %w", dockerfile, err)
+		if err := writeFileInRoot(dir, "Dockerfile", b, 0o600); err != nil {
+			return fmt.Errorf("failed to write bytes to %q: %w", filepath.Join(dir, "Dockerfile"), err)
 		}
 	}
 	return nil
+}
+
+// writeFileInRoot safely writes data to a file inside root, without following
+// symlinks that escape the root directory.
+func writeFileInRoot(root, name string, data []byte, perm os.FileMode) error {
+	rootHandle, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer rootHandle.Close()
+
+	if err := rootHandle.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	fileHandle, err := rootHandle.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
+	if err != nil {
+		return err
+	}
+
+	_, err = fileHandle.Write(data)
+	if closeErr := fileHandle.Close(); closeErr != nil && err == nil {
+		err = closeErr
+	}
+	return err
 }
