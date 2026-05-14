@@ -7928,6 +7928,115 @@ _EOF
   expect_output --substring "couldn't find remote ref nosuchbranch"
 }
 
+@test "bud with ADD with git repository source escape directory" {
+  _prefetch alpine
+
+  local secretdir=${TEST_SCRATCH_DIR}/secretdir
+  mkdir -p ${secretdir}
+  echo mysecret > ${secretdir}/secretfile
+
+  local repodir=${TEST_SCRATCH_DIR}/repo
+  mkdir -p ${repodir}
+  git -C ${repodir} init -b main
+  ln -s / ${repodir}/proj
+  git -C ${repodir} add proj
+  git -C ${repodir} commit -m "initial commit"
+
+  local baredir=${TEST_SCRATCH_DIR}/repository
+  mkdir -p ${baredir}
+  git clone --bare ${repodir} ${baredir}/test-bug.git
+
+  starthttpd /git/=${baredir}:"git http-backend":GIT_HTTP_EXPORT_ALL=1:GIT_PROJECT_ROOT=${baredir} ${baredir}
+
+  local contextdir=${TEST_SCRATCH_DIR}/add-git
+  mkdir -p $contextdir
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+ADD http://0.0.0.0:${HTTP_SERVER_PORT}/git/test-bug.git#main:proj${secretdir} /mydir
+RUN cat /mydir/secretfile
+_EOF
+
+  run_buildah 125 build -f $contextdir/Containerfile -t escape-image --no-cache $contextdir
+  assert "$output" !~ "mysecret"
+}
+
+@test "bud with http context symlinked Dockerfile does not write through symlink on fallback" {
+  local targetfile=${TEST_SCRATCH_DIR}/targetfile
+  echo "ORIGINAL_CONTENT" > ${targetfile}
+
+  # Create a tar with a symlink Dockerfile pointing to targetfile, then
+  # append garbage so chrootarchive.Untar creates the symlink but fails.
+  local tarsrc=${TEST_SCRATCH_DIR}/tarsrc
+  mkdir -p ${tarsrc}
+  ln -s ${targetfile} ${tarsrc}/Dockerfile
+  local broken_tar=${TEST_SCRATCH_DIR}/broken.tar
+  tar -cf ${broken_tar} -C ${tarsrc} Dockerfile
+  dd if=/dev/urandom bs=512 count=4 >> ${broken_tar} 2>/dev/null
+
+  # Start a Python HTTP server that serves the broken tar on the first
+  # request (triggers Untar failure + symlink creation), then a malicious
+  # Dockerfile on the second request (which would be written through the
+  # symlink without the fix).
+  local portfile=${TEST_SCRATCH_DIR}/port
+  python3 -c "
+import http.server, threading, sys
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    count = 0
+    def do_GET(self):
+        Handler.count += 1
+        self.send_response(200)
+        self.end_headers()
+        if Handler.count % 2 == 1:
+            with open('${broken_tar}', 'rb') as f:
+                self.wfile.write(f.read())
+        else:
+            self.wfile.write(b'FROM scratch\nRUN echo MALICIOUS_CONTENT\n')
+    def log_message(self, *args):
+        pass
+
+srv = http.server.HTTPServer(('0.0.0.0', 0), Handler)
+with open('${portfile}', 'w') as f:
+    f.write(str(srv.server_address[1]))
+srv.serve_forever()
+" &
+  local srv_pid=$!
+  # Wait for the server to write its port.
+  local waited=0
+  while ! test -s ${portfile}; do
+    sleep 0.1
+    if test $((++waited)) -ge 50; then
+      kill $srv_pid 2>/dev/null || true
+      die "python http server did not start"
+    fi
+  done
+  local port=$(< ${portfile})
+
+  run_buildah 125 build $WITH_POLICY_JSON http://0.0.0.0:${port}/context.tar
+  kill $srv_pid 2>/dev/null || true
+
+  run cat ${targetfile}
+  assert "$output" = "ORIGINAL_CONTENT"
+}
+
+@test "bud with stdin context symlinked Dockerfile does not write through symlink on fallback" {
+  local targetfile=${TEST_SCRATCH_DIR}/targetfile
+  echo "ORIGINAL_CONTENT" > ${targetfile}
+
+  # Create a tar with a symlink Dockerfile pointing to targetfile, then
+  # append garbage so chrootarchive.Untar fails after creating the symlink.
+  local tarsrc=${TEST_SCRATCH_DIR}/tarsrc
+  mkdir -p ${tarsrc}
+  ln -s ${targetfile} ${tarsrc}/Dockerfile
+  local broken_tar=${TEST_SCRATCH_DIR}/broken.tar
+  tar -cf ${broken_tar} -C ${tarsrc} Dockerfile
+  dd if=/dev/urandom bs=512 count=4 >> ${broken_tar} 2>/dev/null
+
+  run_buildah 125 build $WITH_POLICY_JSON - < ${broken_tar}
+  run cat ${targetfile}
+  assert "$output" = "ORIGINAL_CONTENT"
+}
+
 @test "build-validates-bind-bind-propagation" {
   _prefetch alpine
 
