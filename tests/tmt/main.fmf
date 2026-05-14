@@ -1,0 +1,166 @@
+# Integration tests (rootful and rootless)
+/integration:
+    require:
+        - bats
+        - buildah-tests
+        - git-daemon
+        - slirp4netns
+
+    environment+:
+        BUILDAH_BINARY: /usr/bin/buildah
+        IMGTYPE_BINARY: /usr/bin/buildah-imgtype
+        INET_BINARY: /usr/bin/buildah-inet
+        COPY_BINARY: /usr/bin/buildah-copy
+        TUTORIAL_BINARY: /usr/bin/buildah-tutorial
+        DUMPSPEC_BINARY: /usr/bin/buildah-dumpspec
+        PASSWD_BINARY: /usr/bin/buildah-passwd
+        TMPDIR: /var/tmp
+        ROOTLESS_USER: cloud-user
+
+    adjust:
+        - when: initiator != "packit"
+          environment+:
+            RELEASE_TESTING: true
+
+    /root:
+        summary: Rootful integration test
+        test: |
+            set -exo pipefail
+
+            # Show kernel version
+            uname -r
+
+            # Show package versions
+            rpm -q \
+                aardvark-dns \
+                buildah \
+                buildah-tests \
+                conmon \
+                container-selinux \
+                containers-common \
+                crun \
+                netavark \
+                systemd
+
+            # Run bats system tests
+            bats /usr/share/buildah/test/system
+        duration: 60m
+
+    /rootless:
+        summary: Rootless integration test
+        test: |
+            # Run bats tests as rootless user
+            su - "$ROOTLESS_USER" -c "
+                export BUILDAH_BINARY=/usr/bin/buildah
+                export STORAGE_DRIVER=overlay
+                export BUILDAH_RUNTIME=crun
+                export TMPDIR=/var/tmp
+                bats /usr/share/buildah/test/system
+            "
+        duration: 90m
+
+# Unit tests
+/unit:
+    require:
+        - git
+        - glibc-static
+        - golang
+        - make
+        - btrfs-progs-devel
+        - containers-common
+        - device-mapper-devel
+        - gpgme-devel
+        - libassuan-devel
+        - libseccomp-devel
+        - netavark
+        - systemd-devel
+
+    summary: Unit tests
+    test: cd "$TMT_TREE" && make test-unit
+    duration: 90m
+
+# Smoke tests (build and validation)
+/smoke:
+    require:
+        - git
+        - golang
+        - make
+        - btrfs-progs-devel
+        - device-mapper-devel
+        - gpgme-devel
+        - libassuan-devel
+        - libseccomp-devel
+        - systemd-devel
+
+    summary: Smoke tests (build and validation)
+    test: |
+        cd "$TMT_TREE"
+        make
+        make install.tools
+        # Validation requires git remote setup
+        git remote add upstream https://github.com/containers/buildah || true
+        git remote update
+        make lint LINTFLAGS="--timeout=20m --color=always -j1"
+        make validate
+    duration: 15m
+
+# Vendor dependency tests
+/vendor:
+    require:
+        - git
+        - golang
+        - make
+
+    summary: Test vendoring
+    test: |
+        cd "$TMT_TREE"
+        # Skip Go version check - RHEL may have newer Go than go.mod specifies
+        # ./hack/check_vendor_toolchain.sh
+        make vendor
+        ./hack/tree_status.sh
+    duration: 10m
+
+# Cross-compile tests
+/cross:
+    require:
+        - git
+        - golang
+        - make
+
+    summary: Cross-compile for non-x86_64/aarch64 architectures
+    test: |
+        cd "$TMT_TREE"
+        # Cross-compile for architectures other than x86_64 and aarch64
+        # This tests ppc64le, s390x, riscv64, arm, mips*, etc.
+        make -j cross CGO_ENABLED=0
+    duration: 30m
+
+# Containerized integration tests
+/in-podman:
+    require:
+        - git
+        - golang
+        - make
+        - podman
+
+    summary: Containerized integration tests inside podman
+    test: |
+        cd "$TMT_TREE"
+
+        # Run integration tests inside a podman container
+        # using buildah's chroot isolation and vfs storage
+        # The container will build buildah from source
+        podman run --rm \
+            --privileged \
+            -v $(pwd):$(pwd):Z \
+            -w $(pwd) \
+            -e BUILDAH_ISOLATION=chroot \
+            -e STORAGE_DRIVER=vfs \
+            registry.fedoraproject.org/fedora:latest \
+            bash -c "
+                dnf install -y make golang bats buildah-tests containers-common git netavark skopeo
+                make
+                make install.tools
+                make test-integration
+            "
+    duration: 3h

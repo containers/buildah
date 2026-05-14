@@ -1,25 +1,14 @@
 discover:
     how: fmf
+    sync-repo: true
 
 execute:
     how: tmt
 
 prepare:
-    - when: distro == centos-stream or distro == rhel
-      how: shell
-      script: |
-        dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm --eval '%{?rhel}').noarch.rpm
-        dnf -y config-manager --set-enabled epel
+    - how: feature
+      epel: enabled
       order: 10
-    - when: initiator == packit
-      how: shell
-      script: |
-        COPR_REPO_FILE="/etc/yum.repos.d/*podman-next*.repo"
-        if compgen -G $COPR_REPO_FILE > /dev/null; then
-            sed -i -n '/^priority=/!p;$apriority=1' $COPR_REPO_FILE
-        fi
-        dnf -y upgrade --allowerasing
-      order: 20
 
 provision:
     how: artemis
@@ -31,4 +20,57 @@ provision:
         disk:
             - size: ">= 512 GB"
 
+finish:
+    how: shell
+    script: |
+        # Archive logs to TMT_PLAN_DATA for post-test analysis
+        mkdir -p "$TMT_PLAN_DATA/logs"
 
+        # Copy audit logs (SELinux denials, audit events)
+        if [ -f /var/log/audit/audit.log ]; then
+            cp /var/log/audit/audit.log "$TMT_PLAN_DATA/logs/"
+            echo "Audit logs copied to $TMT_PLAN_DATA/logs/audit.log"
+        else
+            echo "No audit log found at /var/log/audit/audit.log"
+        fi
+
+        # Capture full journal (current boot only)
+        journalctl -b --no-pager --all --output=short-precise &> "$TMT_PLAN_DATA/logs/journal.log"
+        echo "Journal output saved to $TMT_PLAN_DATA/logs/journal.log"
+
+        echo "All logs archived to $TMT_PLAN_DATA/logs/"
+
+/root-integration:
+    summary: Rootful system integration tests
+    discover+:
+        test: /tests/tmt/integration/root
+
+/rootless-integration:
+    summary: Rootless system integration tests
+    discover+:
+        test: /tests/tmt/integration/rootless
+
+/unit:
+    summary: Unit tests
+    discover+:
+        test: /tests/tmt/unit
+
+/smoke:
+    summary: Smoke tests (build and validation)
+    discover+:
+        test: /tests/tmt/smoke
+
+/vendor:
+    summary: Vendor dependency tests
+    discover+:
+        test: /tests/tmt/vendor
+
+/cross:
+    summary: Cross-compile tests
+    discover+:
+        test: /tests/tmt/cross
+
+/in-podman:
+    summary: Containerized integration tests
+    discover+:
+        test: /tests/tmt/in-podman
