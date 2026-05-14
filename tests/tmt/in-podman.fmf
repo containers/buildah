@@ -1,0 +1,27 @@
+require:
+    - git
+    - golang
+    - make
+    - podman
+
+summary: Containerized integration tests inside podman
+test: |
+    cd $(git rev-parse --show-toplevel)
+
+    # Run integration tests inside a podman container
+    # using buildah's chroot isolation and vfs storage
+    # The container will build buildah from source
+    podman run --rm \
+        --privileged \
+        -v $(pwd):$(pwd):Z \
+        -w $(pwd) \
+        -e BUILDAH_ISOLATION=chroot \
+        -e STORAGE_DRIVER=vfs \
+        registry.fedoraproject.org/fedora:latest \
+        bash -c "
+            dnf install -y make golang bats buildah-tests containers-common git netavark skopeo
+            make
+            make install.tools
+            make test-integration
+        "
+duration: 90m

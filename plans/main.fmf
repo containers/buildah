@@ -5,21 +5,9 @@ execute:
     how: tmt
 
 prepare:
-    - when: distro == centos-stream or distro == rhel
-      how: shell
-      script: |
-        dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm --eval '%{?rhel}').noarch.rpm
-        dnf -y config-manager --set-enabled epel
+    - how: feature
+      epel: enabled
       order: 10
-    - when: initiator == packit
-      how: shell
-      script: |
-        COPR_REPO_FILE="/etc/yum.repos.d/*podman-next*.repo"
-        if compgen -G $COPR_REPO_FILE > /dev/null; then
-            sed -i -n '/^priority=/!p;$apriority=1' $COPR_REPO_FILE
-        fi
-        dnf -y upgrade --allowerasing
-      order: 20
 
 provision:
     how: artemis
@@ -31,4 +19,37 @@ provision:
         disk:
             - size: ">= 512 GB"
 
+/integration:
+    summary: System integration tests
+    discover+:
+        test: /tests/tmt/system
 
+/unit:
+    summary: Unit tests
+    discover+:
+        test: /tests/tmt/unit
+
+/smoke:
+    summary: Smoke tests (build and validation)
+    discover+:
+        test: /tests/tmt/smoke
+
+/vendor:
+    summary: Vendor dependency tests
+    discover+:
+        test: /tests/tmt/vendor
+
+/cross:
+    summary: Cross-compile tests
+    discover+:
+        test: /tests/tmt/cross
+
+/rootless:
+    summary: Rootless integration tests
+    discover+:
+        test: /tests/tmt/rootless
+
+/in-podman:
+    summary: Containerized integration tests
+    discover+:
+        test: /tests/tmt/in-podman

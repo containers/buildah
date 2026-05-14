@@ -1,0 +1,16 @@
+require:
+    - git
+    - golang
+    - make
+
+summary: Smoke tests (build and validation)
+test: |
+    cd $(git rev-parse --show-toplevel)
+    make
+    make install.tools
+    # Validation requires git remote setup
+    git remote add upstream https://github.com/containers/buildah || true
+    git remote update
+    make lint LINTFLAGS="--timeout=20m --color=always -j1"
+    make validate
+duration: 15m

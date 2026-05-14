@@ -1,0 +1,12 @@
+require:
+    - git
+    - golang
+    - make
+
+summary: Cross-compile for non-x86_64/aarch64 architectures
+test: |
+    cd $(git rev-parse --show-toplevel)
+    # Cross-compile for architectures other than x86_64 and aarch64
+    # This tests ppc64le, s390x, riscv64, arm, mips*, etc.
+    make -j cross CGO_ENABLED=0
+duration: 30m
