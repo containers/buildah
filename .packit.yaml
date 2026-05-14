@@ -26,7 +26,7 @@ jobs:
       - epel-10-aarch64
     enable_net: true
 
-  # System tests on RHEL 9 and RHEL 10 using internal Testing Farm ranch
+  # Rootful integration tests on RHEL 9 and RHEL 10 using internal Testing Farm ranch
   - job: tests
     trigger: pull_request
     identifier: integration-tests
@@ -39,7 +39,7 @@ jobs:
     tf_extra_params:
       test:
         tmt:
-          name: ^/plans/integration$
+          name: ^/plans/root-integration$
 
   # Unit tests on RHEL 9 and RHEL 10 using internal Testing Farm ranch
   - job: tests
@@ -101,7 +101,7 @@ jobs:
     tf_extra_params:
       test:
         tmt:
-          name: ^/plans/rootless$
+          name: ^/plans/rootless-integration$
 
   # Containerized integration tests on RHEL 10 only
   - job: tests

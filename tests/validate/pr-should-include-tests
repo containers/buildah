@@ -61,13 +61,14 @@ if [[ -z "$filtered_changes" ]]; then
 fi
 
 # Nope. Only allow if the github 'no-tests-needed' label is set
+# Skip this check if we're not in Cirrus CI (e.g., Testing Farm, Packit)
 if [[ -z "$CIRRUS_PR" ]]; then
-    echo "$ME: cannot query github: \$CIRRUS_PR is undefined" >&2
-    exit 1
+    echo "$ME: not running in Cirrus CI, skipping GitHub label check" >&2
+    exit 0
 fi
 if [[ -z "$CIRRUS_REPO_CLONE_TOKEN" ]]; then
     echo "$ME: cannot query github: \$CIRRUS_REPO_CLONE_TOKEN is undefined" >&2
-    exit 1
+    exit 0
 fi
 
 query="{

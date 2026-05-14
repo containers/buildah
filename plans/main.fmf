@@ -1,5 +1,6 @@
 discover:
     how: fmf
+    sync-repo: true
 
 execute:
     how: tmt
@@ -19,10 +20,35 @@ provision:
         disk:
             - size: ">= 512 GB"
 
-/integration:
-    summary: System integration tests
+finish:
+    how: shell
+    script: |
+        # Archive logs to TMT_PLAN_DATA for post-test analysis
+        mkdir -p "$TMT_PLAN_DATA/logs"
+
+        # Copy audit logs (SELinux denials, audit events)
+        if [ -f /var/log/audit/audit.log ]; then
+            cp /var/log/audit/audit.log "$TMT_PLAN_DATA/logs/"
+            echo "Audit logs copied to $TMT_PLAN_DATA/logs/audit.log"
+        else
+            echo "No audit log found at /var/log/audit/audit.log"
+        fi
+
+        # Capture full journal (current boot only)
+        journalctl -b --no-pager --all --output=short-precise &> "$TMT_PLAN_DATA/logs/journal.log"
+        echo "Journal output saved to $TMT_PLAN_DATA/logs/journal.log"
+
+        echo "All logs archived to $TMT_PLAN_DATA/logs/"
+
+/root-integration:
+    summary: Rootful system integration tests
     discover+:
-        test: /tests/tmt/system
+        test: /tests/tmt/integration/root
+
+/rootless-integration:
+    summary: Rootless system integration tests
+    discover+:
+        test: /tests/tmt/integration/rootless
 
 /unit:
     summary: Unit tests
@@ -43,11 +69,6 @@ provision:
     summary: Cross-compile tests
     discover+:
         test: /tests/tmt/cross
-
-/rootless:
-    summary: Rootless integration tests
-    discover+:
-        test: /tests/tmt/rootless
 
 /in-podman:
     summary: Containerized integration tests

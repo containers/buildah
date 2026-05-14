@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-STATUS=$(git status --porcelain)
+# Check only tracked files (ignore untracked files like build artifacts)
+STATUS=$(git status --porcelain | grep -v '^??' || true)
 if [[ -z $STATUS ]]
 then
 	echo "tree is clean"
