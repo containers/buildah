@@ -99,3 +99,102 @@ func TestHistoryEntriesEqual(t *testing.T) {
 		})
 	}
 }
+
+func TestParseAddUnpackFlag(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		flags    []string
+		expected *bool
+		wantErr  bool
+	}{
+		{
+			name:     "no flags",
+			flags:    []string{},
+			expected: nil,
+			wantErr:  false,
+		},
+		{
+			name:     "bare --unpack",
+			flags:    []string{"--unpack"},
+			expected: boolPtr(true),
+			wantErr:  false,
+		},
+		{
+			name:     "--unpack=true",
+			flags:    []string{"--unpack=true"},
+			expected: boolPtr(true),
+			wantErr:  false,
+		},
+		{
+			name:     "--unpack=false",
+			flags:    []string{"--unpack=false"},
+			expected: boolPtr(false),
+			wantErr:  false,
+		},
+		{
+			name:     "last wins: false then true",
+			flags:    []string{"--unpack=false", "--unpack=true"},
+			expected: boolPtr(true),
+			wantErr:  false,
+		},
+		{
+			name:     "last wins: true then false",
+			flags:    []string{"--unpack=true", "--unpack=false"},
+			expected: boolPtr(false),
+			wantErr:  false,
+		},
+		{
+			name:     "last wins: bare then false",
+			flags:    []string{"--unpack", "--unpack=false"},
+			expected: boolPtr(false),
+			wantErr:  false,
+		},
+		{
+			name:     "invalid empty value",
+			flags:    []string{"--unpack="},
+			expected: nil,
+			wantErr:  true,
+		},
+		{
+			name:     "invalid value",
+			flags:    []string{"--unpack=maybe"},
+			expected: nil,
+			wantErr:  true,
+		},
+		{
+			name:     "other flags ignored",
+			flags:    []string{"--chown=1000:1000", "--chmod=755"},
+			expected: nil,
+			wantErr:  false,
+		},
+		{
+			name:     "unpack with other flags",
+			flags:    []string{"--chown=1000:1000", "--unpack=true", "--chmod=755"},
+			expected: boolPtr(true),
+			wantErr:  false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := parseAddUnpackFlag(tc.flags)
+			if tc.wantErr {
+				assert.Error(t, err, "expected error for flags %v", tc.flags)
+			} else {
+				assert.NoError(t, err, "unexpected error for flags %v", tc.flags)
+				if tc.expected == nil {
+					assert.Nil(t, result, "expected nil result for flags %v", tc.flags)
+				} else {
+					require.NotNil(t, result, "expected non-nil result for flags %v", tc.flags)
+					assert.Equal(t, *tc.expected, *result, "unexpected result for flags %v", tc.flags)
+				}
+			}
+		})
+	}
+}
+
+// boolPtr returns a pointer to a bool value
+func boolPtr(b bool) *bool {
+	return &b
+}
