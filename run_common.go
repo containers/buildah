@@ -656,6 +656,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		}
 	}()
 	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	deadline := time.After(30 * time.Second)
 	for {
 		now := time.Now()
 		var state specs.State
@@ -686,6 +687,9 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 			break
 		}
 		select {
+		case <-deadline:
+			logrus.Warnf("timed out waiting for container %s to stop; forcing cleanup", containerName)
+			atomic.StoreUint32(&stopped, 1)
 		case <-finishedCopy:
 			atomic.StoreUint32(&stopped, 1)
 		case <-time.After(time.Until(now.Add(100 * time.Millisecond))):
@@ -1287,7 +1291,20 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		}
 	}
 
-	if err := cmd.Wait(); err != nil {
+	waitDone := make(chan error, 1)
+	go func() {
+		waitDone <- cmd.Wait()
+	}()
+	select {
+	case err = <-waitDone:
+	case <-time.After(30 * time.Second):
+		logrus.Warnf("timed out waiting for runtime subprocess to exit; killing it")
+		if killErr := cmd.Process.Kill(); killErr != nil {
+			logrus.Errorf("killing runtime subprocess: %v", killErr)
+		}
+		err = <-waitDone
+	}
+	if err != nil {
 		return fmt.Errorf("while running runtime: %w", err)
 	}
 	confwg.Wait()
