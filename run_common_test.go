@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,6 +32,23 @@ func TestMapContainerNameToHostname(t *testing.T) {
 			assert.Equalf(t, cases[i][1], sanitized, "mapping container name %q to a valid hostname", cases[i][0])
 		})
 	}
+}
+
+func TestWaitCmdWithTimeoutNormal(t *testing.T) {
+	cmd := exec.Command("true")
+	require.NoError(t, cmd.Start())
+	err := waitCmdWithTimeout(cmd, 5*time.Second)
+	assert.NoError(t, err)
+}
+
+func TestWaitCmdWithTimeoutKills(t *testing.T) {
+	cmd := exec.Command("sleep", "60")
+	require.NoError(t, cmd.Start())
+	start := time.Now()
+	err := waitCmdWithTimeout(cmd, 200*time.Millisecond)
+	elapsed := time.Since(start)
+	assert.Error(t, err, "expected error after killing process")
+	assert.Less(t, elapsed, 2*time.Second, "should return quickly after timeout, not wait for sleep to finish")
 }
 
 func TestCheckExitCodeError(t *testing.T) {

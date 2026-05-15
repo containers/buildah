@@ -62,6 +62,23 @@ import (
 
 const maxHostnameLen = 64
 
+func waitCmdWithTimeout(cmd *exec.Cmd, timeout time.Duration) error {
+	waitDone := make(chan error, 1)
+	go func() {
+		waitDone <- cmd.Wait()
+	}()
+	select {
+	case err := <-waitDone:
+		return err
+	case <-time.After(timeout):
+		logrus.Warnf("timed out waiting for runtime subprocess to exit; killing it")
+		if killErr := cmd.Process.Kill(); killErr != nil {
+			logrus.Errorf("killing runtime subprocess: %v", killErr)
+		}
+		return <-waitDone
+	}
+}
+
 var validHostnames = regexp.Delayed("[A-Za-z0-9][A-Za-z0-9.-]+")
 
 func (b *Builder) createResolvConf(rdir string, chownOpts *idtools.IDPair) (string, error) {
@@ -1291,20 +1308,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		}
 	}
 
-	waitDone := make(chan error, 1)
-	go func() {
-		waitDone <- cmd.Wait()
-	}()
-	select {
-	case err = <-waitDone:
-	case <-time.After(30 * time.Second):
-		logrus.Warnf("timed out waiting for runtime subprocess to exit; killing it")
-		if killErr := cmd.Process.Kill(); killErr != nil {
-			logrus.Errorf("killing runtime subprocess: %v", killErr)
-		}
-		err = <-waitDone
-	}
-	if err != nil {
+	if err = waitCmdWithTimeout(cmd, 30*time.Second); err != nil {
 		return fmt.Errorf("while running runtime: %w", err)
 	}
 	confwg.Wait()
