@@ -673,7 +673,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		}
 	}()
 	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
-	deadline := time.After(30 * time.Second)
+	var deadline <-chan time.Time
 	for {
 		now := time.Now()
 		var state specs.State
@@ -708,7 +708,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 			logrus.Warnf("timed out waiting for container %s to stop; forcing cleanup", containerName)
 			atomic.StoreUint32(&stopped, 1)
 		case <-finishedCopy:
-			atomic.StoreUint32(&stopped, 1)
+			deadline = time.After(30 * time.Second)
 		case <-time.After(time.Until(now.Add(100 * time.Millisecond))):
 			continue
 		}
@@ -1308,7 +1308,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		}
 	}
 
-	if err = waitCmdWithTimeout(cmd, 30*time.Second); err != nil {
+	if err = cmd.Wait(); err != nil {
 		return fmt.Errorf("while running runtime: %w", err)
 	}
 	confwg.Wait()
