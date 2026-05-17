@@ -34,6 +34,20 @@ func TestMapContainerNameToHostname(t *testing.T) {
 	}
 }
 
+func waitCmdWithTimeout(cmd *exec.Cmd, timeout time.Duration) error {
+	waitDone := make(chan error, 1)
+	go func() {
+		waitDone <- cmd.Wait()
+	}()
+	select {
+	case err := <-waitDone:
+		return err
+	case <-time.After(timeout):
+		_ = cmd.Process.Kill()
+		return <-waitDone
+	}
+}
+
 func TestWaitCmdWithTimeoutNormal(t *testing.T) {
 	cmd := exec.Command("true")
 	require.NoError(t, cmd.Start())

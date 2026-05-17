@@ -62,23 +62,6 @@ import (
 
 const maxHostnameLen = 64
 
-func waitCmdWithTimeout(cmd *exec.Cmd, timeout time.Duration) error {
-	waitDone := make(chan error, 1)
-	go func() {
-		waitDone <- cmd.Wait()
-	}()
-	select {
-	case err := <-waitDone:
-		return err
-	case <-time.After(timeout):
-		logrus.Warnf("timed out waiting for runtime subprocess to exit; killing it")
-		if killErr := cmd.Process.Kill(); killErr != nil {
-			logrus.Errorf("killing runtime subprocess: %v", killErr)
-		}
-		return <-waitDone
-	}
-}
-
 var validHostnames = regexp.Delayed("[A-Za-z0-9][A-Za-z0-9.-]+")
 
 func (b *Builder) createResolvConf(rdir string, chownOpts *idtools.IDPair) (string, error) {
