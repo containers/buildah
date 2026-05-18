@@ -188,33 +188,32 @@ type SBOMScanOptions struct {
 
 // TempDirForURL checks if the passed-in string looks like a URL or "-".  If it
 // is, TempDirForURL creates a temporary directory, arranges for its contents
-// to be the contents of that URL, and returns the temporary directory's path,
-// along with the relative name of a subdirectory which should be used as the
-// build context (which may be empty or ".").  Removal of the temporary
-// directory is the responsibility of the caller.  If the string doesn't look
-// like a URL or "-", TempDirForURL returns empty strings and a nil error code.
-func TempDirForURL(dir, prefix, url string) (name string, subdir string, err error) {
+// to be the contents of that URL, and returns the temporary directory's path
+// (for cleanup) and the absolute path to the build context within it.
+// Removal of the temporary directory is the responsibility of the caller.
+// If the string doesn't look like a URL or "-", TempDirForURL returns empty
+// strings and a nil error code.
+func TempDirForURL(dir, prefix, url string) (tempDir string, contextDir string, err error) {
 	if !urlsource.IsHTTPOrHTTPS(url) &&
 		!strings.HasPrefix(url, "git://") &&
 		!strings.HasPrefix(url, "github.com/") &&
 		url != "-" {
 		return "", "", nil
 	}
-	name, err = os.MkdirTemp(dir, prefix)
+	tempDir, err = os.MkdirTemp(dir, prefix)
 	if err != nil {
 		return "", "", fmt.Errorf("creating temporary directory for %q: %w", url, err)
 	}
-
 	succeeded := false
 	defer func() {
 		if !succeeded {
-			if err2 := os.RemoveAll(name); err2 != nil {
-				logrus.Errorf("error removing temporary directory %q: %v", name, err2)
+			if err2 := os.RemoveAll(tempDir); err2 != nil {
+				logrus.Errorf("error removing temporary directory %q: %v", tempDir, err2)
 			}
 		}
 	}()
 
-	downloadDir := filepath.Join(name, "download")
+	downloadDir := filepath.Join(tempDir, "download")
 	if err = os.MkdirAll(downloadDir, 0o700); err != nil {
 		return "", "", fmt.Errorf("creating directory %q for %q: %w", downloadDir, url, err)
 	}
@@ -230,7 +229,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 	case isGitURL:
 		combinedOutput, gitSubDir, cloneErr := cloneToDirectory(url, downloadDir)
 		if cloneErr != nil {
-			return "", "", fmt.Errorf("cloning %q to %q:\n%s: %w", url, name, string(combinedOutput), cloneErr)
+			return "", "", fmt.Errorf("cloning %q to %q:\n%s: %w", url, tempDir, string(combinedOutput), cloneErr)
 		}
 		contentSubdir = gitSubDir
 	case urlsource.IsHTTPOrHTTPS(url):
@@ -251,17 +250,13 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 		}
 	}
 
-	absPath, err := securejoin.SecureJoin(downloadDir, contentSubdir)
+	contextDir, err = securejoin.SecureJoin(downloadDir, contentSubdir)
 	if err != nil {
 		return "", "", fmt.Errorf("resolving subdirectory %q in %q: %w", contentSubdir, downloadDir, err)
 	}
-	subdir, err = filepath.Rel(name, absPath)
-	if err != nil {
-		return "", "", err
-	}
-	logrus.Debugf("Build context is at %q", absPath)
+	logrus.Debugf("Build context is at %q", contextDir)
 	succeeded = true
-	return name, subdir, nil
+	return tempDir, contextDir, nil
 }
 
 // parseGitBuildContext parses git build context to `repo`, `sub-dir`
