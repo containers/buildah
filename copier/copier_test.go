@@ -2581,7 +2581,14 @@ func TestSortedExtendedGlob(t *testing.T) {
 	require.ElementsMatch(t, expect, matched, "sorted globbing")
 }
 
-func TestTarPut(t *testing.T) {
+func TestTarPutNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	defer func() { canChroot = couldChroot }()
+	testTarPut(t)
+}
+
+func testTarPut(t *testing.T) {
 	testCases := []struct {
 		name               string
 		trailingNullsBytes int
@@ -2627,34 +2634,8 @@ func TestTarPut(t *testing.T) {
 				tarBuf.Write(extraNulls)
 			}
 
-			pipeReader, pipeWriter := io.Pipe()
-			writeErrChan := make(chan error, 1)
-
-			go func() {
-				defer pipeWriter.Close()
-				_, err := io.Copy(pipeWriter, &tarBuf)
-				writeErrChan <- err
-			}()
-
-			req := request{
-				Root:      testDir,
-				Directory: "/",
-				Request:   requestPut,
-			}
-
-			resp, cb, err := copierHandlerPut(pipeReader, req, nil)
-			require.NoError(t, err, "copierHandlerPut returned error")
-			require.Empty(t, resp.Error, "copierHandlerPut returned error response")
-			require.NotNil(t, cb, "expected callback to be returned")
-
-			require.NoError(t, cb(), "callback returned error")
-
-			select {
-			case writeErr := <-writeErrChan:
-				require.NoError(t, writeErr, "write to pipe failed (broken pipe)")
-			case <-time.After(5 * time.Second):
-				t.Fatal("timeout waiting for write to complete")
-			}
+			err = Put(testDir, testDir, PutOptions{}, &tarBuf)
+			require.NoError(t, err, "Put returned error")
 
 			extractedFile := filepath.Join(testDir, "testfile.txt")
 			content, err := os.ReadFile(extractedFile)
