@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	urlpkg "net/url"
+	neturl "net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -189,74 +189,64 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 	if err != nil {
 		return "", "", fmt.Errorf("creating temporary directory for %q: %w", url, err)
 	}
+
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			if err2 := os.RemoveAll(name); err2 != nil {
+				logrus.Errorf("error removing temporary directory %q: %v", name, err2)
+			}
+		}
+	}()
+
 	downloadDir := filepath.Join(name, "download")
 	if err = os.MkdirAll(downloadDir, 0o700); err != nil {
 		return "", "", fmt.Errorf("creating directory %q for %q: %w", downloadDir, url, err)
 	}
-	urlParsed, err := urlpkg.Parse(url)
+
+	var contentSubdir string
+	urlParsed, parseErr := neturl.Parse(url)
+	if parseErr != nil {
+		return "", "", fmt.Errorf("parsing url %q: %w", url, parseErr)
+	}
+
+	isGitURL := urlParsed.Scheme == "git" || strings.HasSuffix(urlParsed.Path, ".git")
+	switch {
+	case isGitURL:
+		combinedOutput, gitSubDir, cloneErr := cloneToDirectory(url, downloadDir)
+		if cloneErr != nil {
+			return "", "", fmt.Errorf("cloning %q to %q:\n%s: %w", url, name, string(combinedOutput), cloneErr)
+		}
+		contentSubdir = gitSubDir
+	case urlsource.IsHTTPOrHTTPS(url):
+		if err = downloadToDirectory(url, downloadDir); err != nil {
+			return "", "", err
+		}
+	case strings.HasPrefix(url, "github.com/"):
+		ghURL := url
+		contentSubdir = path.Base(ghURL) + "-master"
+		downloadURL := fmt.Sprintf("https://%s/archive/master.tar.gz", ghURL)
+		logrus.Debugf("resolving url %q to %q", ghURL, downloadURL)
+		if err = downloadToDirectory(downloadURL, downloadDir); err != nil {
+			return "", "", err
+		}
+	case url == "-":
+		if err = stdinToDirectory(downloadDir); err != nil {
+			return "", "", err
+		}
+	}
+
+	absPath, err := securejoin.SecureJoin(downloadDir, contentSubdir)
 	if err != nil {
-		return "", "", fmt.Errorf("parsing url %q: %w", url, err)
+		return "", "", fmt.Errorf("resolving subdirectory %q in %q: %w", contentSubdir, downloadDir, err)
 	}
-	if strings.HasPrefix(url, "git://") || strings.HasSuffix(urlParsed.Path, ".git") {
-		combinedOutput, gitSubDir, err := cloneToDirectory(url, downloadDir)
-		if err != nil {
-			if err2 := os.RemoveAll(name); err2 != nil {
-				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
-			}
-			return "", "", fmt.Errorf("cloning %q to %q:\n%s: %w", url, name, string(combinedOutput), err)
-		}
-		absPath, err := securejoin.SecureJoin(downloadDir, gitSubDir)
-		if err != nil {
-			return "", "", err
-		}
-		subdir, err := filepath.Rel(name, absPath)
-		if err != nil {
-			return "", "", err
-		}
-		logrus.Debugf("Build context is at %q", subdir)
-		return name, subdir, nil
+	subdir, err = filepath.Rel(name, absPath)
+	if err != nil {
+		return "", "", err
 	}
-	if strings.HasPrefix(url, "github.com/") {
-		ghurl := url
-		url = fmt.Sprintf("https://%s/archive/master.tar.gz", ghurl)
-		logrus.Debugf("resolving url %q to %q", ghurl, url)
-		subdir = path.Base(ghurl) + "-master"
-	}
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		err = downloadToDirectory(url, downloadDir)
-		if err != nil {
-			if err2 := os.RemoveAll(name); err2 != nil {
-				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
-			}
-			return "", "", err
-		}
-		absPath, err := securejoin.SecureJoin(downloadDir, subdir)
-		if err != nil {
-			return "", "", err
-		}
-		resultSubdir, err := filepath.Rel(name, absPath)
-		if err != nil {
-			return "", "", err
-		}
-		logrus.Debugf("Build context is at %q", resultSubdir)
-		return name, resultSubdir, nil
-	}
-	if url == "-" {
-		err = stdinToDirectory(downloadDir)
-		if err != nil {
-			if err2 := os.RemoveAll(name); err2 != nil {
-				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
-			}
-			return "", "", err
-		}
-		logrus.Debugf("Build context is at %q", downloadDir)
-		return name, filepath.Base(downloadDir), nil
-	}
-	logrus.Debugf("don't know how to retrieve %q", url)
-	if err2 := os.RemoveAll(name); err2 != nil {
-		logrus.Debugf("error removing temporary directory %q: %v", name, err2)
-	}
-	return "", "", errors.New("unreachable code reached")
+	logrus.Debugf("Build context is at %q", absPath)
+	succeeded = true
+	return name, subdir, nil
 }
 
 // parseGitBuildContext parses git build context to `repo`, `sub-dir`
