@@ -516,6 +516,59 @@ func Mkdir(root string, directory string, options MkdirOptions) error {
 	return nil
 }
 
+// MkfileOptions controls parts of Mkfile()'s behavior.
+type MkfileOptions struct {
+	UIDMap, GIDMap []idtools.IDMap // map from containerIDs to hostIDs when creating the file
+	ModTimeNew     *time.Time      // set mtime and atime of the newly-created file
+	ChownNew       *idtools.IDPair // set ownership of the newly-created file
+	ChmodNew       *os.FileMode    // set permissions on the newly-created file
+}
+
+// Mkfile creates a file at the specified path under root with the given
+// content, permissions, and ownership.  It builds a tar archive containing
+// a single entry and passes it to Put().
+func Mkfile(root string, path string, options MkfileOptions, content []byte) error {
+	uid, gid := 0, 0
+	if options.ChownNew != nil {
+		uid, gid = options.ChownNew.UID, options.ChownNew.GID
+	}
+	mode := os.FileMode(0o644)
+	if options.ChmodNew != nil {
+		mode = *options.ChmodNew
+	}
+	modTime := time.Now()
+	if options.ModTimeNew != nil {
+		modTime = *options.ModTimeNew
+	}
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	hdr := &tar.Header{
+		Name:     cleanerReldirectory(path),
+		Size:     int64(len(content)),
+		Mode:     int64(mode),
+		Uid:      uid,
+		Gid:      gid,
+		ModTime:  modTime,
+		Typeflag: tar.TypeReg,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("copier: mkfile: error writing tar header: %w", err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		return fmt.Errorf("copier: mkfile: error writing tar content: %w", err)
+	}
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("copier: mkfile: error closing tar writer: %w", err)
+	}
+
+	putOptions := PutOptions{
+		UIDMap: options.UIDMap,
+		GIDMap: options.GIDMap,
+	}
+	return Put(root, root, putOptions, &buf)
+}
+
 // RemoveOptions controls parts of Remove()'s behavior.
 type RemoveOptions struct {
 	All           bool // if Directory is a directory, remove its contents as well

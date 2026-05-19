@@ -1897,6 +1897,123 @@ func testMkdir(t *testing.T) {
 	}
 }
 
+func TestMkfileNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testMkfile(t)
+	canChroot = couldChroot
+}
+
+func testMkfile(t *testing.T) {
+	currentOwner := &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}
+	mkfileOpts := func(chmod *os.FileMode, modTime *time.Time) MkfileOptions {
+		return MkfileOptions{
+			ModTimeNew: modTime,
+			ChownNew:   currentOwner,
+			ChmodNew:   chmod,
+		}
+	}
+
+	t.Run("basic", func(t *testing.T) {
+		root := t.TempDir()
+		content := []byte("hello world")
+		err := Mkfile(root, "newfile", mkfileOpts(nil, nil), content)
+		require.NoError(t, err)
+
+		got, err := os.ReadFile(filepath.Join(root, "newfile"))
+		require.NoError(t, err)
+		assert.Equal(t, content, got)
+
+		info, err := os.Stat(filepath.Join(root, "newfile"))
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "default permissions should be 0644")
+	})
+
+	t.Run("empty-content", func(t *testing.T) {
+		root := t.TempDir()
+		err := Mkfile(root, "emptyfile", mkfileOpts(nil, nil), []byte{})
+		require.NoError(t, err)
+
+		got, err := os.ReadFile(filepath.Join(root, "emptyfile"))
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
+	t.Run("with-permissions", func(t *testing.T) {
+		root := t.TempDir()
+		mode := os.FileMode(0o600)
+		err := Mkfile(root, "secret", mkfileOpts(&mode, nil), []byte("secret"))
+		require.NoError(t, err)
+
+		info, err := os.Stat(filepath.Join(root, "secret"))
+		require.NoError(t, err)
+		assert.Equal(t, mode, info.Mode().Perm())
+	})
+
+	t.Run("with-timestamp", func(t *testing.T) {
+		root := t.TempDir()
+		err := Mkfile(root, "dated", mkfileOpts(nil, &testDate), []byte("dated"))
+		require.NoError(t, err)
+
+		info, err := os.Stat(filepath.Join(root, "dated"))
+		require.NoError(t, err)
+		assert.Equal(t, testDate.Unix(), info.ModTime().Unix())
+	})
+
+	t.Run("nested-path", func(t *testing.T) {
+		archive := makeArchive([]tar.Header{
+			{Name: "subdir-a", Typeflag: tar.TypeDir, Mode: 0o755, ModTime: testDate},
+			{Name: "subdir-a/subdir-b", Typeflag: tar.TypeDir, Mode: 0o755, ModTime: testDate},
+		}, nil)
+		root, err := makeContextFromArchive(t, archive, "")
+		require.NoError(t, err)
+
+		content := []byte("very deep content")
+		err = Mkfile(root, "subdir-a/subdir-b/deepfile", mkfileOpts(nil, nil), content)
+		require.NoError(t, err)
+
+		got, err := os.ReadFile(filepath.Join(root, "subdir-a", "subdir-b", "deepfile"))
+		require.NoError(t, err)
+		assert.Equal(t, content, got)
+	})
+
+	t.Run("path-traversal", func(t *testing.T) {
+		root := t.TempDir()
+		content := []byte("should be contained")
+		err := Mkfile(root, "../../escaped", mkfileOpts(nil, nil), content)
+		require.NoError(t, err)
+
+		got, err := os.ReadFile(filepath.Join(root, "escaped"))
+		require.NoError(t, err)
+		assert.Equal(t, content, got)
+	})
+
+	t.Run("absolute-path", func(t *testing.T) {
+		root := t.TempDir()
+		content := []byte("absolute")
+		err := Mkfile(root, "/absolutefile", mkfileOpts(nil, nil), content)
+		require.NoError(t, err)
+
+		got, err := os.ReadFile(filepath.Join(root, "absolutefile"))
+		require.NoError(t, err)
+		assert.Equal(t, content, got)
+	})
+
+	t.Run("overwrite", func(t *testing.T) {
+		root := t.TempDir()
+		err := Mkfile(root, "target", mkfileOpts(nil, nil), []byte("original"))
+		require.NoError(t, err)
+
+		replacement := []byte("replacement")
+		err = Mkfile(root, "target", mkfileOpts(nil, nil), replacement)
+		require.NoError(t, err)
+
+		got, err := os.ReadFile(filepath.Join(root, "target"))
+		require.NoError(t, err)
+		assert.Equal(t, replacement, got)
+	})
+}
+
 func TestCleanerSubdirectory(t *testing.T) {
 	testCases := [][2]string{
 		{".", "."},

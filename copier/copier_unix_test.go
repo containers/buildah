@@ -104,6 +104,16 @@ func TestConditionalRemoveChroot(t *testing.T) {
 	canChroot = couldChroot
 }
 
+func TestMkfileChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testMkfile(t)
+	canChroot = couldChroot
+}
+
 func checkStatInfoOwnership(t *testing.T, result *StatForItem) {
 	t.Helper()
 	require.EqualValues(t, 0, result.UID, "expected the owning user to be reported")
