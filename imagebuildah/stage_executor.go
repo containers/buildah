@@ -32,6 +32,7 @@ import (
 	"go.podman.io/buildah/internal/output"
 	"go.podman.io/buildah/internal/sanitize"
 	"go.podman.io/buildah/internal/tmpdir"
+	"go.podman.io/buildah/internal/urlsource"
 	internalUtil "go.podman.io/buildah/internal/util"
 	"go.podman.io/buildah/pkg/parse"
 	"go.podman.io/buildah/pkg/rusage"
@@ -406,12 +407,12 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 		if err := s.volumeCacheInvalidate(copy.Dest); err != nil {
 			return err
 		}
-		var sources []string
 		// The From field says to read the content from another
 		// container.  Update the ID mappings and
 		// all-content-comes-from-below-this-directory value.
 		var idMappingOptions *define.IDMappingOptions
 		var copyExcludes []string
+		var copyExcludesWithoutContainerIgnore []string
 		stripSetuid := false
 		stripSetgid := false
 		preserveOwnership := false
@@ -567,16 +568,24 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			stripSetuid = true // did this change between 18.06 and 19.03?
 			stripSetgid = true // did this change between 18.06 and 19.03?
 		}
+		copyExcludesWithoutContainerIgnore = excludes
 		if copy.Download {
 			logrus.Debugf("ADD %#v, %#v", excludes, copy)
 		} else {
 			logrus.Debugf("COPY %#v, %#v", excludes, copy)
 		}
+
+		var gitSources []string
+		var nonGitSources []string
 		for _, src := range copy.Src {
-			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
+			if urlsource.IsHTTPOrHTTPS(src) {
 				// Source is a URL, allowed for ADD but not COPY.
 				if copy.Download {
-					sources = append(sources, src)
+					if urlsource.IsGit(src) {
+						gitSources = append(gitSources, src)
+					} else {
+						nonGitSources = append(nonGitSources, src)
+					}
 				} else {
 					// returns an error to be compatible with docker
 					return fmt.Errorf("source can't be a URL for COPY")
@@ -592,7 +601,7 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 				} else {
 					src = filepath.Join(contextDir, src)
 				}
-				sources = append(sources, src)
+				nonGitSources = append(nonGitSources, src)
 			}
 		}
 		labelsAndAnnotations := s.buildMetadata(s.isLastStep, true)
@@ -627,8 +636,21 @@ func (s *stageExecutor) performCopy(excludes []string, copies ...imagebuilder.Co
 			options.Excludes = nil
 			options.IgnoreFile = ""
 		}
-		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
-			return err
+
+		if len(nonGitSources) > 0 {
+			if err := s.builder.Add(copy.Dest, copy.Download, options, nonGitSources...); err != nil {
+				return err
+			}
+		}
+
+		// Special handling for Git sources, local .containerignore is not applied.
+		if len(gitSources) > 0 {
+			gitOptions := options
+			gitOptions.Excludes = copyExcludesWithoutContainerIgnore
+			gitOptions.IgnoreFile = ""
+			if err := s.builder.Add(copy.Dest, copy.Download, gitOptions, gitSources...); err != nil {
+				return err
+			}
 		}
 	}
 	if len(copiesExtend) > 0 {

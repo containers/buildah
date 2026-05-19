@@ -17,6 +17,7 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/buildah/internal/urlsource"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/storage/pkg/archive"
 	"go.podman.io/storage/pkg/chrootarchive"
@@ -193,8 +194,7 @@ type SBOMScanOptions struct {
 // directory is the responsibility of the caller.  If the string doesn't look
 // like a URL or "-", TempDirForURL returns empty strings and a nil error code.
 func TempDirForURL(dir, prefix, url string) (name string, subdir string, err error) {
-	if !strings.HasPrefix(url, "http://") &&
-		!strings.HasPrefix(url, "https://") &&
+	if !urlsource.IsHTTPOrHTTPS(url) &&
 		!strings.HasPrefix(url, "git://") &&
 		!strings.HasPrefix(url, "github.com/") &&
 		url != "-" {
@@ -229,7 +229,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 		logrus.Debugf("resolving url %q to %q", ghurl, url)
 		subdir = path.Base(ghurl) + "-master"
 	}
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+	if urlsource.IsHTTPOrHTTPS(url) {
 		err = downloadToDirectory(url, downloadDir)
 		if err != nil {
 			if err2 := os.RemoveAll(name); err2 != nil {

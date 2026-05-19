@@ -1684,6 +1684,8 @@ This functionality is compatible with the handling of .containerignore files des
 
 https://github.com/containers/common/blob/main/docs/containerignore.5.md
 
+Note: when the argument to ADD is a git repository, the local .containerignore is not applied.
+
 **registries.conf** (`/etc/containers/registries.conf`)
 
 registries.conf is the configuration file which specifies which container registries should be consulted when completing image names which do not include a registry or domain portion.
