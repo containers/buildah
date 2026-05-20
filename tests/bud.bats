@@ -6474,6 +6474,131 @@ _EOF
 
 }
 
+# Sets shell variable: contextdir
+# Creates a Containerfile with alpine base and a unique layer.
+function _setup_compression_context() {
+  _prefetch alpine
+  contextdir=${TEST_SCRATCH_DIR}/bud/compression-test
+  mkdir -p $contextdir
+  echo "unique-content-$(random_string)-$(date +%s)" > $contextdir/testfile
+  cat > $contextdir/Containerfile << _EOF
+FROM alpine
+RUN echo "layer1-$(random_string)"
+COPY testfile /testfile
+_EOF
+}
+
+# Sets shell variables: contextdir, authfile
+# Creates a Containerfile and starts a registry for push/cache tests.
+function _setup_compression_test() {
+  which skopeo || skip "skopeo is not installed"
+  _setup_compression_context
+  start_registry
+  authfile=${TEST_SCRATCH_DIR}/test.auth
+  run_buildah login --tls-verify=false --authfile $authfile --username testuser --password testpassword localhost:${REGISTRY_PORT}
+}
+
+function _build_with_cache() {
+  local imgname=$1; shift
+  local cacherepo=$1; shift
+  run_buildah build \
+    $WITH_POLICY_JSON \
+    --tls-verify=false \
+    --authfile $authfile \
+    --layers \
+    --no-cache \
+    --cache-to ${cacherepo} \
+    "$@" \
+    -t ${imgname} \
+    -f $contextdir/Containerfile \
+    $contextdir
+  expect_output --substring "Pushing cache"
+}
+
+# Inspect a cache entry from a --cache-to registry repo.
+# Uses skopeo list-tags to find a cache tag, then inspects its raw manifest.
+# Sets $output to the raw manifest JSON for subsequent assertions.
+# Usage: _inspect_cache_entry cacherepo
+function _inspect_cache_entry() {
+  local cacherepo=$1
+
+  run skopeo list-tags \
+    --authfile $authfile \
+    --tls-verify=false \
+    docker://${cacherepo}
+  assert $status -eq 0 "listing cache tags"
+  local tag
+  tag=$(jq -r '.Tags[0]' <<< "$output")
+  assert "$tag" != "null" "cache repo should have at least one tag"
+
+  run skopeo inspect \
+    --authfile $authfile \
+    --tls-verify=false \
+    --raw \
+    docker://${cacherepo}:${tag}
+  assert $status -eq 0 "skopeo inspect of cache entry should succeed"
+}
+
+@test "build --cache-to should respect compression_format from containers.conf" {
+  _setup_compression_test
+  cat > $contextdir/containers.conf << _EOF
+[engine]
+compression_format="zstd"
+_EOF
+  local imgname="img-cache-conf-$(safename)"
+  local cacherepo="localhost:${REGISTRY_PORT}/cache-conf-test"
+
+  CONTAINERS_CONF=$contextdir/containers.conf \
+    _build_with_cache ${imgname} ${cacherepo}
+
+  _inspect_cache_entry ${cacherepo}
+  expect_output --substring "zstd" \
+    "cache layers should use zstd compression per containers.conf"
+  assert "$output" !~ "tar+gzip" \
+    "cache layers should NOT use gzip when containers.conf specifies zstd"
+}
+
+@test "build --cache-to with --compression-format and --force-compression" {
+  _setup_compression_test
+  local imgname="img-cache-cflag-$(safename)"
+
+  for flags in "--compression-format zstd" "--compression-format zstd --force-compression"; do
+    local cacherepo="localhost:${REGISTRY_PORT}/cache-test-${flags// /-}"
+
+    _build_with_cache ${imgname} ${cacherepo} $flags
+
+    _inspect_cache_entry ${cacherepo}
+    expect_output --substring "zstd" \
+      "cache layers should use zstd with: $flags"
+    assert "$output" !~ "tar+gzip" \
+      "cache layers should NOT use gzip with: $flags"
+  done
+}
+
+@test "build --compression-format zstd to dir and oci-archive" {
+  which skopeo || skip "skopeo is not installed"
+  _setup_compression_context
+
+  for transport in dir oci-archive; do
+    local dest=${TEST_SCRATCH_DIR}/${transport}-out
+
+    run_buildah build \
+      $WITH_POLICY_JSON \
+      --no-cache \
+      --compression-format zstd \
+      -t ${transport}:${dest} \
+      -f $contextdir/Containerfile \
+      $contextdir
+
+    run skopeo inspect --raw ${transport}:${dest}
+    assert $status -eq 0 "$transport: skopeo inspect should succeed"
+    assert "$output" =~ "zstd" \
+      "$transport: layers should use zstd mediaType"
+    assert "$output" !~ "gzip" \
+      "$transport: layers should NOT use gzip"
+  done
+}
+
 @test "bud with undefined build arg directory" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
@@ -10176,7 +10301,7 @@ _EOF
 @test "[test caching] Build 1: --layers | Build 2: --save-stages --stage-labels --layers | Cache: No cache reuse - added labels are causing cache miss for each stage" {
   _prefetch alpine
   target="cache-no-reuse-$(safename)"
-  
+
   # First build
   run_buildah build $WITH_POLICY_JSON --layers -t ${target}-first -f $BUDFILES/save-stages/Dockerfile.single-build-stage $BUDFILES/save-stages
 
@@ -10227,7 +10352,7 @@ _EOF
 
   # Verify cache was used 3 times
   cache_count=$(echo "$output" | grep -c "Using cache")
-  assert "$cache_count" -eq 3 "should use cache 3 times (LABEL final, COPY final, RUN final)" 
+  assert "$cache_count" -eq 3 "should use cache 3 times (LABEL final, COPY final, RUN final)"
 
   run_buildah images -a
   intermediate_images_second=$(echo "$output" | awk '$1 == "<none>" && $2 == "<none>" {print $3}')

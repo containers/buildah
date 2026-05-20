@@ -33,6 +33,7 @@ import (
 	"go.podman.io/common/pkg/config"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
+	"go.podman.io/image/v5/pkg/compression"
 	storageTransport "go.podman.io/image/v5/storage"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/transports/alltransports"
@@ -84,6 +85,9 @@ type executor struct {
 	transientMounts                []Mount
 	transientRunMounts             []string
 	compression                    archive.Compression
+	compressionFormat              *compression.Algorithm
+	compressionLevel               *int
+	forceCompressionFormat         bool
 	output                         string
 	outputFormat                   string
 	additionalTags                 []string
@@ -286,6 +290,9 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		transientMounts:                         transientMounts,
 		transientRunMounts:                      options.TransientRunMounts,
 		compression:                             options.Compression,
+		compressionFormat:                       options.CompressionFormat,
+		compressionLevel:                        options.CompressionLevel,
+		forceCompressionFormat:                  options.ForceCompressionFormat,
 		output:                                  options.Output,
 		outputFormat:                            options.OutputFormat,
 		additionalTags:                          options.AdditionalTags,

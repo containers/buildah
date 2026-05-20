@@ -42,12 +42,12 @@ The default certificates directory is _/etc/containers/certs.d_.
 
 Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
 `zstd:chunked` is incompatible with encrypting images, and will be treated as `zstd` with a warning in that case.
+If not specified, the format is read from the `compression_format` setting in containers.conf.
 
 **--compression-level** *level*
 
-Specify the compression level used with the compression.
-
 Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
+If not specified, the level is read from the `compression_level` setting in containers.conf.
 
 **--creds** *creds*
 
@@ -74,7 +74,7 @@ The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7
 **--force-compression**
 
 If set, push uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
-Defaults to `true` if `--compression-format` is explicitly specified on the command-line, `false` otherwise.
+Defaults to `true` if `--compression-format` is explicitly specified on the command-line or `compression_format` is set in containers.conf, `false` otherwise.
 
 **--format**, **-f**
 
