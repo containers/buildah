@@ -509,3 +509,56 @@ EOF
   cmp ${TEST_SCRATCH_DIR}/testdir/file1 $newroot/testdir/file1
   cmp ${TEST_SCRATCH_DIR}/testdir/subdir/file2 $newroot/testdir/subdir/file2
 }
+
+@test "add-allow-wildcard" {
+  createrandom ${TEST_SCRATCH_DIR}/file-a
+  createrandom ${TEST_SCRATCH_DIR}/file-b
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah config --workingdir / $cid
+
+  # Default (allow-wildcard=true): glob expands, adds both files
+  run_buildah add $cid "${TEST_SCRATCH_DIR}/file-*" /dest/
+  run_buildah mount $cid
+  root=$output
+  test -f $root/dest/file-a
+  test -f $root/dest/file-b
+  cmp ${TEST_SCRATCH_DIR}/file-a $root/dest/file-a
+  cmp ${TEST_SCRATCH_DIR}/file-b $root/dest/file-b
+  run_buildah umount $cid
+
+  # allow-wildcard=false: glob patterns are rejected
+  run_buildah 125 add --allow-wildcard=false $cid "${TEST_SCRATCH_DIR}/file-*" /dest2/
+  expect_output --substring "wildcards are not allowed"
+}
+
+@test "add-allow-empty-wildcard" {
+  createrandom ${TEST_SCRATCH_DIR}/file-a
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah config --workingdir / $cid
+
+  # Default (allow-empty-wildcard=false): non-matching glob should fail
+  run_buildah 125 add $cid "${TEST_SCRATCH_DIR}/nonexistent-*" /dest/
+  expect_output --substring "matched nothing"
+
+  # Explicit true: non-matching glob should succeed
+  run_buildah add --allow-empty-wildcard=true $cid "${TEST_SCRATCH_DIR}/nonexistent-*" /dest2/
+  run_buildah mount $cid
+  root=$output
+  test ! -d $root/dest2
+  run_buildah umount $cid
+
+  # Existing files still add normally
+  run_buildah add $cid ${TEST_SCRATCH_DIR}/file-a /dest3/
+  run_buildah mount $cid
+  root=$output
+  test -f $root/dest3/file-a
+  run_buildah umount $cid
+
+  # Literal non-existent file should still error even with allow-empty-wildcard=true
+  run_buildah 125 add --allow-empty-wildcard=true $cid ${TEST_SCRATCH_DIR}/no-such-file /dest4/
+  expect_output --substring "no such file or directory"
+}

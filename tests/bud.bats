@@ -7033,7 +7033,7 @@ _EOF
   run_buildah build -t test2 -f Containerfile.missing $WITH_POLICY_JSON $BUDFILES/copy-globs
 
   run_buildah 125 build -t test3 -f Containerfile.bad $WITH_POLICY_JSON $BUDFILES/copy-globs
-  expect_output --substring 'building.*"COPY \*foo /testdir".*no such file or directory'
+  expect_output --substring "matched nothing"
 }
 
 @test "bud with copy --exclude" {

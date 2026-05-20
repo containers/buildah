@@ -756,3 +756,56 @@ parents/y/b.txt"
   run_buildah run $newcid ls -l /tmp/random
   expect_output --substring "rwxrwxrwx"
 }
+
+@test "copy-allow-wildcard" {
+  createrandom ${TEST_SCRATCH_DIR}/file-a
+  createrandom ${TEST_SCRATCH_DIR}/file-b
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah config --workingdir / $cid
+
+  # Default (allow-wildcard=true): glob expands, copies both files
+  run_buildah copy $cid "${TEST_SCRATCH_DIR}/file-*" /dest/
+  run_buildah mount $cid
+  root=$output
+  test -f $root/dest/file-a
+  test -f $root/dest/file-b
+  cmp ${TEST_SCRATCH_DIR}/file-a $root/dest/file-a
+  cmp ${TEST_SCRATCH_DIR}/file-b $root/dest/file-b
+  run_buildah umount $cid
+
+  # allow-wildcard=false: glob patterns are rejected
+  run_buildah 125 copy --allow-wildcard=false $cid "${TEST_SCRATCH_DIR}/file-*" /dest2/
+  expect_output --substring "wildcards are not allowed"
+}
+
+@test "copy-allow-empty-wildcard" {
+  createrandom ${TEST_SCRATCH_DIR}/file-a
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+  run_buildah config --workingdir / $cid
+
+  # Default (allow-empty-wildcard=false): non-matching glob should fail
+  run_buildah 125 copy $cid "${TEST_SCRATCH_DIR}/nonexistent-*" /dest/
+  expect_output --substring "matched nothing"
+
+  # Explicit true: non-matching glob should succeed
+  run_buildah copy --allow-empty-wildcard=true $cid "${TEST_SCRATCH_DIR}/nonexistent-*" /dest2/
+  run_buildah mount $cid
+  root=$output
+  test ! -d $root/dest2
+  run_buildah umount $cid
+
+  # Existing files still copy normally
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/file-a /dest3/
+  run_buildah mount $cid
+  root=$output
+  test -f $root/dest3/file-a
+  run_buildah umount $cid
+
+  # Literal non-existent file should still error even with allow-empty-wildcard=true
+  run_buildah 125 copy --allow-empty-wildcard=true $cid ${TEST_SCRATCH_DIR}/no-such-file /dest4/
+  expect_output --substring "no such file or directory"
+}

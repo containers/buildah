@@ -94,6 +94,46 @@ func TestEnsureChroot(t *testing.T) {
 	canChroot = couldChroot
 }
 
+func TestStatDisallowWildcardChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testStatDisallowWildcard(t)
+	canChroot = couldChroot
+}
+
+func TestStatAllowEmptyWildcardChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testStatAllowEmptyWildcard(t)
+	canChroot = couldChroot
+}
+
+func TestGetDisallowWildcardChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testGetDisallowWildcard(t)
+	canChroot = couldChroot
+}
+
+func TestGetAllowEmptyWildcardChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testGetAllowEmptyWildcard(t)
+	canChroot = couldChroot
+}
+
 func TestConditionalRemoveChroot(t *testing.T) {
 	if uid != 0 {
 		t.Skip("chroot() requires root privileges, skipping")
