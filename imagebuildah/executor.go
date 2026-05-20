@@ -125,7 +125,8 @@ type executor struct {
 	useCache                                bool
 	removeIntermediateCtrs                  bool
 	forceRmIntermediateCtrs                 bool
-	imageMap                                map[string]string           // Used to map images that we create to handle the AS construct.
+	imageMap                                map[string]string           // Used to map images that we create to handle the AS construct (stage name to image ID).
+	imageDigestMap                          map[string]string           // Used to map images that we create to handle the AS construct (stage name to image (manifest) digest).
 	containerMap                            map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
 	baseMap                                 map[string]struct{}         // Holds the names of every base image, as given.
 	rootfsMap                               map[string]struct{}         // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
@@ -332,6 +333,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		removeIntermediateCtrs:                  options.RemoveIntermediateCtrs,
 		forceRmIntermediateCtrs:                 options.ForceRmIntermediateCtrs,
 		imageMap:                                make(map[string]string),
+		imageDigestMap:                          make(map[string]string),
 		containerMap:                            make(map[string]*buildah.Builder),
 		baseMap:                                 make(map[string]struct{}),
 		rootfsMap:                               make(map[string]struct{}),
@@ -1169,6 +1171,7 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// that we can look it up later.
 		if r.Index < len(stages)-1 && r.ImageID != "" {
 			b.imageMap[stage.Name] = r.ImageID
+			b.imageDigestMap[stage.Name] = r.CommitResults.Digest.String()
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.

@@ -2077,7 +2077,7 @@ func (s *stageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 			if mountOptionFrom != "" {
 				if stage, ok := s.executor.stages[mountOptionFrom]; ok {
 					// If source is a previous stage then checksum is image digest for that stage
-					if image, isPreviousStage := s.executor.imageMap[stage.name]; isPreviousStage {
+					if image, isPreviousStage := s.executor.imageDigestMap[stage.name]; isPreviousStage {
 						mountCheckSum = image
 					}
 				} else {

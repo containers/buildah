@@ -753,6 +753,31 @@ _EOF
   expect_output --substring "anotherfile"
 }
 
+@test "bud --layers with --mount type bind should burst cache if content is changed - source is previous stage" {
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/cache
+  mkdir -p $contextdir
+
+  for iteration in 1 2 ; do
+    for content in 1 2 ; do
+      # based on reproducer from #6845
+      cat > $contextdir/Containerfile <<-_EOF
+      FROM busybox AS base
+
+      FROM base AS builder
+      RUN mkdir /build && echo "$content" > /build/foo.txt
+
+      FROM base AS prod
+      RUN --mount=type=bind,source=/build,from=builder,target=/build cp /build/foo.txt bar.txt
+_EOF
+      run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/$content.$iteration.txt $contextdir
+    done
+  done
+  assert $(< ${TEST_SCRATCH_DIR}/1.1.txt) == $(< ${TEST_SCRATCH_DIR}/1.2.txt)
+  assert $(< ${TEST_SCRATCH_DIR}/2.1.txt) == $(< ${TEST_SCRATCH_DIR}/2.2.txt)
+  assert $(< ${TEST_SCRATCH_DIR}/1.1.txt) != $(< ${TEST_SCRATCH_DIR}/2.1.txt)
+}
+
 @test "bud --layers should not hit cache if heredoc is changed" {
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
