@@ -1421,9 +1421,13 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 			// to make some changes to just the config blob.  Whichever
 			// is the case, we need to commit() to create a new image.
 			logCommit(s.output, -1)
-			// No base image means there's nothing to put in a
-			// layer, so don't create one.
-			emptyLayer := (s.builder.FromImageID == "")
+			// Default to only creating a layer blob if there's
+			// something to put in it.  No base image means there's
+			// nothing to put in a layer.
+			var emptyLayer types.OptionalBool
+			if s.builder.FromImageID == "" {
+				emptyLayer = types.OptionalBoolTrue
+			}
 			createdBy, err := s.getCreatedBy(nil, "", lastStage)
 			if err != nil {
 				return "", nil, false, fmt.Errorf("unable to get createdBy for the node: %w", err)
@@ -1600,7 +1604,11 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 				if err != nil {
 					return "", nil, false, fmt.Errorf("unable to get createdBy for the node: %w", err)
 				}
-				imgID, commitResults, err = s.commit(ctx, createdBy, !executedLayerStep, s.output, s.executor.squash, lastStage && lastInstruction)
+				var emptyLayer types.OptionalBool
+				if !executedLayerStep {
+					emptyLayer = types.OptionalBoolTrue
+				}
+				imgID, commitResults, err = s.commit(ctx, createdBy, emptyLayer, s.output, s.executor.squash, lastStage && lastInstruction)
 				if err != nil {
 					return "", nil, false, fmt.Errorf("committing container for step %+v: %w", *step, err)
 				}
@@ -1838,7 +1846,8 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 			// because at this point we want to save history for
 			// layers even if its a squashed build so that they
 			// can be part of the build cache.
-			imgID, commitResults, err = s.commit(ctx, createdBy, !s.stepRequiresLayer(step), commitName, false, lastStage && lastInstruction)
+			emptyLayer := types.NewOptionalBool(!s.stepRequiresLayer(step))
+			imgID, commitResults, err = s.commit(ctx, createdBy, emptyLayer, commitName, false, lastStage && lastInstruction)
 			if err != nil {
 				return "", nil, false, fmt.Errorf("committing container for step %+v: %w", *step, err)
 			}
@@ -1878,7 +1887,8 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 				// version of the image if that's what we're after,
 				// or a normal one if we need to scan the image while
 				// committing it.
-				imgID, commitResults, err = s.commit(ctx, createdBy, !s.stepRequiresLayer(step), commitName, s.executor.squash || s.executor.confidentialWorkload.Convert, lastStage && lastInstruction)
+				emptyLayer := types.NewOptionalBool(!s.stepRequiresLayer(step))
+				imgID, commitResults, err = s.commit(ctx, createdBy, emptyLayer, commitName, s.executor.squash || s.executor.confidentialWorkload.Convert, lastStage && lastInstruction)
 				if err != nil {
 					return "", nil, false, fmt.Errorf("committing final squash step %+v: %w", *step, err)
 				}
@@ -2579,7 +2589,7 @@ func (s *stageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 // commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
 // or commit via any custom exporter if specified.
-func (s *stageExecutor) commit(ctx context.Context, createdBy string, emptyLayer bool, output string, squash, finalInstruction bool) (string, *buildah.CommitResults, error) {
+func (s *stageExecutor) commit(ctx context.Context, createdBy string, emptyLayer types.OptionalBool, output string, squash, finalInstruction bool) (string, *buildah.CommitResults, error) {
 	ib := s.stage.Builder
 	var imageRef types.ImageReference
 	if output != "" {
@@ -2713,7 +2723,8 @@ func (s *stageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		SystemContext:         s.systemContext,
 		Squash:                squash,
 		OmitHistory:           s.executor.commonBuildOptions.OmitHistory,
-		EmptyLayer:            emptyLayer,
+		EmptyLayer:            emptyLayer == types.OptionalBoolTrue,
+		EmptyLayerIfEmptyDiff: emptyLayer == types.OptionalBoolUndefined,
 		OmitLayerHistoryEntry: s.hasLink,
 		BlobDirectory:         s.executor.blobDirectory,
 		SignBy:                s.executor.signBy,

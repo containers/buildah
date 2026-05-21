@@ -884,6 +884,75 @@ _EOF
   expect_output --substring "Cache burst add diff"
 }
 
+@test "bud build without multiple layers, with and without layer-creating instructions" {
+  local base=busybox
+  _prefetch $base
+
+  contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p ${contextdir}
+  createrandom ${contextdir}/randomfile
+
+  # count the number of layers in the base image
+  run_buildah inspect --type=image --format "{{ len .Docker.RootFS.DiffIDs }}" $base
+  local baselayers="$output"
+  local baselayersplusone=$(( ${baselayers} + 1 ))
+  run_buildah inspect --type=image --format "{{ len .Docker.History }}" $base
+  local basehistory="$output"
+
+  for instruction in \
+    "ADD randomfile /" \
+    "ARG A=B" \
+    "COPY randomfile /" \
+    "ENTRYPOINT /bin/bash" \
+    "ENV A=B C=D" \
+    "EXPOSE 85" \
+    "HEALTHCHECK CMD /bin/pwd" \
+    "LABEL A=B C=D" \
+    "MAINTAINER who knows" \
+    "RUN pwd" \
+    "USER 1:2" \
+    "VOLUME /pants" \
+    "WORKDIR /pants" \
+    ; do
+    cat > ${contextdir}/Dockerfile << _EOF
+FROM $base
+$instruction
+_EOF
+    # build an image based on $base with one instruction added"
+    run_buildah build $WITH_POLICY_JSON --iidfile ${TEST_SCRATCH_DIR}/iid.txt ${contextdir}
+    # expect one new history entry
+    run_buildah inspect --type=image --format "{{ len .Docker.History }}" $(< ${TEST_SCRATCH_DIR}/iid.txt)
+    local derivedhistory="$output"
+    assert $derivedhistory -eq $(( ${basehistory} + 1 )) "expected one new history entry in derived image"
+    # count the number of layers in the newly-built image
+    run_buildah inspect --type=image --format "{{ len .Docker.RootFS.DiffIDs }}" $(< ${TEST_SCRATCH_DIR}/iid.txt)
+    local derivedlayers="$output"
+    # expectations vary based on what that instruction was
+    case "$instruction" in
+      # if it's ADD, COPY, or RUN, accept either the same set of layers, or one more layer added,
+      # but not with a digest that matches a turns-out-to-be-empty layer
+      ADD*|COPY*|RUN*)
+        if test ${baselayersplusone} -eq ${derivedlayers} ; then
+          run_buildah inspect --type=image --format "{{ index .Docker.RootFS.DiffIDs $baselayers }}" $(< ${TEST_SCRATCH_DIR}/iid.txt)
+          local lastdiffid="$output"
+          # sha256sum([0]{})
+          assert lastdiffid != sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          # sha256sum([1024]{})
+          assert lastdiffid != sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef
+          # sha512sum([0]{})
+          assert lastdiffid != sha512:cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
+          # sha512sum([1024]{})
+          assert lastdiffid != sha512:8efb4f73c5655351c444eb109230c556d39e2c7624e9c11abc9e3fb4b9b9254218cc5085b454a9698d085cfa92198491f07a723be4574adc70617b73eb0b6461
+        else
+          assert ${baselayers} -eq ${derivedlayers} "should have omitted turned-out-empty layer"
+        fi
+        ;;
+      # every other instruction -> no new layer
+      *) assert ${baselayers} -eq ${derivedlayers} "should not have added new layers for $instruction" ;;
+    esac
+  done
+}
+
 @test "bud build with heredoc content" {
   _prefetch alpine
   run_buildah build -t heredoc $WITH_POLICY_JSON -f $BUDFILES/heredoc/Containerfile .
