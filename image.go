@@ -126,6 +126,7 @@ type containerImageRef struct {
 	confidentialWorkload  ConfidentialWorkloadOptions
 	omitHistory           bool
 	emptyLayer            bool
+	emptyLayerIfEmptyDiff bool
 	omitLayerHistoryEntry bool
 	idMappingOptions      *define.IDMappingOptions
 	parent                string
@@ -1184,6 +1185,18 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, _ *types.SystemC
 		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
 			return nil, fmt.Errorf("storing %s to file while renaming %q to %q: %w", what, filepath.Join(path, "layer"), finalBlobName, err)
 		}
+		// If the layer blob is just a block of zeroes of a size that could
+		// plausibly be an empty diff (i.e., if it's several megabytes,
+		// don't bother, because it's highly unlikely), suppress it.
+		if i.emptyLayerIfEmptyDiff && layerID == i.layerID {
+			switch size {
+			case 0, 512, 1024, 2048:
+				if srcHasher.Digest() == digest.Canonical.FromBytes(make([]byte, size)) {
+					i.emptyLayer = true
+					continue
+				}
+			}
+		}
 		mb.addLayer(destHasher.Digest(), size, srcHasher.Digest())
 	}
 
@@ -1764,6 +1777,7 @@ func (b *Builder) makeContainerImageRef(options CommitOptions) (*containerImageR
 		confidentialWorkload:  options.ConfidentialWorkloadOptions,
 		omitHistory:           options.OmitHistory || forceOmitHistory,
 		emptyLayer:            (options.EmptyLayer || options.OmitLayerHistoryEntry) && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
+		emptyLayerIfEmptyDiff: options.EmptyLayerIfEmptyDiff && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
 		omitLayerHistoryEntry: options.OmitLayerHistoryEntry && !options.Squash && !options.ConfidentialWorkloadOptions.Convert,
 		idMappingOptions:      &b.IDMappingOptions,
 		parent:                parent,
