@@ -991,28 +991,8 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
 	}
 
-	if opts == nil {
-		opts = &graphdriver.CreateOpts{
-			StorageOpt: map[string]string{},
-		}
-	}
-
 	if d.options.forceMask != nil && d.options.mountProgram == "" {
 		return fmt.Errorf("overlay: force_mask option for writeable layers is only supported with a mount_program")
-	}
-
-	if _, ok := opts.StorageOpt["size"]; !ok {
-		if opts.StorageOpt == nil {
-			opts.StorageOpt = map[string]string{}
-		}
-		opts.StorageOpt["size"] = strconv.FormatUint(d.options.quota.Size, 10)
-	}
-
-	if _, ok := opts.StorageOpt["inodes"]; !ok {
-		if opts.StorageOpt == nil {
-			opts.StorageOpt = map[string]string{}
-		}
-		opts.StorageOpt["inodes"] = strconv.FormatUint(d.options.quota.Inodes, 10)
 	}
 
 	return d.create(id, parent, opts, false)
@@ -1021,16 +1001,6 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 // Create is used to create the upper, lower, and merge directories required for overlay fs for a given id.
 // The parent filesystem is used to configure these directories for the overlay.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
-	if opts != nil && len(opts.StorageOpt) != 0 {
-		if _, ok := opts.StorageOpt["size"]; ok {
-			return fmt.Errorf("--storage-opt size is only supported for ReadWrite Layers")
-		}
-
-		if _, ok := opts.StorageOpt["inodes"]; ok {
-			return fmt.Errorf("--storage-opt inodes is only supported for ReadWrite Layers")
-		}
-	}
-
 	return d.create(id, parent, opts, true)
 }
 
@@ -1078,6 +1048,11 @@ func (d *Driver) getLayerPermissions(parent string, uidMaps, gidMaps []idtools.I
 }
 
 func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, readOnly bool) (retErr error) {
+	quota, err := d.parseStorageOpt(opts, readOnly) // Do this even for read-only layers, to allow rejecting quota options
+	if err != nil {
+		return err
+	}
+
 	dir, homedir, _ := d.dir2(id, readOnly)
 
 	disableQuota := readOnly
@@ -1127,19 +1102,6 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, readOnl
 	}()
 
 	if d.quotaCtl != nil && !disableQuota {
-		quota := quota.Quota{}
-		if opts != nil && len(opts.StorageOpt) > 0 {
-			driver := &Driver{}
-			if err := d.parseStorageOpt(opts.StorageOpt, driver); err != nil {
-				return err
-			}
-			if driver.options.quota.Size > 0 {
-				quota.Size = driver.options.quota.Size
-			}
-			if driver.options.quota.Inodes > 0 {
-				quota.Inodes = driver.options.quota.Inodes
-			}
-		}
 		// Set container disk quota limit
 		// If it is set to 0, we will track the disk usage, but not enforce a limit
 		if err := d.quotaCtl.SetQuota(dir, quota); err != nil {
@@ -1226,29 +1188,47 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, readOnl
 }
 
 // Parse overlay storage options
-func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) error {
+func (d *Driver) parseStorageOpt(opts *graphdriver.CreateOpts, readOnly bool) (quota.Quota, error) {
+	var storageOpt map[string]string = nil // Iterating over a nil map is safe
+	if opts != nil {
+		storageOpt = opts.StorageOpt
+	}
+
+	res := quota.Quota{}
+
+	if !readOnly {
+		res.Size = d.options.quota.Size
+		res.Inodes = d.options.quota.Inodes
+	}
+
 	// Read size to set the disk project quota per container
 	for key, val := range storageOpt {
 		key := strings.ToLower(key)
 		switch key {
 		case "size":
+			if readOnly {
+				return quota.Quota{}, fmt.Errorf("--storage-opt size is only supported for ReadWrite Layers")
+			}
 			size, err := units.RAMInBytes(val)
 			if err != nil {
-				return err
+				return quota.Quota{}, err
 			}
-			driver.options.quota.Size = uint64(size)
+			res.Size = uint64(size)
 		case "inodes":
+			if readOnly {
+				return quota.Quota{}, fmt.Errorf("--storage-opt inodes is only supported for ReadWrite Layers")
+			}
 			inodes, err := strconv.ParseUint(val, 10, 64)
 			if err != nil {
-				return err
+				return quota.Quota{}, err
 			}
-			driver.options.quota.Inodes = inodes
+			res.Inodes = inodes
 		default:
-			return fmt.Errorf("unknown option %s", key)
+			return quota.Quota{}, fmt.Errorf("unknown option %s", key)
 		}
 	}
 
-	return nil
+	return res, nil
 }
 
 func (d *Driver) getLower(parent string) (string, error) {
