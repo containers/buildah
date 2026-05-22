@@ -159,3 +159,13 @@ func checkStatInfoOwnership(t *testing.T, result *StatForItem) {
 	require.EqualValues(t, 0, result.UID, "expected the owning user to be reported")
 	require.EqualValues(t, 0, result.GID, "expected the owning group to be reported")
 }
+
+func TestTarPutChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	defer func() { canChroot = couldChroot }()
+	testTarPut(t)
+}
