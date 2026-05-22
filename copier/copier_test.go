@@ -3034,16 +3034,24 @@ func TestCannotChangeMultipleRequestsWithDifferentChroot(t *testing.T) {
 	decoder := json.NewDecoder(stdoutR)
 
 	req := request{Request: requestEval, Root: testDir, Directory: "/"}
-	var resp response
+
+	receiveResponse := func() response {
+		var resp response
+		require.NoError(t, stdoutR.SetReadDeadline(time.Now().Add(time.Second*5)))
+		if !assert.NoError(t, decoder.Decode(&resp), "failed to decode response from copier") {
+			_ = cmd.Wait()
+			t.Logf("stderr: %s", stderr.String())
+			t.FailNow()
+		}
+		return resp
+	}
 
 	require.NoError(t, encoder.Encode(&req), "failed to send first request to copier")
-	require.NoError(t, stdoutR.SetReadDeadline(time.Now().Add(time.Second*5)))
-	require.NoError(t, decoder.Decode(&resp), "failed to decode response from copier")
+	resp := receiveResponse()
 	require.Empty(t, resp.Error, "first request returned an error: %s", resp.Error)
 
 	require.NoError(t, encoder.Encode(&req), "failed to send second request to copier")
-	require.NoError(t, stdoutR.SetReadDeadline(time.Now().Add(time.Second*5)))
-	require.NoErrorf(t, decoder.Decode(&resp), "failed to decode response from copier: %s", stderr.String())
+	resp = receiveResponse()
 	require.Empty(t, resp.Error, "second request returned an error: %s", resp.Error)
 
 	require.NoError(t, encoder.Encode(&request{Request: requestQuit}))
