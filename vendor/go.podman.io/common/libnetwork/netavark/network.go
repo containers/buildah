@@ -71,6 +71,12 @@ type netavarkNetwork struct {
 
 	// rootlessNetns is used for the rootless network setup/teardown
 	rootlessNetns *rootlessnetns.Netns
+
+	// rootlessPortForwarder is the value of config.RootlessPortForwarder from
+	// containers.conf. When set to config.RootlessPortForwarderPasta, HostIP
+	// is stripped from port mappings before passing to netavark because pasta's
+	// splice changes the destination IP.
+	rootlessPortForwarder string
 }
 
 type InitConfig struct {
@@ -145,21 +151,22 @@ func NewNetworkInterface(conf *InitConfig) (types.ContainerNetwork, error) {
 	}
 
 	n := &netavarkNetwork{
-		networkConfigDir:   conf.NetworkConfigDir,
-		networkRunDir:      conf.NetworkRunDir,
-		netavarkBinary:     conf.NetavarkBinary,
-		aardvarkBinary:     conf.AardvarkBinary,
-		networkRootless:    useRootlessNetns,
-		ipamDBPath:         filepath.Join(conf.NetworkRunDir, "ipam.db"),
-		firewallDriver:     conf.Config.Network.FirewallDriver,
-		defaultNetwork:     defaultNetworkName,
-		defaultSubnet:      defaultNet,
-		defaultsubnetPools: defaultSubnetPools,
-		dnsBindPort:        conf.Config.Network.DNSBindPort,
-		pluginDirs:         conf.Config.Network.NetavarkPluginDirs.Get(),
-		lock:               lock,
-		syslog:             conf.Syslog,
-		rootlessNetns:      netns,
+		networkConfigDir:      conf.NetworkConfigDir,
+		networkRunDir:         conf.NetworkRunDir,
+		netavarkBinary:        conf.NetavarkBinary,
+		aardvarkBinary:        conf.AardvarkBinary,
+		networkRootless:       useRootlessNetns,
+		ipamDBPath:            filepath.Join(conf.NetworkRunDir, "ipam.db"),
+		firewallDriver:        conf.Config.Network.FirewallDriver,
+		defaultNetwork:        defaultNetworkName,
+		defaultSubnet:         defaultNet,
+		defaultsubnetPools:    defaultSubnetPools,
+		dnsBindPort:           conf.Config.Network.DNSBindPort,
+		pluginDirs:            conf.Config.Network.NetavarkPluginDirs.Get(),
+		lock:                  lock,
+		syslog:                conf.Syslog,
+		rootlessNetns:         netns,
+		rootlessPortForwarder: conf.Config.Network.RootlessPortForwarder,
 	}
 
 	return n, nil
@@ -296,17 +303,27 @@ func parseNetwork(network *types.Network) error {
 }
 
 func (n *netavarkNetwork) createDefaultNetwork() (*types.Network, error) {
-	net := types.Network{
+	network := &types.Network{
 		Name:             n.defaultNetwork,
 		NetworkInterface: defaultBridgeName + "0",
 		// Important do not change this ID
-		ID:     "2f259bab93aaaaa2542ba43ef33eb990d0999ee1b9924b557b7be53c0b7a1bb9",
-		Driver: types.BridgeNetworkDriver,
+		ID:      "2f259bab93aaaaa2542ba43ef33eb990d0999ee1b9924b557b7be53c0b7a1bb9",
+		Driver:  types.BridgeNetworkDriver,
+		Created: time.Now(),
 		Subnets: []types.Subnet{
 			{Subnet: n.defaultSubnet},
 		},
+		IPAMOptions: map[string]string{
+			"driver": types.HostLocalIPAMDriver,
+		},
 	}
-	return n.networkCreate(&net, true)
+
+	// Normalize network fields (initializes nil maps, adds gateway, validates, etc.)
+	if err := parseNetwork(network); err != nil {
+		return nil, err
+	}
+
+	return network, nil
 }
 
 // getNetwork will lookup a network by name or ID. It returns an
