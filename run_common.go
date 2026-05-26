@@ -62,7 +62,14 @@ import (
 
 const maxHostnameLen = 64
 
-const containerStopTimeout = 30 * time.Second
+func getContainerStopTimeout() time.Duration {
+	if v := os.Getenv("BUILDAH_CONTAINER_STOP_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	return 30 * time.Second
+}
 
 var validHostnames = regexp.Delayed("[A-Za-z0-9][A-Za-z0-9.-]+")
 
@@ -707,7 +714,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		if atomic.LoadUint32(&stopped) != 0 {
 			break
 		}
-		if awaitContainerStop(&deadline, &copyDone, containerStopTimeout, time.Until(now.Add(100*time.Millisecond))) {
+		if awaitContainerStop(&deadline, &copyDone, getContainerStopTimeout(), time.Until(now.Add(100*time.Millisecond))) {
 			logrus.Warnf("timed out waiting for container %s to stop; forcing cleanup", containerName)
 			atomic.StoreUint32(&stopped, 1)
 		}
