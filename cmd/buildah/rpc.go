@@ -71,7 +71,9 @@ func rpcCmd(c *cobra.Command, args []string) error {
 	})
 	defer func() {
 		s.GracefulStop() // closes the listening socket
-		if err := errgroup.Wait(); err != nil {
+		// We might have called GracefulStop() before Serve() had a chance to start;
+		// in that case it returns ErrServerStopped.
+		if err := errgroup.Wait(); err != nil && err != grpc.ErrServerStopped {
 			logrus.Errorf("while waiting for rpc service to shut down: %v", err)
 		}
 	}()
