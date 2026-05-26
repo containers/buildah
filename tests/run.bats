@@ -629,10 +629,13 @@ function configure_and_check_user() {
 	cid=$output
 
 	# Simulate a stuck container: trap SIGTERM so it won't exit gracefully,
-	# write to stdout (triggers finishedCopy), then hang via exec sleep.
-	# Buildah should force cleanup after BUILDAH_CONTAINER_STOP_TIMEOUT.
-	BUILDAH_CONTAINER_STOP_TIMEOUT=5s run_buildah 1 --log-level warn run $cid sh -c 'trap "" TERM; echo done; exec sleep 120'
+	# write to stdout (triggers finishedCopy), then hang.
+	# Must export so env var reaches the forked runtime subprocess.
+	# Keep shell alive (no exec) so trap survives.
+	export BUILDAH_CONTAINER_STOP_TIMEOUT=5s
+	run_buildah '?' --log-level warn run $cid sh -c 'trap "" TERM; echo done; sleep 120'
 	expect_output --substring "timed out waiting for container"
+	unset BUILDAH_CONTAINER_STOP_TIMEOUT
 }
 
 @test "run-exit-status on non executable" {
