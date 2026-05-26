@@ -39,7 +39,7 @@ require (
 	go.podman.io/storage v1.62.1-0.20260423135811-cbaa5f41e643
 	golang.org/x/crypto v0.51.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.43.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
