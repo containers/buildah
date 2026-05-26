@@ -151,7 +151,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		}
 	} else {
 		// The context directory could be a URL.  Try to handle that.
-		tempDir, tempContextDir, err := define.TempDirForURL("", "buildah", cliArgs[0])
+		tempDir, subDir, err := define.TempDirForURL("", "buildah", cliArgs[0])
 		if err != nil {
 			return options, nil, nil, fmt.Errorf("prepping temporary context directory: %w", err)
 		}
@@ -159,7 +159,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 			// We had to download it to a temporary directory.
 			// Delete it later.
 			removeAll = append(removeAll, tempDir)
-			contextDir = tempContextDir
+			contextDir = filepath.Join(tempDir, subDir)
 		} else {
 			// Nope, it was local.  Use it as is.
 			absDir, err := filepath.Abs(cliArgs[0])

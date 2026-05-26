@@ -189,11 +189,11 @@ type SBOMScanOptions struct {
 // TempDirForURL checks if the passed-in string looks like a URL or "-".  If it
 // is, TempDirForURL creates a temporary directory, arranges for its contents
 // to be the contents of that URL, and returns the temporary directory's path
-// (for cleanup) and the absolute path to the build context within it.
+// (for cleanup) and a relative subdirectory to the build context within it.
 // Removal of the temporary directory is the responsibility of the caller.
 // If the string doesn't look like a URL or "-", TempDirForURL returns empty
 // strings and a nil error code.
-func TempDirForURL(dir, prefix, url string) (tempDir string, contextDir string, err error) {
+func TempDirForURL(dir, prefix, url string) (tempDir string, relativeContextDir string, err error) {
 	if !urlsource.IsHTTPOrHTTPS(url) &&
 		!strings.HasPrefix(url, "git://") &&
 		!strings.HasPrefix(url, "github.com/") &&
@@ -250,13 +250,17 @@ func TempDirForURL(dir, prefix, url string) (tempDir string, contextDir string, 
 		}
 	}
 
-	contextDir, err = securejoin.SecureJoin(downloadDir, contentSubdir)
+	contextDir, err := securejoin.SecureJoin(downloadDir, contentSubdir)
 	if err != nil {
 		return "", "", fmt.Errorf("resolving subdirectory %q in %q: %w", contentSubdir, downloadDir, err)
 	}
+	relativeContextDir, err = filepath.Rel(tempDir, contextDir)
+	if err != nil {
+		return "", "", err
+	}
 	logrus.Debugf("Build context is at %q", contextDir)
 	succeeded = true
-	return tempDir, contextDir, nil
+	return tempDir, relativeContextDir, nil
 }
 
 // parseGitBuildContext parses git build context to `repo`, `sub-dir`
@@ -372,7 +376,12 @@ func stdinToDirectory(dir string) error {
 
 // writeFileInRoot safely writes data to a file inside root, without following
 // symlinks that escape the root directory.
-func writeFileInRoot(root, name string, data []byte, perm os.FileMode) error {
+func writeFileInRoot(root, name string, data []byte, perm os.FileMode) error { //nolint:unparam,nolintlint
+	// Above:
+	// unparam: 'name' currently only receives "Dockerfile" but will potentially support other files later
+	// nolintlint: the unparam linter only triggers if there are ≥ 4 instances; we do have that
+	// with --tests defaulting to true, but not with --tests=false.
+
 	rootHandle, err := os.OpenRoot(root)
 	if err != nil {
 		return err
