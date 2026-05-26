@@ -599,8 +599,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				go func() {
 					defer wg.Done()
 					defer pipeWriter.Close()
-					var cloneDir, subdir string
-					cloneDir, subdir, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
+					var repositoryDir string
+					// TODO: the returned tempDir is never cleaned up, leaking disk space.
+					_, repositoryDir, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
 					if getErr != nil {
 						return
 					}
@@ -620,7 +621,6 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 						Timestamp:          options.Timestamp,
 					}
 					writer := io.WriteCloser(pipeWriter)
-					repositoryDir := filepath.Join(cloneDir, subdir)
 					getErr = copier.Get(repositoryDir, repositoryDir, getOptions, []string{"."}, writer)
 				}()
 			} else {
