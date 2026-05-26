@@ -249,7 +249,7 @@ func (ns *netNS) Do(toRun func(NetNS) error) error {
 // GetNSRunDir returns the dir of where to create the netNS. When running
 // rootless, it needs to be at a location writable by user.
 func GetNSRunDir() (string, error) {
-	if unshare.IsRootless() {
+	if unshare.GetRootlessUID() > 0 {
 		rootlessDir, err := homedir.GetRuntimeDir()
 		if err != nil {
 			return "", err

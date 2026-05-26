@@ -201,6 +201,11 @@ func defaultConfig() (*Config, error) {
 		return nil, err
 	}
 
+	machineConfig, err := defaultMachineConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Containers: ContainersConfig{
 			Annotations:         configfile.Slice{},
@@ -215,7 +220,7 @@ func defaultConfig() (*Config, error) {
 			DefaultSysctls:      configfile.Slice{},
 			Devices:             configfile.Slice{},
 			EnableKeyring:       true,
-			EnableLabeling:      selinuxEnabled(),
+			EnableLabeling:      selinux.GetEnabled(),
 			Env:                 configfile.NewSlice(defaultContainerEnv),
 			EnvHost:             false,
 			HTTPProxy:           true,
@@ -244,10 +249,11 @@ func defaultConfig() (*Config, error) {
 			DefaultRootlessNetworkCmd: "pasta",
 			DNSBindPort:               0,
 			NetavarkPluginDirs:        configfile.NewSlice(DefaultNetavarkPluginDirs),
+			RootlessPortForwarder:     RootlessPortForwarderRootlessport,
 		},
 		Engine:   *defaultEngineConfig,
 		Secrets:  defaultSecretConfig(),
-		Machine:  defaultMachineConfig(),
+		Machine:  machineConfig,
 		Farms:    defaultFarmConfig(),
 		Podmansh: defaultPodmanshConfig(),
 	}, nil
@@ -262,20 +268,33 @@ func defaultSecretConfig() SecretConfig {
 }
 
 // defaultMachineConfig returns the default machine configuration.
-func defaultMachineConfig() MachineConfig {
+func defaultMachineConfig() (MachineConfig, error) {
 	cpus := runtime.NumCPU() / 2
 	if cpus == 0 {
 		cpus = 1
 	}
+
+	volumes := getDefaultMachineVolumes()
+	path, err := configfile.UserConfigPath()
+	if err != nil {
+		return MachineConfig{}, err
+	}
+	// Mount the (host side) user config dir to the machine /etc/containers.
+	// It removes some confusion for machine users where they did not know
+	// if the config setting applies on the host or sever, with the mount host
+	// and server should see the same files and thus there is only one place to
+	// put it into.
+	volumes = append(volumes, path+":/etc/containers")
+
 	return MachineConfig{
 		CPUs:     uint64(cpus),
 		DiskSize: 100,
 		Image:    "docker://quay.io/podman/machine-os",
 		Memory:   2048,
 		User:     getDefaultMachineUser(),
-		Volumes:  configfile.NewSlice(getDefaultMachineVolumes()),
-		Rosetta:  true,
-	}
+		Volumes:  configfile.NewSlice(volumes),
+		Rosetta:  false,
+	}, nil
 }
 
 // defaultFarmConfig returns the default farms configuration.

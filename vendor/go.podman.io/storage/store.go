@@ -2668,7 +2668,7 @@ func (s *store) DeleteLayer(id string) (retErr error) {
 	}()
 	return s.writeToAllStores(func(rlstore rwLayerStore) error {
 		if rlstore.Exists(id) {
-			if l, err := rlstore.Get(id); err != nil {
+			if l, err := rlstore.Get(id); err == nil {
 				id = l.ID
 			}
 			layers, err := rlstore.Layers()
