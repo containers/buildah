@@ -632,6 +632,7 @@ function configure_and_check_user() {
 	# When stdio finishes, buildah starts the stop timeout; when it expires,
 	# buildah forces cleanup and logs a warning.
 	cat > ${TEST_SCRATCH_DIR}/hang.sh << 'HANG'
+#!/bin/sh
 trap "" TERM
 echo done
 sleep 120
