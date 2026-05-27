@@ -628,12 +628,18 @@ function configure_and_check_user() {
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 
-	# Simulate a stuck container: trap SIGTERM so it won't exit gracefully,
-	# write to stdout (triggers finishedCopy), then hang.
-	# Must export so env var reaches the forked runtime subprocess.
-	# Keep shell alive (no exec) so trap survives.
+	# Write a script that traps SIGTERM and hangs after writing to stdout.
+	# When stdio finishes, buildah starts the stop timeout; when it expires,
+	# buildah forces cleanup and logs a warning.
+	cat > ${TEST_SCRATCH_DIR}/hang.sh << 'HANG'
+trap "" TERM
+echo done
+sleep 120
+HANG
+	chmod +x ${TEST_SCRATCH_DIR}/hang.sh
+
 	export BUILDAH_CONTAINER_STOP_TIMEOUT=5s
-	run_buildah '?' --log-level warn run $cid sh -c 'trap "" TERM; echo done; sleep 120'
+	run_buildah '?' --log-level warn run -v ${TEST_SCRATCH_DIR}/hang.sh:/hang.sh:z $cid /hang.sh
 	expect_output --substring "timed out waiting for container"
 	unset BUILDAH_CONTAINER_STOP_TIMEOUT
 }
