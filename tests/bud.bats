@@ -8184,6 +8184,8 @@ _EOF
 }
 
 @test "bud with ADD with git repository source escape directory" {
+  skip 'TEMPORARY: needs a (git config user.{email,name})'
+
   _prefetch alpine
 
   local secretdir=${TEST_SCRATCH_DIR}/secretdir
