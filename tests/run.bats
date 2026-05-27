@@ -628,13 +628,15 @@ function configure_and_check_user() {
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 
-	# Write a script that traps SIGTERM and hangs after writing to stdout.
-	# When stdio finishes, buildah starts the stop timeout; when it expires,
-	# buildah forces cleanup and logs a warning.
+	# Write a script that closes stdout/stderr explicitly then hangs.
+	# Closing stdio triggers finishedCopy in buildah, which starts the
+	# stop timeout. The trap ignores SIGTERM so the process won't exit
+	# gracefully, forcing buildah to hit the deadline.
 	cat > ${TEST_SCRATCH_DIR}/hang.sh << 'HANG'
 #!/bin/sh
 trap "" TERM
 echo done
+exec 1>&- 2>&-
 sleep 120
 HANG
 	chmod +x ${TEST_SCRATCH_DIR}/hang.sh
