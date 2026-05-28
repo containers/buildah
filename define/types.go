@@ -18,7 +18,6 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"go.podman.io/buildah/internal/urlsource"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/storage/pkg/archive"
 	"go.podman.io/storage/pkg/chrootarchive"
@@ -178,7 +177,8 @@ type SBOMScanOptions struct {
 // If the string doesn't look like a URL or "-", TempDirForURL returns empty
 // strings and a nil error code.
 func TempDirForURL(dir, prefix, url string) (tempDir string, relativeContextDir string, err error) {
-	if !urlsource.IsHTTPOrHTTPS(url) &&
+	if !strings.HasPrefix(url, "http://") &&
+		!strings.HasPrefix(url, "https://") &&
 		!strings.HasPrefix(url, "git://") &&
 		!strings.HasPrefix(url, "github.com/") &&
 		url != "-" {
@@ -216,7 +216,7 @@ func TempDirForURL(dir, prefix, url string) (tempDir string, relativeContextDir 
 			return "", "", fmt.Errorf("cloning %q to %q:\n%s: %w", url, tempDir, string(combinedOutput), cloneErr)
 		}
 		contentSubdir = gitSubDir
-	case urlsource.IsHTTPOrHTTPS(url):
+	case strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://"):
 		if err = downloadToDirectory(url, downloadDir); err != nil {
 			return "", "", err
 		}
