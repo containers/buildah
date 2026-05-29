@@ -857,6 +857,15 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 		cleanupImages = nil
 
+		for _, additionalBuildContext := range b.additionalBuildContexts {
+			if additionalBuildContext.DownloadedTempDir != "" {
+				if err := os.RemoveAll(additionalBuildContext.DownloadedTempDir); err != nil {
+					logrus.Debugf("Failed to cleanup additional build context temp dir %q: %v", additionalBuildContext.DownloadedTempDir, err)
+					lastErr = err
+				}
+			}
+		}
+
 		if b.rusageLogFile != nil && b.rusageLogFile != b.out {
 			// we deliberately ignore the error here, as this
 			// function can be called multiple times

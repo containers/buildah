@@ -599,9 +599,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 				go func() {
 					defer wg.Done()
 					defer pipeWriter.Close()
-					// TODO: the returned cloneDir is never cleaned up, leaking disk space.
 					var cloneDir, subdir string
 					cloneDir, subdir, getErr = define.TempDirForURL(tmpdir.GetTempDir(), "", src)
+					defer os.RemoveAll(cloneDir)
 					if getErr != nil {
 						return
 					}

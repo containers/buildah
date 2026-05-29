@@ -26,6 +26,10 @@ type AdditionalBuildContext struct {
 	// from an external tar archive.  This will be populated only if the
 	// build context was a URL and its contents have been downloaded.
 	DownloadedCache string
+	// DownloadedTempDir is the os.MkdirTemp root returned by TempDirForURL
+	// when a URL-based additional build context is downloaded.
+	// Populated only when IsURL and the context has been downloaded.
+	DownloadedTempDir string
 }
 
 // CommonBuildOptions are resources that can be defined by flags for both buildah from and build
