@@ -196,12 +196,13 @@ load helpers
 
 @test "copy --chmod" {
   mkdir -p ${TEST_SCRATCH_DIR}/subdir
-  mkdir -p ${TEST_SCRATCH_DIR}/other-subdir
+  mkdir -p ${TEST_SCRATCH_DIR}/subdir2
+  mkdir -p ${TEST_SCRATCH_DIR}/subdir3
   createrandom ${TEST_SCRATCH_DIR}/subdir/randomfile
   createrandom ${TEST_SCRATCH_DIR}/subdir/other-randomfile
   createrandom ${TEST_SCRATCH_DIR}/randomfile
-  createrandom ${TEST_SCRATCH_DIR}/other-subdir/randomfile
-  createrandom ${TEST_SCRATCH_DIR}/other-subdir/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/subdir2/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/subdir2/other-randomfile
 
   _prefetch alpine
   run_buildah from --quiet $WITH_POLICY_JSON alpine
@@ -211,6 +212,10 @@ load helpers
   run_buildah copy --chmod 700 $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile2
   run_buildah copy --chmod 755 $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile3
   run_buildah copy --chmod 660 $cid ${TEST_SCRATCH_DIR}/subdir /subdir
+  run_buildah copy --chmod u=rX,go= $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile4
+  run_buildah copy --chmod u=rwx,go=u-w $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile5
+  run_buildah copy --chmod u=rwX,go=X $cid ${TEST_SCRATCH_DIR}/subdir3 /extradir/subdir3
+  run_buildah copy --chmod 0755 $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile6
 
   run_buildah run $cid ls -l /randomfile
   expect_output --substring rwxrwxrwx
@@ -229,11 +234,23 @@ load helpers
   run_buildah run $cid ls -l /subdir
   expect_output --substring rw-rw----
 
-  run_buildah copy --chmod 600 $cid ${TEST_SCRATCH_DIR}/other-subdir /subdir
+  run_buildah copy --chmod 600 $cid ${TEST_SCRATCH_DIR}/subdir2 /subdir
   for i in randomfile other-randomfile ; do
       run_buildah run $cid ls -l /subdir/$i
       expect_output --substring rw-------
   done
+
+  run_buildah run $cid ls -l /randomfile4
+  expect_output --substring r--------
+
+  run_buildah run $cid ls -l /randomfile5
+  expect_output --substring rwxr-xr-x
+
+  run_buildah run $cid ls -l /randomfile6
+  expect_output --substring rwxr-xr-x
+
+  run_buildah run $cid ls -l /extradir
+  expect_output --substring drwxr-xr-x
 }
 
 @test "copy-symlink" {

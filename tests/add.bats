@@ -167,10 +167,30 @@ load helpers
   createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
+
   run_buildah add --chmod 777 $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random
   run_buildah run $cid ls -l /tmp/random
-
   expect_output --substring rwxrwxrwx
+
+  run_buildah add --chmod 0755 $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random2
+  run_buildah run $cid ls -l /tmp/random2
+  expect_output --substring rwxr-xr-x
+
+  run_buildah add --chmod u=rX,go= $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random3
+  run_buildah run $cid ls -l /tmp/random3
+  expect_output --substring r--------
+
+  run_buildah add --chmod u=rwx,go=u-w $cid ${TEST_SCRATCH_DIR}/randomfile /tmp/random4
+  run_buildah run $cid ls -l /tmp/random4
+  expect_output --substring rwxr-xr-x
+
+  mkdir -p ${TEST_SCRATCH_DIR}/dir1/dir2
+  createrandom ${TEST_SCRATCH_DIR}/dir1/dir2/randomfile
+  run_buildah add --chmod u=rwX,go=X $cid ${TEST_SCRATCH_DIR}/dir1 /tmp/dir1
+  run_buildah run $cid ls -l /tmp/dir1
+  expect_output --substring drwx--x--x
+  run_buildah run $cid ls -l /tmp/dir1/dir2
+  expect_output --substring rw-------
 }
 
 @test "add url" {
