@@ -19,7 +19,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"text/tabwriter"
@@ -53,6 +52,7 @@ import (
 	"go.podman.io/storage/pkg/idtools"
 	"go.podman.io/storage/pkg/ioutils"
 	"go.podman.io/storage/pkg/reexec"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -152,7 +152,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestConformance(t *testing.T) {
-	t.Parallel()
 	dateStamp := fmt.Sprintf("%d", time.Now().UnixNano())
 	for i := range internalTestCases {
 		t.Run(internalTestCases[i].name, func(t *testing.T) {
@@ -196,6 +195,11 @@ func TestConformance(t *testing.T) {
 
 func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, mutate func(*testCase)) {
 	test := internalTestCases[testIndex]
+
+	if !test.dontParallelize {
+		t.Parallel()
+	}
+
 	if mutate != nil {
 		mutate(&test)
 	}
@@ -232,28 +236,25 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	// copy either a directory or just a Dockerfile into the temporary directory
 	pipeReader, pipeWriter := io.Pipe()
 	var getErr, putErr error
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	var eg errgroup.Group
+	eg.Go(func() error {
 		if test.contextDir != "" {
 			getErr = copier.Get("", testDataDir, copier.GetOptions{}, []string{test.contextDir}, pipeWriter)
 		} else if test.dockerfile != "" {
 			getErr = copier.Get("", testDataDir, copier.GetOptions{}, []string{test.dockerfile}, pipeWriter)
 		}
-		pipeWriter.Close()
-		wg.Done()
-	}()
-	wg.Add(1)
-	go func() {
+		return errors.Join(getErr, pipeWriter.Close())
+	})
+	eg.Go(func() error {
 		if test.contextDir != "" || test.dockerfile != "" {
 			putErr = copier.Put("", contextDir, copier.PutOptions{}, pipeReader)
 		} else {
 			putErr = os.Mkdir(contextDir, 0o755)
 		}
-		pipeReader.Close()
-		wg.Done()
-	}()
-	wg.Wait()
+		return errors.Join(putErr, pipeReader.Close())
+	})
+	err = eg.Wait()
+	assert.NoErrorf(t, err, "error copying build info from %q", filepath.Join("testdata", test.dockerfile))
 	assert.NoErrorf(t, getErr, "error reading build info from %q", filepath.Join("testdata", test.dockerfile))
 	assert.NoErrorf(t, putErr, "error writing build info to %q", contextDir)
 	if t.Failed() {
@@ -295,12 +296,12 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int, muta
 	}
 	store, err := storage.GetStore(options)
 	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
-	defer func() {
+	t.Cleanup(func() {
 		if store != nil {
 			_, err := store.Shutdown(true)
 			require.NoError(t, err, "error shutting down storage for buildah")
 		}
-	}()
+	})
 	storageDriver := store.GraphDriverName()
 	storageRoot := store.GraphRoot()
 
@@ -460,13 +461,13 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	if compareImagebuilder && !test.withoutImagebuilder {
 		imagebuilderRef, imagebuilderLog = buildUsingImagebuilder(t, client, test, imagebuilderImage, contextDir, dockerfileName, line, finalOfSeveral)
 		if imagebuilderRef != nil {
-			defer func() {
+			t.Cleanup(func() {
 				err := client.RemoveImageExtended(imagebuilderImage, docker.RemoveImageOptions{
 					Context: ctx,
 					Force:   true,
 				})
 				assert.Nil(t, err, "error deleting newly-built-by-imagebuilder image %q", imagebuilderImage)
-			}()
+			})
 		}
 		saveReport(ctx, t, imagebuilderRef, filepath.Join(imagebuilderDir, t.Name()), dockerfileContents, imagebuilderLog, dockerVersion)
 		if finalOfSeveral && compareLayers {
@@ -481,10 +482,10 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	// always build using buildah
 	buildahRef, buildahLog = buildUsingBuildah(ctx, t, store, test, buildahImage, contextDir, dockerfileName, line, finalOfSeveral)
 	if buildahRef != nil {
-		defer func() {
+		t.Cleanup(func() {
 			err := buildahRef.DeleteImage(ctx, nil)
 			assert.Nil(t, err, "error deleting newly-built-by-buildah image %q", buildahImage)
-		}()
+		})
 	}
 	saveReport(ctx, t, buildahRef, filepath.Join(buildahDir, t.Name()), dockerfileContents, buildahLog, nil)
 	if finalOfSeveral && compareLayers {
@@ -1449,6 +1450,7 @@ type (
 
 		fsSkipCompatVolumesTrue []string          // more expected filesystem differences when compatVolumes=true
 		buildArgs               map[string]string // build args to supply, as if --build-arg was used
+		dontParallelize         bool              // uses shared state managed elsewhere
 	}
 )
 
@@ -3794,6 +3796,7 @@ var internalTestCases = []testCase{
 	},
 	{
 		name:              "mount-cache-by-ownership",
+		dontParallelize:   true, // the docker build seems to fail without this?
 		dockerUseBuildKit: true,
 		dockerfileContents: strings.Join([]string{
 			"FROM mirror.gcr.io/busybox",
@@ -3801,13 +3804,14 @@ var internalTestCases = []testCase{
 			"RUN --mount=type=cache,uid=10,target=/cache touch /cache/10.txt",
 			"USER 0",
 			"RUN --mount=type=cache,target=/cache touch /cache/0.txt",
+			"RUN --mount=type=cache,uid=10,target=/cache touch /cache/0+10.txt",
 			"RUN mkdir -m 770 /results /results/0 /results/10 /results/0+10",
 			"RUN chown -R 10 /results",
-			"RUN --mount=type=cache,target=/cache cp -a /cache/* /results/0",
+			"RUN --mount=type=cache,target=/cache cp -av /cache/* /results/0",
 			"USER 10",
-			"RUN --mount=type=cache,uid=10,target=/cache cp -a /cache/* /results/10",
+			"RUN --mount=type=cache,uid=10,target=/cache cp -av /cache/* /results/10",
 			"USER 0",
-			"RUN --mount=type=cache,uid=10,target=/cache cp -a /cache/* /results/0+10",
+			"RUN --mount=type=cache,uid=10,target=/cache cp -av /cache/* /results/0+10",
 			"RUN touch -r /bin `find /results -print`",
 		}, "\n"),
 	},
@@ -3895,12 +3899,12 @@ var internalTestCases = []testCase{
 }
 
 func TestCommit(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		description             string
 		baseImage               string
 		changes, derivedChanges []string
 		config, derivedConfig   *docker.Config
+		dontParallelize         bool // uses shared state that lives elsewhere
 	}{
 		{
 			description: "defaults",
@@ -4239,16 +4243,20 @@ func TestCommit(t *testing.T) {
 	}
 	store, err := storage.GetStore(options)
 	require.NoErrorf(t, err, "error creating buildah storage at %q", rootDir)
-	defer func() {
+	t.Cleanup(func() {
 		if store != nil {
 			_, err := store.Shutdown(true)
 			require.NoErrorf(t, err, "error shutting down storage for buildah")
 		}
-	}()
+	})
 
 	// walk through test cases
 	for testIndex, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
+			if !testCase.dontParallelize {
+				t.Parallel()
+			}
+
 			test := testCases[testIndex]
 
 			// create the test container, then commit it, using the docker client

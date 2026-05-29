@@ -17,8 +17,8 @@ case $1 in
     df) showrun df -lhTx tmpfs ;;
     journal) showrun journalctl -b ;;
     podman) showrun podman system info ;;
-    buildah_version) showrun $GOSRC/bin/buildah version;;
-    buildah_info) showrun $GOSRC/bin/buildah info;;
+    buildah_version) make bin/buildah && showrun $GOSRC/bin/buildah version;;
+    buildah_info) make bin/buildah && showrun $GOSRC/bin/buildah info;;
     golang) showrun go version;;
     packages)
         # These names are common to Fedora and Debian
