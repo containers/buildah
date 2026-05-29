@@ -62,7 +62,34 @@ import (
 
 const maxHostnameLen = 64
 
+func getContainerStopTimeout() time.Duration {
+	if v := os.Getenv("BUILDAH_CONTAINER_STOP_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	return 30 * time.Second
+}
+
 var validHostnames = regexp.Delayed("[A-Za-z0-9][A-Za-z0-9.-]+")
+
+// awaitContainerStop handles the select logic for the container state polling
+// loop. When finishedCopy fires (stdio copying complete), it starts a deadline
+// timer. If the deadline expires before the container stops, it returns true.
+// finishedCopy is set to nil after first receive to prevent a closed channel
+// from resetting the deadline on every iteration.
+func awaitContainerStop(deadline *<-chan time.Time, finishedCopy *<-chan struct{}, timeout, pollInterval time.Duration) (timedOut bool) {
+	select {
+	case <-*deadline:
+		return true
+	case <-*finishedCopy:
+		*deadline = time.After(timeout)
+		*finishedCopy = nil
+		return false
+	case <-time.After(pollInterval):
+		return false
+	}
+}
 
 func (b *Builder) createResolvConf(rdir string, chownOpts *idtools.IDPair) (string, error) {
 	cfile := filepath.Join(rdir, "resolv.conf")
@@ -656,6 +683,8 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		}
 	}()
 	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	var deadline <-chan time.Time
+	copyDone := (<-chan struct{})(finishedCopy)
 	for {
 		now := time.Now()
 		var state specs.State
@@ -685,11 +714,9 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 		if atomic.LoadUint32(&stopped) != 0 {
 			break
 		}
-		select {
-		case <-finishedCopy:
+		if awaitContainerStop(&deadline, &copyDone, getContainerStopTimeout(), time.Until(now.Add(100*time.Millisecond))) {
+			logrus.Warnf("timed out waiting for container %s to stop; forcing cleanup", containerName)
 			atomic.StoreUint32(&stopped, 1)
-		case <-time.After(time.Until(now.Add(100 * time.Millisecond))):
-			continue
 		}
 		if atomic.LoadUint32(&stopped) != 0 {
 			break
@@ -1287,7 +1314,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		}
 	}
 
-	if err := cmd.Wait(); err != nil {
+	if err = cmd.Wait(); err != nil {
 		return fmt.Errorf("while running runtime: %w", err)
 	}
 	confwg.Wait()

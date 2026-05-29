@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,6 +32,54 @@ func TestMapContainerNameToHostname(t *testing.T) {
 			assert.Equalf(t, cases[i][1], sanitized, "mapping container name %q to a valid hostname", cases[i][0])
 		})
 	}
+}
+
+func TestAwaitContainerStopPoll(t *testing.T) {
+	fc := (<-chan struct{})(make(chan struct{}))
+	var deadline <-chan time.Time
+	timedOut := awaitContainerStop(&deadline, &fc, time.Second, time.Millisecond)
+	assert.False(t, timedOut, "should not time out on normal poll")
+}
+
+func TestAwaitContainerStopCopyDoneStartsDeadline(t *testing.T) {
+	ch := make(chan struct{}, 1)
+	ch <- struct{}{}
+	fc := (<-chan struct{})(ch)
+	var deadline <-chan time.Time
+
+	timedOut := awaitContainerStop(&deadline, &fc, time.Second, time.Hour)
+	assert.False(t, timedOut, "finishedCopy should not report timeout")
+	assert.NotNil(t, deadline, "deadline should be set after finishedCopy")
+	assert.Nil(t, fc, "finishedCopy should be nil after first receive")
+}
+
+func TestAwaitContainerStopDeadlineFires(t *testing.T) {
+	fc := (<-chan struct{})(nil)
+	deadline := time.After(time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
+
+	timedOut := awaitContainerStop(&deadline, &fc, time.Second, time.Hour)
+	assert.True(t, timedOut, "should report timeout when deadline expires")
+}
+
+func TestAwaitContainerStopClosedChannelNoResetDeadline(t *testing.T) {
+	ch := make(chan struct{})
+	close(ch)
+	fc := (<-chan struct{})(ch)
+	var deadline <-chan time.Time
+
+	// First call: receives from closed channel, sets deadline, nils fc
+	timedOut := awaitContainerStop(&deadline, &fc, 100*time.Millisecond, time.Hour)
+	assert.False(t, timedOut)
+	assert.NotNil(t, deadline)
+	assert.Nil(t, fc, "finishedCopy must be nil after first receive to prevent deadline reset")
+
+	// Wait for deadline to expire
+	time.Sleep(150 * time.Millisecond)
+
+	// Second call: fc is nil so select skips it, deadline fires
+	timedOut = awaitContainerStop(&deadline, &fc, time.Second, time.Hour)
+	assert.True(t, timedOut, "deadline must fire when finishedCopy is nil (bug fix validation)")
 }
 
 func TestCheckExitCodeError(t *testing.T) {
