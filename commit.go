@@ -105,6 +105,9 @@ type CommitOptions struct {
 	// EmptyLayer tells the builder to omit the diff for the working
 	// container.
 	EmptyLayer bool
+	// EmptyLayerIfEmptyDiff tells the builder to omit the diff for the
+	// working container if it doesn't contain anything.
+	EmptyLayerIfEmptyDiff bool
 	// OmitLayerHistoryEntry tells the builder to omit the diff for the
 	// working container and to not add an entry in the commit history.  By
 	// default, the rest of the image's history is preserved, subject to
