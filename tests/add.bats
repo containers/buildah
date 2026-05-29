@@ -401,19 +401,19 @@ EOF
   cid=$output
   run_buildah mount $cid
   root=$output
-  
+
   run_buildah config --workingdir=/ $cid
-  
+
   # Test 1: Simple add
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile
-  
+
   # Test 2: Add with rename (file to file with different name)
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile /renamed-file
-  
+
   # Test 3: Multiple files to directory
   mkdir $root/subdir
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/other-randomfile /subdir
-  
+
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid add-link-image
 
@@ -430,13 +430,13 @@ EOF
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -s $newroot/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
-  
+
   test -s $newroot/renamed-file
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/renamed-file
-  
+
   test -s $newroot/subdir/randomfile
   cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/subdir/randomfile
   test -s $newroot/subdir/other-randomfile
@@ -446,18 +446,18 @@ EOF
 @test "add-link-archive" {
   createrandom ${TEST_SCRATCH_DIR}/file1
   createrandom ${TEST_SCRATCH_DIR}/file2
-  
+
   tar -c -C ${TEST_SCRATCH_DIR} -f ${TEST_SCRATCH_DIR}/archive.tar file1 file2
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  
+
   run_buildah config --workingdir=/ $cid
-  
+
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/archive.tar
-  
+
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/archive.tar /destdir/
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid add-link-archive-image
 
   run_buildah inspect --type=image add-link-archive-image
@@ -471,12 +471,12 @@ EOF
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -s $newroot/file1
   cmp ${TEST_SCRATCH_DIR}/file1 $newroot/file1
   test -s $newroot/file2
   cmp ${TEST_SCRATCH_DIR}/file2 $newroot/file2
-  
+
   test -s $newroot/destdir/file1
   cmp ${TEST_SCRATCH_DIR}/file1 $newroot/destdir/file1
   test -s $newroot/destdir/file2
@@ -490,22 +490,22 @@ EOF
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  
+
   run_buildah config --workingdir=/ $cid
-  
+
   run_buildah add --link $cid ${TEST_SCRATCH_DIR}/testdir /testdir
-  
+
   run_buildah commit $WITH_POLICY_JSON $cid add-link-dir-image
 
   run_buildah from $WITH_POLICY_JSON add-link-dir-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
-  
+
   test -d $newroot/testdir
   test -s $newroot/testdir/file1
   test -s $newroot/testdir/subdir/file2
-  
+
   cmp ${TEST_SCRATCH_DIR}/testdir/file1 $newroot/testdir/file1
   cmp ${TEST_SCRATCH_DIR}/testdir/subdir/file2 $newroot/testdir/subdir/file2
 }
@@ -561,4 +561,73 @@ EOF
   # Literal non-existent file should still error even with allow-empty-wildcard=true
   run_buildah 125 add --allow-empty-wildcard=true $cid ${TEST_SCRATCH_DIR}/no-such-file /dest4/
   expect_output --substring "no such file or directory"
+}
+
+@test "add-symlink-root-follow-default" {
+  createrandom ${TEST_SCRATCH_DIR}/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah add $cid ${TEST_SCRATCH_DIR}/symlink /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  cmp ${TEST_SCRATCH_DIR}/file $root/dest
+  test -f $root/dest
+}
+
+@test "add-symlink-root-no-follow" {
+  createrandom ${TEST_SCRATCH_DIR}/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  # The symlink needs to point to something existing
+  run_buildah add --no-follow-symlinks $cid ${TEST_SCRATCH_DIR}/file /file
+  run_buildah add --no-follow-symlinks $cid ${TEST_SCRATCH_DIR}/symlink /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  cmp ${TEST_SCRATCH_DIR}/file $root/dest
+  test -L $root/dest
+  test "$(readlink $root/dest)" = "./file"
+}
+
+@test "add-symlink-child-follow-default" {
+  mkdir ${TEST_SCRATCH_DIR}/src
+  createrandom ${TEST_SCRATCH_DIR}/src/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/src/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah add $cid ${TEST_SCRATCH_DIR}/src /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  cmp ${TEST_SCRATCH_DIR}/src/file $root/dest/symlink
+  test -f $root/dest/symlink
+}
+
+@test "add-symlink-child-no-follow" {
+  mkdir ${TEST_SCRATCH_DIR}/src
+  createrandom ${TEST_SCRATCH_DIR}/src/file
+  ln -s ./file ${TEST_SCRATCH_DIR}/src/symlink
+
+  run_buildah from $WITH_POLICY_JSON scratch
+  cid=$output
+
+  run_buildah add --no-follow-symlinks $cid ${TEST_SCRATCH_DIR}/src /dest
+
+  run_buildah mount $cid
+  root=$output
+  ls -lahR $root
+  test -L $root/dest/symlink
+  test "$(readlink $root/dest/symlink)" = "./file"
 }
