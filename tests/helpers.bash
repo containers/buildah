@@ -87,9 +87,14 @@ EOF
     PODMAN_REGISTRY_OPTS="${regconfopt}"
 }
 
-function starthttpd() { # directory [working-directory-or-"" [certfile, keyfile]]
+function starthttpd() { # directoryspecs [working-directory-or-"" [certfile, keyfile]]
+# directoryspecs is a comma-separated list of one or more of:
+# * default content root directory (required)
+# * locationPattern=path (map a location to a path - patterns are passed to a net/http.ServeMux, see documentation associated with the type)
+# * locationPattern=workingDirectory:cgiBinary (map a location to a CGI binary started in a working directory)
+# * locationPattern=workingDirectory:cgiBinary:envVars (as above, but with "key=value" environment variables set, and "key" variables inherited)
     if test -n "$4" ; then
-      if ! openssl req -newkey rsa:4096 -nodes -sha256 -keyout "$4" -x509 -days 2 -addext "subjectAltName = DNS:localhost" -out "$3" -subj "/CN=localhost" ; then
+      if ! openssl req -newkey rsa:4096 -nodes -sha256 -keyout "$4" -x509 -days 2 -addext "subjectAltName = DNS:localhost,IP:0.0.0.0,IP:127.0.0.1" -out "$3" -subj "/CN=localhost" ; then
         die error creating new key and certificate
       fi
       chmod 644 "$3"
@@ -107,7 +112,7 @@ function starthttpd() { # directory [working-directory-or-"" [certfile, keyfile]
         echo error creating temporary file
         exit 1
     fi
-    sh -c "./serve ${1:-${BATS_TMPDIR}} 0 \"${portfile}\" \"${3}\" \"${4}\" ${pidfile} &"
+    sh -c "./serve \"${1:-${BATS_TMPDIR}}\" 0 \"${portfile}\" \"${3}\" \"${4}\" ${pidfile} &"
     waited=0
     while ! test -s ${pidfile} ; do
         sleep 0.1
