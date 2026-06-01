@@ -1,0 +1,4 @@
+
+# images is empty and must be overridden on the cli via ci.sh:
+#  --set '.images=[{"location":"<URL to .qcow2.zst>", "arch": "x86_64"}]'
+images:

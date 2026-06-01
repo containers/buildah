@@ -1,10 +1,26 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
-source $(dirname $0)/lib.sh
+# shellcheck source=contrib/ci/lib.sh
+source "$(dirname "$0")/lib.sh"
 
-req_env_vars CI GOSRC OS_RELEASE_ID
+showrun() {
+    echo "+ $(printf " %q" "$@")"
+    set +e
+    echo '------------------------------------------------------------'
+    "$@"
+    local status=$?
+    [[ $status -eq 0 ]] || echo "[ rc = $status -- proceeding anyway ]"
+    echo '------------------------------------------------------------'
+    set -e
+}
+
+bad_os_id_ver() {
+    die "Unknown OS '$OS_RELEASE_ID'"
+}
+
+GOSRC="${GOSRC:-$(pwd)}"
 
 case $1 in
     audit)
@@ -17,11 +33,10 @@ case $1 in
     df) showrun df -lhTx tmpfs ;;
     journal) showrun journalctl -b ;;
     podman) showrun podman system info ;;
-    buildah_version) showrun $GOSRC/bin/buildah version;;
-    buildah_info) showrun $GOSRC/bin/buildah info;;
-    golang) showrun go version;;
+    buildah_version) showrun "$GOSRC/bin/buildah" version ;;
+    buildah_info) showrun "$GOSRC/bin/buildah" info ;;
+    golang) showrun go version ;;
     packages)
-        # These names are common to Fedora and Debian
         PKG_NAMES=(\
                     buildah
                     conmon
@@ -48,8 +63,7 @@ case $1 in
                 ;;
             *) bad_os_id_ver ;;
         esac
-        # Any not-present packages will be listed as such
-        $PKG_LST_CMD ${PKG_NAMES[@]} | sort -u
+        $PKG_LST_CMD "${PKG_NAMES[@]}" | sort -u
         ;;
-    *) die "Warning, $(basename $0) doesn't know how to handle the parameter '$1'"
+    *) die "Warning, $(basename "$0") doesn't know how to handle the parameter '$1'"
 esac

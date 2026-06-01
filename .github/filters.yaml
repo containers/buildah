@@ -1,0 +1,12 @@
+code:
+  - '**/*.go'
+  - 'go.mod'
+  - 'go.sum'
+  - 'vendor/**'
+  - 'Makefile'
+  - '.github/**'
+  - 'contrib/ci/**'
+  - 'hack/**'
+  - 'tests/**'
+  - '.codespellrc'
+  - '.golangci.yml'

@@ -1,0 +1,57 @@
+name: lima
+
+on:
+  workflow_call:
+    inputs:
+      distro:
+        required: true
+        type: string
+      test:
+        required: true
+        type: string
+      priv:
+        required: false
+        type: string
+      storage:
+        required: false
+        type: string
+      runner:
+        required: true
+        type: string
+      timeout:
+        required: false
+        type: number
+
+permissions: {}
+
+jobs:
+  lima:
+    name: ${{ inputs.test }} ${{ inputs.storage || '' }} ${{ inputs.priv || '' }} ${{ inputs.distro }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout || 20 }}
+    permissions: {}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 50
+
+      - name: Fetch base ref for merge-base
+        run: git fetch --depth=50 origin main:refs/remotes/origin/main || true
+
+      - uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
+        id: lima
+        with:
+          version: v2.1.1
+
+      - name: Run test on lima
+        run: | # zizmor: ignore[template-injection]
+          ./contrib/ci/ci.sh ${{ inputs.test }} ${{ inputs.storage }} ${{ inputs.priv }} ${{ inputs.distro }}
+
+      - name: Upload journal as artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: "journal-${{ inputs.test }}-${{ inputs.storage }}-${{ inputs.priv }}-${{ inputs.distro }}.log"
+          path: "./contrib/ci/journal.log"
+          if-no-files-found: ignore
