@@ -8184,8 +8184,6 @@ _EOF
 }
 
 @test "bud with ADD with git repository source escape directory" {
-  skip 'TEMPORARY: needs a (git config user.{email,name})'
-
   _prefetch alpine
 
   local secretdir=${TEST_SCRATCH_DIR}/secretdir
@@ -8195,6 +8193,9 @@ _EOF
   local repodir=${TEST_SCRATCH_DIR}/repo
   mkdir -p ${repodir}
   git -C ${repodir} init -b main
+  # Repo-local identity only (${repodir}/.git/config); does not touch ~/.gitconfig.
+  git -C ${repodir} config user.email "test@example.com"
+  git -C ${repodir} config user.name "Test User"
   ln -s / ${repodir}/proj
   git -C ${repodir} add proj
   git -C ${repodir} commit -m "initial commit"
