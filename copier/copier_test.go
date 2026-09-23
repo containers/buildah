@@ -942,13 +942,12 @@ func testPut(t *testing.T) {
 		assert.Equal(t, "hi\n", string(got))
 	})
 
-	// A symlink pointing to ".." is capped at the extraction root by
-	// resolvePath (chroot semantics), so files extracted through it land
-	// inside root.  This matches real chroot behavior and is safe.
+	// A relative ".." symlink is rejected as an escape, matching Docker
+	// behavior. Only absolute symlinks trigger chroot-style resolution.
 	// Layout: empty root (symlink created by the archive itself).
 	// Archive: "escape" -> "..", "escape/etc/passwd".
-	// Expected: file lands at root/etc/passwd (".." capped at root).
-	t.Run("put through dotdot symlink capped at root", func(t *testing.T) {
+	// Expected: error (relative escape rejected).
+	t.Run("put through dotdot symlink rejected", func(t *testing.T) {
 		if os.PathSeparator != '/' {
 			t.Skip("symlink test is Unix-specific")
 		}
@@ -959,10 +958,7 @@ func testPut(t *testing.T) {
 			{Name: "escape/etc/passwd", Typeflag: tar.TypeReg, Mode: 0o600, ModTime: testDate},
 		}, map[string][]byte{"escape/etc/passwd": []byte("evil\n")})
 		err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, archive)
-		require.NoError(t, err)
-		got, err := os.ReadFile(filepath.Join(tmp, "etc", "passwd"))
-		require.NoError(t, err)
-		assert.Equal(t, "evil\n", string(got))
+		require.Error(t, err, "dotdot symlink should be rejected")
 	})
 
 	// A chain of symlinks (a -> b, b -> /run) must be followed correctly.
@@ -1072,6 +1068,49 @@ func testPut(t *testing.T) {
 	})
 }
 
+func TestPathHasAbsoluteSymlink(t *testing.T) {
+	if os.PathSeparator != '/' {
+		t.Skip("symlink layout tests are Unix-specific")
+	}
+
+	t.Run("relative chain without absolute symlink", func(t *testing.T) {
+		top, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+		require.NoError(t, os.MkdirAll(filepath.Join(top, "intermediate", "terminal"), 0o755))
+		require.NoError(t, os.Symlink("../../../../../../../../..", filepath.Join(top, "escaping")))
+		require.NoError(t, os.Symlink("escaping/intermediate", filepath.Join(top, "escaping2")))
+
+		osRoot, err := os.OpenRoot(top)
+		require.NoError(t, err)
+		defer osRoot.Close()
+
+		var calls []string
+		res := pathHasAbsoluteSymlink("escaping2/terminal", func(name string) (string, error) {
+			calls = append(calls, name)
+			return osRoot.Readlink(name)
+		})
+		assert.False(t, res, "no absolute symlink in purely relative chain")
+		assert.NotEmpty(t, calls, "readlink should have been called at least once")
+	})
+
+	t.Run("absolute symlink found through relative indirection", func(t *testing.T) {
+		top := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(top, "run"), 0o755))
+		// absolute -> /. (absolute symlink target)
+		require.NoError(t, os.Symlink("/.", filepath.Join(top, "absolute")))
+		// via-absolute -> absolute/nonexistent (relative, but first
+		// component is itself a symlink with an absolute target)
+		require.NoError(t, os.Symlink("absolute/nonexistent", filepath.Join(top, "via-absolute")))
+
+		osRoot, err := os.OpenRoot(top)
+		require.NoError(t, err)
+		defer osRoot.Close()
+
+		res := pathHasAbsoluteSymlink("via-absolute", osRoot.Readlink)
+		assert.True(t, res, "should detect absolute symlink reached through relative indirection")
+	})
+}
+
 func TestCheckArchivePathEscape(t *testing.T) {
 	if os.PathSeparator != '/' {
 		t.Skip("symlink layout tests are Unix-specific")
@@ -1131,16 +1170,6 @@ func TestCheckArchivePathEscape(t *testing.T) {
 			path:    "opt/bin/tool",
 		},
 		{
-			name:    "relative symlink overshooting root /bin -> ../../../../../usr/bin",
-			entries: []string{"dir:usr/bin", "symlink:bin:../../../../../usr/bin"},
-			path:    "bin/ls",
-		},
-		{
-			name:    "dotdot symlink at root level capped by resolvePath",
-			entries: []string{"symlink:escape:.."},
-			path:    "escape/etc/passwd",
-		},
-		{
 			name:    "chain of symlinks a -> b, b -> /run",
 			entries: []string{"dir:run", "symlink:b:/run", "symlink:a:b"},
 			path:    "a/foo",
@@ -1172,6 +1201,18 @@ func TestCheckArchivePathEscape(t *testing.T) {
 			path:    "var/run/foo",
 		},
 		// --- paths that should be rejected ---
+		{
+			name:    "relative symlink overshooting root /bin -> ../../../../../usr/bin",
+			entries: []string{"dir:usr/bin", "symlink:bin:../../../../../usr/bin"},
+			path:    "bin/ls",
+			wantErr: true,
+		},
+		{
+			name:    "dotdot symlink at root level rejected",
+			entries: []string{"symlink:escape:.."},
+			path:    "escape/etc/passwd",
+			wantErr: true,
+		},
 		{
 			name:    "subdir: absolute symlink escapes to root level",
 			entries: []string{"dir:dest", "dir:etc", "symlink:dest/link:/etc"},
