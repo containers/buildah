@@ -681,6 +681,60 @@ func cleanerReldirectory(candidate string) string {
 	return cleaned
 }
 
+// pathHasAbsoluteSymlink resolves name component by component using readlink
+// (typically osRoot.Readlink) and returns true if any symlink in the
+// resolution has an absolute target.  This distinguishes absolute symlinks
+// (e.g. /var/run -> /run) that need chroot-style resolution from relative
+// escapes (e.g. escape -> ..) that should be rejected.
+//
+// When a relative symlink is encountered, its target components are
+// prepended to the remaining work list, mirroring the algorithm used by
+// resolvePath and os.Root.  Escape detection relies on readlink rejecting
+// paths that leave the root (e.g. readlink("..") must fail); without that
+// guarantee, this function does not confine.
+func pathHasAbsoluteSymlink(name string, readlink func(string) (string, error)) bool {
+	workingRel := ""
+	components := strings.Split(filepath.Clean(name), string(os.PathSeparator))
+	linksFollowed := 0
+
+	for len(components) > 0 {
+		comp := components[0]
+		components = components[1:]
+		if comp == "" || comp == "." {
+			continue
+		}
+
+		nextRel := filepath.Join(workingRel, comp)
+		target, err := readlink(nextRel)
+		if err != nil {
+			// Not a symlink (or does not exist): advance.
+			// When readlink is osRoot.Readlink, this also covers
+			// the case where ".." escapes the root. Readlink
+			// rejects the path, we advance with a broken workingRel,
+			// and all subsequent readlink calls fail too.
+			workingRel = nextRel
+			continue
+		}
+
+		linksFollowed++
+		if linksFollowed > maxLoopsFollowed {
+			return false
+		}
+
+		if filepath.IsAbs(target) || (len(target) > 0 && looksLikeAbs(target)) {
+			return true
+		}
+
+		// Relative symlink: prepend target components to the work
+		// list and continue from the current position.  Any ".."
+		// components are handled naturally by filepath.Join at the
+		// top of the loop, and readlink will reject paths that
+		// escape the root.
+		components = append(strings.Split(target, string(os.PathSeparator)), components...)
+	}
+	return false
+}
+
 // lstatPathComponents walks name component by component using osRoot.Lstat,
 // returning the first error encountered (or nil).  This is used as a
 // read-only compatibility check against recent versions of go-archive/tar
@@ -707,11 +761,12 @@ func lstatPathComponents(osRoot *os.Root, name string) error {
 // within root).  root is the container rootfs used by resolvePath as the
 // chroot boundary for symlink resolution.
 //
-// osRoot rejects symlinks with absolute targets (e.g. /var/run -> /run)
-// and relative targets that overshoot the root (e.g. /bin -> ../../../../../usr/bin),
-// even when those symlinks are valid inside a container.  When the raw
-// path is rejected, this function resolves symlinks with chroot-like
-// semantics and re-checks the resolved path through osRoot.
+// osRoot rejects symlinks with absolute targets (e.g. /var/run -> /run),
+// even when those symlinks are valid inside a container.  When the raw path
+// is rejected and the rejection is caused by an absolute symlink, this
+// function resolves symlinks with chroot-like semantics and re-checks the
+// resolved path through osRoot.  Relative escapes (e.g. escape -> ..) are
+// kept rejected, matching Docker behavior (moby/go-archive#93).
 func checkArchivePathEscape(osRoot *os.Root, root, directory, targetDirectory, cleanerHdrName string) error {
 	// Fast path: os.Root walks the raw entry path component by component.
 	// Example: "var/run/foo" where var/run is a plain directory -- OK.
@@ -720,14 +775,17 @@ func checkArchivePathEscape(osRoot *os.Root, root, directory, targetDirectory, c
 		return nil
 	}
 
-	// osRoot rejected the path.  This happens for in-container symlinks
-	// that are valid but look like escapes to osRoot:
-	//   - absolute:  /var/run -> /run      ("var/run/foo" rejected)
-	//   - relative:  /bin -> ../../../../usr/bin  ("bin/ls" rejected)
-	// Resolve symlinks treating root as a chroot boundary
-	// (absolute targets become root-relative, ".." is capped at root).
+	// osRoot rejected the path.  Only fall back to chroot-style resolution
+	// when the path traverses an absolute symlink (e.g. /var/run -> /run).
+	// Relative escapes (e.g. escape -> ..) are kept rejected, matching
+	// Docker behavior (moby/go-archive#93).
+	if !pathHasAbsoluteSymlink(cleanerHdrName, osRoot.Readlink) {
+		return err
+	}
+
+	// An absolute symlink was found.  Resolve symlinks treating root as a
+	// chroot boundary (absolute targets become root-relative).
 	//   - /var/run -> /run  resolves to  root/run,   relPath = "run/foo"
-	//   - /bin -> ../../../../usr/bin  resolves to    relPath = "usr/bin/ls"
 	resolvedPath, resolveErr := resolvePath(root, filepath.Join(directory, cleanerHdrName), false)
 	if resolveErr != nil {
 		return errors.Join(err, resolveErr)
@@ -743,8 +801,8 @@ func checkArchivePathEscape(osRoot *os.Root, root, directory, targetDirectory, c
 	}
 
 	// Re-check the resolved (symlink-free) path through os.Root.
-	// Example: "run/foo" or "usr/bin/ls" -- no symlinks left, os.Root is
-	// happy.  If os.Root still rejects it, it is a genuine escape.
+	// Example: "run/foo" -- no symlinks left, os.Root is happy.
+	// If os.Root still rejects it, it is a genuine escape.
 	resolvedErr := lstatPathComponents(osRoot, relPath)
 	if resolvedErr == nil || errors.Is(resolvedErr, os.ErrNotExist) {
 		return nil
