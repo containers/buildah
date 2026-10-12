@@ -721,6 +721,13 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 	type escapingTest struct {
 		headers    []tar.Header
 		notSymlink string
+		// Optional fields for symlink resolution tests where Put should
+		// succeed and write a file at expectedPath (relative to dest).
+		// setup creates pre-existing dirs/symlinks; content is the
+		// expected file content; expectedPath is where it should land.
+		setup        func(t *testing.T, dest string)
+		content      string
+		expectedPath string // relative to dest
 	}
 	escapingTests := []escapingTest{
 		{ // Direct overwrite
@@ -782,11 +789,86 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 			escapingTests = append(escapingTests, tc)
 		}
 	}
+	// Symlink resolution tests: Put should succeed and land the file at expectedPath.
+	if os.PathSeparator == '/' {
+		escapingTests = append(escapingTests,
+			escapingTest{ // Absolute in-root symlink: /var/run -> /run
+				headers: []tar.Header{
+					{Typeflag: tar.TypeReg, Name: "var/run/foo", Mode: 0o600},
+				},
+				setup: func(t *testing.T, dest string) {
+					require.NoError(t, os.MkdirAll(filepath.Join(dest, "run"), 0o755))
+					require.NoError(t, os.MkdirAll(filepath.Join(dest, "var"), 0o755))
+					require.NoError(t, os.Symlink("/run", filepath.Join(dest, "var", "run")))
+				},
+				content:      "hi\n",
+				expectedPath: "run/foo",
+			},
+			escapingTest{ // Absolute symlink dir1/absolute -> /dir2 (one tar entry; relative-only paths use a separate case)
+				headers: []tar.Header{
+					{Typeflag: tar.TypeReg, Name: "dir1/absolute/through-absolute", Mode: 0o600},
+				},
+				setup: func(t *testing.T, dest string) {
+					require.NoError(t, os.MkdirAll(filepath.Join(dest, "dir1"), 0o755))
+					require.NoError(t, os.MkdirAll(filepath.Join(dest, "dir2"), 0o755))
+					require.NoError(t, os.Symlink("/dir2", filepath.Join(dest, "dir1", "absolute")))
+				},
+				content:      "hi\n",
+				expectedPath: "dir2/through-absolute",
+			},
+			escapingTest{ // Chained symlinks: a -> b, b -> /run
+				headers: []tar.Header{
+					{Typeflag: tar.TypeReg, Name: "a/data", Mode: 0o600},
+				},
+				setup: func(t *testing.T, dest string) {
+					require.NoError(t, os.MkdirAll(filepath.Join(dest, "run"), 0o755))
+					require.NoError(t, os.Symlink("/run", filepath.Join(dest, "b")))
+					require.NoError(t, os.Symlink("b", filepath.Join(dest, "a")))
+				},
+				content:      "chain\n",
+				expectedPath: "run/data",
+			},
+		)
+	}
 	for i, tc := range escapingTests {
 		t.Run(fmt.Sprintf("breakout=%d", i), func(t *testing.T) {
 			topdir := t.TempDir()
+			dest := filepath.Join(topdir, "dest")
+			err := os.Mkdir(dest, 0o755)
+			require.NoError(t, err)
+
+			// Symlink resolution tests: Put should succeed and write
+			// a file at expectedPath.
+			if tc.expectedPath != "" {
+				if tc.setup != nil {
+					tc.setup(t, dest)
+				}
+				content := tc.content
+				if content == "" {
+					content = "x"
+				}
+				contentMap := map[string][]byte{}
+				for j := range tc.headers {
+					if tc.headers[j].Typeflag == tar.TypeReg {
+						contentMap[tc.headers[j].Name] = []byte(content)
+					}
+				}
+				archive := makeArchive(tc.headers, contentMap)
+				putErr := PutContext(ctx, dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, archive)
+				if expectedError != nil {
+					assert.ErrorContains(t, putErr, expectedError.Error())
+					return
+				}
+				require.NoError(t, putErr)
+				got, readErr := os.ReadFile(filepath.Join(dest, tc.expectedPath))
+				require.NoError(t, readErr)
+				assert.Equal(t, content, string(got))
+				return
+			}
+
+			// Breakout tests: verify victim is not affected.
 			victimDir := filepath.Join(topdir, "victim")
-			err := os.Mkdir(victimDir, 0o755)
+			err = os.Mkdir(victimDir, 0o755)
 			require.NoError(t, err)
 			victimFile := filepath.Join(victimDir, "hello")
 			err = os.WriteFile(victimFile, []byte("content"), 0o600)
@@ -797,10 +879,6 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 				require.NoError(t, err)
 				fis[path] = fi
 			}
-
-			dest := filepath.Join(topdir, "dest")
-			err = os.Mkdir(dest, 0o755)
-			require.NoError(t, err)
 
 			headers := slices.Clone(tc.headers)
 			for i := range headers {
