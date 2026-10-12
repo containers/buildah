@@ -833,9 +833,10 @@ func lstatPathComponents(osRoot *os.Root, name string) error {
 // osRoot rejects symlinks with absolute targets (e.g. /var/run -> /run),
 // even when those symlinks are valid inside a container.  When the raw path
 // is rejected and the rejection is caused by an absolute symlink, this
-// function resolves symlinks with chroot-like semantics and re-checks the
-// resolved path through osRoot.  Relative escapes (e.g. escape -> ..) are
-// kept rejected, matching Docker behavior (moby/go-archive#93).
+// function resolves symlinks with chroot-like semantics and requires the
+// result to stay under targetDirectory (filepath.IsLocal on relPath).
+// Relative escapes (e.g. escape -> ..) are kept rejected, matching Docker
+// behavior (moby/go-archive#93).
 func checkArchivePathEscape(osRoot *os.Root, root, directory, targetDirectory, cleanerHdrName string) error {
 	// Fast path: os.Root walks the raw entry path component by component.
 	// Example: "var/run/foo" where var/run is a plain directory -- OK.
@@ -868,15 +869,10 @@ func checkArchivePathEscape(osRoot *os.Root, root, directory, targetDirectory, c
 	if !filepath.IsLocal(relPath) {
 		return err
 	}
-
-	// Re-check the resolved (symlink-free) path through os.Root.
-	// Example: "run/foo" -- no symlinks left, os.Root is happy.
-	// If os.Root still rejects it, it is a genuine escape.
-	resolvedErr := lstatPathComponents(osRoot, relPath)
-	if resolvedErr == nil || errors.Is(resolvedErr, os.ErrNotExist) {
-		return nil
-	}
-	return err
+	// filepath.IsLocal(relPath) is enough here. resolvePath used
+	// evaluateFinalComponent false, so the final path component may still be
+	// a symlink; we only needed to verify the resolved path stays in-tree.
+	return nil
 }
 
 // convertToRelSubdirectory returns the path of directory, bound and relative to
