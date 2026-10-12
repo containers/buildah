@@ -1244,7 +1244,7 @@ func TestPathHasAbsoluteSymlink(t *testing.T) {
 		t.Skip("symlink layout tests are Unix-specific")
 	}
 
-	t.Run("relative chain without absolute symlink", func(t *testing.T) {
+	t.Run("relative chain stays confined to osRoot", func(t *testing.T) {
 		top, err := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, err)
 		require.NoError(t, os.MkdirAll(filepath.Join(top, "intermediate", "terminal"), 0o755))
@@ -1255,13 +1255,27 @@ func TestPathHasAbsoluteSymlink(t *testing.T) {
 		require.NoError(t, err)
 		defer osRoot.Close()
 
-		var calls []string
+		var successfulReadlink []string
+		var escapeRejections []string
 		res := pathHasAbsoluteSymlink("escaping2/terminal", func(name string) (string, error) {
-			calls = append(calls, name)
-			return osRoot.Readlink(name)
+			require.False(t, filepath.IsAbs(name), "readlink must use paths relative to root, not %q", name)
+			target, err := osRoot.Readlink(name)
+			if err == nil {
+				successfulReadlink = append(successfulReadlink, name)
+				assert.True(t, filepath.IsLocal(name),
+					"successful readlink must stay inside root, got %q", name)
+				return target, nil
+			}
+			if strings.Contains(err.Error(), "escapes") {
+				escapeRejections = append(escapeRejections, name)
+			}
+			return target, err
 		})
 		assert.False(t, res, "no absolute symlink in purely relative chain")
-		assert.NotEmpty(t, calls, "readlink should have been called at least once")
+		assert.Equal(t, []string{"escaping2", "escaping"}, successfulReadlink,
+			"only in-root symlinks may be read; must not follow escaping outside root")
+		assert.NotEmpty(t, escapeRejections,
+			"after escaping symlink target, readlink on .. paths must be rejected by os.Root")
 	})
 
 	t.Run("absolute symlink found through relative indirection", func(t *testing.T) {
