@@ -1189,27 +1189,16 @@ func TestPathHasAbsoluteSymlink(t *testing.T) {
 		require.NoError(t, err)
 		defer osRoot.Close()
 
-		var successfulReadlink []string
-		var escapeRejections []string
+		var readlinkCalls []string
 		res := pathHasAbsoluteSymlink("escaping2/terminal", func(name string) (string, error) {
 			require.False(t, filepath.IsAbs(name), "readlink must use paths relative to root, not %q", name)
-			target, err := osRoot.Readlink(name)
-			if err == nil {
-				successfulReadlink = append(successfulReadlink, name)
-				assert.True(t, filepath.IsLocal(name),
-					"successful readlink must stay inside root, got %q", name)
-				return target, nil
-			}
-			if strings.Contains(err.Error(), "escapes") {
-				escapeRejections = append(escapeRejections, name)
-			}
-			return target, err
+			require.True(t, filepath.IsLocal(name), "readlink must not be called on escaped paths, got %q", name)
+			readlinkCalls = append(readlinkCalls, name)
+			return osRoot.Readlink(name)
 		})
 		assert.False(t, res, "no absolute symlink in purely relative chain")
-		assert.Equal(t, []string{"escaping2", "escaping"}, successfulReadlink,
-			"only in-root symlinks may be read; must not follow escaping outside root")
-		assert.NotEmpty(t, escapeRejections,
-			"after escaping symlink target, readlink on .. paths must be rejected by os.Root")
+		assert.Equal(t, []string{"escaping2", "escaping"}, readlinkCalls,
+			"stop before readlink once next path step leaves the root")
 	})
 
 	t.Run("absolute symlink found through relative indirection", func(t *testing.T) {

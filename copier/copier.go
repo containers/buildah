@@ -762,9 +762,9 @@ func cleanerReldirectory(candidate string) string {
 //
 // When a relative symlink is encountered, its target components are
 // prepended to the remaining work list, mirroring the algorithm used by
-// resolvePath and os.Root.  Escape detection relies on readlink rejecting
-// paths that leave the root (e.g. readlink("..") must fail); without that
-// guarantee, this function does not confine.
+// resolvePath and os.Root.  Steps outside the root are rejected with
+// filepath.IsLocal on the next relative path; readlink must still reject
+// paths that leave the root when used as osRoot.Readlink.
 func pathHasAbsoluteSymlink(name string, readlink func(string) (string, error)) bool {
 	workingRel := ""
 	components := strings.Split(filepath.Clean(name), string(os.PathSeparator))
@@ -778,13 +778,12 @@ func pathHasAbsoluteSymlink(name string, readlink func(string) (string, error)) 
 		}
 
 		nextRel := filepath.Join(workingRel, comp)
+		if !filepath.IsLocal(nextRel) {
+			return false
+		}
 		target, err := readlink(nextRel)
 		if err != nil {
 			// Not a symlink (or does not exist): advance.
-			// When readlink is osRoot.Readlink, this also covers
-			// the case where ".." escapes the root. Readlink
-			// rejects the path, we advance with a broken workingRel,
-			// and all subsequent readlink calls fail too.
 			workingRel = nextRel
 			continue
 		}
@@ -799,10 +798,7 @@ func pathHasAbsoluteSymlink(name string, readlink func(string) (string, error)) 
 		}
 
 		// Relative symlink: prepend target components to the work
-		// list and continue from the current position.  Any ".."
-		// components are handled naturally by filepath.Join at the
-		// top of the loop, and readlink will reject paths that
-		// escape the root.
+		// list and continue from the current position.
 		components = append(strings.Split(target, string(os.PathSeparator)), components...)
 	}
 	return false
