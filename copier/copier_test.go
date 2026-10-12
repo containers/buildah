@@ -952,10 +952,14 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 		require.Error(t, err, "symlink loop should be rejected")
 	})
 
-	// When Put is called with root != directory (e.g. buildah add ... /dest),
-	// symlinks that resolve outside targetDirectory but inside root are
-	// rejected to prevent untrusted archive content from writing outside
-	// the intended extraction target.
+	// Put(root, directory) with directory strictly inside root (e.g. buildah add
+	// archive /dest): validation is scoped to directory, not the whole root.
+	// Tar names are relative to directory, so "link/passwd" is not obviously
+	// hostile.  A pre-existing symlink under dest that points outside directory
+	// must still be rejected — otherwise the archive would write root/etc/passwd
+	// while the caller only intended files under dest.  That is separate from
+	// extract-at-root (root == directory), where in-image links such as
+	// /var/run -> /run are followed because the whole rootfs is the target.
 	t.Run("put subdir: symlink escapes targetDirectory", func(t *testing.T) {
 		if os.PathSeparator != '/' {
 			t.Skip("symlink test is Unix-specific")
@@ -1321,6 +1325,8 @@ func TestCheckArchivePathEscape(t *testing.T) {
 			path:    "escape/etc/passwd",
 			wantErr: true,
 		},
+		// Scoped to dest/: "link/passwd" is under dest in the tar, but dest/link
+		// -> /etc resolves outside targetDirectory (see put subdir tests above).
 		{
 			name:    "subdir: absolute symlink escapes to root level",
 			entries: []string{"dir:dest", "dir:etc", "symlink:dest/link:/etc"},
