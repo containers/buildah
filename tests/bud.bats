@@ -11076,3 +11076,23 @@ _EOF
 expect_output --substring "RUN cat /app/testfile.txt
 --> Using cache"
 }
+
+@test "bud multi-stage error while sibling copies from external image" {
+  _prefetch alpine
+  _prefetch busybox
+
+  local contextdir="${TEST_SCRATCH_DIR}"/context
+  mkdir -p $contextdir
+  cat > $contextdir/Containerfile <<_EOF
+FROM localhost/missing AS a
+FROM alpine AS b
+COPY --from=busybox /bin/busybox /x
+FROM alpine
+COPY --from=a / /a
+COPY --from=b /x /x
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON --jobs=3 --pull=never --network none $contextdir
+  expect_output --substring "image not known"
+  assert "$output" !~ "panic:"
+}
