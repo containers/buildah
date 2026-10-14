@@ -718,18 +718,11 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 	}
 
 	// Paths are confined to req.Root
-	type escapingTest struct {
+	type breakoutTest struct {
 		headers    []tar.Header
 		notSymlink string
-		// Optional fields for symlink resolution tests where Put should
-		// succeed and write a file at expectedPath (relative to dest).
-		// setup creates pre-existing dirs/symlinks; content is the
-		// expected file content; expectedPath is where it should land.
-		setup        func(t *testing.T, dest string)
-		content      string
-		expectedPath string // relative to dest
 	}
-	escapingTests := []escapingTest{
+	breakoutTests := []breakoutTest{
 		{ // Direct overwrite
 			headers: []tar.Header{{Typeflag: tar.TypeReg, Name: "../victim/hello", Mode: 0o600}},
 		},
@@ -776,7 +769,7 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 	// (This needs to be tested for each file type because the implementations are duplicated that way.)
 	for _, typeFlag := range []byte{tar.TypeReg, tar.TypeLink, tar.TypeSymlink, tar.TypeChar, tar.TypeBlock, tar.TypeDir, tar.TypeFifo} {
 		for _, symlinkTarget := range []string{"../victim/hello", "@TOP@/victim/hello"} {
-			tc := escapingTest{
+			tc := breakoutTest{
 				headers: []tar.Header{ // Overwrite through an escaping symlink directly to victim
 					{Typeflag: tar.TypeSymlink, Name: "symlink", Linkname: symlinkTarget, Mode: 0o755},
 					{Typeflag: tar.TypeReg, Name: "linkTarget", Mode: 0o600}, // linkTarget is necessary only for typeFlag == tar.TypeLink
@@ -786,85 +779,31 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 			if typeFlag != tar.TypeSymlink {
 				tc.notSymlink = "symlink"
 			}
-			escapingTests = append(escapingTests, tc)
+			breakoutTests = append(breakoutTests, tc)
 		}
 	}
-	// Symlink resolution tests: Put should succeed and land the file at expectedPath.
-	if os.PathSeparator == '/' {
-		escapingTests = append(escapingTests,
-			escapingTest{ // Absolute in-root symlink: /var/run -> /run
-				headers: []tar.Header{
-					{Typeflag: tar.TypeReg, Name: "var/run/foo", Mode: 0o600},
-				},
-				setup: func(t *testing.T, dest string) {
-					require.NoError(t, os.MkdirAll(filepath.Join(dest, "run"), 0o755))
-					require.NoError(t, os.MkdirAll(filepath.Join(dest, "var"), 0o755))
-					require.NoError(t, os.Symlink("/run", filepath.Join(dest, "var", "run")))
-				},
-				content:      "hi\n",
-				expectedPath: "run/foo",
-			},
-			escapingTest{ // Absolute symlink dir1/absolute -> /dir2 (one tar entry; relative-only paths use a separate case)
-				headers: []tar.Header{
-					{Typeflag: tar.TypeReg, Name: "dir1/absolute/through-absolute", Mode: 0o600},
-				},
-				setup: func(t *testing.T, dest string) {
-					require.NoError(t, os.MkdirAll(filepath.Join(dest, "dir1"), 0o755))
-					require.NoError(t, os.MkdirAll(filepath.Join(dest, "dir2"), 0o755))
-					require.NoError(t, os.Symlink("/dir2", filepath.Join(dest, "dir1", "absolute")))
-				},
-				content:      "hi\n",
-				expectedPath: "dir2/through-absolute",
-			},
-			escapingTest{ // Chained symlinks: a -> b, b -> /run
-				headers: []tar.Header{
-					{Typeflag: tar.TypeReg, Name: "a/data", Mode: 0o600},
-				},
-				setup: func(t *testing.T, dest string) {
-					require.NoError(t, os.MkdirAll(filepath.Join(dest, "run"), 0o755))
-					require.NoError(t, os.Symlink("/run", filepath.Join(dest, "b")))
-					require.NoError(t, os.Symlink("b", filepath.Join(dest, "a")))
-				},
-				content:      "chain\n",
-				expectedPath: "run/data",
-			},
-		)
+	setupDestEntries := func(t *testing.T, dest string, entries ...string) {
+		t.Helper()
+		for _, entry := range entries {
+			parts := strings.SplitN(entry, ":", 3)
+			full := filepath.Join(dest, parts[1])
+			switch parts[0] {
+			case "dir":
+				require.NoError(t, os.MkdirAll(full, 0o755))
+			case "symlink":
+				require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+				require.NoError(t, os.Symlink(parts[2], full))
+			default:
+				t.Fatalf("unknown dest entry %q", entry)
+			}
+		}
 	}
-	for i, tc := range escapingTests {
+	for i, tc := range breakoutTests {
 		t.Run(fmt.Sprintf("breakout=%d", i), func(t *testing.T) {
 			topdir := t.TempDir()
 			dest := filepath.Join(topdir, "dest")
 			err := os.Mkdir(dest, 0o755)
 			require.NoError(t, err)
-
-			// Symlink resolution tests: Put should succeed and write
-			// a file at expectedPath.
-			if tc.expectedPath != "" {
-				if tc.setup != nil {
-					tc.setup(t, dest)
-				}
-				content := tc.content
-				if content == "" {
-					content = "x"
-				}
-				contentMap := map[string][]byte{}
-				for j := range tc.headers {
-					if tc.headers[j].Typeflag == tar.TypeReg {
-						contentMap[tc.headers[j].Name] = []byte(content)
-					}
-				}
-				archive := makeArchive(tc.headers, contentMap)
-				putErr := PutContext(ctx, dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, archive)
-				if expectedError != nil {
-					assert.ErrorContains(t, putErr, expectedError.Error())
-					return
-				}
-				require.NoError(t, putErr)
-				got, readErr := os.ReadFile(filepath.Join(dest, tc.expectedPath))
-				require.NoError(t, readErr)
-				assert.Equal(t, content, string(got))
-				return
-			}
 
 			// Breakout tests: verify victim is not affected.
 			victimDir := filepath.Join(topdir, "victim")
@@ -909,8 +848,70 @@ func testPut(ctx context.Context, t *testing.T, expectedError error) {
 		})
 	}
 
+	const putSymlinkResolutionPayload = "put-symlink-resolution\n"
+	type putSymlinkResolutionTest struct {
+		name         string
+		entries      []string // dir:path or symlink:path:target under dest
+		headers      []tar.Header
+		expectedPath string // relative to dest
+	}
+	putSymlinkResolutionTests := []putSymlinkResolutionTest{}
+	if os.PathSeparator == '/' {
+		putSymlinkResolutionTests = []putSymlinkResolutionTest{
+			{
+				name:    "var/run absolute symlink to /run",
+				entries: []string{"dir:run", "dir:var", "symlink:var/run:/run"},
+				headers: []tar.Header{
+					{Typeflag: tar.TypeReg, Name: "var/run/foo", Mode: 0o600},
+				},
+				expectedPath: "run/foo",
+			},
+			{
+				name:    "dir1/absolute symlink to /dir2",
+				entries: []string{"dir:dir1", "dir:dir2", "symlink:dir1/absolute:/dir2"},
+				headers: []tar.Header{
+					{Typeflag: tar.TypeReg, Name: "dir1/absolute/through-absolute", Mode: 0o600},
+				},
+				expectedPath: "dir2/through-absolute",
+			},
+			{
+				name:    "chained symlinks a -> b -> /run",
+				entries: []string{"dir:run", "symlink:b:/run", "symlink:a:b"},
+				headers: []tar.Header{
+					{Typeflag: tar.TypeReg, Name: "a/data", Mode: 0o600},
+				},
+				expectedPath: "run/data",
+			},
+		}
+	}
+	for _, tc := range putSymlinkResolutionTests {
+		t.Run("symlink-resolution:"+tc.name, func(t *testing.T) {
+			topdir := t.TempDir()
+			dest := filepath.Join(topdir, "dest")
+			require.NoError(t, os.Mkdir(dest, 0o755))
+			setupDestEntries(t, dest, tc.entries...)
+
+			contentMap := map[string][]byte{}
+			for j := range tc.headers {
+				if tc.headers[j].Typeflag == tar.TypeReg {
+					contentMap[tc.headers[j].Name] = []byte(putSymlinkResolutionPayload)
+				}
+			}
+			archive := makeArchive(tc.headers, contentMap)
+			putErr := PutContext(ctx, dest, dest, PutOptions{UIDMap: uidMap, GIDMap: gidMap}, archive)
+			if expectedError != nil {
+				assert.ErrorContains(t, putErr, expectedError.Error())
+				return
+			}
+			require.NoError(t, putErr)
+			got, readErr := os.ReadFile(filepath.Join(dest, tc.expectedPath))
+			require.NoError(t, readErr)
+			assert.Equal(t, putSymlinkResolutionPayload, string(got))
+		})
+	}
+
 	// Put through pre-existing symlinks when extracting archives.  Success paths
-	// are covered by escapingTests above; rejections and targetDirectory
+	// are covered by putSymlinkResolutionTests above; rejections and targetDirectory
 	// boundaries are tested here (see also #7129).
 	// A relative ".." symlink is rejected as an escape, matching Docker
 	// behavior. Only absolute symlinks trigger chroot-style resolution.
