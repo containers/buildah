@@ -668,7 +668,7 @@ func mountSshfsCmd(c *cobra.Command, args []string) error {
 			}()
 
 			serveSftpArgs := append(slices.Clone(inheritedFlags), serveSftp, toMount)
-			serveSftp := exec.CommandContext(getContext(), selfExecutable, serveSftpArgs...)
+			serveSftp := exec.Command(selfExecutable, serveSftpArgs...)
 			serveSftp.Stdin = r1
 			serveSftp.Stdout = w2
 			serveSftp.Stderr = &serveSftpStderr[i]
@@ -697,7 +697,7 @@ func mountSshfsCmd(c *cobra.Command, args []string) error {
 
 			options := append(strings.Split(mountSshfsOptions, ","), "passive")
 			options = slices.DeleteFunc(options, func(s string) bool { return s == "" })
-			mountSshfs := exec.CommandContext(getContext(), absSshfs, "-f", "-o", strings.Join(options, ","), toMount+":/", whatGoesWhere[toMount])
+			mountSshfs := exec.Command(absSshfs, "-f", "-o", strings.Join(options, ","), toMount+":/", whatGoesWhere[toMount])
 			mountSshfs.Stdin = r2
 			mountSshfs.Stdout = w1
 			mountSshfs.Stderr = &mountSshfsStderr[i]

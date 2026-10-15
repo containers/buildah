@@ -294,8 +294,6 @@ load helpers
   root=$output
   test \! -e $root/test.socket # socket must not have been copied
   test -e $root/regular-file # regular file still must be copied
-
-  run_buildah rm $cid
 }
 
 @test "copy-symlink-archive-suffix" {
