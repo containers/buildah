@@ -1,7 +1,9 @@
 package sysregistriesv2
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -14,6 +16,7 @@ import (
 	"go.podman.io/image/v5/internal/multierr"
 	"go.podman.io/image/v5/internal/rootless"
 	"go.podman.io/image/v5/types"
+	"go.podman.io/storage/pkg/fileutils"
 	"go.podman.io/storage/pkg/homedir"
 	"go.podman.io/storage/pkg/lockfile"
 )
@@ -98,33 +101,42 @@ func ResolveShortNameAlias(ctx *types.SystemContext, name string) (reference.Nam
 	if err := validateShortName(name); err != nil {
 		return nil, "", err
 	}
-	confPath, lock, err := shortNameAliasesConfPathAndLock(ctx)
+	confPath, err := shortNameAliasesConfPath(ctx)
 	if err != nil {
 		return nil, "", err
 	}
-
-	// Acquire the lock as a reader to allow for multiple routines in the
-	// same process space to read simultaneously.
-	lock.RLock()
-	defer lock.Unlock()
-
-	_, aliasCache, err := loadShortNameAliasConf(confPath)
-	if err != nil {
+	err = fileutils.Exists(confPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, "", err
 	}
+	if err == nil {
+		lock, err := getShortNameAliasesLock(confPath)
+		if err != nil {
+			return nil, "", err
+		}
+		// Acquire the lock as a reader to allow for multiple routines in the
+		// same process space to read simultaneously.
+		lock.RLock()
+		defer lock.Unlock()
 
-	// First look up the short-name-aliases.conf.  Note that a value may be
-	// nil iff it's set as an empty string in the config.
-	alias, resolved := aliasCache.namedAliases[name]
-	if resolved {
-		return alias.value, alias.configOrigin, nil
+		_, aliasCache, err := loadShortNameAliasConf(confPath)
+		if err != nil {
+			return nil, "", err
+		}
+
+		// First look up the short-name-aliases.conf.  Note that a value may be
+		// nil iff it's set as an empty string in the config.
+		alias, resolved := aliasCache.namedAliases[name]
+		if resolved {
+			return alias.value, alias.configOrigin, nil
+		}
 	}
 
 	config, err := getConfig(ctx)
 	if err != nil {
 		return nil, "", err
 	}
-	alias, resolved = config.aliasCache.namedAliases[name]
+	alias, resolved := config.aliasCache.namedAliases[name]
 	if resolved {
 		return alias.value, alias.configOrigin, nil
 	}
@@ -144,7 +156,15 @@ func editShortNameAlias(ctx *types.SystemContext, name string, value *string) (r
 		}
 	}
 
-	confPath, lock, err := shortNameAliasesConfPathAndLock(ctx)
+	confPath, err := shortNameAliasesConfPath(ctx)
+	if err != nil {
+		return err
+	}
+	// Make sure the path to file exists.
+	if err := os.MkdirAll(filepath.Dir(confPath), 0o700); err != nil {
+		return err
+	}
+	lock, err := getShortNameAliasesLock(confPath)
 	if err != nil {
 		return err
 	}
@@ -337,17 +357,6 @@ func loadShortNameAliasConf(confPath string) (*shortNameAliasConf, *shortNameAli
 	return &conf, cache, nil
 }
 
-func shortNameAliasesConfPathAndLock(ctx *types.SystemContext) (string, *lockfile.LockFile, error) {
-	shortNameAliasesConfPath, err := shortNameAliasesConfPath(ctx)
-	if err != nil {
-		return "", nil, err
-	}
-	// Make sure the path to file exists.
-	if err := os.MkdirAll(filepath.Dir(shortNameAliasesConfPath), 0o700); err != nil {
-		return "", nil, err
-	}
-
-	lockPath := shortNameAliasesConfPath + ".lock"
-	locker, err := lockfile.GetLockFile(lockPath)
-	return shortNameAliasesConfPath, locker, err
+func getShortNameAliasesLock(confPath string) (*lockfile.LockFile, error) {
+	return lockfile.GetLockFile(confPath + ".lock")
 }
