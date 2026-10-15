@@ -16,6 +16,7 @@ package name
 
 import (
 	"fmt"
+	"strings"
 )
 
 // Reference defines the interface that consumers use when they can
@@ -37,7 +38,13 @@ type Reference interface {
 }
 
 // ParseReference parses the string as a reference, either by tag or digest.
+// References that include both a tag and digest parse as Digest references.
 func ParseReference(s string, opts ...Option) (Reference, error) {
+	// Image references never contain a URL scheme, so tell the user to
+	// strip it instead of returning a confusing parse error.
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return nil, newErrBadName("image reference must not contain a URL scheme (http:// or https://): %s; to connect to a registry over plain HTTP, use name.Insecure", s)
+	}
 	if t, err := NewTag(s, opts...); err == nil {
 		return t, nil
 	}

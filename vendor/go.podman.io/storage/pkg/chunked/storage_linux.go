@@ -31,6 +31,7 @@ import (
 	tsStorage "github.com/vbatts/tar-split/tar/storage"
 	storage "go.podman.io/storage"
 	graphdriver "go.podman.io/storage/drivers"
+	"go.podman.io/storage/internal/createpath"
 	"go.podman.io/storage/pkg/archive"
 	"go.podman.io/storage/pkg/chunked/compressor"
 	"go.podman.io/storage/pkg/chunked/internal/minimal"
@@ -888,11 +889,67 @@ func (d *destinationFile) Close() error {
 	return nil
 }
 
-func closeDestinationFiles(files chan *destinationFile, errors chan error) {
-	for f := range files {
-		errors <- f.Close()
+const maxPendingDestinationFiles = 3
+
+// destinationFileCloserQueue closes destination files asynchronously.
+//
+// The closing goroutine must never block while a queued destination file is
+// still open: an open writable file holds syscall.ForkLock.RLock(), and a
+// concurrent composefs generation waiting for syscall.ForkLock.Lock() would
+// then deadlock with the workers that can no longer acquire the read lock.
+// Close results are therefore accumulated in memory instead of being handed
+// back over a channel the producer might not be draining.
+type destinationFileCloserQueue struct {
+	files chan io.Closer
+	done  sync.WaitGroup
+
+	mutex sync.Mutex
+	err   error
+}
+
+func newDestinationFileCloser() *destinationFileCloserQueue {
+	c := &destinationFileCloserQueue{
+		files: make(chan io.Closer, maxPendingDestinationFiles),
 	}
-	close(errors)
+	c.done.Add(1)
+	go c.closeDestinationFiles()
+	return c
+}
+
+func (c *destinationFileCloserQueue) closeDestinationFiles() {
+	defer c.done.Done()
+	for f := range c.files {
+		if err := f.Close(); err != nil {
+			logrus.Errorf("Could not close destination file: %v", err)
+			c.mutex.Lock()
+			if c.err == nil {
+				c.err = err
+			}
+			c.mutex.Unlock()
+		}
+	}
+}
+
+// Err returns the first error reported by an asynchronous close so far, if any.
+func (c *destinationFileCloserQueue) Err() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.err
+}
+
+// Add hands f over to the closing goroutine; f must not be used afterwards.
+// It returns the first error reported by an already completed close, if any.
+func (c *destinationFileCloserQueue) Add(f io.Closer) error {
+	c.files <- f
+	return c.Err()
+}
+
+// Wait closes the queue, waits for the pending files to be closed and returns
+// the first error encountered.  No file may be added afterwards.
+func (c *destinationFileCloserQueue) Wait() error {
+	close(c.files)
+	c.done.Wait()
+	return c.Err()
 }
 
 func (c *chunkedDiffer) recordFsVerity(path string, roFile *os.File) error {
@@ -928,19 +985,65 @@ func (c *chunkedDiffer) recordFsVerity(path string, roFile *os.File) error {
 	return nil
 }
 
+// drainBlobAtChannels consumes and closes everything left in the channels
+// returned by ImageSourceSeekable.GetBlobAt.  A caller must consume every item
+// from both of them: the producer blocks until the last one is handed over, so
+// abandoning the channels leaks its goroutine as well as the streams still
+// queued in it, and with them the response bodies they hold.  Both channels are
+// closed once the producer is done.
+//
+// It returns the first error the producer reported.  The producer sends its
+// errors after the streams, so an invalid response — more parts than chunks
+// requested, or a body that ends early — is only reported here, once the main
+// loop has already consumed everything it asked for.
+func drainBlobAtChannels(streams chan io.ReadCloser, errs chan error) error {
+	var retErr error
+	for streams != nil || errs != nil {
+		select {
+		case p, ok := <-streams:
+			if !ok {
+				streams = nil
+				continue
+			}
+			if p != nil {
+				p.Close()
+			}
+		case err, ok := <-errs:
+			if !ok {
+				errs = nil
+				continue
+			}
+			if err != nil && retErr == nil {
+				retErr = err
+			}
+		}
+	}
+	return retErr
+}
+
 func (c *chunkedDiffer) storeMissingFiles(streams chan io.ReadCloser, errs chan error, dirfd int, missingParts []missingPart, options *archive.TarOptions) (Err error) {
 	var destFile *destinationFile
 
-	filesToClose := make(chan *destinationFile, 3)
-	closeFilesErrors := make(chan error, 2)
-
-	go closeDestinationFiles(filesToClose, closeFilesErrors)
+	// Registered first so that it runs last: no destination file may still
+	// hold syscall.ForkLock.RLock() while the drain waits for the server.
 	defer func() {
-		close(filesToClose)
-		for e := range closeFilesErrors {
-			if e != nil && Err == nil {
+		if e := drainBlobAtChannels(streams, errs); e != nil && Err == nil {
+			Err = e
+		}
+	}()
+
+	filesToClose := newDestinationFileCloser()
+	// Close destFile here as well: the error paths below can return with a
+	// destination file still open, and leaking it would also leak the
+	// syscall.ForkLock.RLock() it holds, blocking every later fork.
+	defer func() {
+		if destFile != nil {
+			if e := destFile.Close(); e != nil && Err == nil {
 				Err = e
 			}
+		}
+		if e := filesToClose.Wait(); e != nil && Err == nil {
+			Err = e
 		}
 	}()
 
@@ -1014,19 +1117,12 @@ func (c *chunkedDiffer) storeMissingFiles(streams chan io.ReadCloser, errs chan 
 			if destFile == nil || destFile.metadata.Name != mf.File.Name {
 				var err error
 				if destFile != nil {
-				cleanup:
-					for {
-						select {
-						case err = <-closeFilesErrors:
-							if err != nil {
-								Err = err
-								goto exit
-							}
-						default:
-							break cleanup
-						}
+					err = filesToClose.Add(destFile)
+					destFile = nil
+					if err != nil {
+						Err = err
+						goto exit
 					}
-					filesToClose <- destFile
 				}
 				recordFsVerity := c.recordFsVerity
 				if c.useFsVerity == graphdriver.DifferFsVerityDisabled {
@@ -1053,17 +1149,13 @@ func (c *chunkedDiffer) storeMissingFiles(streams chan io.ReadCloser, errs chan 
 	exit:
 		if part != nil {
 			part.Close()
-			if Err != nil {
-				break
-			}
+		}
+		if Err != nil {
+			break
 		}
 	}
 
-	if destFile != nil {
-		return destFile.Close()
-	}
-
-	return nil
+	return Err
 }
 
 func mergeMissingChunks(missingParts []missingPart, target int) []missingPart {
@@ -1702,10 +1794,10 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 			}
 		}
 
-		r.Name = path.CleanAbsPath(r.Name)
+		r.Name = createpath.CleanAbsPath(r.Name)
 		// do not modify the value of symlinks
 		if r.Linkname != "" && t != tar.TypeSymlink {
-			r.Linkname = path.CleanAbsPath(r.Linkname)
+			r.Linkname = createpath.CleanAbsPath(r.Linkname)
 		}
 
 		if whiteoutConverter != nil {

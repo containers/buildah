@@ -16,6 +16,10 @@ package v1
 
 import (
 	"crypto"
+	// nolint: depguard
+	_ "crypto/sha256" // Registered for Hasher.
+	// nolint: depguard
+	_ "crypto/sha512" // Registered for Hasher.
 	"encoding"
 	"encoding/hex"
 	"encoding/json"
@@ -78,6 +82,8 @@ func Hasher(name string) (hash.Hash, error) {
 	switch name {
 	case "sha256":
 		return crypto.SHA256.New(), nil
+	case "sha512":
+		return crypto.SHA512.New(), nil
 	default:
 		return nil, fmt.Errorf("unsupported hash: %q", name)
 	}
