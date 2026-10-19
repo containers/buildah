@@ -728,10 +728,10 @@ func mountSshfsCmd(c *cobra.Command, args []string) error {
 				}
 			}()
 
-			sftpDone := make(chan error, 1)
-			sshfsDone := make(chan error, 1)
-			wg.Go(func() { errs[0] = serveSftp.Wait(); signal.Stop(signals); sftpDone <- errs[0] })
-			wg.Go(func() { errs[1] = mountSshfs.Wait(); signal.Stop(signals); sshfsDone <- errs[1] })
+			sftpDone := make(chan struct{}, 1)
+			sshfsDone := make(chan struct{}, 1)
+			wg.Go(func() { errs[0] = serveSftp.Wait(); signal.Stop(signals); sftpDone <- struct{}{} })
+			wg.Go(func() { errs[1] = mountSshfs.Wait(); signal.Stop(signals); sshfsDone <- struct{}{} })
 			wg.Go(func() {
 				<-sftpDone
 				if err := mountSshfs.Process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
