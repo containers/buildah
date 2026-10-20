@@ -971,12 +971,6 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 						}
 						base := child.Next.Value
 						if base != "" && base != buildah.BaseImageFakeName {
-							if replaceBuildContext, ok := b.additionalBuildContexts[child.Next.Value]; ok {
-								if replaceBuildContext.IsImage {
-									child.Next.Value = replaceBuildContext.Value
-									base = child.Next.Value
-								}
-							}
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
@@ -988,8 +982,19 @@ func (b *executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							if err != nil {
 								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
 							}
+							if replaceBuildContext, ok := b.additionalBuildContexts[baseWithArg]; ok {
+								if !replaceBuildContext.IsImage {
+									return "", nil, fmt.Errorf("build context %q is not an image, can not be used for FROM %q", baseWithArg, base)
+								}
+								child.Next.Value = replaceBuildContext.Value
+								baseWithArg = replaceBuildContext.Value
+							}
 							b.baseMap[baseWithArg] = struct{}{}
-							logrus.Debugf("base for stage %d: %q resolves to %q", stageIndex, base, baseWithArg)
+							if base == baseWithArg {
+								logrus.Debugf("base for stage %d: %q", stageIndex, base)
+							} else {
+								logrus.Debugf("base for stage %d: %q resolves to %q", stageIndex, base, baseWithArg)
+							}
 							// Check if selected base is not an additional
 							// build context and if base is a valid stage
 							if _, ok := b.additionalBuildContexts[baseWithArg]; !ok {

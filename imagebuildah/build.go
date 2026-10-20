@@ -789,15 +789,8 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 							child.Next.Value = from
 							from = ""
 						}
-						if replaceBuildContext, ok := additionalBuildContext[child.Next.Value]; ok {
-							if replaceBuildContext.IsImage {
-								child.Next.Value = replaceBuildContext.Value
-							} else {
-								return nil, fmt.Errorf("build context %q is not an image, can not be used for FROM %q", child.Next.Value, child.Next.Value)
-							}
-						}
 						base := child.Next.Value
-						if base != "" && base != buildah.BaseImageFakeName && !internalUtil.SetHas(nicknames, base) {
+						if base != "" && base != buildah.BaseImageFakeName {
 							builtinArgs := argsMapToSlice(stage.Builder.BuiltinArgDefaults)
 							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
 							userArgs := argsMapToSlice(stage.Builder.Args)
@@ -808,7 +801,16 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 							if err != nil {
 								return nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
 							}
-							baseImages = append(baseImages, baseWithArg)
+							if replaceBuildContext, ok := additionalBuildContext[baseWithArg]; ok {
+								if replaceBuildContext.IsImage {
+									baseWithArg = replaceBuildContext.Value
+								} else {
+									return nil, fmt.Errorf("build context %q is not an image, can not be used for FROM %q", baseWithArg, base)
+								}
+							}
+							if baseWithArg != "" && baseWithArg != buildah.BaseImageFakeName && !internalUtil.SetHas(nicknames, baseWithArg) {
+								baseImages = append(baseImages, baseWithArg)
+							}
 						}
 					}
 				}
