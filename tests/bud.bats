@@ -11202,3 +11202,48 @@ _EOF
   run_buildah build --authfile "$authfile" --tls-verify=false -f "$contextdir/Dockerfile.multistage" "$contextdir"
   expect_output --substring "local-only"
 }
+@test "bud copies context with vfs storage" {
+  if [ "$STORAGE_DRIVER" != vfs ]; then
+    skip "requires vfs storage"
+  fi
+  local contextdir=${TEST_SCRATCH_DIR}/vfs-context
+  mkdir -p "$contextdir"
+  echo marker > "$contextdir/marker"
+  printf 'FROM scratch\nCOPY marker /marker\n' > "$contextdir/Containerfile"
+  run_buildah --log-level=debug build $WITH_POLICY_JSON -t localhost/vfs-context "$contextdir"
+  expect_output --substring 'not mounting overlay over build context directory with "vfs" graph driver'
+  run_buildah from localhost/vfs-context
+  local ctr="$output"
+  run_buildah_mount "$ctr"
+  assert "$(cat "$output/marker")" = marker
+  run_buildah_umount "$ctr"
+}
+
+@test "bud falls back after context overlay mount failure" {
+  if [ "$STORAGE_DRIVER" != overlay ]; then
+    skip "requires overlay storage"
+  fi
+  local contextdir=${TEST_SCRATCH_DIR}/overlay-context
+  local helper=${TEST_SCRATCH_DIR}/mount-overlay
+  local marker=${TEST_SCRATCH_DIR}/context-mount-failed
+  mkdir -p "$contextdir"
+  echo marker > "$contextdir/marker"
+  printf 'FROM scratch\nCOPY marker /marker\n' > "$contextdir/Containerfile"
+  cat > "$helper" <<EOF
+#!/bin/sh
+case "\$*" in
+  *buildah-context-*) touch "$marker"; exit 1 ;;
+esac
+exec mount -t overlay overlay "\$@"
+EOF
+  chmod +x "$helper"
+  ROOTDIR_OPTS+=" --storage-opt overlay.mount_program=$helper"
+  run_buildah --log-level=debug build $WITH_POLICY_JSON -t localhost/overlay-context "$contextdir"
+  test -f "$marker"
+  expect_output --substring 'not mounting overlay over build context directory:'
+  run_buildah from localhost/overlay-context
+  local ctr="$output"
+  run_buildah_mount "$ctr"
+  assert "$(cat "$output/marker")" = marker
+  run_buildah_umount "$ctr"
+}
