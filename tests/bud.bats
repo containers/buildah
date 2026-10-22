@@ -8035,6 +8035,29 @@ _EOF
   assert "$output" =~ "mtu 2000" "ip addr shows mtu 2000"
 }
 
+@test "bud WORKDIR is present and root-owned before container start" {
+  for layers in false true; do
+    target=workdir-created-image-${layers}
+    run_buildah build $WITH_POLICY_JSON --layers=${layers} -t ${target} $BUDFILES/workdir-created
+    run_buildah from ${target}
+    ctr="$output"
+    run_buildah_mount "$ctr"
+    root="$output"
+    test -d "${root}/workspace"
+    run stat -c '%u:%g' "${root}/workspace"
+    assert "$status" -eq 0
+    assert "$output" = "0:0"
+    run_buildah_umount "$ctr"
+  done
+}
+
+@test "bud WORKDIR through absolute symlink does not create a layer" {
+  target=workdir-existing-symlink
+  run_buildah build $WITH_POLICY_JSON --layers=true -t ${target} $BUDFILES/workdir-existing-symlink
+  run_buildah inspect --format '{{range .Docker.History}}{{.CreatedBy}}:{{.EmptyLayer}}{{"\n"}}{{end}}' ${target}
+  expect_output --substring "WORKDIR /var/run/buildah-workdir-existing-test:true"
+}
+
 @test "bud WORKDIR owned by USER" {
   _prefetch alpine
   target=alpine-image
