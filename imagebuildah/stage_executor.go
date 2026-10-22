@@ -1286,8 +1286,10 @@ func (s *stageExecutor) Delete() (err error) {
 // stepRequiresLayer indicates whether or not the step should be followed by
 // committing a layer container when creating an intermediate image.
 func (*stageExecutor) stepRequiresLayer(step *imagebuilder.Step) bool {
+	// WORKDIR can create a directory, so its filesystem change must be saved
+	// even when no RUN, ADD, or COPY instruction follows it.
 	switch strings.ToUpper(step.Command) {
-	case "ADD", "COPY", "RUN":
+	case "ADD", "COPY", "RUN", "WORKDIR":
 		return true
 	}
 	return false

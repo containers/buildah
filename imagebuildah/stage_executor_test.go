@@ -103,6 +103,27 @@ func TestHistoryEntriesEqual(t *testing.T) {
 	}
 }
 
+func TestStepRequiresLayer(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		command string
+		want    bool
+	}{
+		{command: "ADD", want: true},
+		{command: "COPY", want: true},
+		{command: "RUN", want: true},
+		{command: "WORKDIR", want: true},
+		{command: "USER", want: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.command, func(t *testing.T) {
+			assert.Equal(t, tc.want, (&stageExecutor{}).stepRequiresLayer(&imagebuilder.Step{Command: tc.command}))
+		})
+	}
+}
+
 func TestWaitForStage(t *testing.T) {
 	t.Parallel()
 
