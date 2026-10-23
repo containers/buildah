@@ -11215,3 +11215,67 @@ _EOF
   run_buildah build --authfile "$authfile" --tls-verify=false -f "$contextdir/Dockerfile.multistage" "$contextdir"
   expect_output --substring "local-only"
 }
+@test "bud FROM expands ARG before resolving additional image contexts" {
+  local contextdir=$TEST_SCRATCH_DIR/arg-context
+  mkdir -p "$contextdir"
+  echo marker > "$contextdir/marker"
+  cat > "$contextdir/Containerfile" <<'EOF'
+ARG BASE=default-context
+FROM $BASE
+COPY marker /marker
+EOF
+  _prefetch "$SAFEIMAGE"
+  for allplatforms in false true; do
+    local platformargs=()
+    local resultargs=(-t localhost/arg-context-result)
+    if $allplatforms; then
+      platformargs=(--all-platforms)
+      resultargs=(--manifest localhost/arg-context-allplatform-result)
+    fi
+    for override in false true; do
+      local name=default-context
+      local buildargs=()
+      if $override; then
+        name=override-context
+        buildargs=(--build-arg BASE=$name)
+      fi
+      run_buildah build $WITH_POLICY_JSON "${platformargs[@]}" "${buildargs[@]}" \
+        --build-context "$name=docker://$SAFEIMAGE" "${resultargs[@]}" "$contextdir"
+      if $allplatforms; then
+        run_buildah manifest inspect localhost/arg-context-allplatform-result
+        local architectures
+        architectures=$(jq -r '.manifests[].platform.architecture' <<<"$output")
+        assert "$architectures" =~ "amd64"
+        assert "$architectures" =~ "arm64"
+      else
+        run_buildah from localhost/arg-context-result
+        local ctr="$output"
+        run_buildah_mount "$ctr"
+        assert "$(cat "$output/marker")" = marker
+        run_buildah_umount "$ctr"
+        run_buildah rm "$ctr"
+      fi
+      run_buildah 125 build $WITH_POLICY_JSON "${platformargs[@]}" "${buildargs[@]}" \
+        --build-context "$name=$contextdir" "$contextdir"
+      expect_output --substring "build context \"$name\" is not an image, can not be used for FROM"
+    done
+  done
+}
+
+@test "bud FROM expands ARG before resolving a previous stage" {
+  local contextdir=$TEST_SCRATCH_DIR/arg-stage
+  mkdir -p "$contextdir"
+  echo marker > "$contextdir/marker"
+  cat > "$contextdir/Containerfile" <<'EOF'
+ARG STAGE=first
+FROM scratch AS first
+COPY marker /marker
+FROM $STAGE
+EOF
+  run_buildah build $WITH_POLICY_JSON --pull=never -t localhost/arg-stage "$contextdir"
+  run_buildah from localhost/arg-stage
+  local ctr="$output"
+  run_buildah_mount "$ctr"
+  assert "$(cat "$output/marker")" = marker
+  run_buildah_umount "$ctr"
+}
