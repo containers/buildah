@@ -69,6 +69,7 @@ type stageExecutor struct {
 	ctx                   context.Context // we need _some_ way to get this into our Copy() and Run() methods
 	systemContext         *types.SystemContext
 	executor              *executor
+	labelNode             *parser.Node // the instruction that applies --label values, if this is the last stage
 	log                   func(format string, args ...any)
 	index                 int
 	stages                imagebuilder.Stages
@@ -1532,6 +1533,15 @@ func (s *stageExecutor) execute(ctx context.Context, base string) (imgID string,
 		s.isLastStep = lastStage && lastInstruction
 		// Resolve any arguments in this instruction.
 		step := ib.Step()
+		if s.labelNode != nil && node == s.labelNode {
+			// This is the instruction that applies --label values.
+			// Expand references to variables that are set in this stage.
+			labelNodes, err := imagebuilder.ParseDockerfile(strings.NewReader(labelInstruction(s.executor.labels, step.Env)))
+			if err != nil {
+				return "", nil, false, fmt.Errorf("parsing label instruction: %w", err)
+			}
+			node = labelNodes.Children[0]
+		}
 		if err := step.Resolve(node); err != nil {
 			return "", nil, false, fmt.Errorf("resolving step %+v: %w", *node, err)
 		}

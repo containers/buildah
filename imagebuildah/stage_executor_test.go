@@ -166,3 +166,43 @@ func TestWaitForStage(t *testing.T) {
 		})
 	}
 }
+
+func TestQuoteLabelValue(t *testing.T) {
+	t.Parallel()
+
+	env := []string{"VERSION=1.2", "EMPTY="}
+	testCases := []struct {
+		name, input, expected string
+	}{
+		{name: "plain", input: "value", expected: "value"},
+		{name: "undefined", input: "$something", expected: "$something"},
+		{name: "undefinedBraced", input: "${something}", expected: "${something}"},
+		{name: "trailingDollar", input: "cost$", expected: "cost$"},
+		{name: "set", input: "$VERSION", expected: "1.2"},
+		{name: "setBraced", input: "v${VERSION}-rc", expected: "v1.2-rc"},
+		{name: "setEmpty", input: "a${EMPTY}b", expected: "ab"},
+		{name: "mixed", input: "$VERSION-$something", expected: "1.2-$something"},
+		{name: "modifier", input: "${something:-fallback}", expected: "fallback"},
+		{name: "escapedSet", input: `\$VERSION`, expected: `$VERSION`},
+		{name: "escapedUndefined", input: `\$something`, expected: `$something`},
+		{name: "escapedBraced", input: `\${VERSION}`, expected: `${VERSION}`},
+		{name: "doubleBackslashSet", input: `\\$VERSION`, expected: `\$VERSION`},
+		{name: "doubleBackslashUndefined", input: `\\$something`, expected: `\$something`},
+		{name: "tripleBackslash", input: `\\\$VERSION`, expected: `\\$VERSION`},
+		{name: "backslashNotBeforeDollar", input: `a\b\\c`, expected: `a\b\\c`},
+		{name: "escapedAndExpanded", input: `\$VERSION=$VERSION`, expected: `$VERSION=1.2`},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			resolved, err := imagebuilder.ProcessWord(quoteLabelValue(testCase.input, env), env)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expected, resolved)
+		})
+	}
+}
+
+func TestLabelInstruction(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, `LABEL "a"="\$b" "c"=""`, labelInstruction([]string{"a=$b", "c", "=ignored"}, nil))
+}
