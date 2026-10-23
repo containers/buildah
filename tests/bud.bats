@@ -3006,6 +3006,100 @@ _EOF
   run_buildah build --label test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output "$want_output"
+
+  want_output='map["io.buildah.version":"'$buildah_version'" "test":"$something"]'
+  run_buildah build --label 'test=$something' $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output "$want_output"
+}
+
+@test "bud-label-expands-variables-set-in-stage" {
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p ${contextdir}
+  cat > ${contextdir}/Containerfile << _EOF
+FROM scratch
+ENV VERSION=1.2
+_EOF
+
+  want_output='map["both":"1.2-$UNSET" "io.buildah.version":"'$buildah_version'" "other":"$UNSET" "release":"1.2"]'
+  run_buildah build --label 'release=$VERSION' --label 'other=$UNSET' --label 'both=$VERSION-$UNSET' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
+
+  want_output='map["both":"1.2-$UNSET" "escaped":"$VERSION" "io.buildah.version":"'$buildah_version'" "other":"$UNSET" "release":"1.2"]'
+  run_buildah build --label 'release=$VERSION' --label 'other=$UNSET' --label 'both=$VERSION-$UNSET' --label 'escaped=\$VERSION' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
+}
+
+@test "bud-label-expands-build-args-in-stage" {
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p ${contextdir}
+  cat > ${contextdir}/Containerfile << _EOF
+FROM scratch
+ARG VERSION=1.2
+_EOF
+
+  want_output='map["both":"1.2-$UNSET" "io.buildah.version":"'$buildah_version'" "other":"$UNSET" "release":"1.2"]'
+  run_buildah build --label 'release=$VERSION' --label 'other=$UNSET' --label 'both=$VERSION-$UNSET' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
+
+  want_output='map["io.buildah.version":"'$buildah_version'" "release":"3.4"]'
+  run_buildah build --build-arg VERSION=3.4 --label 'release=$VERSION' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
+
+  # an ARG that is not declared in the final stage is not set there
+  cat > ${contextdir}/Containerfile << _EOF
+FROM scratch
+_EOF
+  want_output='map["io.buildah.version":"'$buildah_version'" "release":"$VERSION"]'
+  run_buildah build --build-arg VERSION=3.4 --label 'release=$VERSION' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
+}
+
+@test "bud-label-dollar-with-layers" {
+  base=quay.io/libpod/testimage:20241011
+  _prefetch $base
+
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  local contextdir=${TEST_SCRATCH_DIR}/context
+  mkdir -p ${contextdir}
+  cat > ${contextdir}/Containerfile << _EOF
+FROM $base
+ENV VERSION=1.2
+RUN echo hello
+_EOF
+
+  want_output='map["io.buildah.version":"'$buildah_version'" "other":"$UNSET" "release":"1.2"]'
+  run_buildah build --layers --label 'release=$VERSION' --label 'other=$UNSET' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
+
+  # same labels again: the label step is found in the cache and the result is the same
+  run_buildah build --layers --label 'release=$VERSION' --label 'other=$UNSET' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  expect_output --substring " Using cache"
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
+
+  # a different label value must not be served from the cache
+  want_output='map["io.buildah.version":"'$buildah_version'" "other":"changed" "release":"1.2"]'
+  run_buildah build --layers --label 'release=$VERSION' --label 'other=changed' $WITH_POLICY_JSON -t scratch-image ${contextdir}
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' scratch-image
+  expect_output "$want_output"
 }
 
 @test "bud-with-identity-label" {

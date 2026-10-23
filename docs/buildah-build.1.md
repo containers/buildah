@@ -592,6 +592,12 @@ no limit on the number of jobs that run in parallel.
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 If *label* is named, but neither `=` nor a `value` is provided, then the *label* is set to an empty value.
 
+In the label *value*, a `$VAR` or `${VAR}` reference is expanded when the
+variable is set in the final build stage (by `ENV` or a declared `ARG`, or a
+matching `--build-arg`), and is kept literally when it is not set. A `$`
+preceded by a backslash, as in `\$VAR`, always produces the literal text
+`$VAR`.
+
 Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
 a Containerfile that specifies the list of Linux capabilities required for the
 container to run properly. This label specified in a container image tells
