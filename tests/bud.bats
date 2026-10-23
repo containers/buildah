@@ -925,9 +925,9 @@ _EOF
     local derivedlayers="$output"
     # expectations vary based on what that instruction was
     case "$instruction" in
-      # if it's ADD, COPY, or RUN, accept either the same set of layers, or one more layer added,
+      # if it's ADD, COPY, RUN, or WORKDIR, accept either the same set of layers, or one more layer added,
       # but not with a digest that matches a turns-out-to-be-empty layer
-      ADD*|COPY*|RUN*)
+      ADD*|COPY*|RUN*|WORKDIR*)
         if test ${baselayersplusone} -eq ${derivedlayers} ; then
           run_buildah inspect --type=image --format "{{ index .Docker.RootFS.DiffIDs $baselayers }}" $(< ${TEST_SCRATCH_DIR}/iid.txt)
           local lastdiffid="$output"

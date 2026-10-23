@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/openshift/imagebuilder"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,6 +97,29 @@ func TestHistoryEntriesEqual(t *testing.T) {
 			require.Nil(t, err, "error unmarshalling history %q: %v", testCases[i].b, err)
 			equal := historyEntriesEqual(a, b)
 			assert.Equal(t, testCases[i].equal, equal, "historyEntriesEqual(%q, %q) != %v", testCases[i].a, testCases[i].b, testCases[i].equal)
+		})
+	}
+}
+
+func TestStepRequiresLayer(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		command string
+		created bool
+		want    bool
+	}{
+		{name: "ADD", command: "ADD", want: true},
+		{name: "COPY", command: "COPY", want: true},
+		{name: "RUN", command: "RUN", want: true},
+		{name: "WORKDIR created", command: "WORKDIR", created: true, want: true},
+		{name: "WORKDIR existing", command: "WORKDIR"},
+		{name: "USER after WORKDIR", command: "USER", created: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &stageExecutor{workdirCreatesLayer: tc.created}
+			assert.Equal(t, tc.want, s.stepRequiresLayer(&imagebuilder.Step{Command: tc.command}))
 		})
 	}
 }
