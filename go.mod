@@ -29,7 +29,7 @@ require (
 	github.com/opencontainers/runtime-tools v0.9.1-0.20260316125833-8a4db579f5c8
 	github.com/opencontainers/selinux v1.15.1
 	github.com/openshift/imagebuilder v1.2.22
-	github.com/pkg/sftp v1.13.11
+	github.com/pkg/sftp v1.13.12
 	github.com/seccomp/libseccomp-golang v0.12.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
