@@ -11215,3 +11215,42 @@ _EOF
   run_buildah build --authfile "$authfile" --tls-verify=false -f "$contextdir/Dockerfile.multistage" "$contextdir"
   expect_output --substring "local-only"
 }
+@test "bud falls back after context overlay mount failure" {
+  skip_if_rootless
+  skip_if_no_runtime
+  if [ "$STORAGE_DRIVER" != overlay ]; then
+    skip "requires overlay storage"
+  fi
+  _prefetch busybox
+  local contextdir=${TEST_SCRATCH_DIR}/overlay-context
+  local helper=${TEST_SCRATCH_DIR}/mount-overlay
+  local marker=${TEST_SCRATCH_DIR}/context-mount-failed
+  mkdir -p "$contextdir"
+  echo marker > "$contextdir/marker"
+  cat > "$contextdir/Containerfile" <<'EOF'
+FROM busybox
+RUN --mount=type=bind,rw,target=/context \
+    echo changed > /context/marker && cp /context/marker /result
+EOF
+  cat > "$helper" <<EOF
+#!/bin/sh
+case "\$*" in
+  *buildah-context-*) touch "$marker"; exit 1 ;;
+esac
+exec mount -t overlay overlay "\$@"
+EOF
+  chmod +x "$helper"
+  ROOTDIR_OPTS+=" --storage-opt overlay.mount_program=$helper"
+  export TMPDIR=$TEST_SCRATCH_DIR/context-tmp
+  mkdir -p "$TMPDIR"
+  run_buildah --log-level=debug build $WITH_POLICY_JSON -t localhost/overlay-context "$contextdir"
+  test -f "$marker"
+  expect_output --substring 'not mounting overlay over build context directory:'
+  run_buildah from localhost/overlay-context
+  local ctr="$output"
+  run_buildah_mount "$ctr"
+  assert "$(cat "$output/result")" = changed
+  assert "$(cat "$contextdir/marker")" = marker
+  assert "$(find "$TMPDIR" -name 'buildah-context-*' -print)" = ""
+  run_buildah_umount "$ctr"
+}

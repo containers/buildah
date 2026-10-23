@@ -19,6 +19,13 @@ func GetTempDir() string {
 	}
 	if containerConfig, err := config.Default(); err == nil {
 		if tmpdir, err := containerConfig.ImageCopyTmpDir(); err == nil {
+			// Only the storage-private directory belongs to Buildah.
+			// TMPDIR and explicitly configured paths are managed by callers.
+			if containerConfig.Engine.ImageCopyTmpDir == "storage" {
+				if err := os.MkdirAll(tmpdir, 0o700); err != nil {
+					logrus.Warnf("creating storage temporary directory %q: %v", tmpdir, err)
+				}
+			}
 			return tmpdir
 		}
 	}

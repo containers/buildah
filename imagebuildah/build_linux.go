@@ -22,8 +22,9 @@ import (
 // should be used as the default build context; the process label and mount
 // label for the build, if any; a boolean value that indicates whether we did,
 // in fact, mount an overlay; and a cleanup function which should be called
-// when the location is no longer needed (on success). Returned errors should
-// be treated as fatal.
+// when the location is no longer needed (on success). The overlay is skipped
+// when setting it up fails. Errors
+// indicate that the context directory or its labels could not be initialized.
 func platformSetupContextDirectoryOverlay(store storage.Store, options *define.BuildOptions) (string, string, string, bool, func(), error) {
 	var succeeded bool
 	var tmpDir, contentDir string
@@ -58,15 +59,20 @@ func platformSetupContextDirectoryOverlay(store storage.Store, options *define.B
 	if err != nil {
 		return "", "", "", false, nil, err
 	}
+	fallback := func(err error) (string, string, string, bool, func(), error) {
+		logrus.Warnf("not mounting overlay over build context directory: %v", err)
+		return contextDirectoryAbsolute, processLabel, mountLabel, false, func() {}, nil
+	}
 	// create a temporary directory
-	tmpDir, err = os.MkdirTemp(tmpdir.GetTempDir(), "buildah-context-")
+	tempParent := tmpdir.GetTempDir()
+	tmpDir, err = os.MkdirTemp(tempParent, "buildah-context-")
 	if err != nil {
-		return "", "", "", false, nil, fmt.Errorf("creating temporary directory: %w", err)
+		return fallback(fmt.Errorf("creating temporary directory: %w", err))
 	}
 	// create the scaffolding for an overlay mount under it
 	contentDir, err = overlay.TempDir(tmpDir, 0, 0)
 	if err != nil {
-		return "", "", "", false, nil, fmt.Errorf("creating overlay scaffolding for build context directory: %w", err)
+		return fallback(fmt.Errorf("creating overlay scaffolding for build context directory: %w", err))
 	}
 	// mount an overlay that uses it as a lower
 	overlayOptions := overlay.Options{
@@ -77,7 +83,7 @@ func platformSetupContextDirectoryOverlay(store storage.Store, options *define.B
 	targetDir := filepath.Join(contentDir, "target")
 	contextDirMountSpec, err := overlay.MountWithOptions(contentDir, contextDirectoryAbsolute, targetDir, &overlayOptions)
 	if err != nil {
-		return "", "", "", false, nil, fmt.Errorf("creating overlay scaffolding for build context directory: %w", err)
+		return fallback(fmt.Errorf("mounting overlay over build context directory: %w", err))
 	}
 	// going forward, pretend that the merged directory is the actual context directory
 	logrus.Debugf("mounted an overlay at %q over %q", contextDirMountSpec.Source, contextDirectoryAbsolute)

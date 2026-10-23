@@ -51,3 +51,11 @@ func TestGetTempDir(t *testing.T) {
 	tmpdir = GetTempDir()
 	assert.Equal(t, "/mnt", tmpdir)
 }
+
+func TestGetTempDirDoesNotCreateTMPDIR(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "caller-managed")
+	t.Setenv("TMPDIR", path)
+	assert.Equal(t, path, GetTempDir())
+	_, err := os.Stat(path)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
