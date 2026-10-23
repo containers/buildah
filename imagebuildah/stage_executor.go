@@ -51,6 +51,7 @@ import (
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage"
 	"go.podman.io/storage/pkg/chrootarchive"
+	"go.podman.io/storage/pkg/fileutils"
 	"go.podman.io/storage/pkg/unshare"
 )
 
@@ -808,6 +809,33 @@ func (s *stageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 	return stageMountPoints, nil
 }
 
+func hasDefaultContextBindMount(mountList []string) bool {
+	for _, mount := range mountList {
+		mountType := define.TypeBind
+		hasFrom := false
+
+		for token := range strings.SplitSeq(mount, ",") {
+			key, value, hasValue := strings.Cut(token, "=")
+			switch key {
+			case "type":
+				if hasValue {
+					mountType = value
+				}
+			case "from":
+				if hasValue && value != "" {
+					hasFrom = true
+				}
+			}
+		}
+
+		if mountType == define.TypeBind && !hasFrom {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (s *stageExecutor) createNeededHeredocMountsForRun(files []imagebuilder.File) ([]Mount, error) {
 	mountResult := []Mount{}
 	for _, file := range files {
@@ -881,7 +909,32 @@ func (s *stageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 			args = []string{full.String()}
 		}
 	}
-	stageMountPoints, err := s.runStageMountPoints(slices.Concat(run.Mounts, s.executor.transientRunMounts))
+	runMounts := slices.Concat(run.Mounts, s.executor.transientRunMounts)
+
+	if len(s.executor.excludes) > 0 && hasDefaultContextBindMount(runMounts) {
+		if !s.executor.contextDirWritesAreDiscarded {
+			return fmt.Errorf("cannot filter ignored paths from a default RUN bind mount without a build-context overlay")
+		}
+
+		s.executor.contextDirFilterLock.Lock()
+		if !s.executor.contextDirFiltered && s.executor.contextDirFilterErr == nil {
+			s.executor.contextDirFilterErr = filterContextOverlay(
+				s.executor.contextDir,
+				s.executor.excludes,
+			)
+			if s.executor.contextDirFilterErr == nil {
+				s.executor.contextDirFiltered = true
+			}
+		}
+		filterErr := s.executor.contextDirFilterErr
+		s.executor.contextDirFilterLock.Unlock()
+
+		if filterErr != nil {
+			return fmt.Errorf("filtering build context for RUN bind mount: %w", filterErr)
+		}
+	}
+
+	stageMountPoints, err := s.runStageMountPoints(runMounts)
 	if err != nil {
 		return err
 	}
@@ -914,7 +967,7 @@ func (s *stageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		NoPivot:              os.Getenv("BUILDAH_NOPIVOT") != "" || s.executor.noPivotRoot,
 		Quiet:                s.executor.quiet,
 		CompatBuiltinVolumes: types.OptionalBoolFalse,
-		RunMounts:            slices.Concat(run.Mounts, s.executor.transientRunMounts),
+		RunMounts:            runMounts,
 		Runtime:              s.executor.runtime,
 		Secrets:              s.executor.secrets,
 		SSHSources:           s.executor.sshsources,
@@ -3038,4 +3091,70 @@ func (s *stageExecutor) buildMetadata(isLastStep bool, isAddOrCopy bool) string 
 		return unsetLabels.String() + " " + inheritLabels + " " + unsetAnnotations.String() + " " + inheritAnnotations + " " + layerMutations + " " + newAnnotations
 	}
 	return unsetLabels.String() + inheritLabels + unsetAnnotations.String() + inheritAnnotations + layerMutations + newAnnotations
+}
+
+// Local version of app.go includeDirectoryAnyway
+func contextIncludeDirectoryAnyway(path string, pm *fileutils.PatternMatcher) bool {
+	if !pm.Exclusions() {
+		return false
+	}
+
+	prefix := strings.TrimPrefix(path, string(os.PathSeparator)) + string(os.PathSeparator)
+	for _, pattern := range pm.Patterns() {
+		if !pattern.Exclusion() {
+			continue
+		}
+		spec := strings.TrimPrefix(pattern.String(), string(os.PathSeparator))
+		if strings.HasPrefix(spec, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func filterContextOverlay(contextDir string, excludes []string) error {
+	pm, err := fileutils.NewPatternMatcher(excludes)
+	if err != nil {
+		return fmt.Errorf("processing excludes list %v: %w", excludes, err)
+	}
+
+	err = filepath.WalkDir(contextDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == contextDir {
+			return nil
+		}
+
+		rel, err := filepath.Rel(contextDir, path)
+		if err != nil {
+			return fmt.Errorf("computing path of %q relative to %q: %w", path, contextDir, err)
+		}
+
+		matchResult, err := pm.MatchesResult(rel)
+		if err != nil {
+			return fmt.Errorf("checking if %q is excluded: %w", rel, err)
+		}
+		if matchResult == nil || !matchResult.IsMatched() {
+			return nil
+		}
+
+		if entry.IsDir() && contextIncludeDirectoryAnyway(rel, pm) {
+			return nil
+		}
+
+		if err := os.RemoveAll(path); err != nil {
+			return fmt.Errorf("removing excluded context path %q: %w", rel, err)
+		}
+
+		if entry.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("filtering build context: %w", err)
+	}
+
+	return nil
 }
