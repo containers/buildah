@@ -1,6 +1,9 @@
 package tmpdir
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -103,4 +106,16 @@ func TestParseGitBuildContext(t *testing.T) {
 	assert.Equal(t, repo, "https://github.com/containers/repo.git")
 	assert.Equal(t, subdir, "mydir")
 	assert.Equal(t, branch, "main")
+}
+
+func TestForURLFailedDownloadCleanup(t *testing.T) {
+	t.Parallel()
+	parent := t.TempDir()
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+	_, _, err := ForURL(context.Background(), parent, "context-", server.URL, nil)
+	assert.ErrorContains(t, err, "invalid response status 404")
+	entries, err := os.ReadDir(parent)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "failed download leaked temporary directories")
 }
